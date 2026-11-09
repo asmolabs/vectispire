@@ -1,0 +1,72 @@
+package com.asmolabs.vectispire.core.issues.internal;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.OpenIssueCount;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
+import com.asmolabs.vectispire.core.targets.TargetBacklog;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** {@code targets}' {@link TargetBacklog}: the grouped counts its listings and its tree ran. */
+@Service
+public class TargetBacklogFigures implements TargetBacklog {
+
+    private final IssueRepository issues;
+
+    public TargetBacklogFigures(IssueRepository issues) {
+        this.issues = issues;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Long> openPerRepository() {
+        return byTarget(issues.countOpenByRepository(IssueState.OPEN.wireName()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Long> openPerContainer() {
+        return byTarget(issues.countOpenByContainer(IssueState.OPEN.wireName()));
+    }
+
+    /**
+     * Through the scoreboard's own grouped count, so the tree and the scoreboard agree on what "open"
+     * leaves out. A row is a repository's or an image's by the column it fills; one filling neither is
+     * nobody's and is not counted.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Map<ScanTarget, Map<Severity, Long>> openBySeverityPerTarget(Visibility narrowed) {
+        Map<ScanTarget, Map<Severity, Long>> counts = new HashMap<>();
+        for (IssueAggregates.TargetSeverityCount row : issues.countOpenByTargetAndSeverity(
+                IssueSpecifications.of(new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), narrowed)))) {
+            ScanTarget target = row.repoId() != null
+                    ? new ScanTarget.Repository(row.repoId())
+                    : row.containerId() != null ? new ScanTarget.Container(row.containerId()) : null;
+            if (target == null) {
+                continue;
+            }
+            counts.computeIfAbsent(target, key -> new EnumMap<>(Severity.class))
+                    .merge(Severity.of(row.severity()), row.count(), Long::sum);
+        }
+        return counts;
+    }
+
+    private static Map<Long, Long> byTarget(List<OpenIssueCount> rows) {
+        Map<Long, Long> counts = new HashMap<>();
+        for (OpenIssueCount row : rows) {
+            counts.put(row.targetId(), row.count());
+        }
+        return counts;
+    }
+}

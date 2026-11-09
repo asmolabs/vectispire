@@ -1,0 +1,101 @@
+package com.asmolabs.vectispire.core.platform.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
+import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
+import com.asmolabs.vectispire.core.checklists.ChecklistConflict;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.server.ResponseStatusException;
+
+@DisplayName("the exception handler, below the routes")
+class ApiExceptionHandlerTest {
+
+    private final ApiExceptionHandler handler = new ApiExceptionHandler();
+
+    @Test
+    @DisplayName("a refusal thrown without a reason still answers a problem with a sentence")
+    void aReasonlessRefusalGetsTheStatusPhrase() throws Exception {
+        // No route throws one today; the first that does must not bring back the problem without a
+        // `detail` that the interface renders as its generic fallback.
+        ResponseEntity<Object> answer = handler.handleException(
+                new ResponseStatusException(HttpStatus.CONFLICT),
+                new ServletWebRequest(new MockHttpServletRequest(), new MockHttpServletResponse()));
+
+        assertThat(answer).isNotNull();
+        assertThat(answer.getBody()).isInstanceOfSatisfying(ProblemDetail.class, problem ->
+                assertThat(problem.getDetail()).isEqualTo("Conflict."));
+    }
+
+    @Test
+    @DisplayName("a reason is kept as it was written")
+    void aReasonIsTheDetail() throws Exception {
+        ResponseEntity<Object> answer = handler.handleException(
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials."),
+                new ServletWebRequest(new MockHttpServletRequest(), new MockHttpServletResponse()));
+
+        assertThat(answer).isNotNull();
+        assertThat(answer.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(((ProblemDetail) answer.getBody()).getDetail()).isEqualTo("Invalid credentials.");
+    }
+
+    @Test
+    @DisplayName("a conflict naming its cause types the problem by it, and one naming none leaves it about:blank")
+    void aConflictIsTypedByItsCauseOnly() {
+        ProblemDetail typed = handler.conflict(new ChecklistConflict(ChecklistConflict.Cause.TEMPLATE_CHANGED, "Read it again."));
+        assertThat(typed.getType()).isEqualTo(URI.create("urn:vectispire:problem:checklist-template-changed"));
+        assertThat(typed.getDetail()).isEqualTo("Read it again.");
+
+        // A client branching on the type must not read a cause into a conflict that states none. No type
+        // is set, so none is written: absent is about:blank (RFC 9457 §3.1.1).
+        ProblemDetail plain = handler.conflict(new ConflictException("Already there."));
+        assertThat(plain.getType()).isNull();
+        assertThat(plain.getStatus()).isEqualTo(409);
+    }
+
+    @Test
+    @DisplayName("a disabled integration answers 409 integration-disabled, naming it in the member integration")
+    void aDisabledIntegrationIsTypedAndNamed() {
+        ProblemDetail problem = handler.conflict(new IntegrationDisabledException(Integration.of(SiemProtocol.SYSLOG_UDP)));
+        assertThat(problem.getStatus()).isEqualTo(409);
+        assertThat(problem.getType()).isEqualTo(URI.create("urn:vectispire:problem:integration-disabled"));
+        assertThat(problem.getProperties()).containsEntry("integration", "siem.syslog_udp");
+        assertThat(problem.getDetail()).contains("\"siem.syslog_udp\" is disabled");
+    }
+
+    @Test
+    @DisplayName("a conflict's members are the problem's extension members, and none may take a field of its own")
+    void membersAreExtensionMembers() {
+        record Cited(long itemId) {}
+        class Named extends ConflictException {
+            Named(Map<String, ?> members) {
+                super("Two lines.", "checklist-incomplete", members);
+            }
+        }
+        ProblemDetail problem = handler.conflict(new Named(Map.of("lines", List.of(new Cited(4), new Cited(9)))));
+        assertThat(problem.getProperties()).containsEntry("lines", List.of(new Cited(4), new Cited(9)));
+        assertThat(problem.getDetail()).isEqualTo("Two lines.");
+
+        assertThatThrownBy(() -> new Named(Map.of("detail", "another sentence")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("own field");
+        // The cause is the code as well; a conflict without one reads the generic code and nothing else.
+        assertThat(problem.getProperties()).containsEntry("code", "checklist-incomplete");
+        assertThat(handler.conflict(new ConflictException("Plain.")).getProperties())
+                .containsExactlyEntriesOf(Map.of("code", "conflict"));
+        assertThatThrownBy(() -> new Named(Map.of("code", "another-code")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("own field");
+    }
+}

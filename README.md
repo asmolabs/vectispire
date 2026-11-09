@@ -1,0 +1,614 @@
+# Vectispire
+
+*[Version française](README.fr.md)*
+
+Vectispire is a self-hosted platform that tracks the security of the software you build. It scans
+Git repositories and container images — dependencies through an SBOM, known vulnerabilities,
+hardcoded secrets, licences, end-of-life runtimes, infrastructure-as-code and, optionally, the
+source itself — and keeps every finding as an issue with a history, a triage decision and a
+verdict a CI pipeline can ask for. Every scanner runs in a container with the network disabled,
+on your machines.
+
+A Spring Boot control plane on JDK 25, an Angular interface, MySQL, released under
+[Apache 2.0](LICENSE). **The project is pre-1.0**: `0.10.x` is the supported line
+([SECURITY.md](SECURITY.md)), and the user guide is published at
+<https://asmolabs.github.io/vectispire/>.
+
+## What it is for
+
+Most of what Vectispire finds, other tools find too — it runs Syft, Grype, Gitleaks, Checkov and
+Semgrep rather than reimplementing them. What it adds is what happens **after** a scanner has
+spoken:
+
+- **A triage decision that survives.** A finding becomes an issue identified by a fingerprint that
+  ignores the package version, so a dependency that stays vulnerable through three patch releases
+  keeps one history and one decision. Decisions use the VEX vocabulary, can carry a review date,
+  and are exported as OpenVEX, CSAF 2.0, CycloneDX and SARIF suppressions — a triage is done once,
+  not once per tool.
+- **A history written for someone who was not there.** For each repository: every scan, the
+  version it read, what it observed, and every decision taken on it — by whom, from which status to
+  which, with which justification. Exportable as PDF and CSV, for an auditor or an incident review.
+- **A gate that says why.** A pipeline asks "should this build fail?" and gets the verdict, the
+  stored, versioned policy that produced it, and three exit codes — because "the control plane was
+  unreachable" must not read as "your code is clean".
+- **The evidence an ISO/IEC 27001 audit asks for.** A statement of applicability that sets what
+  is declared against what is measured, a certified scope compared with what is actually watched,
+  a register of accepted risks that shows the lapsed and the never-reviewed, the organisation's own
+  security checklists signed off per project, remediation delays by their tail, and the state of
+  the estate at a given hour — each described [below](#features).
+- **A scanner that failed is not a clean result.** An analysis that did not run reports *absent*,
+  never an empty list, so it cannot close a backlog it never looked at
+  ([decision 0007](docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)).
+- **Nothing about your code leaves the machine.** Scanners run with no network, a read-only mount
+  and every capability dropped; EPSS and CISA KEV data are downloaded whole, so no third party
+  learns which CVE a repository carries. Remote agents scan from other network segments and hold no
+  database access by construction.
+
+The reasoning behind each of these — and the alternatives that were rejected — is in the
+[decision register](docs/architecture/en/decisions/), together with the
+[threat model](docs/architecture/security/en/STRIDE_THREAT_MODEL.en.md) and the audits that record
+where this project got it wrong.
+
+*The name joins* vectis, *Latin for a lever or bolt — the gate — and* spire, *a high point to see
+the whole estate from.*
+
+## Features
+
+- **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype), with severity, CVE, and affected component.
+- **EPSS / CISA KEV enrichment**: every vulnerability is enriched with its exploitation probability (EPSS) and "actively exploited" status (KEV catalog), to prioritize beyond the raw CVSS score.
+- **Direct versus transitive dependencies**: each issue records whether the project declared the package itself or something else pulled it in, read from the SBOM's dependency graph. A critical CVE in a declared dependency is a version bump this afternoon; the same CVE four levels down waits on an upstream release. Ranked identically they produce a backlog nobody finishes, so the listing can be narrowed to what is fixable today. Unknown when the SBOM carries no dependency graph — a missing answer rather than a default one.
+- **Secret detection** (Gitleaks): finds hardcoded API keys, tokens, and credentials in scanned repositories. Vectispire keeps the file, the line and the rule, **never the value**: a detected secret has to be revoked, not archived in a database, an export and a ticket.
+- **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
+- **End-of-life detection** (endoflife.date): flags platforms and runtimes whose security support has ended — the container's own distribution first of all. A whole class of risk with no CVE attached: nothing will be fixed for the *next* vulnerability, whatever it turns out to be. Coverage is deliberately scoped to products (languages, runtimes, frameworks, distributions), not every library.
+- **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
+- **Security posture overview** (`/security`): the gate verdict per target beside its standing
+  backlog by severity and when it was last scanned. It also names the two states no other screen
+  did: a target never scanned, and one whose last scan failed. Both fail the gate, on the screen
+  and for a pipeline — their empty or stale backlog would otherwise pass every policy. The
+  code-quality backlog (`/quality`, opened from the dashboard) ranks quality findings by rule,
+  file and repository, and says plainly that none of it can fail a build.
+- **Source-code analysis** (Semgrep, off by default): reads the code itself — a
+  concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
+  which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
+  like any vulnerability, and *quality* ones, which are visible in the backlog and can
+  never fail a CI gate. Runs with the network disabled. **Vectispire bundles a single rule**
+  — the public rule sets are not redistributable, which is a licensing constraint rather
+  than an oversight — so real coverage comes from a rule set you install yourself; see
+  [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
+- **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
+- **Backlog over time**: the dashboard's figures are snapshots, which answer "how much" and never "better or worse than last month". A series does: the standing backlog day by day, what appeared against what was resolved, and the mean time to resolve — absent rather than zero when nothing was resolved, because zero reads as "fixed the day it appears". Narrowed by the reader's visibility like every other view, and computed in a pure function rather than in SQL, because two engines spell date truncation four ways.
+- **OWASP Top 10:2021, week by week** (`/owasp`): the backlog by category of the OWASP Top 10:2021 (the only edition the mapping covers), as a heatmap and curves, each figure opening the issues it counts. Weeks from before the record started are reconstructed from the issues' dates and drawn hatched, so a change of definition is not read as progress.
+- **Weekly posture report** (off by default): every other notification fires when something *appears*, which is right for an alert and wrong for a report — on a quiet week nobody is told anything, and a quiet week is also the week a target has silently not been scanned for twenty days. Once a week to the webhook and the e-mail recipients: how much there is, which way it is moving, and what was never examined. It needs no outbox, unlike a scan delta: a report is derived from the database, so a failed send is simply recomputed on the next tick.
+- **Bulk triage**: one CVE across forty repositories is one judgement about one context, not forty — and deciding it forty times is how a backlog stops being triaged at all. Narrow the list, select, decide once. All or nothing in one transaction, with each issue still recording its own transition in the triage history, because a bulk decision that changed forty rows silently would be indistinguishable from forty rows edited by hand.
+- **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day. A target with neither is rescanned on the installation's default interval — weekly unless changed, each target at a moment of its own in the week — and one that must never be rescanned is set to *manual only*.
+- **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The policy applied is a **stored, versioned** one — global, or overridden per target — written on *Administration → Gate policies*; where none is stored, the built-in default applies, and the screen shows it beside what is stored so that "not set" and "set to the same thing" do not look alike. Authenticated with the API keys the UI issues, and callable without writing the request by hand: [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), a GitHub composite action and a GitLab template.
+- **Tracker tickets** (GitLab, GitHub, Jira, ServiceNow): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
+- **Notifications**: a webhook, a **Microsoft Teams** card and an **e-mail** fire when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The three are independent rather than exclusive: a team wants the card in its channel *and* the mail on a distribution list. Each destination gets its own outbox row, so a mail server being down does not make Teams receive the message twice on the retry. Teams is reached through a Power Automate **workflow** — the Office 365 connector it replaces was retired — and Vectispire posts an Adaptive Card, so nothing has to be mapped in the designer. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once. Webhook messages can be **signed** (HMAC-SHA256 over the timestamp and the exact body, in `X-Vectispire-Signature`) so a receiver can tell a message Vectispire sent from one sent by whoever learned the URL — worth it for a script, a bus or your own gateway, which can check it; Slack and Teams accept whatever arrives. Empty secret means unsigned, which is what an existing deployment stays.
+- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus the triage decisions as OpenVEX, CSAF 2.0 and CycloneDX VEX, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
+- **Detection and triage history**: per repository, every scan with the project version it read, the issues that scan observed, and every triage decision taken on them — from which status to which, by whom, with which justification, and against which version. For the reader who has to be convinced after the fact and was not there. Exportable as PDF and CSV. An issue nobody triaged is printed saying so: silence would let it pass for a decision that was merely not written down.
+- **Compliance evidence**: maps what the scans observe, and what the platform itself has switched on (encryption, audit mirror, four-eyes exemptions, single sign-on), onto controls of **NIS 2**, **DORA**, **ISO/IEC 27001:2022**, **PCI-DSS v4.0**, the **Cyber Resilience Act** and **SOC 2**, and exports a signed evidence package (`/api/v1/compliance/evidence-bundle.zip`). It prepares an assessment; it is not one — an estate nobody scanned recently is capped, not scored on its zero findings.
+- **Running an ISO/IEC 27001 management system.** The screens an assessor asks for, each built
+  around the question a dashboard does not answer:
+  - **Statement of applicability** (`/soa`): what is declared for each control, set against what
+    the estate measures, sorted by **disagreement** rather than by control number — a control
+    declared in place and measured non-compliant is exactly what gets written up. Clause 6.1.3 d
+    asks for every control to be addressed, so an undeclared one is shown as a gap, and a control
+    whose evidence lives in another document is shown as *not measured here* rather than as a
+    finding ([guide](docs-site/guide/statement-of-applicability.md)).
+  - **Certified scope** (`/certified-scope`): the assets the scope document names against the
+    ones this instance holds, and how many carry current evidence. Nothing is in scope by default:
+    a scope nobody drew reads "not declared", not a percentage of an unknown denominator
+    ([guide](docs-site/guide/certified-scope.md)).
+  - **Exceptions** (`/exceptions`): what was accepted rather than fixed, with the two numbers that
+    matter — acceptances whose period has lapsed, and acceptances nobody has reviewed since they
+    were granted. Granting and reviewing are reserved to the security lead, and a developer's
+    exemption can require a second person ([guide](docs-site/guide/exceptions.md)).
+  - **Security checklists**: the organisation's own checklist, imported from its workbook as a
+    template, answered per project with dated proofs that expire, and signed off by an approver;
+    a signed-off revision is never modified again
+    ([decision 0032](docs/architecture/en/decisions/0032-security-checklists.md),
+    [guide](docs-site/guide/security-checklists.md)).
+  - **Remediation delays** (`/remediation-delays`): the share fixed within its deadline, the 90th
+    percentile and the oldest item still open — the tail, not a mean dragged down by easy fixes.
+  - **Compliance history** (`/compliance-history`): each framework month by month, every month
+    carrying its plausible cause, and a series whose estate changed announced *not comparable*
+    rather than drawn as a regression. No overall score: an aggregate gets improved by adding an
+    easy framework.
+  - **Attestation** (`/attestation`): what the estate looked like at a given hour, with the audit
+    chain verified first — the question is "where were you on the day I looked", and no other
+    screen carries a time ([guide](docs-site/guide/attestation.md)).
+- **SBOM diff**: compares two scans (`GET /api/v1/sbom/diff`) — packages added and removed, licences that changed (a permissive dependency turning copyleft), and the net change in CVEs between releases.
+- **Remediation effort**: an estimate of the open backlog in engineering hours (`GET /api/v1/remediation/debt`), and the few upgrades that close the most issues at once (`/api/v1/remediation/high-impact-fixes`).
+- **Optional single sign-on** (OpenID Connect, tested against Keycloak): the provider answers *who is this*, and Vectispire still issues its own session — so the visibility rules, the audit trail, the session lifetimes and the API keys keep working unchanged. **No account is created on sign-on**: an administrator creates it first, and the role stays Vectispire's to decide. Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of every target. The first sign-on binds the account whose username matches the claim, and every later one matches on the provider's subject — a username is not stable for the life of a person.
+- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/en/decisions/0010-one-scan-runner.md)).
+
+## Architecture
+
+The pipeline is split in two along one line: **`ScanRunner` runs the scanners and never
+touches the database; `ScanIngestor` reads its results and never runs a container.** That
+split is what lets the same code execute inside the control plane or on a remote agent
+that has no database credentials.
+
+| Step | Tool | Image pinned by digest |
+|---|---|---|
+| SBOM | Syft | yes |
+| Vulnerability matching | Grype | yes |
+| Secrets | gitleaks | yes |
+| IaC | checkov | yes |
+| Source code (off by default) | Semgrep | yes |
+
+Every scanner runs in an ephemeral container with **the network disabled**, a read-only
+mount, `cap_drop: ALL` and `no-new-privileges`. Nothing about the scanned code leaves the
+machine. The only outbound call a scan makes is the end-of-life catalogue, which carries
+product names and versions: EPSS scores and CISA KEV status are read from FIRST's daily file and
+CISA's catalogue, which the control plane downloads whole and stores, so no third party learns
+which CVE a repository carries.
+
+Results are normalized into a single `Finding` table (type, severity, identifier, package, source, EPSS/CVSS scores, KEV status, fix version), in addition to the raw JSON blobs (`Scan.sbom`, `Scan.cves`) kept for audit purposes.
+
+A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/IssueSyncService.java).
+
+The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/), in English and French. For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/en/TECHNICAL_DOCUMENTATION.md`](docs/en/TECHNICAL_DOCUMENTATION.md).
+
+### Distributed scanning: agents
+
+A scan is executed by an **agent**. There are two kinds, and both are rows in the same
+table, listed together on the `/agents` page:
+
+- the **built-in agent** — this very web process. Created automatically at startup, no
+  configuration, which is why a single-machine install works out of the box;
+- **remote agents** — separate worker processes on other machines, speaking the four-route
+  agent protocol (`hello`, `jobs`, `heartbeat`, `result`).
+
+Both run the same code (`ScanRunner`), and both send back the scanners' raw output for
+the control plane to normalize (`ScanIngestor`). A result produced on another machine is
+therefore indistinguishable from a local one: same `Finding` rows, same EPSS/KEV
+enrichment, same licence policy, same issue reconciliation.
+
+Reasons to add a remote agent: keep the Docker socket off the host that serves the UI, reach
+a repository or registry that is only routable from another network segment, or add
+capacity. **Disabling the built-in agent** is how you say "run nothing here" — queued
+scans then wait for a remote agent instead of quietly using the web instance.
+
+A remote agent polls over HTTP with an API key carrying the `agent` scope, so it needs no
+inbound port and **no database access**. That last point is a security property, not a
+detail: an agent with a database connection would also need `ENCRYPTION_KEY`, i.e. the
+ability to decrypt every deploy key Vectispire holds.
+
+| Credentials mode | What the controller sends | When to use it |
+|---|---|---|
+| `local` (default) | nothing | the agent's own machine has git access. A compromised agent yields only what that machine was granted |
+| `delegated` | the deploy key or HTTPS token, per job | a trusted machine. Requires HTTPS (refused otherwise), the credential is never written to disk — parsed in memory and handed to the transport — and every delivery is audited |
+
+```bash
+# On the agent's machine — the key comes from /agents, shown once
+VECTISPIRE_URL=https://vectispire.internal \
+VECTISPIRE_AGENT_TOKEN=zsk_... \
+java -jar vectispire-agent.jar      # ./gradlew :vectispire-agent:bootJar, JDK 25
+```
+
+Or as a container, which is how it is meant to be deployed:
+
+```bash
+docker build -f Dockerfile.agent -t vectispire-agent .
+docker run --rm -e VECTISPIRE_URL=... -e VECTISPIRE_AGENT_TOKEN=zsk_... \
+  -e DOCKER_HOST=tcp://docker-proxy:2375 vectispire-agent
+```
+
+**The socket is not mounted, here or anywhere.** `docker-compose.yml` puts a
+`docker-socket-proxy` on an internal network and the control plane reaches the daemon through
+`DOCKER_HOST` — reaching a daemon is root on the host that runs it, and the shipped composition used
+to hand that to the process holding `ENCRYPTION_KEY`. The agent of the `with-agent` profile has a
+proxy of its own and reaches neither the database nor the control plane's proxy, and the secrets
+arrive as files under `/run/secrets`, where no `docker inspect` shows them. What the proxy buys and what
+it does not is written out in
+[decision 0018](docs/architecture/en/decisions/0018-the-docker-socket-is-never-mounted.md).
+
+The agent runs **the same `ScanRunner`** as the built-in worker, which is what makes a
+result produced elsewhere indistinguishable from a local one. A layering test enforces
+what it may import: `scanning/` and `domain/`, never `persistence/` — an agent with a
+database connection would also need `ENCRYPTION_KEY`, i.e. the ability to decrypt every
+deploy key Vectispire holds.
+
+**Container image scans are distributed too**, and they carry no key at all: an image is
+pulled from a registry, not cloned from git, so registry credentials belong to the Docker
+configuration of whichever machine scans. Secrets, IaC and source-code analysis do not
+apply to an image and stay `null` — declaring them scanned would silently resolve their
+whole history for that target.
+
+See [`docs/architecture/en/04-runtime-and-deployment.md`](docs/architecture/en/04-runtime-and-deployment.md)
+for the decisions and the known limits.
+
+**Running more than one web instance.** Most of what made that unsafe is now fixed: the
+scan claim takes each scan by a conditional update that only one worker can win, the periodic work has exactly
+one owner across the fleet, startup recovery no longer fails another worker's scans, and
+the login throttle is counted in the database rather than in process memory. What it requires:
+
+- **MySQL** (`VECTISPIRE_DB_URL`; the engine is read from the URL), which keeps a claimed scan from
+  reaching two workers;
+- **nothing to run for the schema.** Flyway applies the migrations at startup, and the
+  leader lease is what stops two instances migrating at once;
+- nothing else. Sessions live in the database, not in process memory, so a client that
+  lands on the other instance stays signed in. No cache, no shared state service.
+
+The scheduler elects a single owner across the fleet, while every instance keeps claiming
+work for its own built-in worker: a fleet whose instances only worked while holding the
+lease would idle behind whichever one holds it.
+
+Start it wrong and the application says so: it refuses, or warns, with the reason named.
+
+## Quick start
+
+Prerequisites: JDK 25, Node 24 (as `.nvmrc` pins it — Angular refuses Node 25), and Docker, for the
+scanners and, in development, for the database. `docker compose up` starts the whole stack instead;
+the [installation guide](https://asmolabs.github.io/vectispire/) covers it.
+
+```bash
+npm ci
+cd vectispire-java && ./gradlew :vectispire-core:bootRun   # API on http://localhost:3180
+npm --workspace @vectispire/frontend start            # UI on http://localhost:4280
+```
+
+The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/common/`, then `db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
+schema synthesised from the entities is not the one production will receive, and testing
+against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
+to validate the entities against the schema Flyway really built, on both deployable engines, and
+the HTTP suite does the same on MySQL at every context start ([ADR 0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)).
+
+```bash
+# Flyway applies migrations at startup — there is no separate command to run.
+# A new change is a new migration script: once in vectispire-core/src/main/resources/db/migration/common/
+# with the type placeholders when only the column types differ, or once per dialect in
+# db/migration/<dialect>/ when the structure does (ADR 0027).
+```
+
+### Main pages
+
+| Route | Description |
+|---|---|
+| `/dashboard` | Overview |
+| `/repositories` | Tracked Git repositories, scan history, finding details |
+| `/security` | The gate verdict for every target, and the policy that produced it |
+| `/quality` | Code-quality findings, aggregated by rule, file and repository |
+| `/issues` | Issue backlog across scans, with triage (VEX) |
+| `/owasp` | The backlog by category of the OWASP Top 10:2021, week by week |
+| `/containers` | Tracked container images |
+| `/inventory` | Dependency inventory and SBOM comparison |
+| `/compliance` | Controls per framework, and the exports for an audit |
+| `/ssh-keys` | Encrypted SSH keys for cloning private repositories |
+| `/api-keys` | Programmatic API keys (Argon2id hash, secret shown once) |
+| `/agents` | Scan agents (built-in and remote), the queue, and leases (admin only) |
+| `/settings` | Runtime settings: enrichment, licence blocklist, notifications, integrations |
+| `/users`, `/teams` | Accounts, roles and per-team visibility (admin only) |
+| `/audit-log` | Audit log of sensitive actions (admin only) |
+| `/history` | Per repository: every scan with its version, the issues it observed, and every triage decision — with PDF and CSV export |
+
+## API and CI integration
+
+The API is served from the same process and port as the UI, under `/api/v1`, and authenticates with a key created on the **API keys** page:
+
+```bash
+export VECTISPIRE=http://localhost:3180
+export VECTISPIRE_KEY=zsk_...
+
+# What can I scan?
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/repositories
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/containers
+
+# Scan, then poll. A scan is queued on its target, not posted to a queue:
+# the target is what carries the branch, the sub-path and the deployment key.
+curl -X POST -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/repositories/1/scan
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/scans/42
+
+# Should this build fail? The tightening fields are **flat**, not nested under "policy":
+# an object the request record does not declare is ignored by the mapper, silently, and a
+# pipeline that sent one would run on the stored policy while believing it had raised the bar.
+curl -X POST -H "Authorization: Bearer $VECTISPIRE_KEY" -H 'Content-Type: application/json' \
+     -d '{"repository_id": 1, "fail_on_severity": "high", "fail_on_kev": true}' \
+     $VECTISPIRE/api/v1/gate
+```
+
+Or, without writing the call yourself — [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), with a
+composite action in [`ci/github-action/`](ci/github-action/action.yml) and a GitLab template in
+[`ci/gitlab/`](ci/gitlab/vectispire-gate.gitlab-ci.yml):
+
+```yaml
+- uses: ./ci/github-action
+  with:
+    url: https://vectispire.example.com
+    token: ${{ secrets.VECTISPIRE_TOKEN }}
+    repository-id: 12
+```
+
+It exits **0** when the gate passes, **1** when it fails, and **2** when it could not be asked at
+all — three codes rather than two, because a pipeline that reads "Vectispire was unreachable" as
+"your code is clean" has no gate on the day the control plane is down. `--on-error warn` is the
+other choice, and it says out loud that the build went through ungated.
+
+The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
+
+The policy the gate applies is **the one an administrator stored**, and the verdict says which:
+`policy.source` is `target`, `global` or the built-in default, with the `version` that was
+applied. Policies are written on **Administration → Gate policies** (`PUT
+/api/v1/gate/policies/global`, `PUT /api/v1/gate/policies/{kind}/{id}`), scoped globally or per
+target, versioned rather than edited — a build that failed in March failed under a row that is
+still there — and every change is audited as `GATE_POLICY_UPDATED`.
+
+A target with no policy of its own follows the global one, and keeps following it when it
+changes; an override replaces it **entirely** rather than merging with it. Removing an override
+is a `DELETE` on the same path, and it restores inheritance rather than relaxing anything.
+
+`fail_on_severity: "none"` switches the severity rule off — block on actively exploited findings
+alone. It is not the same as a low threshold and not the same as the severity `unknown`, which
+ranks below everything and would fail every build.
+
+The tightening fields in the request body can only make the rules **stricter**. Every field's strict direction is defined per field, since it does not mean "greater": a *lower* severity threshold is stricter; `fail_on_kev` and `include_triaged` are stricter when `true`; `fixable_only` is stricter when **`false`**, because `true` excludes issues with no published fix — which is exactly the case that needs a human decision, not a green build. Anything refused comes back in `policy.ignored_relaxations`, alongside the `source` and `version` actually applied.
+
+Exports, all authenticated like every other route:
+
+| Route | Document |
+|---|---|
+| `GET /api/v1/targets/{repository\|container}/{id}/issues.sarif` | SARIF 2.1.0 |
+| `.../vex` | OpenVEX, built from the triage decisions |
+| `.../issues.csv` | The backlog as rows |
+| `.../posture.pdf` | The verdict and the backlog, for a person |
+| `GET /api/v1/scans/{id}/sbom` | The Syft SBOM, served verbatim — 404 when the scan produced none |
+| `GET /api/v1/history/repositories/{id}/export.pdf` | Detection and triage history |
+| `.../export.csv` | The same, one row per decision |
+
+SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
+
+```bash
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" \
+     -o vectispire.sarif "$VECTISPIRE/api/v1/targets/repository/1/issues.sarif"
+gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
+     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c vectispire.sarif | base64 -w0)"
+```
+
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Every route is listed in the [REST API reference](docs/en/api/rest_api_reference.md), which the build checks against the routes the API actually answers. The live OpenAPI document is off by default (`VECTISPIRE_API_DOCS_ENABLED`) and, once on, requires a key unless `VECTISPIRE_ANONYMOUS_API_DOCS=true` — an anonymous map of the routes and payload shapes is a free reconnaissance step.
+
+A key can be narrowed when it is created, and a CI key normally should be:
+
+| Restriction | Effect |
+|---|---|
+| Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
+| Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
+| Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
+
+`GET /api/v1/issues` accepts `only_direct=true` to return just the packages the project declared itself — the subset a version bump fixes today, without waiting on an upstream release. Issues whose directness is unknown are excluded: a missing answer is not a positive one.
+
+Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
+
+## Configuration
+
+Runtime settings (enrichment, end-of-life, retention, notifications, licences, tracker, model review) are managed from the **Settings** page and stored in the `t_setting` table rather than as environment variables. A setting appears there only once a service actually reads it: a form that accepts a value and does nothing with it is worse than one that does not offer it.
+
+Three things are *not* runtime settings, because they have to exist before the application can be used safely:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. **Prefer `ENCRYPTION_KEY_FILE` below.** |
+| `ENCRYPTION_KEY_FILE` | Instead of `ENCRYPTION_KEY` | A path to a file holding the key — what a Docker or Kubernetes secret actually mounts. This is the recommended form: a variable is readable through `/proc/<pid>/environ`, `docker inspect`, an orchestrator's logs and a swept-up `.env`, and this is the one value whose exposure is the whole loss rather than a degradation. A trailing newline is not part of the key. **Setting this and `ENCRYPTION_KEY` together is refused at startup**, because nothing could then say which key is in force without picking one you did not. And a path that does not resolve — missing, unreadable, or an empty mount — **stops the application** instead of falling back: a deployment with no key still serves every screen, so a failed secret mount would otherwise be indistinguishable from a fresh install. |
+| `VECTISPIRE_MAIL_HOST` | To send alerts by e-mail | The SMTP relay, with `VECTISPIRE_MAIL_PORT` (587), `VECTISPIRE_MAIL_USERNAME`, `VECTISPIRE_MAIL_PASSWORD`, `VECTISPIRE_MAIL_FROM` and `VECTISPIRE_MAIL_STARTTLS` (true). **Where to send is deployment configuration; who receives is a setting** — the relay holds a password and is the same for every message, the recipients change with the team. With no host there is no sender and no channel: an unconfigured destination is queued nothing rather than queued and failed. |
+| `VECTISPIRE_OIDC_ISSUER` | To offer single sign-on | The realm's issuer URL, e.g. `https://keycloak.example.com/realms/vectispire`. Vectispire discovers the endpoints from its `/.well-known/openid-configuration` rather than asking an operator to copy four of them correctly. **Setting it is the whole switch**: with no issuer there is no filter chain, no route and no button. Password login stays in either case — it is the way in when the realm is unreachable, and without it a broken issuer locks everybody out. Accompanied by `VECTISPIRE_OIDC_CLIENT_ID`, optionally `VECTISPIRE_OIDC_CLIENT_SECRET` (omit it for a public client) and `VECTISPIRE_OIDC_NAME` for the button's label. |
+| `VECTISPIRE_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Vectispire ships. **Vectispire bundles a single rule**, so in practice this is where your coverage comes from — see [Installing a Semgrep rule set](#installing-a-semgrep-rule-set). If the directory is set and cannot be read, the SAST step fails rather than quietly scanning with the bundled rule alone. |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | Instead of the above | A file holding them, comma- or newline-separated. It exists for the same reason as `ENCRYPTION_KEY_FILE` and not for symmetry: an old key still decrypts live rows, and a rotation is the moment two keys exist at once — so without it, moving the current key to a file would mean putting the previous one back into the environment to finish the job. Same refusals. |
+| `VECTISPIRE_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
+| `VECTISPIRE_BOOTSTRAP_PASSWORD` | First run only | Its password (12 characters minimum, the rule every password is held to: a shorter one creates no account, and the log says why). |
+
+Operational tuning (all optional, shown with their defaults):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VECTISPIRE_DB_URL` | `jdbc:mysql://localhost:3306/vectispire` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
+| `VECTISPIRE_DB_USER` / `VECTISPIRE_DB_PASSWORD` | `vectispire` / — | Database credentials. |
+| `VECTISPIRE_PORT` | `3180` | HTTP port. The API and the agent protocol share it. |
+| `VECTISPIRE_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
+| `VECTISPIRE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh` — identities, `config`, agent and `known_hosts`, used whole. `false` on any installation where the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have Vectispire clone it with an identity nobody attached to it. `false` in the shipped `docker-compose.yml`, which mounts no `~/.ssh`. |
+| `VECTISPIRE_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
+| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | *temporary directory* | Where the vulnerability matcher's database is downloaded once and shared read-only by every scan of this host, instead of once per scan. A path on the Docker daemon's host. |
+| `VECTISPIRE_WORKER_LABELS` / `VECTISPIRE_WORKER_INTERVAL` | — / `15s` | Labels this worker answers to, and how often it looks for work. Empty labels on purpose: the built-in worker takes only work with no requirement, or targeting would be useless on a single-instance install. |
+| `VECTISPIRE_QUEUE_LEASE` / `VECTISPIRE_QUEUE_MAX_ATTEMPTS` / `VECTISPIRE_QUEUE_CLAIM_ATTEMPTS` | `20m` / `3` / `12` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
+| `VECTISPIRE_SCHEDULER_INTERVAL` / `VECTISPIRE_RELAY_INTERVAL` / `VECTISPIRE_MAINTENANCE_INTERVAL` | `60s` / `60s` / `1h` | How often due targets are looked for, the notification outbox is drained, and housekeeping runs. |
+| `VECTISPIRE_LEADER_LEASE` | `180s` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
+| `VECTISPIRE_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
+| `VECTISPIRE_SESSION_LIFETIME` / `VECTISPIRE_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
+| `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / the build's version | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. Leave `VECTISPIRE_VERSION` unset: every document (SARIF, CSAF, CycloneDX, in-toto) then states the version the jar was built as. Set it only for a rebuild shipped under a version of its own. |
+
+**The scanner images are pinned by digest, and an override replaces the pin, not the review.** The
+five digests are constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java):
+they execute on the scanning host and read input nobody controls, so they *are* Vectispire's
+supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving a pin is a
+commit that goes through review; update deliberately with `docker buildx imagetools inspect <image>:latest`.
+An estate that must pull from an internal registry sets `VECTISPIRE_IMAGE_SYFT`, `_GRYPE`, `_GITLEAKS`,
+`_CHECKOV` or `_SEMGREP` — on the control plane and on each agent — and blank keeps the pinned digest.
+Whoever sets one takes on what the digest was protecting, so name a digest there too, never a tag
+([configuration reference](docs-site/reference/configuration.md#scanners)).
+
+A remote agent reads a different set: `VECTISPIRE_URL` and `VECTISPIRE_AGENT_TOKEN` (both required),
+plus `VECTISPIRE_AGENT_WAIT` (`30s`), `VECTISPIRE_AGENT_RETRY` (`10s`) and `VECTISPIRE_AGENT_HEARTBEAT`
+(`60s`). It reads no database variable at all, and cannot: see
+[the agent section](#distributed-scanning-agents).
+
+The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
+
+### Choosing a database
+
+**MySQL is the supported engine.** PostgreSQL's code is still here and still starts, but no CI job runs
+it any more, and it will not be part of 1.0
+([decision 0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §3, amended 2026-10-29): an
+installation on PostgreSQL plans its move to MySQL. What follows is how the project came to two engines,
+and what running both found — kept because the code for both is.
+
+**Two engines were deployable — PostgreSQL and MySQL — and there was never a third.** That is
+[ADR 0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md), which superseded an
+earlier decision to support four; this page said "four" for five days after that reversal, which is
+how a register stops being the thing anybody reads. ADR 0014 kept SQLite as the test suites'
+fixture; [ADR 0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md) moved
+those suites to MySQL and removed SQLite altogether. The full integration campaign runs on MySQL. Flyway applies native SQL migrations: once
+under `db/migration/common/`, with type placeholders spelled per engine, when only the column types
+differ, and per dialect under `db/migration/{vendor}/` (`postgresql`, `mysql`) when the
+structure does ([ADR 0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). Point `VECTISPIRE_DB_URL` at the engine; it is read from
+the URL, and MySQL is the default — the engine `docker-compose.yml` ships, so the shortest path
+and the documented one agree. A portability defect is invisible to reading and to a single
+engine; running the campaign across both is the only way it gets found, and it found
+several.
+
+| | PostgreSQL | MySQL |
+|---|---|---|
+| Transactional scan claim | yes | yes |
+| Millisecond timestamps | yes | yes |
+| `NULLS LAST` | yes | no |
+| Concurrent writers | yes | yes |
+
+Every "no" comes from a defect found by running, and **none of them raises an error**:
+
+- **A claim batch can come back short under contention, on both engines.** The candidates
+  are read, then each is taken by a conditional update; a scan another worker took in
+  between drops out, and the claim tries again a bounded number of times. No row is ever
+  handed to two workers — measured, not assumed — and the rest goes out on the next tick.
+  It is a throughput characteristic, not a correctness defect. (`FOR UPDATE SKIP LOCKED`,
+  the earlier claim, made it worse on MySQL — skipped rows counted against the `LIMIT` —
+  and deadlocked there; [ADR 0002](docs/architecture/en/decisions/0002-the-database-carries-the-queue.md)
+  says why it was dropped.)
+- **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
+  second, which would make the audit chain fail its own verification and declare itself
+  tampered with. `datetime(6)` is declared once in the migrations rather than
+  column by column, and the connection is pinned to UTC for the same reason.
+
+PostgreSQL was the engine where everything above was true without reservation; MySQL is the one the
+code and `docker-compose.yml` pick by default, and the one supported.
+
+
+## Installing a Semgrep rule set
+
+Vectispire bundles one Semgrep rule. That is a licensing constraint, not an oversight:
+`semgrep/semgrep-rules` was relicensed under terms that forbid redistributing the rules,
+and the `opengrep-rules` fork carries a Commons Clause that would take Vectispire out of open
+source and bind everyone who takes it up
+([decision 0006](docs/architecture/en/decisions/0006-semgrep-rules-written-here.md)). So the
+rules are fetched by you, from their author, and never redistributed here.
+
+No tool ships for this. The steps are short enough not to warrant one:
+
+```bash
+# 1. Pick a tag and stay on it. A moving target makes scans irreproducible, and a rule
+#    recategorized upstream destroys an issue's history — the rule id enters the
+#    fingerprint.
+TAG=v1.0.0
+curl -fsSL "https://github.com/opengrep/opengrep-rules/archive/refs/tags/${TAG}.tar.gz" \
+  | tar -xz -C /opt/vectispire
+
+# 2. Read the licence before using it. LGPL-2.1 plus a Commons Clause: fine to run,
+#    fine to build into your own agent image, NOT fine to publish that image.
+less /opt/vectispire/opengrep-rules-${TAG}/LICENSE
+
+# 3. Record what you installed, so a mass movement in the backlog has an explanation.
+echo "opengrep-rules ${TAG} installed $(date -u +%FT%TZ)" > /opt/vectispire/rules-manifest.txt
+
+# 4. Point Vectispire at it.
+export VECTISPIRE_SEMGREP_RULES_DIR=/opt/vectispire/opengrep-rules-${TAG}
+```
+
+Run once, at install time — **the scan itself stays offline**, which is the property that
+makes it reproducible and deployable on an isolated network.
+
+Two things to know:
+
+- **The directory is merged, not substituted.** Your rules land beside the bundled one, in
+  their own subtree, so a filename collision cannot silently replace a rule Vectispire ships.
+- **A directory that cannot be read fails the SAST step**, leaving the previous findings
+  untouched. It does not fall back to the bundled rule: Semgrep would exit cleanly with a
+  shorter list, which reads as "analyzed, those issues are gone" and would resolve
+  everything your rules had found — silently, on every target, the first time a volume is
+  forgotten in a deployment.
+
+## Tests
+
+```bash
+cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites — on MySQL, needs Docker
+cd vectispire-java && ./gradlew integrationTest    # one engine (MySQL; -Pdialect=postgres), via Testcontainers
+cd vectispire-java && ./gradlew integrationTestAll # MySQL 9.x and 8.4 LTS, the supported versions — needs Docker
+npm ci && npm run build && npm test                # the Angular interface
+```
+
+The unit, architecture and HTTP suites run on every push, the last two on MySQL; the integration
+campaign runs against a real MySQL server. **No count is quoted here on
+purpose** — this page said "around 840" long after the figure had passed 1300, because a number
+in prose is a number nothing re-reads. `scripts/check-doc-facts.py` pins the claims that *can* be
+checked against the tree, and a test count is not one of them: it changes with every commit,
+which makes it the wrong kind of fact to write down. `verify` runs the first command and the Angular
+ones; the engine campaign belongs to `nightly.yml`, which fires on a schedule from the default
+branch. **A green tick on a push therefore does not mean portability was checked** — the nightly
+is what checks it, and only on whatever the default branch holds.
+
+**The integration suites do not skip.** There is no "skip if the database is missing" guard,
+deliberately: a suite that skips itself reports green having verified nothing. The harness starts
+the container itself, so a missing Docker fails loudly — which is the correct behaviour, and
+exactly the class of defect this project exists to find.
+
+The migrations rather than `ddl-auto: update`, for the same reason: the schema under test is the
+one production will receive.
+
+The backend compiles under `-Werror` and a **layering test** (`ArchitectureTest`, ArchUnit)
+that fails the build when an import crosses the wrong way. That test is not decoration: it is
+what keeps the domain layer — fingerprints, gate verdicts, schedules — free of Hibernate and
+HTTP, and therefore testable without a database.
+
+One rule governs what is enabled: a gate that fires on noise is switched off within a week.
+So the rules here are the ones whose findings were all real.
+
+## Project structure
+
+```
+vectispire-java/
+├── vectispire-common/        # Shared with the agent
+│   ├── domain/               # Pure rules: fingerprint, gate, exports, schedule, payloads
+│   └── scanning/             # Runs the scanners — no database
+├── vectispire-core/          # The control plane: one vertical module per domain
+│   ├── <module>/             # Its API: services, views, events, ports (access, targets, scanning, issues…)
+│   │   ├── web/              # Its HTTP controllers
+│   │   ├── internal/         # What only its services use: port implementations, periodic tasks
+│   │   └── persistence/      # JPA entities and <Entity>Repository interfaces — the only place that speaks SQL
+│   └── config/               # Datasource and per-engine setup; the schema lives in db/migration/
+└── vectispire-agent/         # The remote worker. Does NOT depend on vectispire-core.
+vectispire-angular/src/app/   # Angular: 17 page areas, Sparked layout over Optimus UI
+docs/architecture/            # ADR
+```
+
+**`vectispire-agent` not depending on `vectispire-core` is a security property, not packaging.** No
+JDBC driver is on its classpath, so it cannot hold a database connection — which it would need
+`ENCRYPTION_KEY` for, and that key decrypts every deployment key Vectispire stores. The violation
+fails to compile rather than failing review.
+
+The import direction is enforced by `ArchitectureTest`, inside every module:
+`domain ← scanning ← persistence ← services ← api` — a module's `persistence` holds its entities and
+its repositories, its root and `internal` are the services, its `web` the api. Between modules,
+Spring Modulith's `verify()` holds each module to the list its `package-info` declares
+([decision 0030](docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)).
+The domain layer knows
+nothing of Hibernate or HTTP, which is what makes the rules that matter — a fingerprint, a
+gate verdict, a due date — testable without a database.
+
+
+## Contributing and security
+
+Contributions are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) says where a pull request goes and
+what it has to carry, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+**A vulnerability is reported privately**, as [SECURITY.md](SECURITY.md) describes, never in a
+public issue.
+
+## License
+
+Vectispire is licensed under the [Apache License 2.0](LICENSE) — patent grant included, and
+contributions are under the same terms without a CLA. [`NOTICE`](NOTICE) lists the
+third-party components the jar and the image bundle, including MySQL Connector/J, which is
+copyleft; both JDBC drivers are `runtimeOnly`, and moving the copyleft one onto the compile
+classpath changes the legal position and not just the build file. The AGPL was the alternative and lost on
+adoption — [decision 0012](docs/architecture/en/decisions/0012-apache-2-0.md) says on what
+judgement, and what it would cost to reverse.
+
+The licence covers the code, not the name: Apache-2.0 grants no trademark rights, so a fork
+may use all of this and may not call itself Vectispire.

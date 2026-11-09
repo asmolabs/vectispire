@@ -1,0 +1,694 @@
+package com.asmolabs.vectispire.core.issues.persistence;
+
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+/**
+ * A finding with an identity across scans, and the triage attached to it.
+ *
+ * <p><b>{@code fingerprint} is the identity.</b> It decides whether what a scan just saw is the
+ * same issue as yesterday — with its history, its occurrence count and above all its triage
+ * decision — or a new one. Nothing writes it but {@code IssueFingerprint}.
+ *
+ * <p>{@code firstSeenScanId} and {@code lastSeenScanId} are {@code SET NULL} on delete, unlike
+ * the target: an issue outlives the scan that first saw it, which is what "first seen" means.
+ */
+@Entity
+@Table(name = "t_issue")
+public class IssueEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+
+    @Column(name = "repo_id")
+    private Long repoId;
+
+    @Column(name = "container_id")
+    private Long containerId;
+
+    @Column(name = "fingerprint", length = 64, nullable = false)
+    private String fingerprint;
+
+    @Column(name = "type", length = 50, nullable = false)
+    private String type;
+
+    @Column(name = "identifier", length = 255)
+    private String identifier;
+
+    @Column(name = "package_name", length = 255)
+    private String packageName;
+
+    @Column(name = "package_version", length = 255)
+    private String packageVersion;
+
+    @Column(name = "purl", length = 255)
+    private String purl;
+
+    @Column(name = "file_path", length = 500)
+    private String filePath;
+
+    /**
+     * The OWASP 2021 category the rule declared about itself, or null.
+     *
+     * <p>Kept with the finding rather than read again at display time: reading it from the current
+     * rule set would give yesterday's finding the category of a rule modified since, and last
+     * year's grid would silently change shape.
+     */
+    @Column(name = "owasp_category", length = 3)
+    private String owaspCategory;
+
+    @Column(name = "source", length = 50)
+    private String source;
+
+    /**
+     * The tool a plugin or imported finding belongs to: {@code plugin:<id>} or
+     * {@code import:<source>/<tool>} ({@code ToolKeys}). The fingerprint's tool key, and the scope a
+     * clean run of that tool resolves — {@code null} for every other type.
+     */
+    @Column(name = "tool", length = 200)
+    private String tool;
+
+    /** The SARIF driver's name and version, as the tool reported them: provenance, never identity. */
+    @Column(name = "tool_name", length = 100)
+    private String toolName;
+
+    @Column(name = "tool_version", length = 100)
+    private String toolVersion;
+
+    /**
+     * The declared source an imported issue came from — its slug, kept after the source is deleted,
+     * since it is what an auditor reads to tell "declared by the CI" from "analysed by Vectispire".
+     */
+    @Column(name = "import_source", length = 40)
+    private String importSource;
+
+    @Column(name = "severity", length = 50)
+    private String severity;
+
+    @Column(name = "epss_score")
+    private Double epssScore;
+
+    @Column(name = "is_kev", nullable = false)
+    private boolean isKev;
+
+    @Column(name = "cvss_score")
+    private Double cvssScore;
+
+    @Column(name = "cvss_vector", length = 255)
+    private String cvssVector;
+
+    @Column(name = "fix_state", length = 50)
+    private String fixState;
+
+    @Column(name = "fix_versions", length = 255)
+    private String fixVersions;
+
+    @Column(name = "link", length = 500)
+    private String link;
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "description")
+    private String description;
+
+    // **Dormant, kept on purpose.** Nothing computes reachability: the analyser that was meant to
+    // fill these two was never wired and went in f604ffa0, so every row carries the defaults
+    // (UNKNOWN, null) and nothing reads them to weigh, rank or clear anything. The columns stay —
+    // no migration — because a real analysis may come back through a plugin, and dropping a column
+    // on three engines to re-add it later is two migrations for nothing. There is no setter:
+    // whatever writes here next should be a deliberate change, not a line that compiles. And no
+    // getter since 1.0: the API published them as deprecated `reachability` and `reachableSymbols`
+    // on every issue, always UNKNOWN and null, and they left the contract before 1.0 froze it
+    // (decision 0043 §6) — a getter here would have `EntityViewsTest` ask for them back.
+    @Column(name = "reachability", length = 16, nullable = false)
+    private String reachability = "UNKNOWN";
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "reachable_symbols")
+    private String reachableSymbols;
+
+    @Column(name = "state", length = 20, nullable = false)
+    private String state;
+
+    @Column(name = "first_seen_at", nullable = false)
+    private Instant firstSeenAt;
+
+    @Column(name = "last_seen_at", nullable = false)
+    private Instant lastSeenAt;
+
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+
+    /**
+     * How long this issue lived, in seconds, written when it is resolved.
+     *
+     * <p><b>Stored rather than derived, so the average can be a query.</b> Mean time to
+     * resolution is the difference between two instants, and every engine spells that differently — so the dashboard used to compute it in Java over every closed
+     * issue in the estate. A column of seconds turns it into {@code avg} of a number, which is
+     * the same statement on every engine. The dialects are named once, in {@code V24}, where a
+     * migration is written per dialect anyway.
+     *
+     * <p><b>Null is not zero.</b> It stays null while the issue is open, when there is no first
+     * sighting to measure from, and when the resolution does not follow the discovery — the
+     * three cases the in-memory average already skipped. Treating them as instant resolutions
+     * would pull every average down, which is the direction that flatters.
+     */
+    @Column(name = "resolution_seconds")
+    private Long resolutionSeconds;
+
+    /** When the SOC was told this issue passed its remediation deadline; never cleared. See V64. */
+    @Column(name = "sla_breach_signalled_at")
+    private Instant slaBreachSignalledAt;
+
+    @Column(name = "first_seen_scan_id")
+    private Long firstSeenScanId;
+
+    @Column(name = "last_seen_scan_id")
+    private Long lastSeenScanId;
+
+    @Column(name = "times_seen", nullable = false)
+    private int timesSeen;
+
+    @Column(name = "triage_status", length = 30, nullable = false)
+    private String triageStatus;
+
+    @Column(name = "triage_justification", length = 64)
+    private String triageJustification;
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "triage_comment")
+    private String triageComment;
+
+    @Column(name = "triaged_by", length = 255)
+    private String triagedBy;
+
+    @Column(name = "triaged_at")
+    private Instant triagedAt;
+
+    @Column(name = "triage_expires_at")
+    private Instant triageExpiresAt;
+
+    /**
+     * While the issue is {@code pending_approval}: the settled status the queued decision asked for
+     * ({@code not_affected}, {@code will_not_fix}, {@code fixed}). Null on any other status, and on a
+     * request queued before V88, which recorded none.
+     */
+    @Column(name = "triage_requested_status", length = 30)
+    private String triageRequestedStatus;
+
+    @Column(name = "is_direct_dependency")
+    private Boolean isDirectDependency;
+
+    @Column(name = "line")
+    private Integer line;
+
+    @Column(name = "ticket_ref", length = 64)
+    private String ticketRef;
+
+    @Column(name = "ticket_url", length = 500)
+    private String ticketUrl;
+
+    /** Who attached the reference by hand; null when Vectispire opened the ticket itself. */
+    @Column(name = "ticket_attached_by", length = 255)
+    private String ticketAttachedBy;
+
+    /**
+     * The instance whose ticket sweep is asking the tracker for this issue's ticket, until {@link #ticketClaimUntil}
+     * — so that two instances never both ask (V95). Written by conditional updates only, never by saving the row.
+     */
+    @Column(name = "ticket_claimed_by", length = 64)
+    private String ticketClaimedBy;
+
+    @Column(name = "ticket_claim_until")
+    private Instant ticketClaimUntil;
+
+    /**
+     * The revision a write names, so that the second of two writers is refused rather than winning (V89).
+     *
+     * <p>A scan reads a target's issues when its ingestion begins and saves them whole when it ends; a
+     * triage committed in between was put back to what the scan had read, silently. A refused triage
+     * answers 409 ({@code IssueChangedMeanwhileException}); a refused scan folds again from what is
+     * committed ({@code ScanDispatcher}). A bulk statement that writes a person's gesture — a ticket
+     * attached — raises it too; the feeds' own columns do not, or every scan ingesting while a feed
+     * synchronises would be refused for a column it does not decide.
+     *
+     * <p>Primitive and without a getter: no view publishes it, and Spring Data keeps telling a new row
+     * by its identifier.
+     */
+    @Version
+    @Column(name = "revision", nullable = false)
+    private long revision;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    /**
+     * The target this row belongs to, or {@code null} when it names neither — left so for {@code
+     * Visibility.permits}, which shows an unclassifiable row to an unrestricted caller and hides it
+     * from a restricted one.
+     *
+     * <p>Not a getter on purpose: it is no column, and {@code EntityViewsTest} reads the getters as
+     * what a view must carry. It was {@code RowVisibility.targetOf}, in {@code access}, which could
+     * not name this entity once the table had a module of its own (decision 0029).
+     */
+    public ScanTarget target() {
+        if (repoId != null) {
+            return new ScanTarget.Repository(repoId);
+        }
+        return containerId == null ? null : new ScanTarget.Container(containerId);
+    }
+
+    public Long getRepoId() {
+        return repoId;
+    }
+
+    public void setRepoId(Long repoId) {
+        this.repoId = repoId;
+    }
+
+    public Long getContainerId() {
+        return containerId;
+    }
+
+    public void setContainerId(Long containerId) {
+        this.containerId = containerId;
+    }
+
+    public String getFingerprint() {
+        return fingerprint;
+    }
+
+    public void setFingerprint(String fingerprint) {
+        this.fingerprint = fingerprint;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getIdentifier() {
+        return identifier;
+    }
+
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public void setPackageName(String packageName) {
+        this.packageName = packageName;
+    }
+
+    public String getPackageVersion() {
+        return packageVersion;
+    }
+
+    public void setPackageVersion(String packageVersion) {
+        this.packageVersion = packageVersion;
+    }
+
+    public String getPurl() {
+        return purl;
+    }
+
+    public void setPurl(String purl) {
+        this.purl = purl;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public String getOwaspCategory() {
+        return owaspCategory;
+    }
+
+    public void setOwaspCategory(String owaspCategory) {
+        this.owaspCategory = owaspCategory;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getTool() {
+        return tool;
+    }
+
+    public void setTool(String tool) {
+        this.tool = tool;
+    }
+
+    public String getToolName() {
+        return toolName;
+    }
+
+    public void setToolName(String toolName) {
+        this.toolName = toolName;
+    }
+
+    public String getToolVersion() {
+        return toolVersion;
+    }
+
+    public void setToolVersion(String toolVersion) {
+        this.toolVersion = toolVersion;
+    }
+
+    public String getImportSource() {
+        return importSource;
+    }
+
+    public void setImportSource(String importSource) {
+        this.importSource = importSource;
+    }
+
+    public String getSeverity() {
+        return severity;
+    }
+
+    public void setSeverity(String severity) {
+        this.severity = severity;
+    }
+
+    public Double getEpssScore() {
+        return epssScore;
+    }
+
+    public void setEpssScore(Double epssScore) {
+        this.epssScore = epssScore;
+    }
+
+    public boolean getIsKev() {
+        return isKev;
+    }
+
+    /**
+     * The same value as {@link #getIsKev()}, and <b>not a second property</b>.
+     *
+     * <p>Jackson reads this as the getter for a property called {@code kev}, so every schema built
+     * from this entity published {@code isKev} and {@code kev} side by side — one field, two names,
+     * in {@code BacklogEntry}, {@code IssueDetail} and {@code IssueEntity}. A client had no way to
+     * know which one to read, and nothing said they could not diverge.
+     *
+     * <p>The method stays: a dozen call sites in the services read it, and it is the natural
+     * spelling in Java. It is the wire that gets one name.
+     */
+    @JsonIgnore
+    public boolean isKev() {
+        return isKev;
+    }
+
+    public void setIsKev(boolean isKev) {
+        this.isKev = isKev;
+    }
+
+    public void setKev(boolean isKev) {
+        this.isKev = isKev;
+    }
+
+    public Double getCvssScore() {
+        return cvssScore;
+    }
+
+    public void setCvssScore(Double cvssScore) {
+        this.cvssScore = cvssScore;
+    }
+
+    public String getCvssVector() {
+        return cvssVector;
+    }
+
+    public void setCvssVector(String cvssVector) {
+        this.cvssVector = cvssVector;
+    }
+
+    public String getFixState() {
+        return fixState;
+    }
+
+    public void setFixState(String fixState) {
+        this.fixState = fixState;
+    }
+
+    public String getFixVersions() {
+        return fixVersions;
+    }
+
+    public void setFixVersions(String fixVersions) {
+        this.fixVersions = fixVersions;
+    }
+
+    public String getLink() {
+        return link;
+    }
+
+    public void setLink(String link) {
+        this.link = link;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public Instant getFirstSeenAt() {
+        return firstSeenAt;
+    }
+
+    public void setFirstSeenAt(Instant firstSeenAt) {
+        this.firstSeenAt = firstSeenAt;
+    }
+
+    public Instant getLastSeenAt() {
+        return lastSeenAt;
+    }
+
+    public void setLastSeenAt(Instant lastSeenAt) {
+        this.lastSeenAt = lastSeenAt;
+    }
+
+    public Instant getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public Long getResolutionSeconds() {
+        return resolutionSeconds;
+    }
+
+    /**
+     * Closes this issue, and records how long it took — the two together, always.
+     *
+     * <p><b>Why this exists rather than two setters at each call site.</b> The stored duration is
+     * only trustworthy if it cannot fall out of step with {@code resolvedAt}, and the way it
+     * falls out of step is somebody adding a third place that resolves an issue and setting one
+     * field. There is no honest way to spot that in review: the code reads correctly, the issue
+     * closes correctly, and the only symptom is an average that drifts a little further from the
+     * truth with every scan.
+     */
+    public void resolveAt(Instant moment) {
+        // The state travels with the instant, for the same reason the duration does: three fields
+        // one decision, and there were public setters for each. They are gone — the only writes
+        // left are this method and `reopen`, so no path can resolve an issue halfway.
+        this.state = com.asmolabs.vectispire.common.domain.issues.IssueState.RESOLVED.wireName();
+        this.resolvedAt = moment;
+        this.resolutionSeconds = moment != null && firstSeenAt != null && moment.isAfter(firstSeenAt)
+                ? java.time.Duration.between(firstSeenAt, moment).toSeconds()
+                : null;
+    }
+
+    /** Reopens it: open again, no resolution instant, and therefore no duration either. */
+    public void reopen() {
+        this.state = com.asmolabs.vectispire.common.domain.issues.IssueState.OPEN.wireName();
+        this.resolvedAt = null;
+        this.resolutionSeconds = null;
+    }
+
+    /**
+     * Not published: a bookkeeping column of the SIEM signal, which no screen reads — the breach
+     * itself is {@code slaState}, computed — and {@code JsonIgnore} is how {@code EntityViewsTest}
+     * is told the view leaves it out on purpose.
+     */
+    @JsonIgnore
+    public Instant getSlaBreachSignalledAt() {
+        return slaBreachSignalledAt;
+    }
+
+    public void setSlaBreachSignalledAt(Instant slaBreachSignalledAt) {
+        this.slaBreachSignalledAt = slaBreachSignalledAt;
+    }
+
+    public Long getFirstSeenScanId() {
+        return firstSeenScanId;
+    }
+
+    public void setFirstSeenScanId(Long firstSeenScanId) {
+        this.firstSeenScanId = firstSeenScanId;
+    }
+
+    public Long getLastSeenScanId() {
+        return lastSeenScanId;
+    }
+
+    public void setLastSeenScanId(Long lastSeenScanId) {
+        this.lastSeenScanId = lastSeenScanId;
+    }
+
+    public int getTimesSeen() {
+        return timesSeen;
+    }
+
+    public void setTimesSeen(int timesSeen) {
+        this.timesSeen = timesSeen;
+    }
+
+    public String getTriageStatus() {
+        return triageStatus;
+    }
+
+    public void setTriageStatus(String triageStatus) {
+        this.triageStatus = triageStatus;
+    }
+
+    public String getTriageJustification() {
+        return triageJustification;
+    }
+
+    public void setTriageJustification(String triageJustification) {
+        this.triageJustification = triageJustification;
+    }
+
+    public String getTriageComment() {
+        return triageComment;
+    }
+
+    public void setTriageComment(String triageComment) {
+        this.triageComment = triageComment;
+    }
+
+    public String getTriagedBy() {
+        return triagedBy;
+    }
+
+    public void setTriagedBy(String triagedBy) {
+        this.triagedBy = triagedBy;
+    }
+
+    public Instant getTriagedAt() {
+        return triagedAt;
+    }
+
+    public void setTriagedAt(Instant triagedAt) {
+        this.triagedAt = triagedAt;
+    }
+
+    public Instant getTriageExpiresAt() {
+        return triageExpiresAt;
+    }
+
+    public void setTriageExpiresAt(Instant triageExpiresAt) {
+        this.triageExpiresAt = triageExpiresAt;
+    }
+
+    public String getTriageRequestedStatus() {
+        return triageRequestedStatus;
+    }
+
+    public void setTriageRequestedStatus(String triageRequestedStatus) {
+        this.triageRequestedStatus = triageRequestedStatus;
+    }
+
+    public Boolean getIsDirectDependency() {
+        return isDirectDependency;
+    }
+
+    public void setIsDirectDependency(Boolean isDirectDependency) {
+        this.isDirectDependency = isDirectDependency;
+    }
+
+    public Integer getLine() {
+        return line;
+    }
+
+    public void setLine(Integer line) {
+        this.line = line;
+    }
+
+    public String getTicketRef() {
+        return ticketRef;
+    }
+
+    public void setTicketRef(String ticketRef) {
+        this.ticketRef = ticketRef;
+    }
+
+    public String getTicketAttachedBy() {
+        return ticketAttachedBy;
+    }
+
+    public void setTicketAttachedBy(String ticketAttachedBy) {
+        this.ticketAttachedBy = ticketAttachedBy;
+    }
+
+    public String getTicketUrl() {
+        return ticketUrl;
+    }
+
+    public void setTicketUrl(String ticketUrl) {
+        this.ticketUrl = ticketUrl;
+    }
+
+    /** The sweep's own state, never published: a reader learns nothing from which instance is asking (V95). */
+    @JsonIgnore
+    public String getTicketClaimedBy() {
+        return ticketClaimedBy;
+    }
+
+    @JsonIgnore
+    public Instant getTicketClaimUntil() {
+        return ticketClaimUntil;
+    }
+
+}

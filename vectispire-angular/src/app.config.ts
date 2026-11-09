@@ -1,0 +1,48 @@
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { authInterceptor } from './app/core/auth.interceptor';
+import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
+import {
+    TitleStrategy,
+    provideRouter,
+    withComponentInputBinding,
+    withEnabledBlockingInitialNavigation,
+    withInMemoryScrolling
+} from '@angular/router';
+import { definePreset } from '@openng/optimus-ui-themes';
+import Aura from '@openng/optimus-ui-themes/aura';
+import { provideOptimus } from '@openng/optimus-ui/config';
+import { appRoutes } from './app.routes';
+import { readablePreset } from './app/layout/readable-palette';
+import { I18nService } from './app/core/i18n/i18n.service';
+import { BrandingService } from './app/core/branding.service';
+import { TranslatedTitleStrategy } from './app/core/i18n/translated-title.strategy';
+
+export const appConfig: ApplicationConfig = {
+    providers: [
+        provideRouter(
+            appRoutes,
+            withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'enabled' }),
+            withEnabledBlockingInitialNavigation(),
+            // **Without this, a route parameter never reaches the component's input.**
+            // The scan detail screen sat on "Loading…" while the console log said NG0950 —
+            // an error nobody sees who only looks at the page. This is the kind of
+            // configuration everybody assumes is implicit.
+            withComponentInputBinding()
+        ),
+        // Route titles are translation keys; the default strategy would put the key itself in the tab.
+        { provide: TitleStrategy, useExisting: TranslatedTitleStrategy },
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideZonelessChangeDetection(),
+        provideOptimus({
+            theme: {
+                preset: definePreset(Aura, readablePreset(Aura.primitive?.emerald)),
+                options: { darkModeSelector: '.app-dark' }
+            }
+        }),
+        provideAppInitializer(async () => {
+            const i18n = inject(I18nService);
+            const branding = inject(BrandingService);
+            await Promise.allSettled([i18n.init(), branding.init()]);
+        })
+    ]
+};

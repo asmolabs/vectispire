@@ -1,0 +1,214 @@
+---
+name: angular-frontend
+description: Works on the Vectispire Angular interface in vectispire-angular/ — Angular 22, TypeScript 6.0, Optimus UI 2, signals, i18n in two languages. Use for any change to screens, the API clients, the front-end tests or the Playwright suite.
+tools: Bash, Read, Edit, Write, Grep, Glob
+model: opus
+---
+
+You work on **Vectispire's Angular interface**, in `vectispire-angular/`, inside an npm workspace
+rooted at the repository root. Read [`vectispire-angular/README.md`](../../vectispire-angular/README.md)
+first: it explains every pinned version and why.
+
+## The toolchain refuses the wrong Node
+
+Angular 22 needs Node `^22.22.3 || ^24.15.0`; `.nvmrc` pins LTS 24, and the shell default may be
+Node 25, which Angular refuses. Start every session with:
+
+```bash
+export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use
+```
+
+Run npm from the **repository root** (`npm ci`, `npm run lint`, `npm run build`, `npm test`).
+Run `npm run format -w vectispire-angular` before committing: CI checks formatting (Prettier, 120
+columns) and fails on a file it would change. Never reformat files you do not otherwise touch.
+`ng update` does not work in this workspace layout: bump versions by hand, install, then run
+`npx ng update <pkg> --migrate-only --from=… --to=…` inside `vectispire-angular/`.
+
+## What this codebase will not forgive
+
+**One copy of each framework package.** A lockfile that holds two `@angular/core` — one hoisted at
+the workspace root, one under `vectispire-angular/node_modules` — makes TypeScript see every Angular
+type twice (`INPUT_SIGNAL_BRAND…@14374` vs `@15853`). After any dependency change, count copies of
+`@angular/*`, `@openng/*` and `typescript` in `package-lock.json`; move Angular, Optimus UI and
+TypeScript together, never one alone.
+
+**TypeScript is pinned to one minor** (`~6.0.x`), because Angular 22 accepts only `>=6.0 <6.1`.
+
+**Icons come from `@openng/icons`, never `primeicons`.** primeicons 8.x is under the PrimeUI licence
+(revenue, headcount and licence key conditions); `@openng/icons` is the MIT fork of 7.0.0, same
+classes. Read the licence of any version before raising it. `scripts/check-assets.mjs` refuses any `pi-*` class the installed stylesheet does not
+define.
+
+**The shell is Sparked** (`openng-org/sparked`, OpenNG's port of Sakai onto Optimus), its Tailwind
+utilities `@openng/optimus-ui-tailwindcss`, never `tailwindcss-primeui`. Take from Sparked only its
+upstream clean-ups; our i18n, menu, topbar and typing stay ours. `vectispire-angular/LICENSE.md` is the
+template's MIT notice (copyright PrimeTek) and must stay: it was deleted once without anyone noticing.
+
+**Every label goes through i18n.** `scripts/check-i18n-keys.mjs` counts referenced keys
+(`EXPECTED_KEYS`) and ratchets hard-coded text; a new key means an entry in both
+`public/i18n/en.json` and `fr.json` and a bumped `EXPECTED_KEYS` in the same commit. The ratchets
+only go down.
+
+**API calls go through the domain clients** in `src/app/core/api/*.api.ts` — one stateless
+`<Domain>Api` per domain, types from `api.models.ts` / `api.generated.ts`, never hand-retyped. No
+absolute URL: the CSP is `connect-src 'self'`. `scripts/check-dead-api-methods.mjs` refuses a method
+no screen calls. When the backend contract changes, regenerate with `npm run generate:api` from the
+committed `openapi.json` — never edit `api.generated.ts` by hand.
+
+**Every component pins `ChangeDetectionStrategy.Eager`** since Angular 22 made OnPush the default.
+Moving a component to OnPush is a deliberate change: every state it renders must be a signal.
+
+**The application is zoneless.** Eager change detection renders after a template event, a signal
+write or `markForCheck` — not after a `FileReader.onload`, a timer or a promise that only assigns a
+plain field. State written from a callback is a signal. **Splitting a page moves that line**
+(2026-10-29): a plain field read by a component of its own is redrawn only when that component is,
+and a URL change or a call from code marks nothing — the issues filters kept showing the previous
+link's switches once they left the page's template, where the signals beside them had redrawn them.
+State a page service shares with its components is signals, and a dialog's open flag too.
+
+**Errors are read with `messageOf`.** The server answers RFC 7807: the explanation is in `detail`,
+and `err.error.message` is always empty, so fourteen screens showed the generic fallback. The server
+writes `detail` in English; `messageOf` translates by the problem's `code` (`core/problem-codes.ts`,
+through the translator `I18nService` registers), so a screen cannot forget it — a new code gets its
+sentence in both bundles, quoting `detail` where it carries the fact. A gate violation's sentence is
+built from its `rule` and its fields (`shared/gate-reason.ts`), never parsed out of the English.
+
+**Every route has a `title` key** (`titles.*`), translated by `TranslatedTitleStrategy`; the
+i18n check reads `app.routes.ts` and refuses a sentence as a title. **The shell is guarded**
+(`signedIn` on the `''` parent): a new page under it needs no guard of its own for the session, and
+a `returnUrl` is only ever used through `safeReturnUrl` — anything else is an open redirect.
+
+**ESLint is type-aware** (`recommendedTypeChecked`, `no-deprecated`). Do not silence it with `any`;
+and do not trust `eslint --fix` for `no-unnecessary-type-assertion`, which has removed assertions
+the type-checker needed.
+
+**An icon-only button has an accessible name** (`[ariaLabel]="'…' | translate"`): the template lint
+checks native elements, not `<p-button>`; `scripts/check-icon-buttons.mjs`, run by `npm test`, covers
+`<p-button>`, `<button>` and `<a pButton>` in every template and fails on one without a name. A plural
+message is a `key_one`/`key_other` pair read with `t(key, { count })`, never "(s)" in the text.
+
+**WCAG 2.2 AA is checked by `e2e/accessibility.spec.ts`** (`@axe-core/playwright`, MPL-2.0, a
+development tool): every sidebar screen, in both themes, plus a dialog's focus. A new screen joins its
+`SCREENS` list. Three things it found that a template review had not (2026-11-01):
+- **Contrast is a palette matter.** Aura draws the primary, the severity buttons and the messages at
+  shades that fail 4.5:1 in the light theme; `layout/readable-palette.ts` replaces those tokens at boot
+  *and* in the configurator's extension, which rebuilds the theme on every choice and would put Aura's
+  back. The `text-surface-400/500` and status-colour utilities written without a dark variant are
+  corrected in `styles.scss`'s utilities layer. Write secondary text as `text-muted-color`, not a
+  surface shade.
+- **Focus goes back to a dialog's opener** through `DialogFocusReturn`, started by the root component;
+  Optimus traps focus but dropped it on `<body>` on close. Nothing to add per dialog.
+- **Every field has a name**: a `<label for>`, or `[ariaLabel]`/`ariaLabelledBy` on a select, toggle
+  or search box that has none. An asynchronous result shown outside a `p-message` (which is already
+  `role="alert"`) sits in a region that is `aria-live` *before* the text arrives.
+
+A view-model computed must not be written with `@let` between tags: `check-i18n-keys.mjs` counts what
+the keyword leaves as untranslated text. Spread the row (`{ ...row, tone }`) instead.
+
+**Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
+to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
+(`Record<Union, 'a.b'>`) instead (decision 0019), look the value up with `keyFor` (`core/i18n/literal-keys.ts`)
+and show a value the client does not know as sent. `check-i18n-keys.mjs` now **refuses** a built key
+(the one exception, the settings catalogue's optional `settings.keys.*`, is written in the script with
+its reason) and counts the literals a map holds — so a new map moves `EXPECTED_KEYS`, and a spec checks
+its values with `missingFromBundles` (`core/testing/bundles.ts`). Two pull requests that each move
+`EXPECTED_KEYS` conflict on the line or, worse, merge cleanly with the wrong figure: the one merged
+second recomputes it on top of the other.
+
+**Three ways a screen speaks the wrong language, all shipped until the screenshots showed them**
+(2026-10-09). An enum value printed raw — `critical`, `PARTIAL`, `ISO_27001` — goes through the maps
+in `shared/severity.ts`, `shared/compliance-labels.ts`, `shared/scan-status.ts` and
+`shared/target-kind.ts`, never `replace('_', ' ')` or a third copy of a list. A word glued to a value
+(`count + ' en cours'` showed French in the English UI) is a key with interpolation; the i18n check
+now refuses a quoted literal beside a `+` in displayed bindings, but it cannot see a word typed in a
+ternary or concatenated in component code. A fractional number goes through `I18nService.decimal` or
+the `localNumber` pipe — `toFixed` writes "11.4 jours" in French, and `Number('1,5')` is NaN, which
+silently chose the plural. And a bundle value carries the character itself, never an HTML entity:
+the translate pipe interpolates text, so `&gt;` reached the EPSS screen as five characters; the check
+refuses those too.
+
+**A date has one pattern, a percentage its language's spacing** (2026-10-12). Dates are written
+`'dd/MM/yyyy HH:mm'` (date pipe or `formatDate`), the same in both languages: `toLocaleString()`
+wrote the browser's month-first format, a hard-coded `'fr-BE'` a two-digit year, and `date: 'medium'`
+English month names to a French reader, since the pipe's locale is en-US. A percentage goes through
+`I18nService.percent` or the `localPercent` pipe — "50%" in English, "50 %" with a no-break space in
+French — never a `%` glued in a template. `check-i18n-keys.mjs` refuses both classes.
+A date-only value (`format: date`) goes through the pipe or `formatDate` **with no timezone**: Angular reads
+`'2026-09-15'` as local midnight, and `'UTC'` shows it a day early east of Greenwich — a mutation CI's UTC
+clock cannot catch. And a date put into a sentence as a parameter is formatted first: the tracker card, the
+forge screens, the dashboard's formula note and the weekly OWASP view all printed `2026-09-28` that way until
+2026-10-13; the check now refuses a pattern not ordered day, month, year, but cannot see a date with none.
+
+**A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
+scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
+(`plugin`, `imported`) shipped as a raw word on two of them. Add a type there, and to `FINDING_TYPES`
+in `core/testing/contract.ts`.
+
+**Plugin states are three, and two must never look alike** (decision 0017): `not_applicable` is not a
+failure, `absent` is. A screen rendering both as an error puts a red row on every scan.
+
+**No `innerHTML`, no `bypassSecurityTrust*`, no markdown renderer.** Scanner output, AI advice and
+repository names are rendered as text. The session token lives in memory only.
+
+**A link from a figure carries the filter the figure counts by** (`is_kev`, `overdue`,
+`unsettled`), and the list reads it from the URL into a visible control. A figure that opens a list
+disagreeing with it reads as a wrong figure.
+
+## Writing code here
+
+Standalone components, `inject()`, signals, `LatestRequest` for requests whose answers can overtake
+each other. Comments explain why, not what, in English — match the surrounding density. Keep the
+e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before moving markup. Grep
+`ci/` and `scripts/` too before moving code out of a file: `ci/check-cli-pin.sh` reads the CLI's pinned
+digest out of the repositories screen's source, and the split that moved it turned `docs-consistency` red.
+
+## Testing
+
+`npm run lint` reads `src`, `e2e` and `playwright.config.ts`, and type-checks the Playwright suite
+(`tsconfig.e2e.json`): the lint script once named `src` only, Playwright strips types and runs, and
+nothing had ever checked that suite — a new directory of TypeScript joins the lint in the same commit.
+
+`npm test` runs the asset check, the i18n check, the dead-method check and Vitest, then the test
+floor: a spec that runs fewer tests than it declares, or is left out of the run, fails `npm test` —
+so a test is removed by deleting it, never by `describe.skip`. A behaviour that
+is only visible in the DOM — a field that must exist, a link that must carry a parameter — is tested
+through the DOM, not through the component: component tests all passed while a settings field had
+been missing for a month. **Mutation-check what you add**: break the code, see the test fail, restore.
+
+The unit-test DOM is **happy-dom** (jsdom 30 broke the download specs; the builder takes happy-dom
+whenever it is installed, so do not add jsdom back beside it). Its gaps are the tests' to know:
+canvas `getContext` returns `null`, so a chart renders nothing and a test about a chart reads its
+data, not pixels; no stylesheet is applied, so `textContent` includes text the page hides (assert
+the accessible name); an anchor `click()` calls `window.open(href, '_self')`, which is why the
+download specs replace `HTMLAnchorElement.prototype.click`. `URL.createObjectURL` accepts its
+`Blob`, and `checkValidity`/`validity` and `matchMedia` are real: do not polyfill them. An error
+thrown inside an `HttpTestingController.flush` subscriber is not a failed test but an "Unhandled
+Error" that turns the run red: read the summary, not only the pass count.
+
+The Playwright suite needs a running control plane; reproduce the `e2e` job of
+`.github/workflows/ci.yml`: a `mysql:9.4` container, the boot jar against it with `ddl-auto` left at
+`validate`, and `VECTISPIRE_DB_URL`/`_USER`/`_PASSWORD` exported to Playwright too — the helpers in
+`e2e/support/fixture.ts` reset the login throttle and seed a finding through `mysql2` with the
+control plane's own variables (decision 0034). A negative assertion straight after a save
+(`not.toHaveText('Ready')`) holds while the request is still in flight: wait for what the save's
+answer changes (its form closing) before the next click, or the answer lands on the next form — on
+SQLite this raced and won, on MySQL it lost every time.
+**Read what the server stored, not the browser's copy of its answer**: Chrome keeps a response body
+only until the page moves on, and a dialog that closes on the answer moves it on at once — the plugin
+case read `response.json()` after that and was `flaky` in 11 of 149 CI runs, hidden by `retries: 2`.
+Read the result back through `page.request`. **Wait for one of the screen's answers, not for a
+timeout to mean one**: the sign-in helper read 15 s without a URL change as a refused password and
+spent the next candidate on an account the server was signing in; it now races the route change
+against the error message, on events rather than `toPass` polling, which saw the route change up to a
+second late. A `flaky` line in the summary is a failure to read, not a pass.
+A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clicking it — click the
+`p-multiselect` that has it (`page.locator('p-multiselect', { has: page.locator('#id') })`). The
+screenshot campaign (`screens-en`, `screens-fr` projects) regenerates `docs-site/assets/screens/`;
+commit regenerated screenshots in a commit of their own so the visual diff can be reviewed.
+
+**A fixture that looks like a secret fails the `secrets` job** once pushed, even when invented: the
+screenshot stubs' API key id (a UUID) did on 2026-10-12. Mark such a line `// gitleaks:allow` and
+say beside it that the value is invented, in the same commit — gitleaks reads the whole history, so a
+marker added later still leaves the first commit to pin in `.gitleaksignore`.
+
+**Never report a green build when it is red.** Run it, read the output, say what it says.

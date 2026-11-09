@@ -1,0 +1,165 @@
+package com.asmolabs.vectispire.core.targets.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+
+/**
+ * A monitored container image.
+ */
+@Entity
+@Table(name = "t_container")
+public class ContainerEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+
+    @Column(name = "registry", length = 255)
+    private String registry;
+
+    @Column(name = "image_name", length = 255, nullable = false)
+    private String imageName;
+
+    @Column(name = "tag", length = 255, nullable = false)
+    private String tag;
+
+    @Column(name = "scan_interval_minutes")
+    private Integer scanIntervalMinutes;
+
+    @Column(name = "scan_cron", length = 255)
+    private String scanCron;
+
+    /** "Never rescan this", whatever the default says — distinct from having no schedule (V70). */
+    @Column(name = "scan_manual_only", nullable = false)
+    private boolean scanManualOnly;
+
+    @Column(name = "required_agent_label", length = 255)
+    private String requiredAgentLabel;
+
+    @Column(name = "last_scheduled_scan_at")
+    private Instant lastScheduledScanAt;
+
+    @Column(name = "tier", length = 32, nullable = false)
+    private String tier = "TIER_2_BUSINESS_OPERATIONAL";
+
+    /**
+     * Whether this container belongs to the certified scope of the management system.
+     *
+     * <p>False by default, and deliberately not "everything is in scope until somebody says
+     * otherwise": a scope nobody has drawn is not the whole estate, it is an undrawn scope, and
+     * defaulting to true would report a coverage figure the organisation never claimed.
+     */
+    @Column(name = "in_certified_scope", nullable = false)
+    private boolean inCertifiedScope;
+
+    /**
+     * The project this image is filed in, or null for "no project" (decision 0023, amendment of
+     * 2026-09-30).
+     *
+     * <p><b>Read-only to Hibernate</b>, for the reason {@code RepositoryEntity.projectId} gives: which
+     * project an image is in decides who sees it, so the column is written by the targeted updates in
+     * {@code ContainerRepository} and by nothing else — a save of the settings form must not write back
+     * the project the row held when it was read.
+     */
+    @Column(name = "project_id", insertable = false, updatable = false)
+    private Long projectId;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getRegistry() {
+        return registry;
+    }
+
+    public void setRegistry(String registry) {
+        this.registry = registry;
+    }
+
+    public String getImageName() {
+        return imageName;
+    }
+
+    public void setImageName(String imageName) {
+        this.imageName = imageName;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
+
+    public Integer getScanIntervalMinutes() {
+        return scanIntervalMinutes;
+    }
+
+    public void setScanIntervalMinutes(Integer scanIntervalMinutes) {
+        this.scanIntervalMinutes = scanIntervalMinutes;
+    }
+
+    public String getScanCron() {
+        return scanCron;
+    }
+
+    public boolean isScanManualOnly() {
+        return scanManualOnly;
+    }
+
+    public void setScanManualOnly(boolean scanManualOnly) {
+        this.scanManualOnly = scanManualOnly;
+    }
+
+    public void setScanCron(String scanCron) {
+        this.scanCron = scanCron;
+    }
+
+    public String getRequiredAgentLabel() {
+        return requiredAgentLabel;
+    }
+
+    public void setRequiredAgentLabel(String requiredAgentLabel) {
+        this.requiredAgentLabel = requiredAgentLabel;
+    }
+
+    public Instant getLastScheduledScanAt() {
+        return lastScheduledScanAt;
+    }
+
+    public void setLastScheduledScanAt(Instant lastScheduledScanAt) {
+        this.lastScheduledScanAt = lastScheduledScanAt;
+    }
+
+    public String getTier() {
+        return tier;
+    }
+
+    public void setTier(String tier) {
+        this.tier = tier != null ? tier : "TIER_2_BUSINESS_OPERATIONAL";
+    }
+
+    public boolean isInCertifiedScope() {
+        return inCertifiedScope;
+    }
+
+    public void setInCertifiedScope(boolean inCertifiedScope) {
+        this.inCertifiedScope = inCertifiedScope;
+    }
+
+    /** No setter: see the field. */
+    public Long getProjectId() {
+        return projectId;
+    }
+}

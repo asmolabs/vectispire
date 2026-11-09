@@ -1,0 +1,216 @@
+# Authentification unique
+
+**OpenID Connect** facultatif, testé contre Keycloak.
+
+## Ce que le fournisseur décide, et ce qu'il ne décide pas
+
+Le fournisseur répond à exactement une question : *qui est-ce ?*
+
+Vectispire émet toujours sa propre session. Les règles de visibilité, la piste d'audit, les
+durées de session et les clés d'API continuent de fonctionner sans changement, parce
+qu'aucune d'elles n'a été déléguée.
+
+Une page ouverte sans être connecté survit à l'aller-retour : l'écran de connexion la transmet à
+`/oauth2/authorization/oidc?returnUrl=…`, Vectispire la garde dans la session serveur propre à
+l'authentification — sans jamais la relire dans le retour du fournisseur — et n'accepte qu'un chemin
+de cette application ; toute autre valeur, un `//hôte` ou sa forme encodée compris, mène au tableau de
+bord.
+
+## Aucun compte n'est créé à la connexion
+
+C'est la partie qui mérite deux lectures.
+
+Un administrateur crée le compte d'abord, et **le rôle reste la décision de Vectispire**.
+Quiconque peut obtenir un jeton depuis un royaume partagé ne doit pas obtenir par là même une
+vue de lecteur sur toutes les cibles — et dans un royaume partagé, cela représente beaucoup
+plus de monde que ceux que vous vouliez laisser entrer.
+
+## Lier une identité
+
+La **première** connexion lie le compte dont le nom d'utilisateur correspond à la revendication.
+
+Toutes les suivantes s'appuient sur le **sujet** du fournisseur, pas sur le nom d'utilisateur.
+Un nom d'utilisateur n'est pas stable sur la vie d'une personne : on se marie, on change
+d'équipe, un import RH vous renomme. Le sujet, lui, l'est.
+
+Cette première liaison fait confiance à une revendication, et une revendication est ce que le realm
+laisse chacun écrire. Elle obéit donc à quatre règles :
+
+- **Le nom doit être celui du compte, accent compris.** Seule la casse est pardonnée. La collation
+  par défaut de MySQL trouve `admin` pour `ádmin` ; c'est une autre identité, et elle est refusée.
+- **Une adresse e-mail ne sert que si le fournisseur l'a vérifiée** (`email_verified`), et seulement
+  quand aucun `preferred_username` n'est venu.
+- **Un compte privilégié n'est pas lié par son nom** — tout rôle sauf USER : SUPERUSER, ADMIN, CISO,
+  AUDITOR et SECURITY_CHAMPION, puisque chacun administre, gouverne, lit la sécurité de tout le parc
+  ou approuve le triage. Dans un realm ouvert à l'inscription, n'importe qui peut s'enregistrer
+  comme `admin`. Un tel compte continue de se connecter avec son mot de passe, là où la connexion par mot de passe est active ; pour donner ce rôle à
+  une personne passant par le fournisseur, faites lier par le fournisseur (ou provisionner par
+  [SCIM](#provisioning-from-the-directory-scim)) un compte simple, et accordez-lui le rôle sur l'écran
+  des utilisateurs. Pour un realm où personne ne choisit son nom, autorisez la liaison avec
+  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` — Vectispire avertit au démarrage quand il est actif
+  en même temps que la liaison par revendication. Le Keycloak du profil compose `sso` se connecte en
+  `admin` : son `.env.oidc.example` le règle. Ce Keycloak ne démarre pas sans `KEYCLOAK_ADMIN_PASSWORD`
+  dans `.env` — le mot de passe de son propre administrateur, qui valait `admin` par défaut — et le mot
+  de passe du compte `admin` du realm, publié avec lui, est temporaire : Keycloak en demande un nouveau
+  à la première connexion.
+- **Un compte doté d'un second facteur local n'est jamais lié par son nom**, quel que soit le
+  réglage ci-dessus. Une connexion unique contourne le TOTP local — le fournisseur possède le second
+  facteur — et le lier sur une revendication échangerait le facteur que son titulaire a enrôlé contre
+  un nom que quelqu'un d'autre a pu écrire. Son titulaire se connecte avec mot de passe et code ;
+  pour se connecter plutôt par le fournisseur, il désactive d'abord le second facteur sur la page de
+  son compte. SCIM ne le lie pas non plus.
+- **Rien de cela n'a lieu avec `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Aucun compte n'est alors lié
+  sur une revendication, comptes simples compris : les comptes sont liés à leur sujet par
+  [SCIM](#provisioning-from-the-directory-scim), et une identité que SCIM n'a pas liée est refusée
+  comme ne correspondant à aucun compte. SCIM ne lie un compte existant que sous les mêmes règles
+  qu'en dessous — un compte privilégié seulement avec `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`,
+  un compte à second facteur local jamais — si bien qu'un tel compte garde son mot de passe, ou que sa
+  personne reçoit un nouveau compte que l'annuaire provisionne et auquel un administrateur donne le
+  rôle. Désactivez-le pour un realm dont les utilisateurs peuvent
+  choisir ou modifier leur nom ; il est actif par défaut, ce qui est la façon dont un realm et des
+  comptes existants se rencontrent.
+
+## Les groupes deviennent des équipes, et en sortir les retire
+
+Quand le jeton porte une revendication `groups`, chaque valeur est appariée à un **nom d'équipe**
+et le compte rejoint celles qui correspondent.
+
+Il **quitte** aussi celles qui ne sont plus revendiquées — mais uniquement celles que le
+fournisseur avait accordées. Une équipe attribuée à la main par un administrateur, ou provisionnée
+par SCIM, n'est jamais retirée par une connexion : chaque canal réconcilie ses propres
+appartenances, si bien que deux annuaires ne peuvent pas défaire le travail l'un de l'autre et
+qu'une connexion ne peut pas effacer en silence une décision délibérée.
+
+Une revendication **vide ou absente ne retire rien**. Un mapper oublié est une panne de
+configuration, pas une déclaration que cette personne n'appartient à aucune équipe — révoquer sur
+cette base couperait tout le monde au premier réglage manqué.
+
+## Provisionnement depuis l'annuaire (SCIM) {#provisioning-from-the-directory-scim}
+
+Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des comptes par SCIM 2.0
+(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM (`vectispire.scim.token`, ou
+un fichier nommé par `VECTISPIRE_SCIM_TOKEN_FILE`). SCIM activé, un jeton de moins de 32 caractères
+arrête le démarrage : générez-en un avec `openssl rand -base64 32`. Ce jeton vit dans la
+configuration du fournisseur ; ce qu'il peut faire est donc volontairement borné :
+
+- **`/scim` n'accepte que le jeton SCIM.** Une session d'administrateur ou une clé d'API y est refusée
+  par `403`, et SCIM désactivé (`vectispire.scim.enabled: false`), rien n'y est accepté ; les comptes
+  s'administrent dans Vectispire, par l'écran des utilisateurs. Le journal d'audit nomme
+  `SCIM provisioning` comme auteur de ce que fait l'annuaire, et le compte ou l'équipe modifié comme
+  ressource.
+- **Les comptes administratifs ne relèvent pas de l'annuaire.** Remplacer, modifier ou supprimer un
+  administrateur ou un super-administrateur répond `403` ; ils s'administrent dans Vectispire.
+- **L'annuaire n'accorde que les rôles bornés — User et Security Champion.** Une valeur `roles` à
+  `ADMIN`, `SUPERUSER`, `CISO` ou `AUDITOR` — un rôle qui administre ou voit tout le parc — répond
+  `400` : ces rôles s'accordent dans Vectispire, par ses administrateurs. Aucun réglage ne l'élargit :
+  un annuaire qui déciderait de ces rôles, c'est un jeton d'annuaire qui détient le parc. Renvoyer le
+  rôle qu'un compte a déjà n'est pas une attribution, et est accepté.
+- **Un remplacement sans `roles` laisse le rôle tel quel** — il ne rétrograde plus en Utilisateur.
+- **`externalId` n'est lié qu'une fois.** Le changer sur un compte qui en a déjà un répond `400` :
+  un nouveau sujet, c'est un nouveau compte.
+- **Un compte existant qui détient un rôle privilégié ou un second facteur local n'est pas lié par
+  l'annuaire.** Poser `externalId` sur un RSSI, un auditeur, un champion sécurité — tout rôle sauf
+  Utilisateur — ou sur un compte doté de son propre TOTP, tant qu'il n'en a pas, répond `400` : le
+  lier laisserait une connexion choisie par l'annuaire sauter le mot de passe et le second facteur de
+  ce compte. Vectispire n'a pas non plus de route qui lie un sujet à un compte existant :
+  provisionnez un nouveau compte et accordez-lui le rôle sur l'écran des utilisateurs, ou faites
+  d'abord désactiver le second facteur par son titulaire.
+  `vectispire.oidc.link-privileged-accounts`, le réglage qui laisse une revendication lier un compte
+  privilégié, le permet aussi à l'annuaire — jamais pour un compte à second facteur local.
+- **Un compte créé par l'annuaire se connecte par le fournisseur.** Il reçoit un mot de passe que
+  personne ne connaît et n'est pas invité à le changer.
+- **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
+- **Abaisser un compte privilégié ne le rend pas liable.** L'annuaire peut retirer un rôle — un CISO
+  abaissé à User est accepté — mais tant que ce compte n'est lié à aucun sujet, lui donner ensuite un
+  `externalId` répond toujours `400`, et une connexion ne le lie pas non plus par son nom, jusqu'à ce
+  qu'un administrateur fixe son rôle sur l'écran des utilisateurs. Sans quoi un rôle que l'annuaire peut
+  abaisser mais non lier serait lié en deux requêtes au lieu d'une.
+- **`GET /scim/v2/Users` évalue deux filtres** : `userName eq "…"` et `externalId eq "…"` (attribut et
+  opérateur en toute casse, la valeur une chaîne entre guillemets). Tout autre — `emails[value eq "…"]`,
+  un `and` ou un `or`, `co`, une valeur sans guillemets — répond `400` avec `scimType` `invalidFilter`
+  (RFC 7644 §3.4.2.2) ; il renvoyait tous les comptes, ce qu'un annuaire qui cherche avant de créer
+  lisait comme une correspondance. Sans filtre, le point d'accès liste tous les comptes, comme avant.
+- **Un utilisateur ou un groupe absent reçoit `404`, un `userName` ou un `displayName` déjà pris `409`
+  avec `scimType` `uniqueness`** (RFC 7644 §3.3), tous deux dans le schéma d'erreur de SCIM avec un
+  `detail`. Jusqu'à la 0.11.1, les deux avaient un corps vide, qui ne donnait à l'annuaire rien à
+  journaliser ni de quoi reconnaître « déjà là ».
+- **Un groupe se renomme par `PUT` ou par `PATCH`** — `replace` avec le chemin `displayName`, ou avec
+  `displayName` dans la valeur. Un nom qu'un autre groupe porte, quelle que soit sa casse, reçoit `409`
+  avec `scimType` `uniqueness` et ne change rien, pas même les membres envoyés à côté. Un `displayName`
+  de plus de 100 caractères reçoit `400`, tout comme un nom vide à la création ou dans un `PATCH` (un
+  `PUT` qui n'en porte pas garde le nom). Jusqu'à la 0.11.1, un tel `PUT` répondait `500`, et un
+  renommage par `PATCH` n'était pas appliqué du tout : il répondait `200` avec l'ancien nom.
+- **Un `replace` des membres d'un groupe par `PATCH` les remplace** (RFC 7644 §3.5.2.3) — avec le
+  chemin `members`, ou avec `members` dans la valeur : les membres de l'équipe deviennent exactement les
+  comptes listés, et une liste vide retire tout le monde. Comme un `PUT`, il retire un membre qu'il ne
+  liste pas, quel que soit qui l'a ajouté, administrateur compris ; un compte listé déjà dans l'équipe
+  garde son appartenance telle quelle. Une entrée qui ne nomme aucun compte — un nom d'utilisateur ou un
+  identifiant inconnu — est ignorée, comme un `add` l'ignore ; des membres qui ne sont pas une liste
+  reçoivent `400`. Jusqu'à la 0.11.1, un `replace` était lu comme un `add` : une personne que l'annuaire
+  retirait du groupe restait dans l'équipe, avec ce qu'elle accorde. Un `add` nommant un identifiant
+  qu'aucun compte ne porte répondait `500` ; il est ignoré lui aussi.
+- **`GET /scim/v2/Users` et `GET /scim/v2/Groups` se paginent à la demande** (RFC 7644 §3.4.2.4) :
+  `startIndex`, à partir de 1, et `count`, 500 ressources par page au plus. `totalResults` compte toutes
+  les ressources que la requête désigne, `itemsPerPage` celles de la page, `startIndex` dit où elle
+  commence. Les valeurs hors bornes sont lues comme la RFC le dit plutôt que refusées — un annuaire à qui
+  l'on répond `400` cesse de synchroniser : un `startIndex` inférieur à 1 vaut 1, un `count` négatif vaut
+  0, qui ne rend que `totalResults`, et un `count` au-delà de 500 vaut 500. Sans l'un ni l'autre, toutes
+  les ressources, comme avant ; les utilisateurs sont listés par `userName`, les groupes par `id`, et le
+  résultat d'un filtre se pagine comme le reste. Jusqu'à la 0.11.1, `/Users` acceptait les deux et les
+  ignorait, rendant tous les comptes quel que soit `count`, et `/Groups` n'en lisait aucun.
+
+## Le second facteur relève du fournisseur
+
+Une connexion SSO **saute le TOTP de Vectispire**, délibérément : l'authentification est déléguée, et
+le second facteur avec elle — un code local en plus ferait concourir deux facteurs. Ce que le
+fournisseur a fait n'est plus une supposition pour autant. Chaque connexion fédérée inscrit dans le
+journal d'audit ce que le jeton atteste — des valeurs `amr` de la RFC 8176 comme `otp` ou `hwk`, ou un
+niveau `acr` — ou qu'il n'atteste rien.
+
+Une fois que votre fournisseur envoie cette information (Keycloak : ajoutez au client un mapper
+*Authentication Method Reference*, ou configurez un niveau `acr`), posez
+`VECTISPIRE_OIDC_REQUIRE_MFA=true` : une connexion qui n'atteste aucun second facteur est alors
+refusée, avec un message qui dit pourquoi. Les valeurs qui comptent sont `VECTISPIRE_OIDC_MFA_AMR` et
+`VECTISPIRE_OIDC_MFA_ACR` — voir [Configuration](../reference/configuration.fr.md).
+
+## Configuration
+
+```bash
+VECTISPIRE_OIDC_ISSUER=https://keycloak.internal/realms/company
+```
+
+Plus les identifiants client que votre fournisseur émet. Avec la composition livrée, l'issuer,
+l'identifiant du client et le nom affiché vont dans `.env.oidc`, et le **secret du client dans
+`.env`** (`VECTISPIRE_OIDC_CLIENT_SECRET`) : `.env.oidc` devient l'environnement du conteneur, que
+`docker inspect` montre à tout client du démon, tandis que le secret de `.env` arrive dans le
+conteneur en fichier sous `/run/secrets/`.
+
+### Ce que le rapport de conformité en dit
+
+Les contrôles de journalisation sont **plafonnés tant que l'authentification est plus faible que
+le rapport ne le laisse croire**. Aucun fournisseur les plafonne à 65 % tant qu'un compte doté d'un mot
+de passe local n'a pas de second facteur TOTP : la chaîne d'empreintes prouve qu'une entrée n'a pas
+été altérée, elle ne prouve pas que le nom qu'elle porte est celui de la personne qui a agi. Quand
+chacun de ces comptes a enrôlé un TOTP, le plafond est de 85 %, parce que chaque compte le choisit
+et que rien ne l'exige du suivant. Un fournisseur *à côté* d'un mot de passe ouvert les plafonne à 85 % — le
+second facteur du realm se contourne par l'autre porte.
+
+C'est délibérément un chiffre et non un refus. PCI DSS et SOC 2 exigent tous deux un second
+facteur, et un rapport qui les déclarait conformes pendant que Vectispire acceptait un mot de passe
+seul rendait à l'évaluateur sa propre diligence sous forme de conclusion.
+
+### Désactiver la connexion par mot de passe
+
+```bash
+VECTISPIRE_PASSWORD_LOGIN=false
+```
+
+L'authentification est alors entièrement déléguée, et le second facteur est celui du royaume.
+
+Ce réglage est **ignoré, bruyamment**, quand aucun `VECTISPIRE_OIDC_ISSUER` n'est posé.
+L'honorer ne laisserait aucune entrée du tout, et un outil de sécurité qui verrouille dehors
+ses administrateurs n'est pas devenu plus sûr.
+
+## Voir aussi
+
+[Utilisateurs et équipes](users-and-teams.md) · [Configuration](../reference/configuration.md)

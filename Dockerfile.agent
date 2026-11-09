@@ -1,0 +1,52 @@
+# Vectispire Remote Agent: dials out to the control plane and runs scanner containers locally.
+#
+#   docker build -f Dockerfile.agent -t vectispire-agent .
+#   docker run --rm \
+#     -e VECTISPIRE_URL=http://control-plane:3180 \
+#     -e VECTISPIRE_AGENT_TOKEN=... \
+#     -v /var/run/docker.sock:/var/run/docker.sock \
+#     vectispire-agent
+
+# The base images are pinned by digest, the tag kept, for the reasons `Dockerfile` gives.
+
+# --- Build Stage -------------------------------------------------------------------------
+FROM eclipse-temurin:25-jdk-alpine@sha256:425f0b733cb23843bd78dbe5552513976d0cf12b9722752c48a5161cf5cd2f32 AS build
+
+WORKDIR /src
+COPY vectispire-java/gradle/ gradle/
+COPY vectispire-java/gradlew vectispire-java/settings.gradle.kts vectispire-java/build.gradle.kts ./
+COPY vectispire-java/buildSrc/ buildSrc/
+# Gradle refuses to configure a project whose directory is missing; the list comes from the
+# settings, as in `Dockerfile`, so that a new module cannot break this image either.
+RUN modules="$(grep -o '"vectispire-[a-z-]*"' settings.gradle.kts | tr -d '"')" \
+    && test -n "$modules" && mkdir -p $modules && ./gradlew --no-daemon help
+
+COPY vectispire-java/ ./
+RUN ./gradlew --no-daemon :vectispire-agent:bootJar -x test
+
+# --- Runtime Stage -----------------------------------------------------------------------
+FROM eclipse-temurin:25-jre-alpine@sha256:56f273059de6b13a6b49fe0ded691ed2d0399bbee76156a8f2d385f7524a3d43
+
+# **No `git`, no `openssh-client`, and that was measured.** Cloning goes through JGit
+# (`org.eclipse.jgit`) and its own SSH transport; there is no `ProcessBuilder` anywhere in
+# the production sources, so neither binary was ever called. Two unused executables in a
+# container that reads code nobody controls are two more things to reach for — the agent
+# needs neither.
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+COPY --from=build /src/vectispire-agent/build/libs/*.jar app.jar
+COPY LICENSE NOTICE ./
+
+# **1000:1000, the published image's user.** Jib builds that one with a numeric user, and the
+# composition hands its scan directory to 1000:1000 (`work-dir`); a system account picked by
+# `adduser -S` got whatever id was free, and an image built from this file could then create no
+# workspace in the directory the composition prepared for it.
+RUN addgroup -S -g 1000 vectispire && adduser -S -u 1000 -G vectispire vectispire
+USER vectispire
+
+# checkov:skip=CKV_DOCKER_2: the agent listens on nothing. It reaches the control plane by
+# outbound long-polling (decision 0003), so there is no port to probe and a HEALTHCHECK would
+# either be a second process or a lie. Its liveness is visible where it matters — the control
+# plane knows when an agent stopped asking for work.
+ENTRYPOINT ["java", "-jar", "app.jar"]

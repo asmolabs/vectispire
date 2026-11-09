@@ -1,0 +1,211 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'api_keys.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'api_keys.subtitle' | translate }}</p>
+    </div>
+    <p-button [label]="'api_keys.issue_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="keys()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'api_keys.name' | translate }}</th>
+                <th>{{ 'api_keys.prefix' | translate }}</th>
+                <th>{{ 'api_keys.scopes' | translate }}</th>
+                <th>{{ 'api_keys.target' | translate }}</th>
+                <th>{{ 'api_keys.owner' | translate }}</th>
+                <th>{{ 'api_keys.last_used' | translate }}</th>
+                <th>{{ 'api_keys.expiration' | translate }}</th>
+                <th class="w-1"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-key>
+            <tr>
+                <td class="font-medium">{{ key.name }}</td>
+                <td class="font-mono text-sm whitespace-nowrap">{{ key.prefix }}…</td>
+                <td>
+                    <div class="flex flex-wrap gap-1">
+                        @for (scope of key.scopes; track scope) {
+                            <p-tag
+                                [value]="scopeLabels()[scope] ?? scope"
+                                [severity]="
+                                    scope === 'agent'
+                                        ? 'danger'
+                                        : scope === 'sarif_import' || scope === 'report_import'
+                                          ? 'warn'
+                                          : 'secondary'
+                                "
+                            />
+                        }
+                    </div>
+                </td>
+                <td>
+                    @if (key.targetLabel) {
+                        <span class="text-sm">{{ key.targetLabel }}</span>
+                    } @else {
+                        <span class="text-muted-color">{{ 'common.all' | translate }}</span>
+                    }
+                </td>
+                <td>
+                    @if (key.owner) {
+                        <span class="text-sm">{{ key.owner }}</span>
+                    } @else {
+                        <span class="text-muted-color">{{ 'api_keys.no_owner' | translate }}</span>
+                    }
+                </td>
+                <td>
+                    @if (key.lastUsedAt) {
+                        {{ key.lastUsedAt | date: 'dd/MM/yyyy HH:mm' }}
+                    } @else {
+                        <span class="text-muted-color">{{ 'api_keys.never' | translate }}</span>
+                    }
+                </td>
+                <td>
+                    @if (key.isExpired) {
+                        <p-tag [value]="'api_keys.expired_badge' | translate" severity="danger" />
+                    } @else if (key.expiresAt) {
+                        {{ key.expiresAt | date: 'dd/MM/yyyy' }}
+                    } @else {
+                        <span class="text-muted-color">—</span>
+                    }
+                </td>
+                <td class="text-right">
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'api_keys.aria_revoke' | translate: { name: key.name }"
+                        (onClick)="askDelete(key)"
+                    />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="7" class="text-center text-muted-color py-6">{{ 'api_keys.no_keys' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog
+    [header]="'api_keys.modal_title' | translate"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '36rem' }"
+>
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
+        <div class="flex flex-col gap-2">
+            <label for="name" class="font-medium">{{ 'api_keys.name_label' | translate }}</label>
+            <input
+                pInputText
+                id="name"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.name"
+                [placeholder]="'api_keys.name_placeholder' | translate"
+            />
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <span class="font-medium">{{ 'api_keys.scopes_label' | translate }}</span>
+            @for (scope of issuableScopes(); track scope.value) {
+                <div class="flex items-start gap-2">
+                    <p-checkbox
+                        [inputId]="scope.value"
+                        [binary]="true"
+                        [ngModelOptions]="{ standalone: true }"
+                        [ngModel]="form.scopes.includes(scope.value)"
+                        (ngModelChange)="toggleScope(scope.value, $event)"
+                    />
+                    <label [for]="scope.value" class="cursor-pointer">
+                        <span [class.text-red-500]="scope.value === 'agent'">{{ scope.label }}</span>
+                        <span class="block text-sm text-muted-color">{{ scope.hint }}</span>
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="target" class="font-medium">{{ 'api_keys.target_label' | translate }}</label>
+            <p-select
+                id="target"
+                [options]="targetOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.target"
+                [showClear]="true"
+                [placeholder]="'api_keys.target_all' | translate"
+                styleClass="w-full"
+            />
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="lifetime" class="font-medium">{{ 'api_keys.expires_label' | translate }}</label>
+            <p-inputnumber
+                inputId="lifetime"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.expiresInDays"
+                [min]="1"
+                [max]="3650"
+                suffix=" d"
+                styleClass="w-full"
+            />
+        </div>
+
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'api_keys.token_modal_title' | translate"
+    [(visible)]="secretVisible"
+    [modal]="true"
+    [closable]="false"
+    [style]="{ width: '36rem' }"
+>
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+        {{ 'api_keys.token_modal_desc' | translate }}
+    </p-message>
+    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">
+        {{ issuedSecret() }}
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.confirm' | translate" (onClick)="dismissSecret()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'common.delete' | translate"
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (pendingDelete(); as key) {
+        <p class="m-0">
+            <span class="font-medium">{{ key.name }}</span> — {{ 'api_keys.delete_confirm' | translate }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="saving()"
+            (onClick)="confirmDelete()"
+        />
+    </ng-template>
+</p-dialog>

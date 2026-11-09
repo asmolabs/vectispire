@@ -1,0 +1,230 @@
+# Architecture Document — 02. Security View
+
+* **Project:** Vectispire — ASPM & Security Control Plane
+* **Template:** `bflorat/modele-da` — Architecture Document Template (Bertrand Florat)
+* **Status:** Approved · **Version:** 1.0
+
+---
+
+## 1. Non-Functional Security Requirements (NFR)
+
+1. **Data Confidentiality at Rest**: Systematic encryption of integration secrets and private SSH
+   deployment keys.
+2. **Watertight Source Code Isolation**: Zero risk of source code exfiltration by scanner
+   containers.
+3. **Audit Log Tamper-Evidence**: A selective modification or deletion of administrative action
+   traces or VEX triage decisions is detected. It is not prevented: whoever can write the table can
+   rewrite the whole chain.
+4. **Least Privilege for Remote Agents**: Remote agents cannot reach the SQL database — enforced by
+   the module graph, so the violation fails to compile — and never hold `ENCRYPTION_KEY`. They *do*
+   receive repository deployment keys in `DELEGATED` mode, sealed (X25519 → HKDF → AES-256-GCM)
+   only to a key the agent signed with its pinned result-signing key, never in the clear, and
+   audited on every send ([decision 0031](../../en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md));
+   `LOCAL`, the default, sends nothing. Stated in full rather than as "agents hold no credentials", which is the
+   shorter claim and the false one — see [decision
+   0003](../../en/decisions/0003-long-polling-for-agents.md).
+
+---
+
+## 2. Authentication, Session Security & RBAC
+
+### 2.1 Password Hashing & Anti-Brute-Force Protection
+- **User Passwords**: Hashed using **Argon2id** algorithm (high memory cost, resistant to GPU
+  cracking).
+- **In-Memory Dynamic Token-Bucket Rate-Limiting (`Bucket4j`)**: `LoginRateLimitFilter` HTTP filter
+  over **all three credential-presenting endpoints** — `POST /api/v1/auth/login`,
+  `/api/v1/auth/mfa/verify` and `/api/v1/auth/session/exchange` (Bucket4j: 10 tokens per minute per
+  IP). Blocks burst attacks instantly with HTTP `429 Too Many Requests` and `Retry-After` headers
+  **without performing any database query or Argon2id key derivation**. The scope is three
+  endpoints and not one because a limiter that guards only the password step leaves the second
+  factor open to unlimited guessing, which is the more valuable target of the two.
+- **Client Address Trust**: `X-Forwarded-For` is honoured only from addresses listed in
+  `VECTISPIRE_TRUSTED_PROXIES`, which is empty by default. Trusting the header unconditionally lets
+  a caller pick their own bucket, which is a rate limiter that rate-limits nobody.
+- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts in the
+  database via `LoginThrottle`: per account (and per typed name) from one client — five a quarter
+  of an hour — per account from every client — fifty — and per client across accounts — twenty.
+  The low ceiling is the account's *from one client*: shared by every client, it let anyone who
+  knew a name keep that account locked, and the owner's right password was refused with the rest.
+  The second-factor budget stays per account: only someone holding the password can spend it.
+- **The account's budget across clients is soft, which closes the last lockout.** The global ceiling
+  was a hard one, and that was the trade-off left: from ten clients or more, anyone who knew a name
+  kept its owner out. Past it now, an attempt from a client that has not signed in to the account
+  within `VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION` (thirty days) is answered `429`
+  `account-throttled` with `Retry-After`, before any hashing and with its rows taken back; a known
+  client goes on, held to its own ceilings, and so does an attempt sending the second factor with the
+  password — both verified, and any failure answered as the same refusal, so a guesser past the budget
+  learns nothing from the password, not even from the time the refusal takes: every refusal on that
+  path waits out the same one-second deadline. The known clients live in `t_sign_in_client` (V101), keyed by a
+  digest of the account and the client bucket, so the exemption survives a restart as the counters do;
+  an unknown name has no known client and is refused as an existing account is. Each refusal is
+  audited `LOGIN_BLOCKED` (`VECTI-SEC-007`) and the log warns once per account per window. The
+  residual cost: whoever shares the owner's egress shares the exemption, and meets that client's own
+  ceilings instead. All three ceilings are `VECTISPIRE_SIGN_IN_*` settings, defaults unchanged.
+- **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with
+  configurable permission scopes and expiration dates.
+
+### 2.2 Role-Based Access Control (RBAC) & Double Validation
+Authorization has two halves, and a route needs both.
+
+**What the caller's role may do** is a composed annotation on every route — `@RequiresAdministrator`,
+`@RequiresSecurityLead`, `@RequiresGovernanceRead`, `@RequiresPlatformGovernor`, `@RequiresWriteAccount`,
+`@RequiresAccount` — each a Spring Security `@PreAuthorize` over a role expression
+(`hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')` and so on) that matches one flag of the `Role` enum; the
+table below gives each marker's roles. A route spells out no role list of its own.
+
+**Whose estate the answer describes** is the second half, and the marker says nothing about it:
+`@RequiresAccount` proves the caller is signed in, not that the repository it names is theirs. A route
+naming a target resolves a `Visibility` — `VisibilityService.of(user, credentialRestriction)`, the
+account's grant intersected with the credential's — and passes it to the query, or refuses through
+`Visibilities.requireVisible(...)`, which answers **404, never 403**, so a refusal cannot confirm that
+the target exists. `AuthorizationCoverageTest` catches a route that forgets.
+
+- **Administrators** (SUPERUSER, ADMIN): accounts, teams, keys, agents, SSH keys.
+- **Optional Double Validation** (`triage_four_eyes_required`): a rule of the platform, so the
+  **Superuser's** alone — `@RequiresPlatformGovernor`, and the setting is one `Setting.governsSecurity()`
+  reserves. When enabled, a VEX triage decision that settles an issue (`NOT_AFFECTED` or `FIXED`)
+  submitted by an account that may not approve enters `PENDING_APPROVAL`. When disabled, authorized
+  users triage directly.
+- **Distinct Identities Enforced**: The approver is checked against the requester recorded on the
+  `PENDING_APPROVAL` event, not merely against the approver role. An account that requests an
+  exemption cannot approve it, even after being granted the role — four eyes means two people, and a
+  role gate alone lets one person hold both halves.
+- **What the roles do not separate: acting through an account one administers.** The governor and
+  every administrator administer accounts. With four-eyes off, one of them can create an account
+  holding a role that triages and settles — a CISO, a security champion — or reset the password of an
+  existing one, sign in as it with the temporary password, and act under its name; the governor's
+  "operates nothing" holds for its own account, not for the ones it can create. That is detection, not
+  prevention — each step is in the audit log, and a reset account must change its password at its next
+  sign-in — and with four-eyes off it stays so: a single person may then settle anything directly.
+- **Under four-eyes, an account change that makes an approver takes two administrators** (1.0.0-rc.1,
+  #126 option 2). Creating an account with a role that approves (`Role.approves()`: ADMIN, CISO,
+  SECURITY_CHAMPION, and SUPERUSER, which approves account requests), raising a role to one, and
+  resetting the password of an account that holds one are filed in `t_account_request` (V100) instead of
+  applied: the route answers `202` with the request, and `/api/v1/account-requests` lists, approves and
+  rejects it. The requester cannot approve it (`409`, `own-account-request`), nobody approves a change to
+  their own account, and the change is checked again with the approver acting — an administrator cannot
+  approve the creation of a governor. The temporary password is stored only as its hash until the
+  approval sets it. Activation, deactivation, target grants and roles that approve nothing still apply
+  at once: taking a privilege away must stay easy. **An administrator alone is not locked out**: with no
+  other administrator — deactivated ones count, and so does one lowered out of an administrative role
+  within the window (at least 30 days), so deactivating or lowering the others does not make one alone —
+  the change applies at once, and its audit entry says so; otherwise a fresh installation, whose only
+  account is the governor, could never be staffed. Two orderings are closed as well: a raise to an
+  approving role is refused (`409`, `password-known-to-administrator`) when its requester or its
+  approver created the account or reset its password within the window — lower, reset, raise would
+  otherwise hand them an approver the request does not reveal — and a request whose requester is no
+  longer an active administrator cannot be approved; a password reset of an account with a change pending
+  waits for that change to be decided.
+- **Under four-eyes, an approver the requester administered recently is refused** (1.0.0-rc.1, #126
+  option 1). `t_account_administration` (V100) records, in the transaction of each gesture, which
+  administrator created an account, reset its password or changed its role, and when — the audit log
+  says the same in sentences, which a guard cannot rely on. `ApproverIndependence` refuses every
+  four-eyes approval — a triage, an account request, a checklist sign-off, a checklist template
+  version's publication or retirement, a report plugin manifest's approval — whose requester (for the
+  last three, any author of the work, or the manifest's registrant) did one of the three to the
+  approver's account within `four_eyes_independence_days` (30 by default; a governor-only setting, `0` switches it
+  off, at most 3650): `409`, code `approver-not-independent`, with the members `gesture` and
+  `windowDays`. Both administrators behind an approved account request count as having administered it.
+  For every approval but a triage the question is asked both ways — an account the approver made could
+  be the approver's own second name, writing what the approver then approves; for a triage only the
+  requester's way, since an approver settles directly and refusing it would refuse every administrator
+  who staffed the team they review. Until 1.0.0-rc.1 the sign-off, the template versions and the report
+  plugins compared accounts and names only. A report plugin's pending manifest is checked whatever
+  four-eyes says at the approval, under the rule it was registered under.
+- **What still remains.** The window starts filling at the upgrade: gestures made before it are in the
+  audit log only. After the window, an account an administrator made can approve that administrator's
+  requests; an administrator who deletes every other administrator acts alone, which the audit log and
+  the SIEM show (`USER_DELETED`); two creations of one username filed at once both wait, and the second
+  approved fails on the username's unique key; and the directory (SCIM) can still grant SECURITY_CHAMPION, a role that approves,
+  outside both checks. Read the account administration entries (`ACCOUNT_REQUEST_*`, `USER_UPDATED`)
+  beside the triage approvals when reviewing a dismissal.
+- **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
+  hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
+- **USER / SECURITY_CHAMPION**: Posture dashboard inspection and vulnerability triage. A
+  security champion may approve a triage, but only within the scope its visibility grants — it has
+  no global reach.
+- **AUDITOR** (2026-09-02): **reads governance and writes none of it.** Global scope, no
+  approval, no write anywhere. The role exists because until that date, reading the audit log, the
+  compliance evidence, the gate policy and the SIEM destination required the same marker as writing
+  them: the only account that could inspect the posture was one that could rewrite it. Whoever
+  checks the work should not be able to change it first.
+
+  **The role lied for a day, and that is worth recording.** It shipped on 1 September with that
+  sentence in its documentation while six write routes carried only `@RequiresAccount`: an auditor
+  could settle an issue, open a ticket in a customer's tracker, and send a target's finding list to
+  a model host. Closed on 2 September by `@RequiresWriteAccount`, after enumerating every non-GET
+  route a plain signed-in account can reach — not only the ones anybody suspected.
+
+**Reading governance and writing it are two separate markers** (2026-09-02). They were one, applied
+at class level across eight controllers, which conflated inspecting with modifying.
+
+| Marker | Roles | What it opens |
+|---|---|---|
+| `@RequiresAdministrator` | SUPERUSER, ADMIN | Accounts, teams, keys, agents, settings |
+| `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Write**: gate policy, rule sets, SIEM destination, licence policy |
+| `@RequiresGovernanceRead` | + AUDITOR | **Read**: audit log, compliance evidence, gate policies, rule sets, SIEM config |
+| `@RequiresPlatformGovernor` | SUPERUSER only | **The rules**: who sees which targets (`target_visibility`), and whether writing off a vulnerability needs a second person (`triage_four_eyes_required`) |
+| `@RequiresWriteAccount` | everyone but AUDITOR and SUPERUSER | **Act**: triage an issue, open a ticket, run an OWASP review or a model explanation |
+| `@RequiresAccount` | any signed-in account | Everything else, narrowed afterwards by visibility |
+
+These three role lists are not copies: `RouteAuthorizationTest` asserts that each expression matches
+exactly the `Role` flag that defines it, and refuses any route that spells out its own list instead
+of wearing a marker.
+
+The gate (`POST /api/v1/gate`) requires **no particular role**: it carries `@RequiresAccount` and is
+called in practice with an API key, whose scopes are a separate authorization axis. This document
+claimed a `ROLE_CI` that never existed.
+
+---
+
+## 3. Data Protection at Rest & Encryption
+
+### 3.1 AES-256-GCM Encryption (`EncryptionService`)
+All private SSH deployment keys (`t_ssh_key`) and integration tokens are encrypted using
+**AES-256-GCM** authenticated encryption (AEAD). Master encryption key is loaded from
+`ENCRYPTION_KEY` environment variable.
+
+### 3.2 Secret Retention & Purge
+1. **Raw Scanner Outputs**: JSON payloads temporarily held in `scan.cves` are purged automatically
+   by `RetentionService`.
+2. **Minimal Finding Storage**: `Finding` and `Issue` entities store **only file path and line
+   number**, never cleartext secret values.
+
+---
+
+## 4. Analysis Container Confinement
+
+All analyzer containers executed by `ContainerRunner` are hardened to prevent escape or
+exfiltration:
+
+| Security Measure | Implementation | Confinement Objective |
+|---|---|---|
+| **Privilege Dropping** | `cap_drop: ALL`, `no-new-privileges` | Prevent root privilege escalation inside container. |
+| **Read-Only Volume Mount** | Source mounted as `read-only` | Guarantee analyzer never modifies scanned code. |
+| **Network Isolation** | **`network: none`** (Secrets, SAST, IaC) | Prevent code or secret exfiltration. |
+| **Docker Socket Access** | **No Docker socket access** | Prohibit takeover of host Docker daemon. |
+
+---
+
+## 5. Audit Log Tamper-Evidence (Hash Chain)
+
+The `t_audit_log` table stores historical administrative and VEX triage records. Each row
+incorporates an unkeyed SHA-256 hash of its fields and of the preceding row's hash
+(`AuditChain.computeEntryHash`), the fields separated by a NUL byte:
+
+```
+Hash_N = SHA256( Hash_N-1 | Timestamp_N | Operation_N | Resource_N | User_N | IP_N | UserAgent_N | Description_N )
+```
+
+`AuditLogService.verify()` recomputes the chain and reports the first break: a selective
+modification or deletion breaks every hash after it. The hash is unkeyed, so this does not make
+the log immutable — whoever can write the table can recompute the whole chain; comparing it with
+the off-database mirror (`verifyAgainstMirror`) is what exposes that.
+
+---
+
+## 6. STRIDE Threat Model
+
+Full threat modeling based on **DFD STRIDE per System Entity** is documented separately in
+[`STRIDE_THREAT_MODEL.en.md`](../../security/en/STRIDE_THREAT_MODEL.en.md).

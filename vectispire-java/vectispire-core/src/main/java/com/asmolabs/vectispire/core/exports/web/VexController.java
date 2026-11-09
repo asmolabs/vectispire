@@ -1,0 +1,97 @@
+package com.asmolabs.vectispire.core.exports.web;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.exports.VexGeneratorService;
+import com.asmolabs.vectispire.core.issues.IssueDecisionService;
+import com.asmolabs.vectispire.core.issues.VexIngestorService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+/**
+ * REST controller exposing standardized OpenVEX v0.2.0 documents and handling multi-format VEX ingestion.
+ */
+@RestController
+@RequestMapping("/api/v1/vex")
+@RequiresAccount
+public class VexController {
+
+    private final VexGeneratorService vexService;
+    private final VexIngestorService vexIngestor;
+    private final VisibilityService visibility;
+
+    public VexController(
+            VexGeneratorService vexService,
+            VexIngestorService vexIngestor,
+            VisibilityService visibility) {
+        this.vexService = vexService;
+        this.vexIngestor = vexIngestor;
+        this.visibility = visibility;
+    }
+
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
+    @GetMapping(value = "/scans/{scanId}/openvex.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OpenVexDocument> getScanVex(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @PathVariable("scanId") Long scanId) {
+        // The service refuses a scan the caller may not see: the same scan under another format is
+        // the same authorization question, and asking it beside the read is what keeps it asked.
+        OpenVexDocument doc = vexService.generateForScan(scanId, allowanceOf(principal))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + scanId + "-openvex.json\"")
+                .body(doc);
+    }
+
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
+    @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OpenVexDocument> getAggregateVex(
+            @AuthenticationPrincipal VectispirePrincipal principal) {
+        OpenVexDocument doc = vexService.generateAggregate(allowanceOf(principal));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-openvex.json\"")
+                .body(doc);
+    }
+
+    // **A VEX document says "not affected".** Accepting one from any account means any
+    // account can silence findings across the estate — the same decision the four-eyes workflow
+    // makes deliberately expensive when a human takes it through the interface. The caller is
+    // handed to the service, which takes the decision in their name, within what they may see,
+    // and refuses the platform governor — see VexIngestorService.
+    @RequiresSecurityLead
+    @PostMapping(value = "/ingest", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public VexIngestorService.IngestionResult ingestVex(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestBody String payload,
+            HttpServletRequest request) {
+        return vexIngestor.ingestPayload(payload, new IssueDecisionService.Caller(
+                principal.user(),
+                allowanceOf(principal),
+                TrustedProxies.resolvedClientAddress(request),
+                request.getHeader("User-Agent")));
+    }
+
+    private Visibility allowanceOf(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+    }
+
+}

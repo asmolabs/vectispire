@@ -1,0 +1,508 @@
+[
+ {
+  "check_type": "terraform",
+  "results": {
+   "passed_checks": [
+    {
+     "check_id": "CKV_AWS_93",
+     "bc_check_id": "BC_AWS_S3_24",
+     "check_name": "Ensure S3 bucket policy does not lockout all but root user. (Prevent lockouts needing root account fixes)",
+     "check_result": {
+      "result": "PASSED",
+      "evaluated_keys": [
+       "policy"
+      ]
+     },
+     "code_block": null,
+     "file_path": "/main.tf",
+     "file_abs_path": "/repo/source/main.tf",
+     "repo_file_path": "/repo/source/main.tf",
+     "file_line_range": [
+      1,
+      3
+     ],
+     "resource": "aws_s3_bucket.b",
+     "evaluations": null,
+     "check_class": "checkov.terraform.checks.resource.aws.S3ProtectAgainstPolicyLockout",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/s3-policies/bc-aws-s3-24",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": "/repo/source/main.tf"
+    }
+   ],
+   "failed_checks": [
+    {
+     "check_id": "CKV_AWS_18",
+     "bc_check_id": "BC_AWS_S3_13",
+     "check_name": "Ensure the S3 bucket has access logging enabled",
+     "check_result": {
+      "result": "FAILED",
+      "entity": {
+       "aws_s3_bucket": {
+        "b": {
+         "__end_line__": 3,
+         "__start_line__": 1,
+         "bucket": [
+          "x"
+         ],
+         "__address__": "aws_s3_bucket.b"
+        }
+       }
+      },
+      "evaluated_keys": [
+       "logging",
+       "resource_type"
+      ]
+     },
+     "code_block": null,
+     "file_path": "/main.tf",
+     "file_abs_path": "/repo/source/main.tf",
+     "repo_file_path": "/repo/source/main.tf",
+     "file_line_range": [
+      1,
+      3
+     ],
+     "resource": "aws_s3_bucket.b",
+     "evaluations": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/s3-policies/s3-13-enable-logging",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": "/repo/source/main.tf"
+    },
+    {
+     "check_id": "CKV2_AWS_62",
+     "bc_check_id": "BC_AWS_LOGGING_36",
+     "check_name": "Ensure S3 buckets should have event notifications enabled",
+     "check_result": {
+      "result": "FAILED",
+      "entity": {
+       "aws_s3_bucket": {
+        "b": {
+         "__end_line__": 3,
+         "__start_line__": 1,
+         "bucket": [
+          "x"
+         ],
+         "__address__": "aws_s3_bucket.b"
+        }
+       }
+      },
+      "evaluated_keys": [
+       "resource_type"
+      ]
+     },
+     "code_block": null,
+     "file_path": "/main.tf",
+     "file_abs_path": "/repo/source/main.tf",
+     "repo_file_path": "/repo/source/main.tf",
+     "file_line_range": [
+      1,
+      3
+     ],
+     "resource": "aws_s3_bucket.b",
+     "evaluations": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/bc-aws-2-62",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": "/repo/source/main.tf"
+    }
+   ],
+   "skipped_checks": [],
+   "parsing_errors": [
+    "/repo/source/broken.tf"
+   ]
+  },
+  "summary": {
+   "passed": 4,
+   "failed": 7,
+   "skipped": 0,
+   "parsing_errors": 1,
+   "resource_count": 1,
+   "checkov_version": "3.3.9"
+  },
+  "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+ },
+ {
+  "check_type": "cloudformation",
+  "results": {
+   "passed_checks": [],
+   "failed_checks": [],
+   "skipped_checks": [],
+   "parsing_errors": [
+    "/repo/source/cfn/stack.json"
+   ]
+  },
+  "summary": {
+   "passed": 0,
+   "failed": 0,
+   "skipped": 0,
+   "parsing_errors": 1,
+   "resource_count": 0,
+   "checkov_version": "3.3.9"
+  },
+  "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+ },
+ {
+  "check_type": "terraform_plan",
+  "results": {
+   "passed_checks": [],
+   "failed_checks": [],
+   "skipped_checks": [],
+   "parsing_errors": [
+    "/repo/source/package.json",
+    "/repo/source/cfn/stack.json"
+   ]
+  },
+  "summary": {
+   "passed": 0,
+   "failed": 0,
+   "skipped": 0,
+   "parsing_errors": 2,
+   "resource_count": 0,
+   "checkov_version": "3.3.9"
+  },
+  "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+ },
+ {
+  "check_type": "dockerfile",
+  "results": {
+   "passed_checks": [
+    {
+     "check_id": "CKV_DOCKER_5",
+     "bc_check_id": "BC_DKR_4",
+     "check_name": "Ensure update instructions are not use alone in the Dockerfile",
+     "check_result": {
+      "result": "PASSED",
+      "results_configuration": null
+     },
+     "code_block": null,
+     "file_path": "/Dockerfile",
+     "file_abs_path": "/repo/source/Dockerfile",
+     "repo_file_path": "/repo/source/Dockerfile",
+     "file_line_range": [
+      1,
+      2
+     ],
+     "resource": "/Dockerfile.",
+     "evaluations": null,
+     "check_class": "checkov.dockerfile.checks.UpdateNotAlone",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/docker-policies/docker-policy-index/ensure-update-instructions-are-not-used-alone-in-the-dockerfile",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null
+    }
+   ],
+   "failed_checks": [
+    {
+     "check_id": "CKV_DOCKER_3",
+     "bc_check_id": "BC_DKR_3",
+     "check_name": "Ensure that a user for the container has been created",
+     "check_result": {
+      "result": "FAILED",
+      "results_configuration": null
+     },
+     "code_block": null,
+     "file_path": "/Dockerfile",
+     "file_abs_path": "/repo/source/Dockerfile",
+     "repo_file_path": "/repo/source/Dockerfile",
+     "file_line_range": [
+      1,
+      2
+     ],
+     "resource": "/Dockerfile.",
+     "evaluations": null,
+     "check_class": "checkov.dockerfile.checks.UserExists",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/docker-policies/docker-policy-index/ensure-that-a-user-for-the-container-has-been-created",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null
+    },
+    {
+     "check_id": "CKV_DOCKER_2",
+     "bc_check_id": "BC_DKR_2",
+     "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+     "check_result": {
+      "result": "FAILED",
+      "results_configuration": null
+     },
+     "code_block": null,
+     "file_path": "/Dockerfile",
+     "file_abs_path": "/repo/source/Dockerfile",
+     "repo_file_path": "/repo/source/Dockerfile",
+     "file_line_range": [
+      1,
+      2
+     ],
+     "resource": "/Dockerfile.",
+     "evaluations": null,
+     "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/docker-policies/docker-policy-index/ensure-that-healthcheck-instructions-have-been-added-to-container-images",
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null
+    }
+   ],
+   "skipped_checks": [],
+   "parsing_errors": []
+  },
+  "summary": {
+   "passed": 21,
+   "failed": 2,
+   "skipped": 0,
+   "parsing_errors": 0,
+   "resource_count": 1,
+   "checkov_version": "3.3.9"
+  },
+  "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+ },
+ {
+  "check_type": "github_actions",
+  "results": {
+   "passed_checks": [
+    {
+     "check_id": "CKV_GHA_5",
+     "bc_check_id": null,
+     "check_name": "Found artifact build without evidence of cosign sign execution in pipeline",
+     "check_result": {
+      "result": "PASSED",
+      "results_configuration": {
+       "b": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+         {
+          "run": "echo ${{ github.event.issue.title }}",
+          "__startline__": 6,
+          "__endline__": 7
+         }
+        ],
+        "__startline__": 4,
+        "__endline__": 7
+       },
+       "__startline__": 3,
+       "__endline__": 7
+      }
+     },
+     "code_block": null,
+     "file_path": "/.github/workflows/ci.yml",
+     "file_abs_path": "/repo/source/.github/workflows/ci.yml",
+     "repo_file_path": "/repo/source/.github/workflows/ci.yml",
+     "file_line_range": [
+      3,
+      8
+     ],
+     "resource": "jobs",
+     "evaluations": null,
+     "check_class": "checkov.github_actions.checks.job.CosignArtifacts",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": null,
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null,
+     "triggers": [
+      [
+       "push"
+      ]
+     ],
+     "job": [
+      "b"
+     ],
+     "workflow_name": ""
+    }
+   ],
+   "failed_checks": [
+    {
+     "check_id": "CKV_GHA_2",
+     "bc_check_id": null,
+     "check_name": "Ensure run commands are not vulnerable to shell injection",
+     "check_result": {
+      "result": "FAILED",
+      "results_configuration": {
+       "run": "echo ${{ github.event.issue.title }}",
+       "__startline__": 6,
+       "__endline__": 7
+      }
+     },
+     "code_block": null,
+     "file_path": "/.github/workflows/ci.yml",
+     "file_abs_path": "/repo/source/.github/workflows/ci.yml",
+     "repo_file_path": "/repo/source/.github/workflows/ci.yml",
+     "file_line_range": [
+      6,
+      8
+     ],
+     "resource": "jobs(b).steps[1]",
+     "evaluations": null,
+     "check_class": "checkov.github_actions.checks.job.ShellInjection",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": null,
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null,
+     "triggers": [
+      [
+       "push"
+      ]
+     ],
+     "job": [
+      "b"
+     ],
+     "workflow_name": ""
+    },
+    {
+     "check_id": "CKV2_GHA_1",
+     "bc_check_id": null,
+     "check_name": "Ensure top-level permissions are not set to write-all",
+     "check_result": {
+      "result": "FAILED",
+      "evaluated_keys": [
+       "permissions"
+      ]
+     },
+     "code_block": null,
+     "file_path": "/.github/workflows/ci.yml",
+     "file_abs_path": "/repo/source/.github/workflows/ci.yml",
+     "repo_file_path": "/repo/source/.github/workflows/ci.yml",
+     "file_line_range": [
+      0,
+      1
+     ],
+     "resource": "on",
+     "evaluations": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "fixed_definition": null,
+     "entity_tags": null,
+     "caller_file_path": null,
+     "caller_file_line_range": null,
+     "resource_address": null,
+     "severity": null,
+     "bc_category": null,
+     "benchmarks": null,
+     "description": null,
+     "short_description": null,
+     "vulnerability_details": null,
+     "connected_node": null,
+     "guideline": null,
+     "details": [],
+     "check_len": null,
+     "definition_context_file_path": null,
+     "triggers": [
+      [
+       "push"
+      ]
+     ],
+     "job": [
+      ""
+     ],
+     "workflow_name": ""
+    }
+   ],
+   "skipped_checks": [],
+   "parsing_errors": []
+  },
+  "summary": {
+   "passed": 9,
+   "failed": 2,
+   "skipped": 0,
+   "parsing_errors": 0,
+   "resource_count": 0,
+   "checkov_version": "3.3.9"
+  },
+  "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+ }
+]

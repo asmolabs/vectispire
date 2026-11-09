@@ -1,0 +1,152 @@
+# Double validation
+
+Un contrôle qui fait qu'une décision de triage demande deux personnes : une qui la propose, une qui
+l'approuve.
+
+Il s'active dans **Réglages → Triage VEX et approbation**. Éteint, la décision de quiconque peut
+trier se règle immédiatement. Allumé, la même décision entre dans une file d'approbation et seul un
+approbateur la clôt.
+
+## À quoi il sert
+
+Une décision de triage n'est pas une note. Un `not_affected` avec sa justification part tel quel
+dans les documents CycloneDX, OpenVEX et CSAF signés remis aux clients. Ce contrôle existe pour que
+l'affirmation la plus forte que ce produit sache publier sur une vulnérabilité ne soit pas le clic
+d'une seule personne.
+
+Il couvre les trois statuts qui **règlent** une issue — qui la sortent du chemin de la barrière :
+`not_affected`, `will_not_fix` (*Ne sera pas corrigé — risque accepté*) et `fixed`. Un risque accepté
+n'affirme pas que le produit est sûr — les documents continuent de dire qu'il est exposé, sans
+correction prévue —, mais il cesse de faire échouer les builds jusqu'à sa date de réexamen : c'est une
+décision du même poids qu'une levée ([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)). Sous la règle, la demande de quelqu'un qui
+ne peut pas approuver est mise en file en `pending_approval`, compte toujours à la barrière, et se lit
+*en cours d'investigation* dans tous les formats VEX jusqu'à ce qu'elle soit accordée.
+
+## Accordée telle que demandée, ou refusée {#granted-as-asked-or-turned-down}
+
+Une demande en file garde le statut qu'elle demande — affiché à côté de *en attente d'approbation*
+dans le backlog et dans le [registre des exceptions](../guide/exceptions.fr.md) — et la date de
+réexamen qu'elle propose. La fenêtre de triage s'ouvre sur les deux. Un approbateur **accorde ce
+statut ou aucun** : approuver comme *non affecté* une demande de risque accepté, ou comme *corrigé*
+une demande de levée, est refusé (`409`, `urn:vectispire:problem:triage-approval-differs`). Quatre
+yeux sur un statut que la seconde paire a choisi, ce serait une seule paire d'yeux sur ce statut — le
+demandeur ne l'a jamais demandé — et un *Won't Fix* accordé comme une levée est un « non exposé »
+signé que personne n'a affirmé.
+
+Un approbateur en désaccord **refuse la demande** — retour en *en cours d'examen*, ou *affecté* — et
+peut ensuite enregistrer sa propre décision, sous son nom. La date de réexamen reste la sienne : la
+fenêtre propose celle de la demande, modifiable avant d'accorder. Une demande mise en file avant cet
+enregistrement (0.11.0) ne porte pas de statut, et l'approbateur choisit comme avant.
+
+## Qui approuve, et qui ne peut pas
+
+L'approbation appartient aux rôles qui répondent du parc. Le **gouverneur de la plateforme** — le
+compte d'amorçage — en est délibérément **exclu**, et ne peut pas trier du tout.
+
+C'est la partie qui mérite d'être comprise, parce que ce n'est pas un oubli. Le gouverneur est le
+seul rôle qui puisse éteindre ce contrôle. S'il pouvait aussi décider sous la règle, le contrôle
+serait contournable par une seule personne en trois gestes : éteindre, régler seul, rallumer, une
+entrée d'audit pour toute trace. Retirer le droit d'approuver n'aurait rien fermé — le service règle
+la décision de tout le monde quand le réglage est éteint. Ce qui le ferme est qu'**aucun rôle ne
+détient les deux moitiés** : celui qui peut lever la règle ne peut pas agir sous elle.
+
+## Un approbateur que le demandeur a administré {#an-approver-the-requester-administered}
+
+Deux noms ne font pas deux personnes quand le demandeur a fait le second. Double validation activée,
+une approbation est **refusée quand son demandeur, dans les 30 derniers jours, a créé le compte de
+l'approbateur, réinitialisé son mot de passe ou changé son rôle** — un administrateur qui demande
+ensuite une dérogation comme simple compte ne peut pas la faire approuver par le compte qu'il vient de
+créer, ou dont il a saisi le mot de passe. Le refus est un `409` de code `approver-not-independent`
+(`urn:vectispire:problem:approver-not-independent`), avec les membres `gesture` (`created`,
+`password_reset` ou `role_changed`) et `windowDays`. Quelqu'un d'autre approuve, ou le même compte une
+fois la fenêtre passée.
+
+La fenêtre est **Fenêtre d'indépendance de l'approbateur (jours)** dans **Réglages → Triage VEX et
+approbation**, 30 sauf réglage, et comme l'interrupteur lui-même seul le gouverneur de la plateforme la
+change ; `0` désactive le contrôle, et elle vaut 3650 au plus. Elle s'applique à toutes les
+approbations qu'exige la double validation : les approbations de triage, les
+[modifications de comptes qui attendent un second administrateur](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator),
+la validation d'une checklist de projet, la publication et le retrait d'une version de modèle de
+checklist, et l'approbation du manifeste d'un plugin de rapport. Pour les trois dernières, le demandeur
+est qui a écrit l'ouvrage — chaque auteur de la révision de checklist ou du brouillon de modèle, le
+compte qui a enregistré le manifeste. Les gestes sont enregistrés à partir de la mise à jour en 1.0 :
+un geste antérieur ne figure qu'au journal d'audit.
+
+Hors triage, la question est posée dans les deux sens : un approbateur qui a créé le compte du demandeur
+(ou d'un auteur), réinitialisé son mot de passe ou changé son rôle est refusé aussi, puisqu'un compte
+qu'on a créé pourrait être son propre second nom, écrivant l'ouvrage qu'on approuve ensuite. Un triage ne
+la pose que dans un sens, puisque son approbateur pourrait de toute façon clore le problème directement.
+Double validation désactivée, rien n'est contrôlé — sauf pour le manifeste d'un plugin de rapport,
+approuvé sous la règle sous laquelle il a été enregistré.
+
+## Les modifications de comptes exigent deux administrateurs {#account-changes-take-two-administrators}
+
+Double validation activée, créer un compte doté d'un rôle qui approuve, élever un rôle vers l'un
+d'eux et réinitialiser le mot de passe d'un compte qui en détient un attendent un second
+administrateur, qui les approuve ou les refuse depuis l'écran des utilisateurs —
+[Utilisateurs et équipes](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator) décrit
+la file. Sans cela, un seul administrateur pourrait fabriquer la seconde identité qu'exige une
+approbation.
+
+## L'activer demande qu'une seconde personne existe
+
+Si aucun compte actif ne peut approuver, le serveur refuse l'activation. Sans ce garde, l'allumer là
+où il n'y a pas d'approbateur met chaque décision dans une file que personne ne peut vider — un
+contrôle qui bloque au lieu de contrôler, et dont la panne ne se voit qu'au premier triage.
+
+Créez d'abord un administrateur, un CISO ou un référent sécurité.
+
+Il refuse aussi tant que **moins de deux comptes actifs peuvent publier un modèle de checklist** — le
+gouverneur de la plateforme, un administrateur ou un CISO. Sous les quatre yeux, une version de modèle
+est publiée par quelqu'un d'autre que son auteur, et l'écrire demande le même rôle : avec un seul tel
+compte, chaque brouillon pourrait être importé et aucun jamais publié. Créez-en d'abord un second.
+[Modèles de checklists](checklist-templates.fr.md#5-publier) décrit ce qu'on dit à l'auteur d'un
+brouillon quand le serveur refuse qu'il le publie lui-même.
+
+Et il refuse tant que **moins de deux comptes actifs peuvent approuver** — un administrateur, un CISO
+ou un référent sécurité. Sous les quatre yeux, la checklist d'un projet est approuvée par un
+approbateur qui n'en a rien écrit — qui ne l'a pas ouverte, n'a répondu à ni confirmé aucune ligne,
+n'a joint ni retiré aucune preuve, ni ne l'a soumise — et ce sont souvent les approbateurs qui
+remplissent les checklists : avec un seul, ce qu'il aurait répondu pourrait être soumis et jamais
+approuvé. Créez-en d'abord un second.
+
+Le même décompte couvre les **plugins de rapport** : sous les quatre yeux, le manifeste d'un plugin de
+rapport est approuvé par une personne qui écrit la gouvernance autre que le gouverneur qui l'a
+enregistré, si bien que les deux comptes qui permettent de publier des modèles permettent aussi
+d'approuver des manifestes ([Plugins de rapport](report-plugins.fr.md#enregistrer-approuver-activer)).
+
+L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demande un second.
+
+## Approuver une checklist
+
+La checklist d'un projet est approuvée par un approbateur. Double contrôle activé, le serveur refuse
+l'approbation par **n'importe lequel des auteurs de la révision** — le compte qui a ouvert une
+checklist neuve, donné une réponse qu'elle contient, confirmé une ligne reportée, joint ou retiré une
+preuve, ou l'a soumise, comparé comme compte et comme nom. Reporter des réponses, en rouvrant ou en
+changeant de version, n'est pas écrire. Le refus est inscrit au journal d'audit et envoyé au SIEM (`VECTI-SEC-026`) ;
+une approbation indique si la règle s'appliquait. Double contrôle éteint, un approbateur peut
+approuver ce qu'il a écrit.
+
+## Les décisions venues d'un traqueur
+
+Un webhook de ticket peut rapporter une décision de triage, et cette décision ne se règle jamais
+d'elle-même — quoi que dise le traqueur. La route ne peut pas porter de session : elle n'accepte
+rien tant qu'aucun secret de webhook n'est configuré ; une fois qu'il l'est, ce qui y entre part
+encore en approbation — le secret prouve que le traqueur a envoyé l'appel, pas que quelqu'un a
+regardé la vulnérabilité — et l'entrée d'audit inscrit l'intégration comme auteur, le nom revendiqué
+restant à côté comme une donnée rapportée. Le refus d'un traqueur (*Won't Fix*, le *not planned*
+de GitHub…) arrive comme une demande de `will_not_fix`, un faux positif explicite comme une demande
+de `not_affected` ; l'approbateur accorde ce statut ou refuse la demande, et fixe la date de
+réexamen. Et une issue qu'une
+personne a déjà réglée ne bouge pas du tout sur un ticket : la parole du traqueur est inscrite, et
+signalée comme `VECTI-SEC-037` quand elle contredit la décision
+([Tickets](../integrations/ticketing.md#inbound-webhook)).
+
+## À lire aussi
+
+- [Constats et triage](../guide/issues.fr.md) — là où une décision se propose.
+- [Utilisateurs et équipes](users-and-teams.fr.md) — les rôles et ce que chacun peut faire.
+- [Modèles de checklists](checklist-templates.fr.md) — une version de modèle publiée par quelqu'un d'autre que son auteur.
+- [Checklists de sécurité](../guide/security-checklists.fr.md#5-approuver) — la checklist d'un projet approuvée par quelqu'un qui n'en a rien écrit.
+- [SIEM](../integrations/siem.fr.md#catalogue-des-evenements) — une checklist approuvée (`VECTI-SEC-025`), une approbation refusée ou une checklist renvoyée (`VECTI-SEC-026`).
+- [Journal d'audit](audit-log.fr.md) — où chaque décision et chaque changement de réglage sont inscrits.

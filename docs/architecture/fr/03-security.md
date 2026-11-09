@@ -1,0 +1,115 @@
+# 03 — Sécurité
+
+> L'analyse formelle est séparée et plus longue : le
+> **[modèle de menaces STRIDE](../security/fr/STRIDE_THREAT_MODEL.fr.md)** parcourt chaque
+> catégorie avec le contrôle qui y répond. Cette page donne la forme du problème ; celle-là en
+> donne l'énumération.
+
+Vectispire est un outil de sécurité, ce qui ne le rend pas automatiquement invulnérable : cela le
+rend **intéressant à attaquer**. Il stocke des clés de déploiement, détient l'accès au démon Docker,
+affiche des chaînes générées par du code potentiellement hostile, et renvoie un verdict de
+conformité qu'un attaquant pourrait chercher à falsifier.
+
+## Actifs sensibles et protection
+
+| Actif | Emplacement | Conséquence d'une fuite |
+|---|---|---|
+| Clés de déploiement SSH | `ssh_key`, chiffrées en AES-GCM | Accès en lecture à tous les dépôts suivis |
+| Jetons de clonage HTTPS | `t_git_token`, chiffrés en AES-GCM sous l'identifiant de la ligne ; présentés au seul hôte écrit à l'ajout du jeton, que rien ne modifie ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | Ce que le jeton accorde sur cette forge |
+| `ENCRYPTION_KEY` | Variable d'environnement ou fichier | Déchiffre **l'ensemble** des clés d'accès |
+| Accès au démon Docker | Via `docker-socket-proxy`, jamais le fichier socket ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | Équivalent de l'accès `root` sur l'hôte qui l'exécute |
+| Verdict du Quality Gate | `issue`, `gate_policy` | Un build vulnérable passe le contrôle CI/CD |
+| Rapports bruts de secrets | `scan.cves` (purgés par rétention) | **Secrets et jetons d'API en clair** |
+| Journal d'audit | `audit_log` (chaîne de hachage) | Altération de l'historique d'actions |
+
+## Frontières de confiance
+
+```mermaid
+flowchart LR
+    subgraph hostile["Données non maîtrisées"]
+        CODE["Code source scanné"]
+        FEED["Flux de vulnérabilités, métadonnées de paquets"]
+    end
+    subgraph proc["Processus Vectispire — détient ENCRYPTION_KEY"]
+        SCAN["Conteneurs d'analyse éphémères<br/>cap_drop ALL, no-new-privileges, réseau coupé"]
+        APP["Services et API HTTP"]
+    end
+    subgraph daemon["Démon Docker — root sur son hôte"]
+        PROXY["docker-socket-proxy<br/>ping, info, containers, images — ni secrets, ni démarrage d'exec"]
+    end
+    subgraph edge["Périphérie"]
+        USER["Navigateur de l'analyste"]
+        CI["Pipeline de build — Clé d'API"]
+        AGENT["Agent distant — Clé d'agent"]
+    end
+
+    CODE --> SCAN
+    SCAN -->|"résultats = données brutes, jamais des instructions"| APP
+    APP -->|"DOCKER_HOST, réseau interne"| PROXY
+    PROXY --> SCAN
+    FEED --> APP
+    APP -->|"CSP : toute chaîne injectée reste inerte"| USER
+    CI --> APP
+    AGENT -->|"jamais d'accès direct à la base"| APP
+```
+
+## Qui voit quoi
+
+Toute lecture qui nomme une cible est restreinte par une `Visibility`, résolue une fois par requête
+par `VisibilityService` : tout pour un administrateur ou un rôle à périmètre global, sinon
+l'**union** de ce qui a été attribué directement au compte et de ce qui l'a été à ses équipes,
+**intersectée** avec la restriction propre à l'identifiant présenté. Une attribution nomme un dépôt,
+une image ou un **projet** ; une attribution de projet est résolue à ce moment-là en dépôts et images
+rangés dans le projet ([0023](decisions/0023-solutions-projects-and-repositories.md)), si bien que
+ranger un dépôt ou une image dans un projet l'accorde aussitôt aux titulaires du projet, et l'en sortir le leur retire
+aussitôt — l'entrée d'audit du déplacement le dit. Ce qui atteint les requêtes reste un ensemble de
+cibles, et une cible que le lecteur ne peut pas voir répond 404, exactement comme une cible qui
+n'existe pas.
+
+## Trois frontières qui méritent d'être nommées à part
+
+**Le démon est celle que l'on rétrécit, pas celle que l'on ferme.** Aucun conteneur Vectispire ne
+monte `/var/run/docker.sock` ; un proxy le détient et n'autorise que les six groupes d'API que
+Vectispire appelle. Mais `POST /containers/create` accepte des `Binds`, et c'est l'appel dont le
+produit vit — une exécution de code dans le plan de contrôle atteint donc encore l'hôte. La
+frontière qui sépare réellement les deux est une deuxième machine : un agent distant, avec
+`VECTISPIRE_EMBEDDED_WORKER=false` ici. La
+[décision 0018](decisions/0018-the-docker-socket-is-never-mounted.md) le dit en détail, y compris ce
+que cela n'achète pas.
+
+**Rendre le résultat d'un scan est l'opération à plus fort impact intégrité du produit.** Des
+artefacts présents et vides signifient « analysé, rien trouvé », ce qui résout tout le backlog de la
+cible pour ce type — correctement, selon [0007](decisions/0007-none-is-not-an-empty-list.md). Un
+opérateur peut donc épingler une clé publique Ed25519 sur la ligne d'un agent, hors bande ; les
+résultats de cet agent doivent alors porter une signature couvrant l'identifiant du scan et le corps
+exact. La clé n'est délibérément **pas** annoncée par l'agent : une signature vérifiée contre une
+clé que son signataire a publiée sur le même canal ne prouve que ce que le jeton porteur prouvait
+déjà. Une clé API volée réclame des tâches ; elle ne déclare pas une cible propre.
+
+**Un en-tête transmis vaut le pair qui l'a envoyé.** `X-Forwarded-For` décide qui est plafonné et
+quelle adresse le journal d'audit retient, et `X-Forwarded-Proto` si le cookie de passage de
+l'authentification unique est marqué `Secure` : les deux ne sont honorés que depuis une adresse
+nommée dans `vectispire.security.trusted-proxies`. (`X-Forwarded-Proto` décidait aussi si une clé de
+déploiement pouvait voyager vers un agent, jusqu'à ce que la décision 0031 scelle tout secret
+délégué quel que soit le lien.) Vide — le défaut — signifie que le pair est le client et que seule
+une connexion réellement chiffrée compte. L'adresse crue est l'entrée la plus à droite de
+`X-Forwarded-For` que la liste ne nomme pas, et elle n'est que ce que ce proxy a vu : derrière un
+relais qui traduit la source (le SNAT d'un nœud Kubernetes), c'est celle du relais.
+
+## Risques résiduels, dits plutôt que sous-entendus
+
+**L'URL d'un dépôt est comparée aux points d'accès de Vectispire là où elle est saisie, pas là où
+elle est clonée.** La liste d'hôtes git autorisés refuse une URL qui nomme le démon Docker du plan de
+contrôle, sa base de données ou l'API de son cluster (`ReservedEndpoints`), à la saisie et de nouveau
+à la construction de la tâche de scan. Deux choses lui échappent. Le nom est résolu par ce contrôle,
+puis résolu de nouveau par le clonage, qui ne revérifie que les adresses link-local et de métadonnées :
+un nom dont la réponse change entre les deux (DNS rebinding) atteint ce que la première réponse ne
+nommait pas. Et les points d'accès propres à un agent — son `DOCKER_HOST`, `agent-docker-proxy:2375`
+dans le compose livré — ne sont pas connus du plan de contrôle. Ce qui atteint un tel point d'accès est
+l'ouverture d'un transport `https`, `ssh` ou `git`, les seuls schémas qu'une URL de dépôt peut porter :
+une poignée de main, ou la lecture d'un chemin finissant par `/info/refs`, sans jamais porter
+d'identifiant — un jeton n'est présenté qu'à son propre hôte. Les proxys du démon, en HTTP clair,
+refusent tout cela ; une API en HTTPS y répond comme à un appelant anonyme. Le fermer demanderait
+d'épingler, dans chacun des transports de JGit, les adresses vérifiées ; cela a été jugé
+disproportionné à cet impact avant la 1.0, et sera reconsidéré si un transport parlant HTTP en clair
+est un jour accepté.

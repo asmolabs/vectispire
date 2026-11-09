@@ -1,0 +1,172 @@
+package com.asmolabs.vectispire.core.notifications;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.ScanDelta;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
+import java.time.Instant;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * A team granted a project is told about the project's repositories (decision 0023) and its images
+ * (the amendment of 2026-09-30).
+ *
+ * <p>Visibility resolves a project grant into the repositories filed in the project; routing has
+ * to read ownership the same way, or the team sees findings on screen its channel was never sent.
+ */
+@DisplayName("a project grant routes a team's notifications")
+class ProjectNotificationRoutingTest extends VectispireContextTest {
+
+    @Autowired
+    private ScanDeltaNotifier notifier;
+
+    @Autowired
+    private TransactionTemplate transactions;
+
+    @Autowired
+    private TeamRepository teams;
+
+    @Autowired
+    private TeamTargetRepository teamTargets;
+
+    @Autowired
+    private TeamWebhookRepository teamWebhooks;
+
+    @Autowired
+    private SolutionRepository solutions;
+
+    @Autowired
+    private ProjectRepository projects;
+
+    @Autowired
+    private GitRepositoryRepository repositories;
+
+    @Autowired
+    private ContainerRepository containers;
+
+    @Autowired
+    private OutboxMessageRepository outbox;
+
+    @Test
+    @DisplayName("a scan of a repository filed in the team's project is queued for the team's channel")
+    void aProjectGrantRoutesTheDelta() {
+        long team = team("owners");
+        long project = project();
+        teamTargets.save(new TeamTargetEntity(team, "project", project));
+        long filed = repository("https://example.invalid/routed.git");
+        repositories.assignProject(filed, project);
+        long unfiled = repository("https://example.invalid/elsewhere.git");
+
+        enqueue(filed);
+        enqueue(unfiled);
+
+        assertThat(outbox.findAll().stream().map(OutboxMessageEntity::getTeamId).filter(Long.valueOf(team)::equals))
+                .as("one copy for the team, for the filed repository only")
+                .containsExactly(team);
+    }
+
+    @Test
+    @DisplayName("a scan of an image filed in the team's project is queued for the team's channel")
+    void aProjectGrantRoutesAnImagesDelta() {
+        long team = team("image-owners");
+        long project = project();
+        teamTargets.save(new TeamTargetEntity(team, "project", project));
+        long filed = container("routed");
+        containers.assignProject(filed, project);
+        long unfiled = container("elsewhere");
+
+        enqueueImage(filed);
+        enqueueImage(unfiled);
+
+        assertThat(outbox.findAll().stream().map(OutboxMessageEntity::getTeamId).filter(Long.valueOf(team)::equals))
+                .as("one copy for the team, for the filed image only")
+                .containsExactly(team);
+    }
+
+    private void enqueue(long repositoryId) {
+        ScanEntity scan = new ScanEntity();
+        scan.setId(repositoryId * 1000);
+        scan.setRepoId(repositoryId);
+        send(scan, repositoryId * 1000);
+    }
+
+    private void enqueueImage(long containerId) {
+        ScanEntity scan = new ScanEntity();
+        // Kept apart from the repositories' scans, whose identifiers are their repository's times a thousand.
+        scan.setId(containerId * 1000 + 500);
+        scan.setContainerId(containerId);
+        send(scan, containerId * 1000 + 500);
+    }
+
+    private void send(ScanEntity scan, long issueId) {
+        IssueEntity issue = new IssueEntity();
+        issue.setId(issueId);
+        issue.setIdentifier("CVE-2021-44228");
+        issue.setType(FindingType.VULNERABILITY.wireName());
+        issue.setSeverity(Severity.CRITICAL.wireName());
+        issue.setState(IssueState.OPEN.wireName());
+        transactions.executeWithoutResult(status -> notifier.enqueue(new ScanDelta(
+                scan.getId(), scan.target(), List.of(IssueView.of(issue)), List.of(), 0)));
+    }
+
+    private long team(String name) {
+        TeamEntity team = new TeamEntity();
+        team.setName(name + "-" + System.nanoTime());
+        team.setCreatedAt(Instant.now());
+        long id = teams.save(team).getId();
+        teamWebhooks.save(new TeamWebhookEntity(id, "https://hooks.example.invalid/" + id));
+        return id;
+    }
+
+    private long project() {
+        SolutionEntity solution = new SolutionEntity();
+        solution.setName("solution-" + System.nanoTime());
+        solution.setCreatedAt(Instant.now());
+        ProjectEntity project = new ProjectEntity();
+        project.setSolutionId(solutions.save(solution).getId());
+        project.setName("project");
+        project.setCreatedAt(Instant.now());
+        return projects.save(project).getId();
+    }
+
+    private long container(String name) {
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName(name + "-" + System.nanoTime());
+        container.setTag("1.0");
+        return containers.save(container).getId();
+    }
+
+    private long repository(String url) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl(url);
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+}

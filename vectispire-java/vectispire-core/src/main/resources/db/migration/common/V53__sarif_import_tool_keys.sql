@@ -1,0 +1,14 @@
+-- Which tools an accepted SARIF import carried — decision 0032 §6.
+--
+-- Written once, in common: a nullable column added, nothing else. A checklist line bound to an
+-- imported tool (`import:<source>/<tool>`) rests on the newest import whose accepted runs include it,
+-- and `tools` cannot say so: it is the document's own words, `name version`, clipped at 1,000
+-- characters, and a tool whose name holds another's would match it. The keys are the fingerprint's
+-- tool keys, sorted and comma-separated; a tool name holds no comma, the source's declaration refuses
+-- one.
+--
+-- **No backfill.** An import accepted before this column exists keeps a null: which of its runs were
+-- accepted was never written down in a form that can be read back, and a key guessed from `tools`
+-- would be a claim nobody recorded. A checklist reads those imports as "unrecorded", never as clean,
+-- until the source's next upload.
+alter table t_sarif_import add column tool_keys ${text};

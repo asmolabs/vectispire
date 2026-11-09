@@ -1,0 +1,330 @@
+package com.asmolabs.vectispire.core.targets.web;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService;
+import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.Changes;
+import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.Listed;
+import com.asmolabs.vectispire.core.targets.RepositoryView;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+/** The repositories under watch, and triggering their scans. */
+@Tag(name = "Repositories", description = "Target repository inventory, Git synchronization and scan triggers")
+@RestController
+@RequestMapping("/api/v1/repositories")
+// Listing is readable by any account; creating, scanning and deleting are administrators' —
+// a scan costs machine time and the queue is shared. The method's marker wins over the class's.
+@RequiresAccount
+public class RepositoriesController {
+
+    private final RepositoryAdministrationService inventory;
+    private final VisibilityService visibility;
+
+    public RepositoriesController(RepositoryAdministrationService inventory, VisibilityService visibility) {
+        this.inventory = inventory;
+        this.visibility = visibility;
+    }
+
+    public record LastScan(Long id, String status, Instant createdAt, String error) {}
+
+    /**
+     * The schedule in force, as the server decides it — so that no screen holds a copy of the rule.
+     *
+     * @param mode {@code manual}, {@code cron}, {@code interval} or {@code default}
+     * @param intervalMinutes how often the target runs under {@code interval} or {@code default}; null
+     *     for a cron expression, for manual only, and for {@code default} when the installation has no
+     *     default interval — a target that, in effect, is not rescanned
+     */
+    public record ScheduleInForce(String mode, Long intervalMinutes) {
+
+        static ScheduleInForce of(Schedules.InForce inForce) {
+            return new ScheduleInForce(inForce.mode().wireName(), inForce.interval().map(Duration::toMinutes).orElse(null));
+        }
+    }
+
+    public record RepositorySummary(
+            Long id,
+            String url,
+            String branch,
+            String name,
+            String subPath,
+            String displayName,
+            Integer scanIntervalMinutes,
+            String scanCron,
+            // "Never rescan this", set by an operator — distinct from having no schedule, which is the
+            // installation's default interval since 0.11.0.
+            boolean scanManualOnly,
+            ScheduleInForce schedule,
+            String requiredAgentLabel,
+            UUID sshKeyId,
+            UUID httpsTokenId,
+            Instant lastScheduledScanAt,
+            LastScan lastScan,
+            long openIssues,
+            String tier,
+            // The project it is filed in (decision 0023), null for "no project". Changed through
+            // `PUT /api/v1/projects/{id}/repositories/{repositoryId}`, not through this resource.
+            Long projectId,
+            String projectName,
+            // The languages its newest completed scan found in the tree, sorted, in the vocabulary a
+            // plugin manifest declares. **Null — sent, not omitted — when unknown**: no completed scan
+            // yet, a scan from before the census was kept, or a census that stopped short. Never `[]`
+            // for that: `[]` is a whole census that saw no language (decision 0007).
+            List<Language> detectedLanguages) {}
+
+    /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
+    public record RepositoryCreateRequest(
+            String url,
+            String branch,
+            String name,
+            String subPath,
+            Integer scanIntervalMinutes,
+            String scanCron,
+            @JsonProperty("required_agent_label") String requiredAgentLabel,
+            // **A string and not a `UUID`, for the same reason the fields above are strings.** The
+            // update path reads absent as "leave alone", so a typed `UUID` gives the operator no
+            // way to say "no key any more" — null would be indistinguishable from "unchanged", and
+            // the form would show the key detached while the next clone still used it. The empty
+            // string is the explicit clear; a malformed one is a 400 rather than a silent no-op.
+            String sshKeyId,
+            String tier,
+            // Same convention as the key: absent leaves it, empty clears it.
+            @JsonProperty("https_token_id") String httpsTokenId,
+            // Absent leaves it; true clears the interval and the expression, and is refused beside
+            // either; false returns the target to its interval, its expression or the default.
+            Boolean scanManualOnly) {}
+
+    public record QueuedScan(Long id, String status) {}
+
+    /**
+     * One target filed more than once.
+     *
+     * @param repository {@code host/path}, the identity the URLs share — no scheme, no user part, no port
+     * @param targets its filings, oldest first: the oldest is the one new filings are compared with
+     */
+    public record DuplicateTarget(String repository, String branch, String subPath, List<RepositorySummary> targets) {}
+
+    static final String DUPLICATE_REFUSAL = "The same repository (its URL compared without scheme, user, port, "
+            + "case or .git), on the same branch and sub-path, as an existing target answers 409 with the type "
+            + "urn:vectispire:problem:" + RepositoryAdministrationService.TargetAlreadyRegisteredException.CAUSE
+            + "; when the caller sees that target, the problem's existingRepositoryId names it.";
+
+    /** The list, with each target's latest scan and how many issues are waiting on it. */
+    @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible "
+            + "to the caller, by id. With limit, one page of them: the same array, cut from what the caller sees; a "
+            + "page shorter than limit is the last.")
+    @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
+    @AcceptsApiKey(ApiKeyScope.READ)
+    @GetMapping
+    public List<RepositorySummary> list(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return inventory.list(allowed(principal), limit, offset).stream()
+                .map(RepositoriesController::summaryOf)
+                .toList();
+    }
+
+    @Operation(summary = "Create repository", description = "Registers a new Git repository for automated security scanning. "
+            + DUPLICATE_REFUSAL)
+    @ApiResponse(responseCode = "200", description = "Repository registered successfully")
+    @RequiresAdministrator
+    @PostMapping
+    public RepositorySummary create(
+            @RequestBody RepositoryCreateRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        RepositoryView saved = inventory.create(changesOf(body), allowed(principal), RequestActors.of(principal, request));
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
+    }
+
+    /**
+     * The targets filed more than once: those the duplicate refusal found already there when it arrived.
+     *
+     * <p>A read, for the administrator who merges them by hand — nothing here deletes a row, since
+     * either may hold the triage.
+     */
+    @Operation(summary = "List duplicate repository targets", description = "The repositories filed more than "
+            + "once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were "
+            + "refused; merged by hand.")
+    @ApiResponse(responseCode = "200", description = "Groups of two or more targets, possibly none")
+    @RequiresAdministrator
+    @GetMapping("/duplicates")
+    public List<DuplicateTarget> duplicates(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return inventory.duplicates(allowed(principal), limit, offset).stream()
+                .map(group -> new DuplicateTarget(
+                        group.identity().repository(),
+                        group.identity().branch(),
+                        group.identity().subPath(),
+                        group.targets().stream().map(RepositoriesController::summaryOf).toList()))
+                .toList();
+    }
+
+    /**
+     * Changes a monitored repository.
+     *
+     * <p><b>Absent means unchanged, not cleared.</b> A {@code null} field is left alone and an
+     * empty string clears it: with the opposite convention, a screen sending only the two fields
+     * it edits would silently erase the SSH key, the schedule and the agent label. That mistake
+     * is invisible until the next scan waits for an agent nobody requires any more.
+     *
+     * <p><b>Changing the URL keeps the issues.</b> The fingerprint does not include the
+     * repository, so the backlog attached to this row survives and now describes a different
+     * codebase. That is the right behaviour for the ordinary case — a repository that moved host
+     * — and the wrong one for pointing an existing row at an unrelated project. The audit entry
+     * records both URLs so the surprise has an explanation.
+     */
+    @Operation(summary = "Update repository", description = "Updates configuration, schedule or credentials of a monitored repository. "
+            + "Changing the URL, the branch or the sub-path to another target's is refused like a creation: "
+            + DUPLICATE_REFUSAL)
+    @ApiResponse(responseCode = "200", description = "Repository updated successfully")
+    @RequiresAdministrator
+    @PatchMapping("/{id}")
+    public RepositorySummary update(
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
+            @RequestBody RepositoryCreateRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        RepositoryView saved =
+                inventory.update(id, changesOf(body), allowed(principal), RequestActors.of(principal, request));
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
+    }
+
+    /**
+     * Queues a scan of this repository.
+     *
+     * <p>Administrators only: a scan costs machine time and network, and the queue is shared.
+     */
+    @Operation(summary = "Trigger repository scan", description = "Enqueues an immediate full security scan (SBOM, CVE, Secrets, SAST, IaC, APIs).")
+    @ApiResponse(responseCode = "200", description = "Scan queued successfully")
+    @RequiresAdministrator
+    @AcceptsApiKey(ApiKeyScope.SCAN)
+    @PostMapping("/{id}/scan")
+    public QueuedScan triggerScan(
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id, allowed(principal), RequestActors.of(principal, request));
+        return new QueuedScan(triggered.scan().id(), triggered.scan().status());
+    }
+
+    @Operation(summary = "Delete repository", description = "Removes repository and cascades deletion of its issues, findings and history.")
+    @ApiResponse(responseCode = "204", description = "Repository deleted successfully")
+    @RequiresAdministrator
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void remove(
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        inventory.delete(id, RequestActors.of(principal, request));
+    }
+
+    private Visibility allowed(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+    }
+
+    private static RepositorySummary summaryOf(Listed listed) {
+        RepositoryView repository = listed.repository();
+        return new RepositorySummary(
+                repository.id(),
+                RepositoryUrl.redact(repository.url()),
+                repository.branch(),
+                repository.name(),
+                repository.subPath(),
+                displayName(repository),
+                repository.scanIntervalMinutes(),
+                repository.scanCron(),
+                repository.scanManualOnly(),
+                ScheduleInForce.of(listed.schedule()),
+                repository.requiredAgentLabel(),
+                repository.sshKeyId(),
+                repository.httpsTokenId(),
+                repository.lastScheduledScanAt(),
+                listed.latestScan()
+                        .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
+                        .orElse(null),
+                listed.openIssues(),
+                repository.tier(),
+                repository.projectId(),
+                listed.projectName(),
+                listed.detectedLanguages().map(languages -> languages.stream().sorted().toList()).orElse(null));
+    }
+
+    private static Changes changesOf(RepositoryCreateRequest body) {
+        return new Changes(
+                body.url(),
+                body.branch(),
+                body.name(),
+                body.subPath(),
+                body.scanIntervalMinutes(),
+                body.scanCron(),
+                body.requiredAgentLabel(),
+                body.sshKeyId(),
+                body.tier(),
+                body.httpsTokenId(),
+                body.scanManualOnly());
+    }
+
+    /**
+     * What the screen calls it, through the domain's rule rather than a copy of it.
+     *
+     * <p><b>This method used to be that copy, and the two had already diverged.</b>
+     * {@link RepositoryUrl#displayName} falls back to the short form — {@code org/project} —
+     * where this returned the whole URL; it was tested, and called by nothing. The backlog's
+     * new target column forced the question, because a third rule would have had the same
+     * repository named two different things on two screens.
+     *
+     * <p>The visible change: a repository with no operator-chosen name now reads
+     * {@code org/project} instead of {@code https://github.com/org/project.git}. That is also
+     * what makes it fit in a table column.
+     */
+    private static String displayName(RepositoryView repository) {
+        return RepositoryUrl.displayName(repository.name(), repository.url());
+    }
+}

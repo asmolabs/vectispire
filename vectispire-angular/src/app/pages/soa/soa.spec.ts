@@ -1,0 +1,332 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { Soa } from './soa';
+import { asSchema, newerServerWord } from '@/app/core/testing/contract';
+import { missingFromBundles } from '@/app/core/testing/bundles';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+import type { DeclarationRequest, Divergence, SoaLine, SoaStatement } from '@/app/core/api.models';
+import english from '../../../../public/i18n/en.json';
+import french from '../../../../public/i18n/fr.json';
+import {
+    APPLICABILITY_KEYS,
+    DIVERGENCE_HELP_KEYS,
+    DIVERGENCE_KEYS,
+    EVIDENCE_KEYS,
+    IMPLEMENTATION_KEYS,
+    isFinding
+} from './soa';
+
+/**
+ * The statement of applicability, and the order it opens in.
+ *
+ * **The server returns the rows in the standard's order, which is right for printing the document
+ * and wrong for opening it.** The question asked in front of this screen is "what is wrong", and
+ * it is answered at the top. A contradicted control filed twelfth because its identifier begins
+ * with an eight is a finding nobody sees.
+ *
+ * The second case pins the two refusals the server makes, said here by a disabled button rather
+ * than by a message after the keystroke.
+ */
+describe('the statement of applicability', () => {
+    let fixture: ComponentFixture<Soa>;
+    let http: HttpTestingController;
+
+    function line(id: string, divergence: Divergence, declared: boolean): SoaLine {
+        return {
+            control: { id, name: id, requirement: '', category: 'GOVERNANCE' },
+            declaration: declared
+                ? {
+                      framework: 'ISO_27001',
+                      controlId: id,
+                      applicability: 'APPLICABLE',
+                      justification: 'In scope.',
+                      implementation: 'IMPLEMENTED',
+                      evidenceSource: 'VECTISPIRE',
+                      externalEvidence: null,
+                      owner: 'n.faure',
+                      decidedBy: 'c.moreau',
+                      decidedAt: '2026-01-01T00:00:00Z',
+                      reviewedAt: '2026-01-01T00:00:00Z',
+                      reviewDueAt: null
+                  }
+                : null,
+            measured: 'NON_COMPLIANT',
+            divergence,
+            reviewOverdue: false
+        };
+    }
+
+    // Typed: it lacked the `title` the screen heads each statement with, and the header rendered empty.
+    const STATEMENT: SoaStatement = asSchema('SoaStatement', {
+        framework: 'ISO_27001',
+        title: 'ISO/IEC 27001:2022',
+        total: 4,
+        declared: 3,
+        findings: 2,
+        reviewsOverdue: 0,
+        complete: false,
+        lines: [
+            line('ISO-A.5.15', 'CONSISTENT', true),
+            line('ISO-A.8.9', 'UNDECLARED', false),
+            line('ISO-A.8.28', 'OVERSTATED', true),
+            line('ISO-A.8.8', 'CONTRADICTED', true)
+        ]
+    });
+
+    /** Two frameworks: the question is asked at the scale of the management system. */
+    const OVERDUE = [
+        {
+            framework: 'ISO_27001',
+            controlId: 'ISO-A.8.8',
+            applicability: 'APPLICABLE',
+            justification: null,
+            implementation: 'IMPLEMENTED',
+            evidenceSource: 'VECTISPIRE',
+            externalEvidence: null,
+            owner: 'c.moreau',
+            decidedBy: 'ciso',
+            decidedAt: '2025-01-10T09:00:00Z',
+            reviewedAt: null,
+            reviewDueAt: '2026-02-01T00:00:00Z'
+        },
+        {
+            framework: 'NIS_2',
+            controlId: 'NIS2-ART21-2-E',
+            applicability: 'APPLICABLE',
+            justification: null,
+            implementation: 'PLANNED',
+            evidenceSource: 'EXTERNAL',
+            externalEvidence: 'PSSI §4',
+            owner: null,
+            decidedBy: 'ciso',
+            decidedAt: '2025-03-01T09:00:00Z',
+            reviewedAt: null,
+            reviewDueAt: '2026-06-01T00:00:00Z'
+        }
+    ];
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Soa],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(Soa);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        http.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush(OVERDUE);
+        fixture.detectChanges();
+    }, 20_000);
+
+    /**
+     * Each column through literal keys (decision 0019): the cells built `'soa.divergence.' + …`,
+     * which the i18n check could not read, so a missing entry reached an assessor as a key path.
+     */
+    it('spells every declaration and divergence with a key both bundles hold', () => {
+        const maps = [APPLICABILITY_KEYS, IMPLEMENTATION_KEYS, EVIDENCE_KEYS, DIVERGENCE_KEYS, DIVERGENCE_HELP_KEYS];
+        expect(missingFromBundles(maps.flatMap((map) => Object.values(map)))).toEqual([]);
+    });
+
+    it('shows each cell in words, and a value it does not know as sent rather than as a key', () => {
+        useEnglish();
+        const [first, ...others] = STATEMENT.lines;
+        const unknown: SoaLine = {
+            ...first,
+            divergence: newerServerWord<Divergence>('REWORDED_ON_THE_SERVER'),
+            measured: 'NO_DATA'
+        };
+        fixture.componentInstance.statements.set([
+            { ...STATEMENT, lines: [unknown, ...others] } satisfies SoaStatement
+        ]);
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain(english.soa.divergence.CONTRADICTED);
+        expect(text).toContain(english.soa.divergence_help.CONTRADICTED);
+        expect(text).toContain(english.soa.applicability.APPLICABLE);
+        expect(text).toContain(english.soa.evidence.VECTISPIRE);
+        expect(text).toContain(english.soa.measured.NO_DATA);
+        expect(text).toContain('REWORDED_ON_THE_SERVER');
+        expect(text).not.toMatch(/soa\.(divergence|divergence_help|applicability|implementation|evidence|measured)\./);
+    });
+
+    it('opens on the divergences, most severe to least', () => {
+        expect(fixture.componentInstance.lines().map((l) => l.control.id)).toEqual([
+            'ISO-A.8.8',
+            'ISO-A.8.9',
+            'ISO-A.8.28',
+            'ISO-A.5.15'
+        ]);
+    });
+
+    it('counts as a finding only what an assessment would write up', () => {
+        const component = fixture.componentInstance;
+        const [contradicted, undeclared, overstated, consistent] = component.lines();
+
+        expect(isFinding(contradicted)).toBe(true);
+        expect(isFinding(undeclared)).toBe(true);
+        // A document ahead of the practice is not the same class of problem as a false claim.
+        expect(isFinding(overstated)).toBe(false);
+        expect(isFinding(consistent)).toBe(false);
+        // And the rows on screen say so: only the first two are marked.
+        const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')];
+        expect(rows.map((row) => row.classList.contains('bg-red-50'))).toEqual([true, true, false, false]);
+    });
+
+    it('words every cell and the lapsed reviews again when the reader switches language', () => {
+        useEnglish();
+        fixture.detectChanges();
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.textContent).toContain(english.soa.divergence.CONTRADICTED);
+        expect(page.textContent).toContain(english.soa.measured.NON_COMPLIANT);
+        expect(page.textContent).toContain('NIS 2 Directive');
+
+        useFrench();
+        fixture.detectChanges();
+        const text = page.textContent;
+        expect(text).toContain(french.soa.divergence.CONTRADICTED);
+        expect(text).toContain(french.soa.divergence_help.CONTRADICTED);
+        expect(text).toContain(french.soa.applicability.APPLICABLE);
+        expect(text).toContain(french.soa.implementation.IMPLEMENTED);
+        expect(text).toContain(french.soa.evidence.VECTISPIRE);
+        expect(text).toContain(french.soa.measured.NON_COMPLIANT);
+        expect(text).toContain(french.compliance.frameworks.nis2);
+        expect(text).not.toContain(english.soa.divergence.CONTRADICTED);
+        expect(text).not.toContain('NIS 2 Directive');
+    });
+
+    it('refuses an exclusion with no justification, before the request', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        component.applicability = 'EXCLUDED';
+        component.justification = '   ';
+
+        expect(component.incomplete()).toBe(true);
+
+        component.submit();
+        http.expectNone((call) => call.method === 'PUT');
+    });
+
+    it('is a form requiring the justification of an exclusion, and sends once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(false);
+        component.applicability = 'EXCLUDED';
+        component.justification = '';
+        // Written from code rather than by the select, as the dialog's own event would have marked it.
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(true);
+
+        const form = document.querySelector('#justification')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(0);
+        component.justification = 'Out of the certified scope.';
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(1);
+    });
+
+    it('refuses evidence declared elsewhere that names nowhere', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        component.applicability = 'APPLICABLE';
+        component.evidenceSource = 'EXTERNAL';
+        component.externalEvidence = '';
+
+        expect(component.incomplete()).toBe(true);
+    });
+
+    it('sends the declaration and reads the document again rather than recomputing the divergence', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        component.submit();
+
+        const call = http.expectOne('/api/v1/compliance/soa/ISO_27001/ISO-A.8.8');
+        expect(call.request.method).toBe('PUT');
+        expect((call.request.body as DeclarationRequest).applicability).toBe('APPLICABLE');
+        // The declaration as recorded — the answer the page does not merge, since it reads the document again.
+        call.flush(
+            asSchema('Declaration', {
+                framework: 'ISO_27001',
+                controlId: 'ISO-A.8.8',
+                applicability: 'APPLICABLE',
+                justification: null,
+                implementation: 'IMPLEMENTED',
+                evidenceSource: 'VECTISPIRE',
+                externalEvidence: null,
+                owner: null,
+                decidedBy: 'c.moreau',
+                decidedAt: '2026-10-15T08:00:00Z',
+                reviewedAt: null,
+                reviewDueAt: null
+            })
+        );
+
+        // Recomputing the divergence in the browser would make a second implementation of the
+        // rule, which would end up no longer saying the same thing as the evidence bundle.
+        http.expectOne((request) => request.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+    });
+
+    it('opens the overdue-review counter onto the list, across all frameworks', () => {
+        // **A number you cannot open is not a record of review, it is a reproach.** Every document
+        // displayed "n reviews overdue" and nothing said which, although the route existed.
+        useEnglish();
+        fixture.detectChanges();
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('ISO-A.8.8');
+        expect(text).toContain('NIS2-ART21-2-E');
+        // The framework is named on every row: the list crosses documents, and a row without its
+        // framework attaches to nothing. By its standard's name — the row printed `NIS_2`.
+        expect(text).toContain('NIS 2 Directive');
+        expect(text).not.toContain('NIS_2');
+        expect(text).toContain('c.moreau');
+    });
+
+    it('shows no section when no review has lapsed', async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Soa],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const clean = TestBed.createComponent(Soa);
+        const calls = TestBed.inject(HttpTestingController);
+        clean.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush([]);
+        clean.detectChanges();
+
+        // A panel shown when all is well loses its meaning within days, and then the one that
+        // matters becomes invisible too.
+        expect((clean.nativeElement as HTMLElement).textContent).not.toContain('Reviews overdue');
+        expect(clean.componentInstance.overdue()).toEqual([]);
+    });
+
+    it('shows the statement even when the list of reviews fails', async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Soa],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const degraded = TestBed.createComponent(Soa);
+        const calls = TestBed.inject(HttpTestingController);
+        degraded.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        calls
+            .expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue')
+            .error(new ProgressEvent('failed'));
+        degraded.detectChanges();
+
+        // The screen's subject is the statement; an unavailable list must not carry it away.
+        expect(degraded.componentInstance.lines().length).toBeGreaterThan(0);
+        expect(degraded.componentInstance.error()).toBeNull();
+    });
+});

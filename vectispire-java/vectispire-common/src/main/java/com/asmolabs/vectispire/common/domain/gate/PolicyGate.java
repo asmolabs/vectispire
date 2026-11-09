@@ -1,0 +1,205 @@
+package com.asmolabs.vectispire.common.domain.gate;
+
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Pass/fail verdict of a target's backlog against a policy.
+ *
+ * <p>This is what makes Vectispire usable from a pipeline rather than only from a browser: a CI
+ * job asks "given what you know about this target, should this build fail?" and gets back a
+ * reasoned verdict.
+ *
+ * <p>Pure functions over a list of issues — no HTTP, no session — so the semantics can be
+ * tested exhaustively, and so the same evaluation serves the gate endpoint, the Security
+ * screen's badge and the notification threshold. Reimplementing the rule in SQL for one of the
+ * three would make it diverge the first time a flag was added.
+ *
+ * <p><b>Quality findings never fail a build, and there is no flag to change that.</b> A quality
+ * backlog is voluminous by nature, and a gate that turns red the day somebody switches on a
+ * linter is a gate that gets switched off. The absence of an option is the decision: an option
+ * would make "quality never blocks" a sentence with an asterisk.
+ */
+public final class PolicyGate {
+
+    private PolicyGate() {}
+
+    /**
+     * Applies {@code policy} to issues and explains the result, <b>for a caller whose verdict is
+     * about a single issue rather than a target</b> — see {@link GateVerdict.Coverage#NOT_APPLICABLE}.
+     * Whether the target was examined is not this caller's question either: the ticket sweep asks
+     * whether one issue is acceptable now, and "the target's last scan failed" is no answer to it.
+     */
+    public static GateVerdict evaluate(Collection<GateIssue> issues, GatePolicy policy) {
+        return evaluate(issues, policy, GateVerdict.Coverage.NOT_APPLICABLE, Optional.empty());
+    }
+
+    /**
+     * Applies {@code policy} to a target's backlog, knowing what the examination could reach and
+     * whether there was one.
+     *
+     * <p><b>The coverage rule is not about the backlog, and that is why it is checked apart.</b>
+     * Every other rule here reads an issue; this one fails on the absence of any — a target whose
+     * ecosystems no rule covers reports nothing, and nothing passes. It is reported as a violation
+     * rather than as a bare {@code false} because a pipeline that stops has to be told why, and
+     * "no violation, build failed" is the least actionable sentence a gate can produce.
+     *
+     * <p><b>Nor is the observation rule, and it has no switch.</b> A target never scanned, or whose
+     * last scan failed, has an empty or stale backlog, and an empty backlog passes every policy:
+     * the gate failed open on exactly the targets nobody had looked at (decision 0007 — absent is
+     * not empty). No flag of {@link GatePolicy} reaches it, so neither a stored policy nor a
+     * request — which can only tighten one anyway — can turn it off; {@code include_triaged} and
+     * {@code fixable_only} narrow the issues considered, and this rule considers none.
+     *
+     * @param examination the observation of the target's newest <em>finished</em> scan — see
+     *     {@link Observation}
+     */
+    public static GateVerdict evaluate(
+            Collection<GateIssue> issues, GatePolicy policy, GateVerdict.Coverage coverage, Observation examination) {
+        return evaluate(issues, policy, coverage, Optional.of(examination));
+    }
+
+    private static GateVerdict evaluate(
+            Collection<GateIssue> issues,
+            GatePolicy policy,
+            GateVerdict.Coverage coverage,
+            Optional<Observation> examination) {
+        List<GateIssue> considered = issues.stream().filter(issue -> isConsidered(issue, policy)).toList();
+
+        Map<Severity, Long> countsBySeverity = new EnumMap<>(Severity.class);
+        for (GateIssue issue : considered) {
+            countsBySeverity.merge(issue.severity(), 1L, Long::sum);
+        }
+
+        List<GateVerdict.Violation> violations = new ArrayList<>();
+        // First, because it explains the rest: a screen showing one reason shows this one, and a
+        // stale backlog's findings read differently once the reader knows the last scan failed.
+        examination.flatMap(Observation::refusal).ifPresent(reason -> violations.add(
+                new GateVerdict.Violation(GateVerdict.Rule.OBSERVATION, null, null, null, null, null, reason)));
+        for (GateIssue issue : considered) {
+            if (policy.failOnKev() && issue.kev()) {
+                violations.add(violation(issue, GateVerdict.Rule.KEV,
+                        "actively exploited vulnerability (CISA KEV catalog)"));
+                // One violation per issue is enough to fail the build. Reporting the KEV rule
+                // and not the severity one as well keeps the output actionable rather than
+                // duplicated.
+                continue;
+            }
+            if (policy.failOnSeverity() != null && issue.severity().isAtLeast(policy.failOnSeverity())) {
+                violations.add(violation(issue, GateVerdict.Rule.SEVERITY,
+                        "severity " + issue.severity().wireName()
+                                + " >= threshold " + policy.failOnSeverity().wireName()));
+            }
+        }
+
+        if (policy.failOnUncoveredLanguages() && !coverage.uncoveredEcosystems().isEmpty()) {
+            violations.add(new GateVerdict.Violation(
+                    GateVerdict.Rule.COVERAGE,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "no installed rule covers " + String.join(", ", coverage.uncoveredEcosystems())
+                            + " — this target's code was not examined"));
+        }
+
+        return new GateVerdict(violations.isEmpty(), violations, considered.size(), countsBySeverity);
+    }
+
+    private static boolean isConsidered(GateIssue issue, GatePolicy policy) {
+        if (!issue.open()) {
+            return false;
+        }
+        if (issue.type() != null) {
+            boolean counts = switch (issue.type().gateParticipation()) {
+                // Quality: unconditional, and the only rule here with no escape hatch.
+                case NEVER -> false;
+                // AI review: a local model given the repository's own source can be steered by
+                // it, so an operator has to opt in before it can fail their build. Asked by type:
+                // the AI flag must not admit the plugin and imported findings, which are on
+                // request too, and ask on their own.
+                case ON_REQUEST -> switch (issue.type()) {
+                    case AI_REVIEW -> policy.includeAiReview();
+                    // A plugin's or an imported report's severity is a third-party tool's choice
+                    // (decision 0017): it counts when the policy includes plugins, and only then.
+                    case PLUGIN, IMPORTED -> policy.includePlugins();
+                    default -> false;
+                };
+                case ALWAYS -> true;
+            };
+            if (!counts) {
+                return false;
+            }
+        }
+        if (!policy.includeTriaged() && issue.triage() != null && issue.triage().isSettled()) {
+            return false;
+        }
+        return !policy.fixableOnly() || issue.hasPublishedFix();
+    }
+
+    private static GateVerdict.Violation violation(GateIssue issue, GateVerdict.Rule rule, String reason) {
+        return new GateVerdict.Violation(
+                rule, issue.id(), issue.identifier(), issue.severity(), issue.packageName(), issue.fixVersions(), reason);
+    }
+
+    /**
+     * A policy requested by a caller can only <b>tighten</b> the stored one.
+     *
+     * <p>This is a security control, not a convenience: without it any pipeline could send
+     * {@code fail_on_severity: null} in its request body and turn anything it likes green.
+     *
+     * <p>Attempted relaxations are reported back rather than dropped silently — a pipeline that
+     * believes it has switched a rule off needs to find out that it has not.
+     *
+     * @return the policy to apply, and the API names of the relaxations that were refused
+     */
+    public static Hardened harden(GatePolicy base, RequestedPolicy requested) {
+        GatePolicy policy = base;
+        List<String> ignoredRelaxations = new ArrayList<>();
+
+        switch (requested.failOnSeverity()) {
+            case SeverityRequest.Unset ignored -> {
+                // Nothing said, nothing to weigh.
+            }
+            case SeverityRequest.Disabled ignored -> {
+                // Removing the rule is a relaxation — unless there was no rule to remove.
+                if (base.failOnSeverity() != null) {
+                    ignoredRelaxations.add("fail_on_severity");
+                }
+            }
+            case SeverityRequest.Threshold(Severity wanted) -> {
+                if (base.failOnSeverity() == null) {
+                    // Adding a rule where there was none is a tightening.
+                    policy = policy.withFailOnSeverity(wanted);
+                } else if (wanted.isStricterThresholdThan(base.failOnSeverity())) {
+                    policy = policy.withFailOnSeverity(wanted);
+                } else if (wanted != base.failOnSeverity()) {
+                    ignoredRelaxations.add("fail_on_severity");
+                }
+                // Equal thresholds: neither tightening nor relaxation, nothing to report.
+            }
+        }
+
+        for (PolicyFlag flag : PolicyFlag.values()) {
+            Boolean wanted = requested.flags().get(flag);
+            if (wanted == null || wanted == policy.flag(flag)) {
+                continue;
+            }
+            if (wanted == flag.strictValue()) {
+                policy = policy.with(flag, wanted);
+            } else {
+                ignoredRelaxations.add(flag.wireName());
+            }
+        }
+
+        return new Hardened(policy, List.copyOf(ignoredRelaxations));
+    }
+
+    public record Hardened(GatePolicy policy, List<String> ignoredRelaxations) {}
+}

@@ -1,0 +1,84 @@
+package com.asmolabs.vectispire.core.issues.persistence;
+
+import java.util.Collection;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+public interface TriageEventRepository extends JpaRepository<TriageEventEntity, Long> {
+
+    List<TriageEventEntity> findByIssueIdOrderByOccurredAtAscIdAsc(long issueId);
+
+    /**
+     * The decisions taken on a set of issues, oldest first.
+     *
+     * <p><b>One query for a page of issues, not one per issue.</b> The history screen shows a
+     * scan's whole finding list with each issue's decisions under it; asking per row turns one
+     * page into hundreds of round trips, which is invisible on a demo database and is the
+     * difference between a screen and a timeout on a real backlog.
+     */
+    @Query("""
+            select e from TriageEventEntity e
+             where e.issueId in :issueIds
+             order by e.occurredAt asc, e.id asc""")
+    List<TriageEventEntity> findForIssues(@Param("issueIds") Collection<Long> issueIds);
+
+    /**
+     * How many decisions were ever taken on one repository's issues.
+     *
+     * <p><b>A reopening is not one</b> ({@code notADecision}, the origin {@code reopen}): it is an entry of
+     * the history, and a dossier counting it would answer "decisions recorded: 1" for a target nobody has
+     * ever triaged — the sentence the report prints when nothing was decided is the one it would then
+     * withhold.
+     *
+     * <p><b>A count, and no date window.</b> The first version took a nullable {@code from}/{@code
+     * to} pair written as {@code (:from is null or e.occurredAt >= :from)}. That ran on SQLite —
+     * which is what the HTTP suite then used — and fails on PostgreSQL with <i>could not determine data
+     * type of parameter $2</i>: an untyped null in a comparison leaves the driver nothing to infer
+     * from. The whole history page returned 500 while every test was green, which is the exact
+     * portability defect the campaign exists to catch and that a single engine cannot.
+     *
+     * <p>The window went with it rather than being cast into shape: nothing asked for it yet, and
+     * a parameter no caller passes is one nobody exercises. It comes back the day an export by
+     * period does, with an engine-agnostic shape and a test on more than one engine.
+     */
+    @Query("""
+            select count(e.id) from TriageEventEntity e, IssueEntity i
+             where e.issueId = i.id and i.repoId = :repoId and e.origin <> :notADecision""")
+    long countForRepository(@Param("repoId") long repoId, @Param("notADecision") String notADecision);
+
+    /**
+     * When the migration that began recording reopenings (V68) was applied here, as Flyway wrote it — the
+     * one fact that says from when a reopening left an entry. Nothing in the history itself can: before
+     * V68 a reopening wrote nothing, and a week without an entry reads the same whether nothing came back
+     * or nothing was recorded.
+     *
+     * <p>As stored: a timestamp in the server's or the session's zone depending on the engine, read by the
+     * caller with a margin rather than trusted to the hour ({@code ReopeningsRecord}).
+     * Empty where the row is missing or failed — no week is then known.
+     */
+    default List<java.time.Instant> reopeningMigrationInstalledOn() {
+        return reopeningMigrationInstalledOnAsStored().stream()
+                .<java.time.Instant>mapMulti((stored, into) -> {
+                    switch (stored) {
+                        case java.sql.Timestamp timestamp -> into.accept(timestamp.toInstant());
+                        case java.time.LocalDateTime local -> into.accept(local.atZone(java.time.ZoneId.systemDefault()).toInstant());
+                        case java.time.OffsetDateTime offset -> into.accept(offset.toInstant());
+                        case java.time.Instant instant -> into.accept(instant);
+                        // Anything else is not a date this reads, and leaves no week known.
+                        case null, default -> {}
+                    }
+                })
+                .toList();
+    }
+
+    /** The column as the driver hands it back: a {@code Timestamp}, or a {@code java.time} value on some. */
+    @Query(value = "select installed_on from flyway_schema_history where version = '68' and success = true",
+            nativeQuery = true)
+    List<Object> reopeningMigrationInstalledOnAsStored();
+
+    @Transactional
+    void deleteByIssueIdIn(Collection<Long> issueIds);
+}

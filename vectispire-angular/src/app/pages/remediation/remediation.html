@@ -1,0 +1,271 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'remediation.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'remediation.subtitle' | translate }}</p>
+
+    <!--
+        **A single list for repositories and images.** The question asked is "what am I responsible
+        for on Monday", and it is not asked differently according to the kind of target. The whole
+        estate stays the default, because it is the question this screen is most often asked.
+    -->
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <label for="scope" class="font-medium">{{ 'remediation.scope' | translate }}</label>
+        <p-select
+            inputId="scope"
+            [options]="targets()"
+            optionLabel="label"
+            optionValue="value"
+            [(ngModel)]="scope"
+            (ngModelChange)="changeScope()"
+            [showClear]="true"
+            [filter]="true"
+            [placeholder]="'remediation.whole_estate' | translate"
+            styleClass="w-full sm:w-80"
+        />
+    </div>
+
+    @if (error()) {
+        <p-message severity="error" [closable]="false" styleClass="w-full mb-4">{{ error() }}</p-message>
+    }
+    @if (targetsError(); as message) {
+        <p-message data-testid="targets-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
+    @if (debtError(); as message) {
+        <p-message data-testid="debt-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
+    @if (coverageError(); as message) {
+        <p-message data-testid="coverage-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
+
+    <!--
+        **The scale before the list.** A work order with no total reads like an infinite list;
+        knowing what its first rows close is what makes people start.
+    -->
+    @if (debt(); as d) {
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div>
+                <div class="text-2xl font-semibold">{{ d.totalOpenIssues }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.open_findings' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold text-red-500">{{ d.criticalIssues }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.critical' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold">{{ d.totalEstimatedPersonDays | localNumber }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.person_days' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold">{{ closedByTheList() }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.closed_by_plan' | translate }}</div>
+            </div>
+        </div>
+    }
+
+    <!--
+        **The plan's admission, before the list.** A user read a failure where there was a correct
+        calculation: a single action against hundreds of open findings, because the ranking keeps
+        only vulnerabilities carrying a package name. The screen now says so, and says how the rest
+        is closed — each family by its own move, which is never a version bump.
+
+        The labels go through a `@switch` on literal keys rather than through a key built from the
+        family: the translation guard can only read literal keys, and a manufactured key would show
+        as it stands the day it is missing.
+    -->
+    @if (coverage(); as c) {
+        @if (c.beyondUpgrades > 0) {
+            <div class="border border-surface rounded-lg p-4 mb-6">
+                <div class="font-medium mb-1">{{ 'remediation.coverage_title' | translate }}</div>
+                <p class="text-sm text-muted-color mb-2">
+                    {{
+                        'remediation.coverage_summary'
+                            | translate
+                                : { covered: c.addressableByUpgrade, open: c.openFindings, beyond: c.beyondUpgrades }
+                    }}
+                </p>
+                <ul class="text-sm flex flex-col gap-1 pl-0 m-0 list-none">
+                    @for (gap of c.gaps; track gap.family) {
+                        <li>
+                            <span class="font-semibold tabular-nums mr-1">{{ gap.findings }}</span>
+                            @switch (gap.family) {
+                                @case ('secret') {
+                                    {{ 'remediation.gap_secret' | translate }}
+                                }
+                                @case ('iac') {
+                                    {{ 'remediation.gap_iac' | translate }}
+                                }
+                                @case ('license') {
+                                    {{ 'remediation.gap_license' | translate }}
+                                }
+                                @case ('eol') {
+                                    {{ 'remediation.gap_eol' | translate }}
+                                }
+                                @case ('sast') {
+                                    {{ 'remediation.gap_sast' | translate }}
+                                }
+                                @case ('quality') {
+                                    {{ 'remediation.gap_quality' | translate }}
+                                }
+                                @case ('unpackaged') {
+                                    {{ 'remediation.gap_unpackaged' | translate }}
+                                }
+                                @default {
+                                    {{ 'remediation.gap_other' | translate }}
+                                }
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        } @else if (c.openFindings > 0) {
+            <p class="text-sm text-muted-color mb-6">
+                {{ 'remediation.coverage_all' | translate: { open: c.openFindings } }}
+            </p>
+        }
+    }
+
+    @if (loading()) {
+        <div class="text-muted-color">{{ 'common.loading' | translate }}</div>
+    } @else if (fixes().length === 0) {
+        <!--
+            **An empty state that says which one.** "Nothing to do" and "nothing computable" look
+            alike on screen and do not mean the same thing: the plan ranks only findings carrying a
+            package name, because they alone are closed by a version bump.
+        -->
+        <p-message severity="success" [closable]="false" styleClass="w-full">
+            <div class="flex flex-col gap-1">
+                <span class="font-semibold">{{ 'remediation.empty_title' | translate }}</span>
+                <span class="text-sm">{{ 'remediation.empty_help' | translate }}</span>
+            </div>
+        </p-message>
+    } @else {
+        <div class="flex flex-col gap-3">
+            @for (fix of rows(); track fix.packageName; let index = $index) {
+                <div class="border border-surface rounded-lg p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-muted-color tabular-nums">{{ index + 1 }}.</span>
+                                <span class="font-semibold break-all">{{ fix.packageName }}</span>
+                                <p-tag
+                                    [severity]="fix.tone"
+                                    [value]="fix.criticalCveCount + ' ' + ('severities.critical' | translate)"
+                                />
+                            </div>
+
+                            <!--
+                                **The action, written as an action.** The field used to carry the
+                                string "latest-patch": neither a version nor an admission of
+                                ignorance. When no finding announces a fix, the page says so instead
+                                of advising an upgrade that does not exist.
+                            -->
+                            <div class="mt-1 text-sm">
+                                @if (fix.recommendedVersion) {
+                                    <span class="font-mono">{{ fix.currentVersion }}</span>
+                                    <i class="pi pi-arrow-right text-xs mx-2"></i>
+                                    <span class="font-mono font-semibold">{{ fix.recommendedVersion }}</span>
+                                } @else {
+                                    <span class="text-muted-color">
+                                        <i class="pi pi-exclamation-triangle text-xs mr-1"></i>
+                                        {{ 'remediation.no_fixed_version' | translate }}
+                                    </span>
+                                }
+                            </div>
+
+                            <div class="mt-2 text-sm text-muted-color">
+                                {{ 'remediation.closes' | translate }} {{ fix.cveCountResolved }} ·
+                                {{ fix.affectedTargetNames.length }} {{ 'remediation.targets' | translate }} · ~{{
+                                    fix.estimatedHours | localNumber
+                                }}
+                                h
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="text-right">
+                                <div class="text-lg font-semibold tabular-nums">
+                                    {{ fix.leverageScore | localNumber }}
+                                </div>
+                                <div class="text-xs text-muted-color">{{ 'remediation.leverage' | translate }}</div>
+                            </div>
+                            <p-button
+                                [text]="true"
+                                size="small"
+                                [icon]="expanded() === fix.packageName ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                                [label]="'remediation.details' | translate"
+                                (onClick)="toggle(fix)"
+                            />
+                        </div>
+                    </div>
+
+                    @if (expanded() === fix.packageName) {
+                        <div class="mt-4 pt-4 border-t border-surface grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <div class="font-medium mb-2 text-sm">{{ 'remediation.cves' | translate }}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    @for (cve of fix.affectedCves; track cve) {
+                                        <!--
+                                            To the filtered list: this page says what to do, the other says on what.
+                                            By `identifier`, exact: `search` matches a substring, and CVE-2021-4428
+                                            would also have listed CVE-2021-44228.
+                                        -->
+                                        <a
+                                            class="text-primary text-sm font-mono"
+                                            [routerLink]="['/issues']"
+                                            [queryParams]="{ identifier: cve }"
+                                            >{{ cve }}</a
+                                        >
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-medium mb-2 text-sm">
+                                    {{ 'remediation.affected_targets' | translate }}
+                                </div>
+                                <div class="flex flex-wrap gap-1 text-sm">
+                                    @for (target of fix.affectedTargetNames; track target) {
+                                        <span class="px-2 py-0.5 rounded bg-surface-100 dark:bg-surface-800">{{
+                                            target
+                                        }}</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm text-muted-color">
+                {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{
+                    hoursOfTheList() | localNumber
+                }}
+                h
+            </div>
+
+            <!--
+                **In steps, and not in pages.** Nobody wants page 4 of a remediation plan; one wants
+                to know what comes after the first ten rows. The button disappears at the ceiling
+                rather than staying greyed out without saying why.
+            -->
+            @if (mayHaveMore()) {
+                <p-button
+                    [outlined]="true"
+                    size="small"
+                    icon="pi pi-plus"
+                    [label]="'remediation.show_more' | translate"
+                    [loading]="loading()"
+                    (onClick)="showMore()"
+                />
+            } @else if (fixes().length >= CEILING) {
+                <span class="text-sm text-muted-color">{{ 'remediation.ceiling_reached' | translate }}</span>
+            }
+        </div>
+    }
+</div>

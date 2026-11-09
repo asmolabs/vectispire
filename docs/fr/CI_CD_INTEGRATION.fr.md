@@ -1,0 +1,252 @@
+# Guide d'Intégration CI/CD & Outil CLI Vectispire (`vectispire-cli`)
+
+Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'intégration continue (GitLab CI, GitHub Actions, Bitbucket, Jenkins) pour appliquer des **Quality Gates de sécurité bloquantes**, déclencher des analyses automatiques à chaque commit/Merge Request, télécharger le SBOM d'une analyse et envoyer les rapports du build lui-même (couverture, résultats de tests, SBOM du build). SARIF n'est pas une commande de la CLI : c'est la route d'export `GET /api/v1/targets/repository/{id}/issues.sarif` (`container` pour une image), appelée avec une clé portant la portée `export`.
+
+---
+
+## 🚀 Présentation de l'Outil `vectispire-cli`
+
+`vectispire-cli` est un script shell universel et portable (compatible POSIX, Alpine, Debian, Ubuntu, macOS) conçu pour être exécuté dans n'importe quel conteneur CI/CD sans dépendances lourdes.
+
+### Commandes Principales :
+* `scan` : Déclenche une analyse de sécurité sur un dépôt ou un conteneur et attend optionnellement sa finalisation (`--wait`).
+* `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès), `1` (Échec / Blocage du build) ou `2` (la barrière n'a pas pu être interrogée). Une cible qu'aucun scan terminé n'a examinée — jamais analysée, son premier scan encore en cours, ou son dernier scan échoué — est aussi un Échec, avec une violation `observation`, quelle que soit la politique : lancez d'abord `scan --wait`.
+* `status` : Affiche le statut d'un scan (`--scan-id`), ou du dernier scan d'une cible.
+* `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft ; avec `--repo-id`, celui du dernier scan **terminé**. Pour du CycloneDX avec VEX, utilisez la route d'export `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (portée `export`).
+* `coverage` : Envoie le rapport de couverture JaCoCo, Cobertura ou lcov d'un dépôt (`--format` est obligatoire, jamais deviné).
+* `test-report` : Envoie le rapport JUnit d'un dépôt — un fichier XML, ou un zip de plusieurs.
+* `build-sbom` : Envoie le SBOM JSON CycloneDX du build d'un dépôt (le `makeAggregateBom` de `cyclonedx-maven-plugin`, le plugin CycloneDX de Gradle) ; il complète l'inventaire du scanner — les versions qu'une BOM gère, les bibliothèques tirées transitivement.
+
+`coverage`, `test-report` et `build-sbom` demandent une clé détenant `report_import` dont la source est déclarée pour ce type (`coverage`, `test_report`, `sbom`) ; voir [Importer des rapports de couverture et de tests](../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests) et [Importer le SBOM d'un build](../../docs-site/administration/plugins.fr.md#importer-le-sbom-dun-build).
+
+Chaque commande sort en `0` quand elle a abouti, en `1` seulement pour un verdict rouge, et en `2` quand il n'y a pas de réponse à croire : un refus — le `detail` du serveur est affiché, *This API key lacks the read scope.* — un plan de contrôle injoignable, un scan échoué ou hors délai. `scan` adopte le scan déjà en attente sur un `409` au lieu d'échouer. C'est vrai depuis la 0.10.0 : le script `v0.9.0` appelait `curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse. Les exemples commentés d'[Exemples CI](../../docs-site/integrations/ci-examples.fr.md) — GitLab CI avec le modèle livré, Jenkins, et SonarQube par une source déclarée — utilisent un script qui affiche le document de problème, et disent quelle clé chaque job demande. Un pipeline qui appelle l'API lui-même décide sur le `code` du problème — `not-found`, `forbidden`, `invalid-request`… ([erreurs de l'API](../../docs-site/reference/errors.fr.md#les-codes)) — jamais sur l'anglais de `detail` ; un verdict de la barrière nomme de même la `rule` de chaque violation.
+
+---
+
+## 🔒 Variables Secrètes Requises dans votre CI/CD
+
+Configurez les variables suivantes dans les paramètres de votre projet CI/CD (ex: *GitLab > Settings > CI/CD > Variables* ou *GitHub > Settings > Secrets and variables > Actions*) :
+
+| Variable | Description | Exemple |
+|---|---|---|
+| `VECTISPIRE_URL` | URL publique ou interne de votre instance Vectispire | `https://vectispire.monentreprise.fr` |
+| `VECTISPIRE_API_KEY` | Clé d'API de portée `scan`, plus `read` pour `scan --wait` (qui interroge le scan), limitée au dépôt que le pipeline contrôle | *(Clé générée depuis la page Clés API)* |
+
+---
+
+## 🔏 Obtenir la CLI
+
+La CLI est un **asset de version**, signé comme le jar : `vectispire-cli.sh` et son bundle Sigstore
+`vectispire-cli.sh.cosign.bundle`, à partir de la 0.11.0 — la 0.10.0 et les
+précédentes ne le portent pas. Les snippets ci-dessous la téléchargent, comparent son SHA-256 à celui
+que le pipeline épingle, et seulement ensuite l'exécutent. Ne la passez jamais à `sh` par un pipe, où
+les octets s'exécutent à mesure qu'ils arrivent et où rien ne peut être vérifié d'abord. Jusqu'à la
+0.10.0, ces snippets récupéraient `scripts/vectispire-cli.sh` à l'URL brute du dépôt au tag et
+l'exécutaient sans contrôle : un fichier hors de la version, non signé, comparé à rien.
+
+Deux valeurs l'épinglent :
+
+| Variable | Valeur |
+|---|---|
+| `VECTISPIRE_CLI_VERSION` | le tag de la version, `<tag>` |
+| `VECTISPIRE_CLI_SHA256` | le SHA-256 de la CLI, affiché dans les notes de cette version |
+
+La fenêtre **CI/CD** de la page *Dépôts* remplit les deux, pour la version que le serveur exécute, et
+son onglet *CLI* porte la vérification de signature. Pour tirer l'empreinte de la signature plutôt que
+des notes de version, vérifiez le fichier une fois :
+
+```bash
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-cli.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-cli.sh
+sha256sum vectispire-cli.sh    # macOS : shasum -a 256 vectispire-cli.sh
+```
+
+L'identité nomme le fichier de workflow et le tag — remplacez le tag aux deux endroits — et l'émetteur
+dit qu'elle vient du service de jetons de GitHub ; [Démarrage §8](GETTING_STARTED.fr.md#8-vérifier-une-release)
+dit ce que chaque option épingle. Ensuite, l'empreinte épingle le fichier à chaque exécution :
+`sha256sum -c` fait échouer le job sur tout autre contenu, si bien qu'un pipeline qui passe à un autre
+tag sans changer l'empreinte s'arrête au lieu d'exécuter un script que personne n'a vérifié.
+
+---
+
+## 🛠️ Snippets d'Intégration par Plateforme
+
+Chaque image et chaque action ci-dessous est épinglée — une image par tag **et** empreinte, une action
+par SHA de commit avec sa version en regard — pour la raison même qui vaut pour la CLI : un job qui tire
+`:latest` ou `@v4` exécute ce vers quoi ces noms pointent le jour où il tourne. Déplacez une épingle
+délibérément, avec `docker buildx imagetools inspect <image>:<tag>` pour une image.
+
+### 1. 🦊 GitLab CI (`.gitlab-ci.yml`)
+
+```yaml
+stages:
+  - test
+  - security-gate
+
+vectispire-security-gate:
+  stage: security-gate
+  image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+  variables:
+    VECTISPIRE_URL: "https://vectispire.example.com"
+    VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+    - chmod +x vectispire-cli.sh
+    # 1. Déclenche le scan et attend sa fin
+    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
+    # 2. Évalue la Gate (Bloque le pipeline si une sévérité CRITICAL ou HIGH non triée est présente)
+    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
+```
+
+**Envoyer le SBOM du build (Maven, `org.example`).** Le scanner lit les poms d'une arborescence Maven,
+si bien qu'une version gérée par la BOM d'un parent sort en `UNKNOWN` et qu'une bibliothèque tirée
+transitivement n'est pas listée ; le build a résolu l'une et l'autre. Ce job écrit le SBOM CycloneDX
+agrégé de tous les modules et l'envoie avec la clé des **rapports** — `report_import`, déclarée comme
+source livrant `sbom`, jamais la clé de la barrière :
+
+```yaml
+vectispire-build-sbom:
+  stage: test
+  image: maven:3.9.12-eclipse-temurin-21@sha256:c3c9d3ac4ce8431a3995c0318b8d390f448e693dd4fabc16e9b68d2e1f3d7b46
+  variables:
+    VECTISPIRE_URL: "https://vectispire.example.com"
+    VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
+  script:
+    # org.example:ledger-service et ses modules, résolus comme le build les embarque
+    - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+    - chmod +x vectispire-cli.sh
+    - ./vectispire-cli.sh build-sbom --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_REPORT_KEY"
+        --repo-id "$VECTISPIRE_REPO_ID" --file target/bom.json --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+```
+
+La réponse nomme le scan complété (`completedScanId`), ou `null` avant le premier scan terminé du
+dépôt, que le SBOM complète alors ; voir
+[Importer le SBOM d'un build](../../docs-site/administration/plugins.fr.md#importer-le-sbom-dun-build)
+pour la règle et les refus.
+
+---
+
+### 2. 🐙 GitHub Actions (`.github/workflows/vectispire.yml`)
+
+```yaml
+name: Vectispire Security Gate
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-gate:
+    name: Vectispire ASPM Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Trigger Scan & Enforce Security Gate
+        env:
+          VECTISPIRE_URL: ${{ secrets.VECTISPIRE_URL }}
+          VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
+          VECTISPIRE_REPO_ID: "1"
+          VECTISPIRE_CLI_VERSION: "<tag>"
+          VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
+        run: |
+          # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+          curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+          echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+          chmod +x vectispire-cli.sh
+          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
+          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+```
+
+---
+
+### 3. 🪣 Bitbucket Pipelines (`bitbucket-pipelines.yml`)
+
+```yaml
+image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+
+pipelines:
+  default:
+    - step:
+        name: Vectispire Security Gate
+        script:
+          - apk add --no-cache curl jq
+          # La CLI de la version, exécutée seulement à l'empreinte que ses notes de version affichent
+          - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh"
+          - echo "<sha256 des notes de version>  vectispire-cli.sh" | sha256sum -c -
+          - chmod +x vectispire-cli.sh
+          - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id 1 --wait
+          - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id 1 --fail-on HIGH
+```
+
+---
+
+### 4. 👨‍✈️ Jenkinsfile (Pipeline Script)
+
+```groovy
+pipeline {
+    agent any
+    environment {
+        VECTISPIRE_URL = 'https://vectispire.example.com'
+        VECTISPIRE_API_KEY = credentials('vectispire-api-key')
+        VECTISPIRE_REPO_ID = '1'
+        VECTISPIRE_CLI_VERSION = '<tag>'
+        VECTISPIRE_CLI_SHA256 = '<sha256 des notes de version>'
+    }
+    stages {
+        stage('Security Gate') {
+            steps {
+                sh '''
+                    # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+                    curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+                    echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+                    chmod +x vectispire-cli.sh
+                    ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
+                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+                '''
+            }
+        }
+    }
+}
+```
+
+---
+
+## 📦 Construire l'Image de la CLI
+
+Aucune image de la CLI n'est publiée : la release construit le plan de contrôle, l'agent et le plugin de rapport de démonstration, rien d'autre. [`Dockerfile.cli`](../../Dockerfile.cli) en construit une — Alpine avec `curl` et `jq`, sous un utilisateur non root, `vectispire-cli` comme point d'entrée — à pousser dans votre propre registre :
+
+```bash
+docker build -f Dockerfile.cli -t <your-registry>/vectispire-cli:<tag> .
+```
+
+```yaml
+vectispire-gate:
+  image:
+    name: <your-registry>/vectispire-cli:<tag>
+    entrypoint: [""]   # GitLab lance le script du job par un shell, pas par la CLI
+  script:
+    - vectispire-cli scan --repo-id 1 --wait
+    - vectispire-cli gate --repo-id 1 --fail-on HIGH
+```

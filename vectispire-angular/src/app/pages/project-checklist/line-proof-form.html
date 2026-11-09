@@ -1,0 +1,95 @@
+@if (page.proving(); as draft) {
+    @let item = line();
+    <form
+        class="mt-3 p-3 rounded-md bg-surface-50 dark:bg-surface-800 flex flex-col gap-2"
+        [attr.data-testid]="'evidence-form-' + item.position"
+        (ngSubmit)="save()"
+    >
+        <fieldset class="border-0 p-0 m-0 flex flex-wrap gap-4">
+            <legend class="font-medium mb-1">
+                {{ 'project_checklist.label_evidence' | translate }}
+            </legend>
+            <label class="flex items-center gap-2" [for]="'evidence-kind-' + item.itemId + '-link'">
+                <input
+                    type="radio"
+                    [id]="'evidence-kind-' + item.itemId + '-link'"
+                    [name]="'evidence-kind-' + item.itemId"
+                    [checked]="draft.kind === 'link'"
+                    (change)="setEvidence({ kind: 'link' })"
+                />
+                {{ 'project_checklist.evidence_link' | translate }}
+            </label>
+            <label class="flex items-center gap-2" [for]="'evidence-kind-' + item.itemId + '-file'">
+                <input
+                    type="radio"
+                    [id]="'evidence-kind-' + item.itemId + '-file'"
+                    [name]="'evidence-kind-' + item.itemId"
+                    [checked]="draft.kind === 'file'"
+                    (change)="setEvidence({ kind: 'file' })"
+                />
+                {{ 'project_checklist.evidence_file' | translate }}
+            </label>
+        </fieldset>
+        @if (draft.kind === 'link') {
+            @if (item.evidenceKind === 'file') {
+                <small class="text-muted-color">{{ 'project_checklist.file_asked_hint' | translate }}</small>
+            }
+            <label [for]="'evidence-link-' + item.itemId" class="font-medium">{{
+                'project_checklist.field_link' | translate
+            }}</label>
+            <input
+                pInputText
+                type="url"
+                maxlength="2000"
+                [id]="'evidence-link-' + item.itemId"
+                required
+                [attr.aria-invalid]="!!page.evidenceError()"
+                [attr.aria-describedby]="page.evidenceError() ? 'evidence-error-' + item.itemId : null"
+                [ngModelOptions]="{ standalone: true }"
+                [ngModel]="draft.link"
+                (ngModelChange)="setEvidence({ link: $event })"
+            />
+        } @else {
+            <label [for]="'evidence-file-' + item.itemId" class="font-medium">{{
+                'project_checklist.field_file' | translate
+            }}</label>
+            <input
+                type="file"
+                class="text-sm"
+                [id]="'evidence-file-' + item.itemId"
+                required
+                [attr.aria-invalid]="!!page.evidenceError()"
+                [attr.aria-describedby]="page.evidenceError() ? 'evidence-error-' + item.itemId : null"
+                (change)="pickEvidence($event)"
+            />
+        }
+        <label [for]="'evidence-day-' + item.itemId" class="font-medium">{{
+            'project_checklist.field_performed_on' | translate
+        }}</label>
+        <input
+            pInputText
+            type="date"
+            class="w-fit"
+            [id]="'evidence-day-' + item.itemId"
+            required
+            [max]="page.today"
+            [ngModelOptions]="{ standalone: true }"
+            [ngModel]="draft.performedOn"
+            (ngModelChange)="setEvidence({ performedOn: $event })"
+        />
+        @if (page.evidenceError(); as message) {
+            <small [id]="'evidence-error-' + item.itemId" class="text-red-500" data-testid="evidence-error">{{
+                message
+            }}</small>
+        }
+        <div class="flex gap-2">
+            <p-button
+                [id]="'save-evidence-' + item.itemId"
+                type="submit"
+                [label]="'project_checklist.save_evidence_btn' | translate"
+                [disabled]="page.busy() || (draft.kind === 'file' && !draft.file)"
+            />
+            <p-button [text]="true" [label]="'common.cancel' | translate" (onClick)="page.proving.set(null)" />
+        </div>
+    </form>
+}

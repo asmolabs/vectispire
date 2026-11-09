@@ -1,0 +1,263 @@
+package com.asmolabs.vectispire.core.outbound;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * The pin, demonstrated against a real socket.
+ *
+ * <p><b>Why a server and not a mock.</b> The claim being tested is "the connection went to the
+ * address the guard checked, and DNS was not consulted a second time". A mocked client can only
+ * show that a method was called with the right argument, which is the part nobody doubted. The
+ * proof used here is that the request reaches a listening socket <b>through a host name that
+ * does not resolve at all</b>: if anything in the path asked the system resolver, the request
+ * could not arrive.
+ */
+@DisplayName("an outbound request goes to the address that was checked")
+class PinnedHttpSenderTest {
+
+    /**
+     * A name with a reserved TLD, so it cannot resolve here or anywhere.
+     *
+     * <p>{@code .invalid} is reserved by RFC 2606 for exactly this. A made-up name under a real
+     * TLD would resolve the day somebody registers it, and a wildcard DNS provider on the test
+     * machine's network would resolve it today.
+     */
+    private static final String UNRESOLVABLE_HOST = "rebound.invalid";
+
+    private HttpServer server;
+    private final AtomicReference<String> hostHeader = new AtomicReference<>();
+
+    @BeforeEach
+    void startServer() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/hook", exchange -> {
+            hostHeader.set(exchange.getRequestHeaders().getFirst("Host"));
+            byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(body);
+            }
+        });
+        server.start();
+    }
+
+    @AfterEach
+    void stopServer() {
+        server.stop(0);
+    }
+
+    @Test
+    @DisplayName("a name that resolves nowhere still reaches the checked address")
+    void thePinIsWhatTheConnectionUses() {
+        OutboundUrlGuard.Destination destination = new OutboundUrlGuard.Destination(
+                "http://" + UNRESOLVABLE_HOST + ":" + server.getAddress().getPort() + "/hook",
+                UNRESOLVABLE_HOST,
+                List.of(InetAddress.getLoopbackAddress()));
+
+        PinnedHttpSender.Response response =
+                new PinnedHttpSender().send(destination, Map.of(), "{}", Duration.ofSeconds(5), "webhook");
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body()).contains("\"ok\":true");
+        // And the name still travelled: the server saw the host it was addressed as, which is
+        // what keeps virtual hosting, SNI and certificate verification working. Connecting to a
+        // validated IP literal instead would have broken all three.
+        assertThat(hostHeader.get()).startsWith(UNRESOLVABLE_HOST);
+    }
+
+    @Test
+    @DisplayName("a host that was not checked is refused rather than resolved")
+    void anUncheckedHostIsRefused() {
+        // The URI and the checked host disagree — which is what a redirect somebody re-enabled,
+        // or a rewritten URL, looks like from inside the sender. The resolver refuses instead of
+        // falling back to the system one, so the request cannot leave.
+        OutboundUrlGuard.Destination mismatched = new OutboundUrlGuard.Destination(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/hook",
+                UNRESOLVABLE_HOST,
+                List.of(InetAddress.getLoopbackAddress()));
+
+        assertThatThrownBy(() -> new PinnedHttpSender()
+                        .send(mismatched, Map.of(), "{}", Duration.ofSeconds(5), "webhook"))
+                .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                .hasMessageContaining("never checked");
+    }
+
+    /**
+     * A real 302 to an unchecked host, refused twice over.
+     *
+     * <p><b>Why this exists.</b> Removing {@code disableRedirectHandling()} left all 1326 tests
+     * green: the four cases around it prove the pin, and none of them ever issued a redirect. The
+     * outer layer could be deleted without a sound, which is the shape of assertion this project
+     * has shipped before.
+     *
+     * <p><b>What it asserts is the outer layer specifically.</b> The status is 302 and the body is
+     * the redirect's, not the target's — the client did not follow it. That is a different claim
+     * from {@link #anUncheckedHostIsRefused()}, which builds the host mismatch by hand: this one
+     * makes a server produce it. Measured on 30 August 2026, both layers hold independently —
+     * with redirects re-enabled the pinned resolver still refuses {@code elsewhere.invalid} — so
+     * this is defence in depth, and each belt now has a test of its own.
+     */
+    @Test
+    @DisplayName("a redirect to an unchecked host is not followed")
+    void aRedirectIsNotFollowed() throws IOException {
+        HttpServer target = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        target.createContext("/loot", exchange -> {
+            byte[] body = "REACHED-THE-UNCHECKED-HOST".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(body);
+            }
+        });
+        target.start();
+
+        HttpServer approved = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        approved.createContext("/redirect", exchange -> {
+            // The metadata endpoint, in miniature: a host the guard approved answering with a
+            // Location pointing somewhere it never saw.
+            exchange.getResponseHeaders().add(
+                    "Location", "http://elsewhere.invalid:" + target.getAddress().getPort() + "/loot");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        approved.start();
+
+        try {
+            OutboundUrlGuard.Destination destination = new OutboundUrlGuard.Destination(
+                    "http://" + UNRESOLVABLE_HOST + ":" + approved.getAddress().getPort() + "/redirect",
+                    UNRESOLVABLE_HOST,
+                    List.of(InetAddress.getLoopbackAddress()));
+
+            PinnedHttpSender.Response response =
+                    new PinnedHttpSender().send(destination, Map.of(), "{}", Duration.ofSeconds(5), "webhook");
+
+            assertThat(response.status())
+                    .as("the redirect was followed instead of being handed back to the caller")
+                    .isEqualTo(302);
+            assertThat(response.body()).doesNotContain("REACHED-THE-UNCHECKED-HOST");
+        } finally {
+            target.stop(0);
+            approved.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("an answer past the ceiling fails the call instead of filling the heap")
+    void anOversizedAnswerIsRefused() throws IOException {
+        // Streamed without a length, as a hostile or broken server would: nothing to pre-size from.
+        // The first request asks for a quarter of a gigabyte; the second, six megabytes.
+        java.util.concurrent.atomic.AtomicLong servedToTheFirst = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicInteger requests = new java.util.concurrent.atomic.AtomicInteger();
+        HttpServer large = streaming(exchange -> {
+            boolean first = requests.incrementAndGet() == 1;
+            long total = first ? 256L * 1024 * 1024 : 6L * 1024 * 1024;
+            byte[] chunk = new byte[64 * 1024];
+            java.util.Arrays.fill(chunk, (byte) 'x');
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                for (long written = 0; written < total; written += chunk.length) {
+                    out.write(chunk);
+                    if (first) {
+                        servedToTheFirst.addAndGet(chunk.length);
+                    }
+                }
+            } catch (IOException clientWentAway) {
+                // Expected for the first: the sender stops reading at the ceiling.
+            }
+        });
+        try {
+            OutboundUrlGuard.Destination destination = loopback(large, "/large");
+
+            assertThatThrownBy(() -> new PinnedHttpSender()
+                            .send(destination, Map.of(), null, Duration.ofSeconds(5), "tracker"))
+                    .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                    .hasMessageContaining("larger than " + PinnedHttpSender.DEFAULT_MAX_BODY_BYTES);
+            // Refused at the ceiling, not after reading the rest: the connection closed while the
+            // server still had most of its quarter gigabyte to send (socket buffers hold a few MB).
+            assertThat(servedToTheFirst.get()).isLessThan(64L * 1024 * 1024);
+            // A caller reading a catalogue names a ceiling of its own, and gets the whole answer.
+            PinnedHttpSender.Response whole = new PinnedHttpSender().send(PinnedHttpSender.Method.GET,
+                    destination, Map.of(), null, Duration.ofSeconds(5), "catalogue", 8L * 1024 * 1024);
+            assertThat(whole.body()).hasSize(6 * 1024 * 1024);
+        } finally {
+            large.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("an answer trickled just inside the read timeout is abandoned at the deadline")
+    void aTrickledAnswerIsAbandoned() throws IOException {
+        // Each byte arrives well within the one-second read timeout, so no read ever times out;
+        // without a deadline on the whole exchange this call never returns.
+        HttpServer trickle = streaming(exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                for (int i = 0; i < 600; i++) {
+                    out.write('.');
+                    out.flush();
+                    Thread.sleep(100);
+                }
+            } catch (IOException | InterruptedException clientWentAway) {
+                // Expected: the sender closes the connection at the deadline.
+            }
+        });
+        try {
+            OutboundUrlGuard.Destination destination = loopback(trickle, "/slow");
+
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(15), () ->
+                    assertThatThrownBy(() -> new PinnedHttpSender()
+                                    .send(destination, Map.of(), null, Duration.ofSeconds(1), "model server"))
+                            .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                            .hasMessageContaining("no complete answer within 2 s"));
+        } finally {
+            trickle.stop(0);
+        }
+    }
+
+    private static HttpServer streaming(com.sun.net.httpserver.HttpHandler handler) throws IOException {
+        HttpServer streaming = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        streaming.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
+        streaming.createContext("/", handler);
+        streaming.start();
+        return streaming;
+    }
+
+    private static OutboundUrlGuard.Destination loopback(HttpServer server, String path) {
+        return new OutboundUrlGuard.Destination(
+                "http://" + UNRESOLVABLE_HOST + ":" + server.getAddress().getPort() + path,
+                UNRESOLVABLE_HOST,
+                List.of(InetAddress.getLoopbackAddress()));
+    }
+
+    @Test
+    @DisplayName("a destination with no checked address is refused, not sent unpinned")
+    void nothingToPinMeansNothingIsSent() {
+        // The guard tolerates a name it could not resolve, because for "is this public?" the
+        // request would fail anyway and refusing would break the settings screen on a DNS
+        // hiccup. Here there is nothing to pin to, so sending would mean letting the client
+        // resolve the name itself — and the validation would have decided nothing at all.
+        OutboundUrlGuard.Destination unresolved =
+                new OutboundUrlGuard.Destination("http://" + UNRESOLVABLE_HOST + "/hook", UNRESOLVABLE_HOST, List.of());
+
+        assertThatThrownBy(() -> new PinnedHttpSender()
+                        .send(unresolved, Map.of(), "{}", Duration.ofSeconds(5), "webhook"))
+                .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                .hasMessageContaining("does not resolve");
+    }
+}

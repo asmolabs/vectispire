@@ -1,0 +1,74 @@
+package com.asmolabs.vectispire.common.domain.apikeys;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+
+/**
+ * What an API key is allowed to do.
+ *
+ * <p>Declaration order matters: {@link ApiKeys#normalizeScopes} emits scopes in it, so two keys
+ * granted the same set store the same string and compare equal.
+ */
+public enum ApiKeyScope {
+    READ(true),
+    SCAN(true),
+    EXPORT(true),
+
+    /**
+     * Depositing an internal tool's SARIF report into a repository's backlog.
+     *
+     * <p><b>Never granted by default, and not enough on its own.</b> The key must also be declared as
+     * a SARIF source by the platform governor, scoped to a project or a repository — the scope lets a
+     * pipeline present the key, the declaration is what says the pipeline is inside the organisation.
+     */
+    SARIF_IMPORT(false),
+
+    /**
+     * Depositing an internal pipeline's coverage or test report for a repository (decision 0032 §7).
+     *
+     * <p><b>Never granted by default, and not enough on its own</b>, like {@link #SARIF_IMPORT}: the
+     * platform governor must declare the key as a source delivering {@code coverage} or {@code
+     * test_report}. A scope of its own rather than {@code sarif_import}'s, so a key issued to send a
+     * coverage figure never deposits findings, which open and resolve issues.
+     */
+    REPORT_IMPORT(false),
+
+    /**
+     * Running scans as an agent.
+     *
+     * <p><b>Never granted implicitly.</b> It is the scope that lets a holder execute work on
+     * Vectispire's behalf, and a default that includes it turns "I issued a read key" into
+     * something else entirely.
+     */
+    AGENT(false);
+
+    private final boolean grantedByDefault;
+
+    ApiKeyScope(boolean grantedByDefault) {
+        this.grantedByDefault = grantedByDefault;
+    }
+
+    public String wireName() {
+        return name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The defaults, which stay broad on purpose.
+     *
+     * <p>A form whose defaults break the caller's pipeline mostly teaches them to tick
+     * everything. Narrowing is offered, not imposed.
+     */
+    public static List<ApiKeyScope> defaults() {
+        return Arrays.stream(values()).filter(scope -> scope.grantedByDefault).toList();
+    }
+
+    public static Optional<ApiKeyScope> fromWireName(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return Arrays.stream(values()).filter(scope -> scope.wireName().equals(normalized)).findFirst();
+    }
+}

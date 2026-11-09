@@ -1,0 +1,72 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import {
+    Integration,
+    SiemConfig,
+    SiemTestResult,
+    NotificationChannelStatus,
+    NotificationTestResult
+} from '../api.models';
+
+/**
+ * Outbound integrations: the registry that switches them (decision 0040), the SIEM forwarder and the
+ * notification channels.
+ *
+ * One stateless client per domain, named `*.api.ts` / `*Api` so that it is never mistaken for a
+ * `*.service.ts` or a store holding state, and so that `scripts/check-dead-api-methods.mjs` knows
+ * which files declare the API surface. No absolute URL: the development server proxies `/api`
+ * (`proxy.conf.json`) and production serves both from one origin, which is what lets the CSP stay
+ * on `connect-src 'self'`.
+ */
+@Injectable({ providedIn: 'root' })
+export class IntegrationsApi {
+    private readonly http = inject(HttpClient);
+
+    /** Every account reads it: the forms filter what they offer with it. */
+    listIntegrations(): Observable<Integration[]> {
+        return this.http.get<Integration[]>('/api/v1/integrations');
+    }
+
+    /** The platform governor's alone; a refusal is a 409 whose `code` says why (`integration-in-use`…). */
+    setIntegrationEnabled(key: string, enabled: boolean): Observable<Integration> {
+        return this.http.put<Integration>(`/api/v1/integrations/${encodeURIComponent(key)}/enabled`, { enabled });
+    }
+
+    getSiemConfig(): Observable<SiemConfig> {
+        return this.http.get<SiemConfig>('/api/v1/siem/config');
+    }
+
+    updateSiemConfig(payload: {
+        enabled: boolean;
+        protocol: string;
+        endpoint?: string;
+        authHeader?: string;
+        minSeverity: string;
+        /** Syslog over TLS only. Absent keeps the stored CA; blank removes it. */
+        tlsCaPem?: string;
+    }): Observable<SiemConfig> {
+        return this.http.put<SiemConfig>('/api/v1/siem/config', payload);
+    }
+
+    testSiemConnection(payload: {
+        protocol?: string;
+        endpoint: string;
+        authHeader?: string;
+        /** Absent tests the stored CA; blank tests the server's trust store. */
+        tlsCaPem?: string;
+    }): Observable<SiemTestResult> {
+        return this.http.post<SiemTestResult>('/api/v1/siem/test', payload);
+    }
+
+    getNotificationChannels(): Observable<NotificationChannelStatus[]> {
+        return this.http.get<NotificationChannelStatus[]>('/api/v1/notifications/channels');
+    }
+
+    testNotificationChannel(channelType: string): Observable<NotificationTestResult> {
+        return this.http.post<NotificationTestResult>(
+            `/api/v1/notifications/test/${encodeURIComponent(channelType)}`,
+            {}
+        );
+    }
+}

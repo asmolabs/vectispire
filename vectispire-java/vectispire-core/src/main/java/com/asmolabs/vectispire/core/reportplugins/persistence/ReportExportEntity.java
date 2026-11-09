@@ -1,0 +1,75 @@
+package com.asmolabs.vectispire.core.reportplugins.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+/**
+ * The export a produced report run handed its plugin, byte for byte (decision 0035 §3) — apart from the run, so
+ * that no listing of runs reads up to 64 MiB a row. Purged past the evidence window; the run keeps its digest.
+ */
+@Entity
+@Table(name = "t_report_export")
+public class ReportExportEntity {
+
+    @Id
+    @Column(name = "run_id", nullable = false)
+    private Long runId;
+
+    @JdbcTypeCode(SqlTypes.LONGVARBINARY)
+    @Column(name = "content", nullable = false)
+    private byte[] content;
+
+    @Column(name = "sha256", length = 64, nullable = false)
+    private String sha256;
+
+    @Column(name = "size_bytes", nullable = false)
+    private Long sizeBytes;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    public Long getRunId() {
+        return runId;
+    }
+
+    public void setRunId(Long runId) {
+        this.runId = runId;
+    }
+
+    public byte[] getContent() {
+        return content;
+    }
+
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
+
+    public String getSha256() {
+        return sha256;
+    }
+
+    public void setSha256(String sha256) {
+        this.sha256 = sha256;
+    }
+
+    public Long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(Long sizeBytes) {
+        this.sizeBytes = sizeBytes;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+}

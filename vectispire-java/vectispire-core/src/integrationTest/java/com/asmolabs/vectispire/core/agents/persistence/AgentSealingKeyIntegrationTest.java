@@ -1,0 +1,118 @@
+package com.asmolabs.vectispire.core.agents.persistence;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+
+/**
+ * The statement that decides which sealing key an agent's credentials are sealed for, on each engine.
+ *
+ * <p>The condition compares a nullable {@code bigint} and a string in one {@code where}: three-valued
+ * logic on a null generation, and a generation — epoch milliseconds — past what a 32-bit column
+ * holds. Both deployable engines are asked, since they read the declared width differently and only
+ * they can say the comparison holds.
+ */
+@SpringBootTest(classes = VectispireApplication.class)
+@DisplayName("accepting a sealing key on a real engine")
+class AgentSealingKeyIntegrationTest {
+
+    private static final Engine ENGINE = Engine.selected();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
+
+    /** 2026-09-26 in epoch milliseconds: larger than an int, which is the point. */
+    private static final long NOW = 1_790_380_800_000L;
+
+    @BeforeAll
+    static void start() {
+        CONTAINER.start();
+    }
+
+    @AfterAll
+    static void stop() {
+        CONTAINER.stop();
+    }
+
+    @DynamicPropertySource
+    static void datasource(DynamicPropertyRegistry registry) {
+        Engine.configure(ENGINE, CONTAINER, registry);
+    }
+
+    @Autowired
+    private AgentRepository agents;
+
+    private final SealedEnvelope envelopes = new SealedEnvelope();
+
+    private UUID agent() {
+        AgentEntity agent = new AgentEntity();
+        agent.setName("sealing-" + UUID.randomUUID());
+        agent.setKind("remote");
+        agent.setCredentialsMode("delegated");
+        agent.setEnabled(true);
+        agent.setCreatedAt(Instant.now());
+        return agents.save(agent).getId();
+    }
+
+    @Test
+    @DisplayName("the first key is taken, a newer one replaces it, and an older one or a rival never does")
+    void onlyForwards() {
+        UUID id = agent();
+        String first = envelopes.generateKeyPair().publicKey();
+        String second = envelopes.generateKeyPair().publicKey();
+
+        assertThat(agents.acceptSealingKey(id, first, NOW)).isOne();
+        assertThat(agents.acceptSealingKey(id, first, NOW)).as("the same key repeated").isOne();
+        assertThat(agents.acceptSealingKey(id, second, NOW)).as("another key, same generation").isZero();
+        assertThat(agents.acceptSealingKey(id, second, NOW - 1)).as("an older generation").isZero();
+        assertThat(agents.acceptSealingKey(id, second, NOW + 1)).as("a newer generation").isOne();
+
+        AgentEntity row = agents.findById(id).orElseThrow();
+        assertThat(row.getSealingPublicKey()).isEqualTo(second);
+        assertThat(row.getSealingKeyGeneration()).isEqualTo(NOW + 1);
+    }
+
+    @Test
+    @DisplayName("a reset forgets key and generation, after which an older key is taken again")
+    void aResetStartsOver() {
+        UUID id = agent();
+        agents.acceptSealingKey(id, envelopes.generateKeyPair().publicKey(), NOW);
+
+        assertThat(agents.forgetSealingKey(id)).isOne();
+        AgentEntity forgotten = agents.findById(id).orElseThrow();
+        assertThat(forgotten.getSealingPublicKey()).isNull();
+        assertThat(forgotten.getSealingKeyGeneration()).isNull();
+
+        assertThat(agents.acceptSealingKey(id, envelopes.generateKeyPair().publicKey(), NOW - 60_000)).isOne();
+        assertThat(agents.forgetSealingKey(UUID.randomUUID())).isZero();
+    }
+
+    @Test
+    @DisplayName("a heartbeat leaves the key alone, and saving the row does not write it")
+    void nothingElseWritesIt() {
+        UUID id = agent();
+        String key = envelopes.generateKeyPair().publicKey();
+        AgentEntity readBefore = agents.findById(id).orElseThrow();
+        agents.acceptSealingKey(id, key, NOW);
+
+        agents.recordHeartbeat(id, Instant.now(), "host", "linux", "1.0", "docker", null, "1", null, null);
+        readBefore.setLabels("dmz");
+        agents.save(readBefore);
+
+        AgentEntity row = agents.findById(id).orElseThrow();
+        assertThat(row.getLabels()).isEqualTo("dmz");
+        assertThat(row.getSealingPublicKey()).isEqualTo(key);
+        assertThat(row.getSealingKeyGeneration()).isEqualTo(NOW);
+    }
+}

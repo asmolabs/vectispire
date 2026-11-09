@@ -1,0 +1,47 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'solutions.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'solutions.subtitle' | translate }}</p>
+    </div>
+    @if (page.isAdmin()) {
+        <p-button
+            id="new-solution"
+            [label]="'solutions.new_solution' | translate"
+            icon="pi pi-plus"
+            (onClick)="page.newSolution()"
+        />
+    }
+</div>
+
+@if (page.error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (page.notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="notice">{{
+        message
+    }}</p-message>
+}
+
+@if (page.loading() && !page.tree()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+} @else {
+    @if (page.solutions().length === 0) {
+        <p-card styleClass="mb-4">
+            <p class="m-0 text-muted-color" data-testid="no-solutions">
+                {{ page.isAdmin() ? ('solutions.empty_admin' | translate) : ('solutions.empty' | translate) }}
+            </p>
+        </p-card>
+    }
+
+    @for (solution of page.solutions(); track solution.id) {
+        <app-solution-card [solution]="solution" />
+    }
+
+    <app-unfiled-card />
+}
+
+<app-node-editor-dialog />
+<app-confirm-change-dialog />
+<app-plugins-dialog />
+<app-file-dialog />
+<app-move-project-dialog />

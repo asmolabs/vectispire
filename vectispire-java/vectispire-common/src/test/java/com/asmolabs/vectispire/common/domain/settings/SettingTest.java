@@ -1,0 +1,222 @@
+package com.asmolabs.vectispire.common.domain.settings;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Arrays;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+@DisplayName("the settings catalog")
+class SettingTest {
+
+    @Test
+    @DisplayName("every key is unique, because the key is what the database stores")
+    void keysAreUnique() {
+        assertThat(Arrays.stream(Setting.values()).map(Setting::key).distinct())
+                .hasSize(Setting.values().length);
+    }
+
+    @ParameterizedTest(name = "{0} carries a label, help and a default its own type accepts")
+    @EnumSource(Setting.class)
+    void everySettingIsUsable(Setting setting) {
+        // A default its own validation refuses is a screen that opens with an error on a
+        // value nobody typed — and it makes "save" impossible until the operator guesses.
+        assertThat(setting.label()).isNotBlank();
+        assertThat(setting.help()).isNotBlank();
+        assertThat(setting.validate(setting.defaultValue()))
+                .as("%s default %s", setting, setting.defaultValue())
+                .isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0} is written as text, without markdown emphasis")
+    @EnumSource(Setting.class)
+    void labelAndHelpAreText(Setting setting) {
+        // The settings screen renders a label and a help as text — it renders no markdown, by rule —
+        // so "**in place of**" reached the English screen with its asterisks, in seventeen helps,
+        // until the 0.11.0 screenshots showed it.
+        assertThat(setting.label()).doesNotContain("*");
+        assertThat(setting.help()).doesNotContain("*");
+    }
+
+    @Test
+    @DisplayName("every setting whose value is a bearer capability is marked secret")
+    void secretsAreMarked() {
+        // A webhook URL is not configuration: whoever knows it can post in the channel where
+        // the team awaits Vectispire's alerts, which is the channel where a forged message
+        // carries most weight. Reading it needs no write permission.
+        //
+        // The list is exhaustive on purpose. A setting added here without `Sensitivity.SECRET`
+        // fails this test rather than quietly becoming readable by every account — which is the
+        // only way anybody would find out.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::isSecret))
+                .containsExactlyInAnyOrder(
+                        Setting.WEBHOOK_URL,
+                        Setting.TEAMS_WEBHOOK_URL,
+                        Setting.SLACK_WEBHOOK_URL,
+                        Setting.DISCORD_WEBHOOK_URL,
+                        Setting.WEBHOOK_SIGNING_SECRET,
+                        Setting.TICKET_BASE_URL,
+                        // Not a bearer capability — a CA is public — but withheld like the URL it pins:
+                        // its subject names the internal PKI the tracker sits behind.
+                        Setting.TICKET_CA,
+                        Setting.TICKET_TOKEN,
+                        // Authenticates the tracker calling us. Whoever reads it can forge a
+                        // webhook and close somebody's finding, which is the whole reason it
+                        // exists — so it is a bearer capability in the same sense as the rest.
+                        Setting.TICKET_WEBHOOK_SECRET,
+                        Setting.AI_REVIEW_OLLAMA_URL,
+                        // Spends the account it belongs to. Stored encrypted and written through
+                        // its own route, like the tracker token — the marker here is what keeps
+                        // the catalog from handing the row to every signed-in account.
+                        Setting.AI_REVIEW_OPENAI_KEY);
+    }
+
+    @Test
+    @DisplayName("a credential is marked ENCRYPTED, which is a stronger claim than SECRET")
+    void credentialsAreMarkedEncrypted() {
+        // **The list that must not grow by accident.** `SECRET` means "do not show this to a
+        // non-administrator" and nothing more — no branch in the write path ever consulted it,
+        // which is how three credentials with a dedicated encrypting route stayed writable, in the
+        // clear, through the generic one. `ENCRYPTED` is the marker the write path refuses on.
+        //
+        // Adding a credential without it fails here rather than being discovered in a database
+        // backup, which is the only other way anybody finds out.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::isEncrypted))
+                .containsExactlyInAnyOrder(
+                        Setting.TICKET_TOKEN,
+                        Setting.TICKET_WEBHOOK_SECRET,
+                        Setting.WEBHOOK_SIGNING_SECRET,
+                        Setting.AI_REVIEW_OPENAI_KEY);
+    }
+
+    @Test
+    @DisplayName("every encrypted credential is also withheld from a non-administrator")
+    void everyCredentialIsAlsoASecret() {
+        // The two questions are separate, but not independent in this direction: a value worth
+        // encrypting is never a value worth serving to any signed-in account. A reader asking
+        // `== SECRET` would have started doing exactly that the moment one was reclassified.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::isEncrypted))
+                .allMatch(Setting::isSecret);
+    }
+
+    @Test
+    @DisplayName("the administrator-only settings are exactly these")
+    void administratorOnlySettingsArePinned() {
+        // Pinned by name, so a setting that leaves the list — or a new destination that never
+        // joins it — is a decision made in review rather than a side effect. The Ollama endpoint
+        // was a security lead's while the OpenAI one, the same kind of destination, was not.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::administratorOnly))
+                .containsExactlyInAnyOrder(
+                        Setting.TICKET_BASE_URL,
+                        Setting.TICKET_ALLOW_PRIVATE_URL,
+                        Setting.TICKET_PROJECT,
+                        Setting.TICKET_USER,
+                        Setting.TICKET_CA,
+                        Setting.TICKET_TOKEN_EXPIRES_ON,
+                        Setting.AI_REVIEW_OPENAI_URL,
+                        Setting.AI_REVIEW_ALLOW_REMOTE,
+                        Setting.AI_REVIEW_OLLAMA_URL,
+                        Setting.SIEM_ALLOW_PRIVATE_DESTINATION,
+                        Setting.NOTIFICATION_ALLOW_PRIVATE_URL);
+    }
+
+    @ParameterizedTest(name = "a model endpoint refuses [{0}]")
+    @ValueSource(strings = {"http://localhost:11434/?", "http://localhost:11434/x?y=", "http://localhost:11434/#"})
+    void aModelEndpointIsAnApiRoot(String value) {
+        // The call's path is appended to the root; a query or a fragment would take it in.
+        assertThat(Setting.AI_REVIEW_OLLAMA_URL.validate(value)).isPresent();
+        assertThat(Setting.AI_REVIEW_OPENAI_URL.validate(value)).isPresent();
+        assertThat(Setting.AI_REVIEW_OLLAMA_URL.validate("http://ollama.internal:11434/base")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the dangerous switches are off by default")
+    void dangerousDefaultsAreOff() {
+        // Each of these, on, sends something somewhere it was not going before.
+        assertThat(Setting.AI_REVIEW_ALLOW_REMOTE.defaultValue()).isEqualTo("false");
+        assertThat(Setting.NOTIFICATION_ALLOW_PRIVATE_URL.defaultValue()).isEqualTo("false");
+        assertThat(Setting.SIEM_ALLOW_PRIVATE_DESTINATION.defaultValue()).isEqualTo("false");
+        assertThat(Setting.SAST_ENABLED.defaultValue()).isEqualTo("false");
+        assertThat(Setting.AI_REVIEW_ENABLED.defaultValue()).isEqualTo("false");
+    }
+
+    @Test
+    @DisplayName("an unexposed key has no definition, and says so")
+    void unknownKeysAreAbsent() {
+        assertThat(Setting.byKey("enrichment_enabled")).contains(Setting.ENRICHMENT_ENABLED);
+        assertThat(Setting.byKey("invented_setting")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the defaults cover every key")
+    void defaultsCoverEveryKey() {
+        assertThat(Setting.defaults()).hasSize(Setting.values().length);
+    }
+
+    @Nested
+    @DisplayName("validation, at the point of entry")
+    class Validation {
+
+        @ParameterizedTest(name = "boolean refuses [{0}]")
+        @ValueSource(strings = {"", "yes", "TRUE", "1", " true"})
+        void booleanIsStrict(String value) {
+            assertThat(SettingType.BOOLEAN.validate(value)).isPresent();
+        }
+
+        @ParameterizedTest(name = "integer refuses [{0}]")
+        @ValueSource(strings = {"", "   ", "-1", "1.5", "ten"})
+        void integerIsStrict(String value) {
+            // An unreadable integer read later falls back to its default, and the operator
+            // never learns their value was ignored.
+            assertThat(SettingType.INTEGER.validate(value)).isPresent();
+        }
+
+        @Test
+        @DisplayName("integer accepts zero, which is a meaningful value here")
+        void zeroIsValid() {
+            // Zero means "no limit on this axis" for retention. Refusing it would remove a
+            // documented state.
+            assertThat(SettingType.INTEGER.validate("0")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a severity threshold cannot be unknown or negligible")
+        void thresholdsAreNarrower() {
+            // A threshold of "unknown" notifies on everything, including every advisory the
+            // OSV backend returns with no normalized severity. Offering it in a dropdown is
+            // offering a way to flood the channel by accident.
+            assertThat(SettingType.SEVERITY.validate("critical")).isEmpty();
+            assertThat(SettingType.SEVERITY.validate("low")).isEmpty();
+            assertThat(SettingType.SEVERITY.validate("negligible")).isPresent();
+            assertThat(SettingType.SEVERITY.validate("unknown")).isPresent();
+        }
+
+        @Test
+        @DisplayName("text accepts anything, because what it must mean is not knowable here")
+        void textIsFree() {
+            // Whether a URL resolves somewhere allowed is checked by whoever reads it: only
+            // they know which of the three outbound policies applies.
+            assertThat(SettingType.TEXT.validate("anything at all")).isEmpty();
+            assertThat(SettingType.TEXT.validate("")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the approver independence window is the governor's, and bounded above")
+        void theIndependenceWindowIsBounded() {
+            // Two billion days reach before the first instant there is: the approval would fail with a
+            // 500 rather than refuse in words.
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("0")).isEmpty();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("3650")).isEmpty();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("3651")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("2147483647")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("-1")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.defaultValue()).isEqualTo("30");
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.governorOnly()).isTrue();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.governsSecurity()).isTrue();
+        }
+    }
+}

@@ -1,0 +1,127 @@
+# Votre compte et le second facteur
+
+Chaque compte peut ajouter un second facteur temporel (TOTP) à sa propre connexion, depuis
+**Compte** dans la barre supérieure.
+
+C'est distinct du MFA qu'impose votre fournisseur d'identité. Si vous vous connectez par
+[authentification unique](sso.fr.md), le second facteur est l'affaire du realm et ne se configure
+pas ici ; le facteur de cette page protège les comptes qui entrent par mot de passe.
+
+## L'enrôlement se fait en deux temps, et c'est ce qui le rend sûr
+
+Le serveur propose un secret, et **rien n'est activé tant qu'un premier code n'a pas été vérifié**.
+
+Sans cette confirmation, une horloge décalée ou un secret mal recopié ne se verrait qu'à la
+déconnexion suivante — c'est-à-dire au pire moment, par quelqu'un qui ne peut plus entrer pour le
+corriger.
+
+Un code refusé garde l'enrôlement ouvert. Six chiffres et trente secondes de vie : se tromper est
+ordinaire, et redistribuer un secret neuf pour une faute de frappe obligerait à tout recopier.
+
+**La confirmation demande aussi votre mot de passe actuel.** Avec une session seule, quiconque en
+tenait une — volée, ou laissée ouverte sur un bureau — pouvait mettre votre second facteur sur son
+propre téléphone, et vous n'auriez eu aucun code pour le retirer. Un mot de passe faux compte contre le
+compte comme une connexion fausse, et passé le même plafond la confirmation répond `429`. Un compte qui
+ne se connecte que par le fournisseur n'a pas de mot de passe qu'il connaisse, ni l'usage de ce facteur.
+
+## Privé de votre propre facteur
+
+Si le téléphone est perdu et les codes de secours avec lui, ou si un facteur que vous n'avez pas enrôlé
+est sur le compte, un administrateur le réinitialise depuis l'écran des utilisateurs : le facteur est
+retiré et vos sessions se ferment, et vous vous connectez avec votre seul mot de passe jusqu'à un nouvel
+enrôlement. Si quelqu'un d'autre a pu utiliser le compte, demandez aussi une réinitialisation du mot de
+passe — c'est elle qui révoque les clés d'API.
+
+## Les codes de secours ne sont montrés qu'une fois
+
+Le serveur les chiffre et ne les rendra plus. L'écran le dit **avant** de les afficher, parce que
+l'autre issue est quelqu'un qui ferme l'onglet en pensant les retrouver plus tard.
+
+Conservez-les comme n'importe quel autre accès de secours. C'est le seul chemin de retour quand le
+téléphone a disparu.
+
+## Il n'y a pas d'image QR, et c'est dit plutôt que caché
+
+La dessiner demande une dépendance de plus, ce qui n'est pas une décision qu'on prend en passant
+dans un produit qui épingle chaque image par empreinte. Le secret est affiché en groupes de quatre
+— la saisie manuelle que toute application d'authentification accepte — et l'URI `otpauth://` reste
+copiable.
+
+## Retirer le facteur exige un code
+
+Courant ou de secours, et c'est le serveur qui l'exige. Sans cela, un poste laissé déverrouillé une
+minute suffirait à désarmer le facteur qui protège le compte, ce qui viderait la protection de son
+sens.
+
+## Changer de téléphone passe par le retrait du facteur
+
+Un nouvel enrôlement est refusé tant qu'un facteur est actif. Le remplacer sans preuve de
+l'ancien permettrait à quiconque devant un poste déverrouillé de déplacer le second facteur du
+compte sur son propre téléphone ; le retirer exige un code, donc le remplacer aussi.
+
+## Un code n'ouvre qu'une fois
+
+Un code accepté à la connexion, ou pour confirmer l'enrôlement, est refusé s'il est présenté de
+nouveau, même dans ses trente secondes. Un code de secours est consommé dès qu'il est accepté, y
+compris par deux connexions qui le présentent au même instant : une seule entre. Si un code que
+vous venez de saisir est refusé, attendez le suivant.
+
+## Les codes faux comptent contre le compte
+
+Un défi de connexion meurt après trois codes faux, et le compte absorbe **cinq codes faux par
+quart d'heure, tous défis confondus**. Au-delà, la connexion répond `429` avec `Retry-After`
+même avec le bon mot de passe, et le bon code remet le compteur à zéro. Seul quelqu'un qui connaît
+le mot de passe peut l'épuiser — si cela vous arrive sans que ce soit vous, changez de mot de passe.
+
+Les échecs de mot de passe sont comptés par compte, quelle que soit l'orthographe du nom qui l'a
+ouvert, et par adresse de l'appelant telle que le serveur la résout à travers les
+proxys de confiance (`VECTISPIRE_TRUSTED_PROXIES`, voir l'[installation](../getting-started/installation.fr.md)) ; un `client_id` envoyé par le client n'est
+plus lu. Un appelant IPv6 compte pour son /64 : un hôte y choisit ses adresses à volonté. Le nom est
+replié comme la base le compare — casse, accents, et les lettres que MySQL tient pour d'autres (`ß` et
+`ss`, `æ` et `ae`…) — si bien qu'aucune orthographe d'un compte n'a son propre compteur. Un nom
+qu'aucun compte ne peut porter — autre chose que des lettres, des chiffres, `.`, `_` et `-` — n'ouvre
+aucun compte, même là où la base aurait lu par-dessus un trait d'union conditionnel ou un caractère
+invisible : il est refusé comme un nom inconnu, si bien qu'on se connecte avec le nom du compte tel
+qu'il a été créé. Une connexion
+réussie remet à zéro le compteur du compte et celui du nom, pas celui de
+l'adresse : se connecter à son propre compte n'efface pas les échecs que la même adresse a accumulés
+contre d'autres.
+
+## Échecs venus de nombreux endroits
+
+Trois budgets comptent les échecs de mot de passe sur un quart d'heure glissant : **cinq** par compte
+(et par nom saisi) depuis une adresse, **vingt** par adresse tous comptes confondus, et **cinquante**
+par compte depuis toutes les adresses ensemble. Chacun est un [réglage](../reference/configuration.fr.md#authentification).
+
+Les deux premiers refusent avec `429` et le code `rate-limited`. Le troisième est celui que rencontre
+une tentative répartie sur de nombreuses adresses, et il **ne vous enferme pas dehors** : quiconque
+connaît votre nom d'utilisateur pourrait sinon vous tenir dehors en échouant cinquante fois depuis dix
+machines. Au-delà, une connexion est refusée avec `429`, le code `account-throttled` et `Retry-After`
+seulement si elle vient d'une adresse qui ne s'est pas connectée au compte dans les trente derniers
+jours (`VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION`). Depuis votre endroit habituel, vous vous connectez
+comme d'habitude, tenu aux cinq échecs de cette adresse. Depuis un nouvel endroit :
+
+- **avec un second facteur**, saisissez votre code sous le mot de passe — l'écran de connexion affiche
+  le champ dès qu'il a été refusé ainsi. Le mot de passe et le code sont vérifiés ensemble, et la
+  réponse est une session ou le même refus, quel que soit celui des deux qui était faux ;
+- **sans second facteur**, attendez le délai indiqué, ou connectez-vous depuis un appareil déjà utilisé.
+
+Le refus vient avant la vérification du mot de passe, et ne dit rien de l'existence du compte : un nom
+inconnu au-delà de son budget est refusé de la même façon. Chaque refus figure au
+[journal d'audit](audit-log.fr.md) comme `LOGIN_BLOCKED` (signalé `VECTI-SEC-007`), et le serveur
+journalise un avertissement par compte et par quart d'heure tant que son budget est épuisé. Si vous le
+voyez sur votre compte, quelqu'un devine votre mot de passe : prenez-en un long, et enrôlez un second
+facteur.
+
+« Adresse » est l'adresse que le serveur résout à travers les proxys de confiance, son /64 en IPv6 —
+quelqu'un derrière la même sortie réseau que vous, au bureau, partage donc votre exemption, et
+rencontre à la place les plafonds propres à cette adresse. Un compte qui ne s'est jamais connecté — ou
+pas depuis trente jours, ou dont l'adresse du titulaire a changé — n'a pas d'endroit habituel, et sans
+second facteur attend comme tout le monde tant que le budget est épuisé. Une adresse connue le reste
+après un changement ou une réinitialisation du mot de passe jusqu'au terme de ses trente jours ; elle
+reste tenue à ses propres cinq échecs.
+
+## À lire aussi
+
+- [Authentification unique](sso.fr.md) — déléguer l'authentification, et le second facteur, à un fournisseur.
+- [Utilisateurs et équipes](users-and-teams.fr.md) — les rôles, et ce que chacun peut faire.

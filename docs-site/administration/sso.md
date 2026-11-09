@@ -1,0 +1,202 @@
+# Single sign-on
+
+Optional **OpenID Connect**, tested against Keycloak.
+
+## What the provider decides, and what it does not
+
+The provider answers exactly one question: *who is this?*
+
+Vectispire still issues its own session. The visibility rules, the audit trail, the session
+lifetimes and the API keys all keep working unchanged, because none of them were delegated.
+
+A page opened while signed out survives the round trip: the sign-in screen hands it to
+`/oauth2/authorization/oidc?returnUrl=…`, Vectispire keeps it in the sign-on's own server session —
+never reading it back from the provider's callback — and accepts only a path of this application;
+anything else, a `//host` or an encoded one included, lands on the dashboard.
+
+## No account is created on sign-on
+
+This is the part worth reading twice.
+
+An administrator creates the account first, and the **role stays Vectispire's to decide**.
+Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of
+every target — and in a shared realm, that is a much larger set of people than the ones you
+meant to let in.
+
+## Binding an identity
+
+The **first** sign-on binds the account whose username matches the claim.
+
+Every later one matches on the provider's **subject**, not the username. A username is not
+stable for the life of a person: people marry, change teams, get renamed by an HR import.
+The subject is.
+
+That first binding trusts a claim, and a claim is whatever the realm lets people write. So it is
+held to four rules:
+
+- **The name must be the account's, accent for accent.** Only case is forgiven. MySQL's default
+  collation finds `admin` for `ádmin`; that is a different identity, and it is refused.
+- **An email is used only if the provider verified it** (`email_verified`), and only when no
+  `preferred_username` came.
+- **A privileged account is not bound by name** — every role but USER: SUPERUSER, ADMIN, CISO,
+  AUDITOR and SECURITY_CHAMPION, since each administers, governs, reads the whole estate's security
+  or approves triage. In a realm with self-registration, anyone can register `admin`. Such an
+  account keeps signing in with its password, where password sign-in is on; to give a person that role through the provider, have
+  the provider link (or [SCIM](#provisioning-from-the-directory-scim) provision) a plain account, and
+  grant it the role on the users screen. For a realm where nobody chooses their own username, allow
+  the link with `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` — Vectispire warns at start when it
+  is on together with linking by claim. The Keycloak of the `sso` compose profile signs
+  in as `admin`, so its `.env.oidc.example` sets it. That Keycloak does not start without
+  `KEYCLOAK_ADMIN_PASSWORD` in `.env` — its own administrator's, which used to default to `admin` —
+  and the realm's `admin` password, published with the realm, is temporary: Keycloak asks for a new
+  one at the first sign-in.
+- **An account with a local second factor is never bound by name**, whatever the setting above. A
+  sign-on skips the local TOTP — the provider owns the second factor — so binding it on a claim
+  would trade the factor its owner enrolled for a name somebody may have written. Its owner signs
+  in with password and code; to sign on through the provider instead, the owner turns the second
+  factor off on the account page first. SCIM does not bind it either.
+- **None of this happens with `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Then no account is linked
+  on a claim, plain ones included: accounts are bound to their subject through
+  [SCIM](#provisioning-from-the-directory-scim), and an identity SCIM did not bind is refused as
+  matching no account. SCIM binds an existing account only under the same rules as below — a
+  privileged one only with `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`, one with a local second
+  factor never — so such an account keeps its password, or its person gets a new account the
+  directory provisions and an administrator gives the role. Turn it off for a realm whose users can choose or edit their own username;
+  it is on by default, which is how a realm and an existing set of accounts meet.
+
+## Groups become teams, and leaving one takes it away
+
+When the token carries a `groups` claim, each value is matched against a **team name** and the
+account joins the teams that match.
+
+It also **leaves** the ones no longer claimed — but only the ones the provider granted. A team an
+administrator assigned by hand, or SCIM provisioned, is never removed by a sign-on: each channel
+reconciles its own memberships, so two directories cannot undo each other's work and a login cannot
+silently erase somebody's deliberate decision.
+
+An **empty or absent claim removes nothing**. A forgotten mapper is a configuration fault, not a
+statement that this person belongs to no team, and revoking on that basis would cut everybody off
+the first time a mapper was misconfigured.
+
+## Provisioning from the directory (SCIM)
+
+An identity provider can create, update, deactivate and delete accounts through SCIM 2.0
+(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token
+(`vectispire.scim.token`, or a file named by `VECTISPIRE_SCIM_TOKEN_FILE`). With SCIM enabled, a
+token shorter than 32 characters stops the start: generate one with `openssl rand -base64 32`. That
+token lives in the provider's configuration, so what it may do is deliberately bounded:
+
+- **`/scim` takes the SCIM token and nothing else.** An administrator's session or an API key is
+  refused there with `403`, and with SCIM switched off (`vectispire.scim.enabled: false`) nothing is
+  accepted at all; accounts are administered in Vectispire through the users screen. The audit log
+  names `SCIM provisioning` as the actor of what the directory does, and the account or team it
+  changed as the resource.
+- **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
+  administrator or a superuser answers `403`; they are administered in Vectispire.
+- **The directory grants the scoped roles only — User and Security Champion.** A `roles` value of
+  `ADMIN`, `SUPERUSER`, `CISO` or `AUDITOR` — a role that administers or sees the whole estate —
+  answers `400`: those are granted in Vectispire, by its administrators. There is no setting to
+  widen this: a directory deciding those roles is a directory token holding the estate. Sending
+  back the role an account already holds is not a grant, and is accepted.
+- **A replacement without `roles` leaves the role as it is** — it no longer demotes to User.
+- **`externalId` is bound once.** Changing it on an account that already has one answers `400`: a
+  new subject means a new account.
+- **An existing account that holds a privileged role or a local second factor is not bound by the
+  directory.** Setting `externalId` on a CISO, an auditor, a security champion — any role but User —
+  or on an account with its own TOTP, while it has none, answers `400`: binding it would let a sign-on
+  of the directory's choosing skip that account's password and second factor. Vectispire has no
+  route that binds a subject to an existing account either: provision a new account and grant it the
+  role on the users screen, or have the owner turn the second factor off first.
+  `vectispire.oidc.link-privileged-accounts`, the setting that lets a claim link a privileged account,
+  lets the directory too — never one with a local second factor.
+- **An account the directory creates signs in through the provider.** It gets a password nobody
+  knows and is not asked to change it.
+- **A role change closes the account's sessions**, as a deactivation does.
+- **Lowering a privileged account does not make it bindable.** The directory may take a role away —
+  a CISO lowered to User is accepted — but while that account is bound to no subject, setting its
+  `externalId` afterwards still answers `400`, and a sign-on does not link it by name either, until an
+  administrator sets its role on the users screen. Otherwise a role the directory may lower but not
+  bind would be bound in two requests instead of one.
+- **`GET /scim/v2/Users` evaluates two filters**: `userName eq "…"` and `externalId eq "…"` (attribute and
+  operator in any case, the value a quoted string). Any other — `emails[value eq "…"]`, an `and` or `or`,
+  `co`, an unquoted value — answers `400` with `scimType` `invalidFilter` (RFC 7644 §3.4.2.2); it used to
+  return every account, which a directory looking up before creating read as a match. Without a filter
+  the endpoint lists every account, as before.
+- **An absent user or group is `404`, a taken `userName` or `displayName` is `409` with `scimType`
+  `uniqueness`** (RFC 7644 §3.3), both in SCIM's error schema with a `detail`. Until 0.11.1 both had
+  an empty body, which gave a directory nothing to log and nothing to tell "already there" by.
+- **A group is renamed by `PUT` or by `PATCH`** — `replace` with the path `displayName`, or with
+  `displayName` in the value. A name another group holds, in any case, is `409` with `scimType`
+  `uniqueness` and changes nothing, the members sent beside it included. A `displayName` longer than
+  100 characters is `400`, and so is a blank one on a creation or a `PATCH` (a `PUT` without one keeps
+  the name). Until 0.11.1 such a `PUT` answered `500`, and a `PATCH` rename was not applied at all: it
+  answered `200` with the old name.
+- **A `PATCH` `replace` of a group's members replaces them** (RFC 7644 §3.5.2.3) — with the path
+  `members`, or with `members` in the value: the team's members become exactly the accounts listed, and
+  an empty list removes everyone. As a `PUT` does, it removes a member it does not list whoever added
+  them, an administrator included; a listed account already in the team keeps its membership as it was.
+  An entry naming no account — an unknown username or id — is skipped, as an `add` skips it; members
+  that are not a list are `400`. Until 0.11.1 a `replace` was read as an `add`: a person the directory
+  took out of the group stayed in the team, with what it grants. An `add` naming an id no account holds
+  answered `500`; it is skipped too.
+- **`GET /scim/v2/Users` and `GET /scim/v2/Groups` page on request** (RFC 7644 §3.4.2.4): `startIndex`,
+  1-based, and `count`, at most 500 resources a page. `totalResults` is every resource the request
+  matched, `itemsPerPage` how many the page holds, `startIndex` where it starts. Out-of-range values are
+  read as the RFC says rather than refused — a directory answered `400` stops synchronising: a
+  `startIndex` below 1 is 1, a negative `count` is 0, which answers `totalResults` alone, and a `count`
+  past 500 is 500. Without either, every resource, as before; the users are listed by `userName`, the
+  groups by `id`, and a filter's match pages like the rest. Until 0.11.1 `/Users` accepted both and
+  ignored them, answering every account whatever `count` said, and `/Groups` read neither.
+
+## The second factor belongs to the provider
+
+A single sign-on **skips Vectispire's own TOTP**, deliberately: authentication is delegated, and the
+second factor with it — a local code on top would make two factors compete. What the provider did is
+no longer an assumption, though. Every federated sign-in records in the audit log what the token
+states — RFC 8176 `amr` values such as `otp` or `hwk`, or an `acr` level — or that it states none.
+
+Once your provider sends that information (Keycloak: add an *Authentication Method Reference* mapper
+to the client, or configure an `acr` level), set `VECTISPIRE_OIDC_REQUIRE_MFA=true`: a sign-on that
+states no second factor is then refused, with a message that says why. The values that count are
+`VECTISPIRE_OIDC_MFA_AMR` and `VECTISPIRE_OIDC_MFA_ACR` — see [Configuration](../reference/configuration.md).
+
+## Configuration
+
+```bash
+VECTISPIRE_OIDC_ISSUER=https://keycloak.internal/realms/company
+```
+
+Plus the client credentials your provider issues. With the shipped composition, the issuer, the
+client id and the display name go in `.env.oidc`, and the **client secret in `.env`**
+(`VECTISPIRE_OIDC_CLIENT_SECRET`): `.env.oidc` becomes the container's environment, which
+`docker inspect` shows to every client of the daemon, while `.env`'s secret reaches the container as a
+file under `/run/secrets/`.
+
+### What the compliance report says about it
+
+The audit log's controls are **capped while authentication is weaker than the report claims**. No
+provider at all caps them at 65 % while an account holding a local password has no TOTP second
+factor: the hash chain proves an entry was not altered, it cannot prove the name on it belongs to
+whoever acted. Once every such account has enrolled TOTP the cap is 85 %, because each account
+chooses it and nothing requires it of the next one. A provider *beside* an open password caps them at 85 % —
+the realm's second factor can be walked around through the other door.
+
+This is deliberately a number rather than a refusal. PCI DSS and SOC 2 both require a second
+factor, and a report that scored them compliant while Vectispire accepted a password alone was
+handing an assessor their own diligence back as a conclusion.
+
+### Turning off password login
+
+```bash
+VECTISPIRE_PASSWORD_LOGIN=false
+```
+
+Authentication is then delegated entirely, and the second factor is the realm's.
+
+This is **ignored, loudly**, when no `VECTISPIRE_OIDC_ISSUER` is set. Honouring it would
+leave no way in at all, and a security tool that locks its administrators out has not
+become more secure.
+
+## Related
+
+[Users and teams](users-and-teams.md) · [Configuration](../reference/configuration.md)

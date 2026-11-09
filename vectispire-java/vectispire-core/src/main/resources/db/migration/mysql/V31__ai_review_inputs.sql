@@ -1,0 +1,21 @@
+-- What the model was actually given, kept beside what it answered.
+--
+-- **The report was already stored with its prompt, its model and its scan — and not with its
+-- input.** The prompt is the static instruction; the variable half is the evidence digest built
+-- from the open issues at that moment, and that is the half that decides what the prose says. It
+-- was computed, handed to the model, and dropped.
+--
+-- Which left the report unverifiable in the only way that matters. A reader cannot recompute the
+-- input later: the issues have moved on. So a hash would prove nothing — it would attest to
+-- something nobody can reconstruct. The input text itself is what lets somebody read what the
+-- model was shown and judge whether the prose follows from it.
+--
+-- **Reproducibility is the wrong bar for a narrative, and provenance is the right one.** An
+-- in-toto attestation is not reproducible either; it is evidence because it is bound to its
+-- inputs. This column is that binding, for a document the product already declines to treat as
+-- proof.
+--
+-- Bounded by construction: the digest caps at three hundred findings, so this is prose-sized and
+-- not a second copy of the backlog.
+
+alter table t_ai_review_result add column inputs longtext;

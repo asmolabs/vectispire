@@ -1,0 +1,362 @@
+package com.asmolabs.vectispire.core.persistence;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
+import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+
+/**
+ * The question whose right answer is "nothing".
+ *
+ * <p>Flyway builds the schema from the per-dialect migrations, then Hibernate is asked to
+ * <b>validate</b> the entities against it. Every disagreement — a column the entities expect and
+ * the migrations never create, a length that differs, a nullability that does not — fails the
+ * context startup here rather than on the first query in production.
+ *
+ * <p><b>There is no "skip if Docker is missing" guard, deliberately.</b> A suite that skips
+ * itself reports green without having checked anything, which is worse than one that fails.
+ *
+ * <p>Run one engine with {@code -Pdialect=postgres}, or the whole set with {@code integrationTestAll}.
+ * Running one is not running the campaign: the places the engines disagree are precisely the
+ * places a single representative is silent about — MySQL reports a boolean as {@code tinyint(1)}
+ * where PostgreSQL has a real one, and a timestamp without declared precision truncates on one
+ * and not the other.
+ */
+@SpringBootTest(classes = VectispireApplication.class)
+@DisplayName("the entities agree with the schema")
+class SchemaParityIntegrationTest {
+
+    private static final Engine ENGINE = Engine.selected();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
+
+    @BeforeAll
+    static void start() {
+        CONTAINER.start();
+    }
+
+    @AfterAll
+    static void stop() {
+        CONTAINER.stop();
+    }
+
+    @DynamicPropertySource
+    static void datasource(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", CONTAINER::getJdbcUrl);
+        registry.add("spring.datasource.username", CONTAINER::getUsername);
+        registry.add("spring.datasource.password", CONTAINER::getPassword);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+    }
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Test
+    @DisplayName("every entity is mapped, and validated against the schema")
+    void entitiesMatchTheSchema() {
+        // On both engines, reaching this line *is* the assertion: Hibernate validated
+        // every entity while the context came up. What remains is to stop the test passing on an
+        // empty metamodel, which is how a check reports green having looked at nothing.
+        //
+        // **A lower bound, not an exact count, and that is a correction.** This asserted exactly
+        // 26 and the tree now has 33: ticketing, the API inventory, threat intel and the SIEM
+        // configuration each added one, and none of them touched this line. So the whole
+        // four-engine campaign failed — on a number, not on a mapping — and nobody saw it,
+        // because the campaign does not run in CI. An exact count here checks that somebody
+        // updated a literal; it does not check the schema, and it is the failure mode this file
+        // exists to avoid.
+        assertThat(entityManager.getMetamodel().getEntities())
+                .as("an empty or near-empty metamodel means the scan found nothing, not that the "
+                        + "schema is fine")
+                .hasSizeGreaterThanOrEqualTo(26);
+    }
+
+    @Test
+    @DisplayName("the columns the hot paths filter on are indexed, on every engine")
+    void theHotLookupsAreIndexed() throws Exception {
+        // **An index nobody checks is an index a refactor drops.** t_issue carried none at all
+        // for the whole life of the project while a published document claimed three, so the
+        // assertion is that they exist rather than that somebody remembered to write them.
+        //
+        // The list grew past t_issue once the same crossing — every query method against every
+        // declared index — was done for the rest of the schema. Each entry below names the caller
+        // that waits on it, so an index this test defends can be argued with rather than merely
+        // obeyed.
+        //
+        // Read through `DatabaseMetaData` rather than a catalog query: `pg_indexes` and
+        // `information_schema.statistics` are different questions, and the campaign exists to ask
+        // one question of every engine.
+
+        assertThat(indexedFirstColumns("t_issue"))
+                .as("the gate reads one target's open issues on every build, and the compliance "
+                        + "summary groups the open backlog — both lead with `state`; the "
+                        + "fingerprint is looked up once per ingested finding; and the CycloneDX "
+                        + "generator matches on `identifier` inside a loop over CVEs; the tracker's "
+                        + "webhook looks its issues up by `ticket_ref` at every delivery; and the "
+                        + "maintenance tick asks for the review dates passed, on `triage_expires_at` (V90)")
+                .contains("state", "fingerprint", "identifier", "ticket_ref", "triage_expires_at");
+
+        assertThat(indexedFirstColumns("t_finding"))
+                .as("the join every finding read follows, and the group key of the blast-radius "
+                        + "list — on the largest table in the schema, which had nothing but its "
+                        + "primary key")
+                .contains("scan_id", "package_name", "issue_id");
+
+        assertThat(indexedFirstColumns("t_scan"))
+                .as("`findLatestPerRepository` correlates `max(id)` per target once per row, so "
+                        + "an unindexed repo_id makes the repository list quadratic in scans")
+                .contains("repo_id", "container_id");
+
+        assertThat(indexedFirstColumns("t_login_attempt"))
+                .as("the rate limiter reads this on every login attempt, and a brute-force "
+                        + "attempt is when the table is largest")
+                .contains("counter_key");
+
+        assertThat(indexedFirstColumns("t_team_member"))
+                .as("`VisibilityService` resolves memberships on every authenticated request, and "
+                        + "the primary key `(team_id, user_id)` cannot answer it in this direction")
+                .contains("user_id");
+
+        assertThat(indexedFirstColumns("t_repository"))
+                .as("`VisibilityService` resolves every project grant into the project's "
+                        + "repositories on each request a project grantee makes (decision 0023)")
+                .contains("project_id");
+
+        assertThat(indexedFirstColumns("t_api_key"))
+                .as("every API-key authentication: the pipelines and the agents")
+                .contains("prefix");
+
+        assertThat(indexedFirstColumns("t_outbox_message"))
+                .as("the poller's `findDue`, on a schedule")
+                .contains("status");
+
+        assertThat(indexedFirstColumns("t_checklist_template_version"))
+                .as("every template read lists its versions, and every import and derive asks whether a "
+                        + "draft exists and which number is next (decision 0032)")
+                .contains("template_id");
+        assertThat(indexedFirstColumns("t_checklist_item"))
+                .as("a version's items are read in order, counted in every listing, replaced by every edit")
+                .contains("version_id");
+        assertThat(indexedFirstColumns("t_checklist_measurement"))
+                .as("a submission's and a sign-off's measurements are read back by revision at every sign-off and "
+                        + "every read of a signed revision, and purged with its project")
+                .contains("checklist_id");
+        assertThat(indexedFirstColumns("t_checklist_document"))
+                .as("the document route reads a revision's signed package by its checklist, and a project's deletion "
+                        + "purges its documents by project")
+                .contains("checklist_id", "project_id");
+
+        // The child tables of a scan: read with it, purged with it by the `TargetDeleted` listeners.
+        // Three of them carried an index that led with the wrong column, which is the case this
+        // assertion exists to catch — `getIndexInfo` would have reported an index on the table
+        // and said nothing about it being unusable for this lookup.
+        for (String table :
+                new String[] {"t_component", "t_api_endpoint", "t_api_contract", "t_ai_review_result"}) {
+            assertThat(indexedFirstColumns(table))
+                    .as("%s is read and purged by scan", table)
+                    .contains("scan_id");
+        }
+    }
+
+    @Test
+    @DisplayName("the cascades the schema declares are declared to the engine, on every engine")
+    void theForeignKeysExist() throws Exception {
+        // **Twenty-four of these were decoration on MySQL for the life of the project.** They are
+        // written `references t_x(id) on delete cascade` inline, inside the column definition — a
+        // form MySQL parses and discards, leaving no constraint, no index and no cascade. V19 adds
+        // them as real table-level constraints; PostgreSQL had them from the inline form all along.
+        //
+        // So what this asserts is that the engine has been *told*, which is the part a migration
+        // can lose. That MySQL then acts on it is `ForeignKeyEnforcementTest`, in the unit suite.
+
+        assertThat(referencedParents("t_scan"))
+                .as("a scan belongs to a repository or an image, and outlives neither")
+                .contains("t_repository", "t_container");
+        assertThat(referencedParents("t_finding"))
+                .as("a finding belongs to the scan that produced it, and points at the issue it "
+                        + "was folded into")
+                .contains("t_scan", "t_issue");
+        assertThat(referencedParents("t_issue"))
+                .as("an issue belongs to a target and names the scans that first and last saw it")
+                .contains("t_repository", "t_container", "t_scan");
+        assertThat(referencedParents("t_component")).contains("t_scan");
+        assertThat(referencedParents("t_ai_review_result")).contains("t_scan");
+        assertThat(referencedParents("t_api_endpoint")).contains("t_scan", "t_repository");
+        assertThat(referencedParents("t_api_contract")).contains("t_scan", "t_repository");
+        assertThat(referencedParents("t_issue_triage_event")).contains("t_issue", "t_scan");
+        assertThat(referencedParents("t_issue_ticket"))
+                .as("the one that was always written table-level, and always worked")
+                .contains("t_issue");
+
+        assertThat(referencedParents("t_session"))
+                .as("a session cannot outlive the account it authenticates — the orphan is a "
+                        + "credential with no owner")
+                .contains("t_user");
+        assertThat(referencedParents("t_user_target")).contains("t_user");
+        assertThat(referencedParents("t_team_member")).contains("t_team", "t_user");
+        assertThat(referencedParents("t_team_target")).contains("t_team");
+        assertThat(referencedParents("t_team_webhook"))
+                .as("a channel URL is a bearer capability, and this one was measured outliving "
+                        + "its team")
+                .contains("t_team");
+
+        assertThat(referencedParents("t_agent")).contains("t_api_key");
+        assertThat(referencedParents("t_repository"))
+                .as("a repository names its project, and a deleted project detaches it rather "
+                        + "than leaving it filed under nothing")
+                .contains("t_ssh_key", "t_project");
+        assertThat(referencedParents("t_project"))
+                .as("a project belongs to one solution, which cannot be deleted from under it")
+                .contains("t_solution");
+    }
+
+    /**
+     * The parent tables {@code table} declares a foreign key into, lowercased.
+     *
+     * <p>{@code getImportedKeys} rather than a catalog query, for the reason the index reader
+     * gives: one question, whatever the engine's catalog.
+     */
+    private Set<String> referencedParents(String table) throws Exception {
+        Set<String> parents = new HashSet<>();
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String name : new String[] {table, table.toUpperCase(Locale.ROOT)}) {
+                try (ResultSet keys =
+                        metadata.getImportedKeys(connection.getCatalog(), null, name)) {
+                    while (keys.next()) {
+                        String parent = keys.getString("PKTABLE_NAME");
+                        if (parent != null) {
+                            parents.add(parent.toLowerCase(Locale.ROOT));
+                        }
+                    }
+                }
+            }
+        }
+        return parents;
+    }
+
+    /**
+     * The columns an index on {@code table} <b>leads with</b>, lowercased.
+     *
+     * <p>Leading columns and not merely mentioned ones, because that is the distinction that
+     * decides whether a lookup can use the index at all: {@code (name, version, scan_id)} contains
+     * scan_id and is useless for finding a scan's components. Both cases of the table name are
+     * asked, since the engines disagree on how they fold identifiers.
+     */
+    private Set<String> indexedFirstColumns(String table) throws Exception {
+        Set<String> leading = new HashSet<>();
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String name : new String[] {table, table.toUpperCase(Locale.ROOT)}) {
+                try (ResultSet indexes = metadata.getIndexInfo(
+                        connection.getCatalog(), null, name, false, false)) {
+                    while (indexes.next()) {
+                        String column = indexes.getString("COLUMN_NAME");
+                        if (column != null && indexes.getShort("ORDINAL_POSITION") == 1) {
+                            leading.add(column.toLowerCase(Locale.ROOT));
+                        }
+                    }
+                }
+            }
+        }
+        return leading;
+    }
+
+    @Test
+    @DisplayName("a fingerprint appears once, and the engine says so rather than the code hoping so")
+    void theFingerprintIsUnique() throws Exception {
+        // **The identity an issue has always had, now enforced by the schema.** Reconciliation
+        // collects existing rows with a merge function that only fires on a duplicate, so the
+        // code has been tolerating what this constraint forbids; two overlapping scans of one
+        // target could each look up a fingerprint, each find nothing, and each insert.
+        //
+        // Read through `DatabaseMetaData` because `pg_indexes` and `information_schema.statistics`
+        // are different questions and the campaign asks one.
+        //
+        // **`NON_UNIQUE` is read rather than trusting the `unique` argument, and that is not
+        // belt-and-braces.** The first version of this test passed `unique = true` and passed
+        // with no unique index at all: the SQLite driver the campaign then also ran ignored the flag
+        // and returned every index regardless. Found by running it against the engine with the constraint removed —
+        // an assertion that cannot fail is the failure mode this campaign exists to catch, and
+        // it caught one of its own.
+        boolean unique = false;
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String table : new String[] {"t_issue", "T_ISSUE"}) {
+                try (ResultSet indexes = metadata.getIndexInfo(
+                        connection.getCatalog(), null, table, false, false)) {
+                    while (indexes.next()) {
+                        String column = indexes.getString("COLUMN_NAME");
+                        if (column != null
+                                && "fingerprint".equalsIgnoreCase(column)
+                                && !indexes.getBoolean("NON_UNIQUE")) {
+                            unique = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        assertThat(unique)
+                .as("the fingerprint must be unique on every engine: an issue that exists twice "
+                        + "is counted twice everywhere and refreshed in only one of its copies")
+                .isTrue();
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("a row survives the round trip, types included")
+    void rowRoundTrips() {
+        // What strict validation cannot say, on any engine: that the values come back as they
+        // went in. The three columns below are the ones engines disagree about — an
+        // instant, a boolean, and a UUID stored as text.
+        AgentEntity agent = new AgentEntity();
+        agent.setName("campaign");
+        agent.setKind("remote");
+        agent.setCredentialsMode("sealed");
+        agent.setEnabled(true);
+        agent.setCreatedAt(Instant.parse("2026-08-13T10:00:00Z").truncatedTo(ChronoUnit.MILLIS));
+        agent.setCapabilities("{\"docker\":true}");
+
+        entityManager.persist(agent);
+        entityManager.flush();
+        entityManager.clear();
+
+        UUID id = agent.getId();
+        assertThat(id).as("the identifier must be generated, whatever the engine calls a UUID").isNotNull();
+
+        AgentEntity reloaded = entityManager.find(AgentEntity.class, id);
+        assertThat(reloaded.getName()).isEqualTo("campaign");
+        // A boolean is `boolean` on PostgreSQL and a `bit(1)` or `tinyint(1)` on MySQL, by the age
+        // of its migration. Reading it back as `true` is the only claim that means the same thing
+        // on both.
+        assertThat(reloaded.getEnabled()).isTrue();
+        // Truncated to the millisecond going in, so this compares the value and not the
+        // engine's fractional-second precision.
+        assertThat(reloaded.getCreatedAt()).isEqualTo(Instant.parse("2026-08-13T10:00:00Z"));
+        assertThat(reloaded.getCapabilities()).isEqualTo("{\"docker\":true}");
+    }
+}

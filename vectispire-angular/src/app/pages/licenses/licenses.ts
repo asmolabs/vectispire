@@ -1,0 +1,314 @@
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { SelectModule } from '@openng/optimus-ui/select';
+import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { messageOf } from '../../core/api-error';
+import { TargetsApi } from '../../core/api/targets.api';
+import { LicensesApi } from '../../core/api/licenses.api';
+import { SessionStore } from '../../core/session.store';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
+import { CompatTonePipe, DisallowedInPipe, RiskTonePipe } from './license-tones.pipe';
+import type {
+    MonitoredContainer,
+    MonitoredRepository,
+    LicenseEntry,
+    LicensePolicy,
+    LicenseRiskCategory,
+    LicenseSummary,
+    LicenseConflict,
+    CompatibilityCell
+} from '../../core/api.models';
+
+@Component({
+    selector: 'app-licenses',
+    imports: [
+        FormsModule,
+        CardModule,
+        ButtonModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        SelectModule,
+        ToggleSwitchModule,
+        InputTextModule,
+        TranslatePipe,
+        RiskTonePipe,
+        CompatTonePipe,
+        DisallowedInPipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './licenses.html'
+})
+export class Licenses {
+    private readonly summaryRequest = new LatestRequest();
+    private readonly inventoryRequest = new LatestRequest();
+
+    private readonly i18n = inject(I18nService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly licensesApi = inject(LicensesApi);
+    private readonly session = inject(SessionStore);
+
+    readonly summary = signal<LicenseSummary | null>(null);
+    readonly inventory = signal<LicenseEntry[]>([]);
+    readonly policy = signal<LicensePolicy | null>(null);
+    readonly conflicts = signal<LicenseConflict[]>([]);
+    readonly matrixRules = signal<CompatibilityCell[]>([]);
+    readonly repos = signal<MonitoredRepository[]>([]);
+    readonly containers = signal<MonitoredContainer[]>([]);
+    readonly loading = signal<boolean>(true);
+    readonly error = signal<string | null>(null);
+    /** Why the scope picker offers no target: without it, a failed read looked like an empty estate. */
+    readonly targetsError = signal<string | null>(null);
+    /** Why the policy is not shown — the server's reason, not only "unavailable". */
+    readonly policyLoadError = signal<string | null>(null);
+    /** The conflicts' failure: an empty table here reads as "no conflict", the verdict nobody checked. */
+    readonly conflictsError = signal<string | null>(null);
+    readonly matrixError = signal<string | null>(null);
+
+    readonly activeTab = signal<'inventory' | 'conflicts' | 'matrix'>('inventory');
+    readonly proprietaryMode = signal<boolean>(true);
+    readonly selectedTarget = signal<string>('ALL');
+    readonly selectedRisk = signal<string>('ALL');
+    readonly selectedCompliance = signal<string>('ALL');
+
+    readonly targetOptions = computed(() => {
+        const options: { label: string; value: string }[] = [
+            { label: this.i18n.t('common.all_targets'), value: 'ALL' }
+        ];
+        for (const r of this.repos()) {
+            options.push({
+                label: this.i18n.t('licenses.scope_repository', { name: r.displayName || r.name || '' }),
+                value: `repo:${r.id}`
+            });
+        }
+        for (const c of this.containers()) {
+            options.push({
+                label: this.i18n.t('licenses.scope_container', { name: c.reference }),
+                value: `container:${c.id}`
+            });
+        }
+        return options;
+    });
+
+    readonly filteredInventory = computed(() => {
+        let items = this.inventory();
+        const risk = this.selectedRisk();
+        const comp = this.selectedCompliance();
+
+        if (risk !== 'ALL') {
+            items = items.filter((i) => i.riskCategory === risk);
+        }
+        if (comp === 'COMPLIANT') {
+            items = items.filter((i) => i.compliant);
+        } else if (comp === 'NON_COMPLIANT') {
+            items = items.filter((i) => !i.compliant);
+        }
+        return items;
+    });
+
+    readonly blockingConflictsCount = computed(() => {
+        return this.conflicts().filter((c) => c.compatibility === 'INCOMPATIBLE_BLOCKING').length;
+    });
+
+    constructor() {
+        this.loadTargets();
+        this.loadData();
+    }
+
+    loadTargets(): void {
+        this.targetsError.set(null);
+        this.targetsApi.repositories().subscribe({
+            next: (r) => this.repos.set(r),
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('licenses.targets_load_failed')))
+        });
+        this.targetsApi.containers().subscribe({
+            next: (c) => this.containers.set(c),
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('licenses.targets_load_failed')))
+        });
+    }
+
+    onTargetChange(target: string): void {
+        this.selectedTarget.set(target);
+        this.loadData();
+    }
+
+    /**
+     * The licence policy: read, and now editable.
+     *
+     * <p><b>It was loaded and shown nowhere.</b> It is what decides what the screen calls
+     * "non-compliant" — on the counter at the top, on every row of the inventory, in the conflicts
+     * — and nobody could either see it or change it. A count of violations whose rule is invisible
+     * cannot be argued with: it is simply endured.
+     *
+     * <p>Reserved to the security lead, as the server requires, and recorded by it: changing what
+     * is forbidden changes the whole estate's compliance at once.
+     */
+    readonly CATEGORIES: LicenseRiskCategory[] = [
+        'PERMISSIVE',
+        'WEAK_COPYLEFT',
+        'STRONG_COPYLEFT',
+        'FORBIDDEN',
+        'UNKNOWN'
+    ];
+
+    readonly canEditPolicy = computed(() => this.session.isSecurityLead());
+    readonly editingPolicy = signal(false);
+    readonly savingPolicy = signal(false);
+    readonly policyError = signal<string | null>(null);
+
+    draftDisallowed: LicenseRiskCategory[] = [];
+    draftAllowedLicenses = '';
+    draftDisallowedLicenses = '';
+
+    editPolicy(): void {
+        const policy = this.policy();
+        this.draftDisallowed = [...(policy?.disallowedCategories ?? [])];
+        this.draftAllowedLicenses = (policy?.explicitlyAllowedLicenses ?? []).join(', ');
+        this.draftDisallowedLicenses = (policy?.explicitlyDisallowedLicenses ?? []).join(', ');
+        this.policyError.set(null);
+        this.editingPolicy.set(true);
+    }
+
+    isDisallowed(category: LicenseRiskCategory): boolean {
+        return this.draftDisallowed.includes(category);
+    }
+
+    toggleCategory(category: LicenseRiskCategory, disallowed: boolean): void {
+        this.draftDisallowed = disallowed
+            ? [...new Set([...this.draftDisallowed, category])]
+            : this.draftDisallowed.filter((entry) => entry !== category);
+    }
+
+    savePolicy(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingPolicy()) return;
+        this.savingPolicy.set(true);
+        this.policyError.set(null);
+
+        this.licensesApi
+            .updateLicensePolicy({
+                disallowedCategories: this.draftDisallowed,
+                explicitlyAllowedLicenses: identifiers(this.draftAllowedLicenses),
+                explicitlyDisallowedLicenses: identifiers(this.draftDisallowedLicenses)
+            })
+            .subscribe({
+                next: (updated) => {
+                    this.savingPolicy.set(false);
+                    this.editingPolicy.set(false);
+                    this.policy.set(updated);
+                    // Every row's compliance has just been recomputed by the server: keeping it on
+                    // screen as it was would show yesterday's verdict under today's policy.
+                    this.loadData();
+                },
+                error: (response) => {
+                    this.savingPolicy.set(false);
+                    this.policyError.set(messageOf(response, this.i18n.t('licenses.policy_save_failed')));
+                }
+            });
+    }
+
+    setTab(tab: 'inventory' | 'conflicts' | 'matrix'): void {
+        this.activeTab.set(tab);
+        if (tab === 'matrix' && this.matrixRules().length === 0) {
+            this.loadMatrixRules();
+        }
+    }
+
+    loadData(): void {
+        this.loading.set(true);
+        this.error.set(null);
+
+        let repoId: number | undefined;
+        let containerId: number | undefined;
+        const target = this.selectedTarget();
+        if (target.startsWith('repo:')) {
+            repoId = Number(target.substring(5));
+        } else if (target.startsWith('container:')) {
+            containerId = Number(target.substring(10));
+        }
+
+        this.summaryRequest.run(this.licensesApi.getLicenseSummary(repoId, containerId), {
+            next: (s) => this.summary.set(s),
+            error: (response: unknown) =>
+                this.error.set(messageOf(response, this.i18n.t('licenses.summary_load_failed')))
+        });
+
+        this.policyLoadError.set(null);
+        this.licensesApi.getLicensePolicy().subscribe({
+            next: (p) => this.policy.set(p),
+            error: (response: unknown) =>
+                this.policyLoadError.set(messageOf(response, this.i18n.t('licenses.policy_unavailable')))
+        });
+
+        this.inventoryRequest.run(this.licensesApi.getLicenseInventory(repoId, containerId), {
+            next: (inv) => {
+                this.inventory.set(inv);
+                this.loading.set(false);
+            },
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('licenses.inventory_load_failed')));
+                this.loading.set(false);
+            }
+        });
+
+        this.loadConflicts();
+    }
+
+    loadConflicts(): void {
+        let repoId: number | undefined;
+        let containerId: number | undefined;
+        const target = this.selectedTarget();
+        if (target.startsWith('repo:')) {
+            repoId = Number(target.substring(5));
+        } else if (target.startsWith('container:')) {
+            containerId = Number(target.substring(10));
+        }
+
+        this.conflictsError.set(null);
+        this.licensesApi.getLicenseConflicts(repoId, containerId, this.proprietaryMode()).subscribe({
+            next: (c) => this.conflicts.set(c),
+            error: (response: unknown) => {
+                // The previous scope's conflicts must not stay under this scope's error.
+                this.conflicts.set([]);
+                this.conflictsError.set(messageOf(response, this.i18n.t('licenses.conflicts_load_failed')));
+            }
+        });
+    }
+
+    loadMatrixRules(): void {
+        this.matrixError.set(null);
+        this.licensesApi.getLicenseCompatibilityMatrix().subscribe({
+            next: (rules) => this.matrixRules.set(rules),
+            error: (response: unknown) =>
+                this.matrixError.set(messageOf(response, this.i18n.t('licenses.matrix_load_failed')))
+        });
+    }
+
+    toggleProprietary(mode: boolean): void {
+        this.proprietaryMode.set(mode);
+        this.loadConflicts();
+    }
+}
+
+/**
+ * A list of SPDX identifiers typed by hand.
+ *
+ * <p>Separated by commas or spaces, blanks dropped: a trailing comma is how one types a list, not
+ * a licence named "".
+ */
+function identifiers(raw: string): string[] {
+    return raw
+        .split(/[,\s]+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+}

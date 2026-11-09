@@ -1,0 +1,89 @@
+# Dossier d'Architecture — 04. Vue Infrastructure & Déploiement
+
+* **Projet :** Vectispire — ASPM & Control Plane de Sécurité
+* **Modèle :** `bflorat/modele-da` — Modèle de Dossier d'Architecture (Bertrand Florat)
+* **Statut :** Validé · **Version :** 1.1 (2026-08-25 — périmètre des moteurs réconcilié avec l'ADR 0014)
+
+---
+
+## 1. Topologie de Déploiement & Architecture Physique
+
+Vectispire prend en charge deux topologies de déploiement complémentaires :
+
+```mermaid
+flowchart TB
+    subgraph Mono["Mode Monolithique (Instance Unique)"]
+        Ctrl1["Plan de Contrôle (Spring Boot + UI)"]
+        Docker1["Démon Docker Local"]
+        DB1[("PostgreSQL ou MySQL")]
+        Ctrl1 --> Docker1
+        Ctrl1 --> DB1
+    end
+
+    subgraph Dist["Mode Distribué Multi-Agents"]
+        Ctrl2["Plan de Contrôle Clusterisé (PostgreSQL / MySQL)"]
+        DB2[("SGBD d'Entreprise (PostgreSQL / MySQL)")]
+        AgentA["Agent Distant Site A"]
+        AgentB["Agent Distant Site B"]
+        
+        Ctrl2 --> DB2
+        AgentA -.->|"HTTP Long-Polling (/api/v1/agent/jobs)"| Ctrl2
+        AgentB -.->|"HTTP Long-Polling (/api/v1/agent/jobs)"| Ctrl2
+    end
+```
+
+---
+
+## 2. Matrice de Compatibilité SGBD & Migrations Flyway
+
+**Deux moteurs sont déployables. Un troisième est une fixture de test et ne peut pas être déployé
+du tout** — voir l'[ADR 0014](../../fr/decisions/0014-two-engines-and-a-test-fixture.md), qui a
+corrigé un périmètre supporté qui en annonçait quatre. Les migrations sont du SQL natif
+sous `src/main/resources/db/migration/common/` (placeholders de type par moteur) et
+`src/main/resources/db/migration/{vendor}/`, gérées par **Flyway** ([ADR
+0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md), amendée par l'[ADR
+0027](../../fr/decisions/0027-common-migrations-with-type-placeholders.md)) :
+
+| Moteur de SGBD | Version Min. Supportée | Dialecte Flyway | Usage Cible |
+|---|---|---|---|
+| **PostgreSQL** | 14+ | `postgresql` | Production recommandée (Cluster d'Entreprise) |
+| **MySQL** | 8.0+ | `mysql` | Production alternative (Environnements Cloud / RDS) |
+
+### 2.1 Intégrité du Schéma & `ddl-auto`
+Le paramètre Hibernate `ddl-auto` est obligatoirement maintenu à `validate`. Seul Flyway détient
+l'autorité sur le schéma DDL pour prévenir toute divergence ou perte silencieuse de données.
+
+---
+
+## 3. Interaction avec le Démon Docker & Confinement
+
+1. **Le socket n'est monté dans aucun conteneur Vectispire** ([ADR
+   0018](../../fr/decisions/0018-the-docker-socket-is-never-mounted.md)). Un `docker-socket-proxy`
+   le détient en lecture seule sur un réseau `internal` partagé avec le seul plan de contrôle, qui
+   atteint le démon à travers lui via `DOCKER_HOST` ; l'agent du profil `with-agent` a son propre
+   proxy. Le proxy autorise `PING`, `VERSION`, `INFO`, `CONTAINERS`, `IMAGES` et `POST`, et refuse
+   tout le reste — `EXEC` en premier. Aucun réglage ne peut viser l'un des proxys ni la base :
+   `OutboundUrlGuard` les refuse sous toutes les politiques. La base vit sur un réseau `internal`
+   avec le seul plan de contrôle et ne publie aucun port, et les secrets arrivent dans les
+   conteneurs en fichiers sous `/run/secrets`, pas en environnement qu'un inspect rendrait.
+2. **Cela réduit la surface, cela ne pose pas de frontière.** `POST /containers/create` accepte des
+   `Binds`, et c'est l'appel dont Vectispire vit. Une exécution de code dans le plan de contrôle
+   peut encore demander un conteneur qui monte l'hôte. La frontière, c'est une deuxième machine :
+   un agent distant, avec `VECTISPIRE_EMBEDDED_WORKER=false` sur le plan de contrôle, pour que
+   l'hôte que l'on peut faire exécuter des conteneurs ne soit pas celui qui détient
+   `ENCRYPTION_KEY`.
+3. **Conteneurs d'Analyse Éphémères** : `ContainerRunner` instancie des conteneurs isolés qui
+   s'arrêtent et se détruisent immédiatement après le traitement.
+
+---
+
+## 4. Architecture des Agents Distants (`vectispire-agent`)
+
+L'agent distant permet de déporter le scan au plus près des réseaux d'entreprise isolés :
+
+- **Canal Réseau** : Communication unidirectionnelle sortante via HTTP Long-Polling (`GET
+  /api/v1/agent/jobs?wait=<secondes>` ; `wait` vaut 0 par défaut, un agent qui l'omet reçoit donc
+  une réponse immédiate plutôt qu'une connexion maintenue).
+- **Aucune dépendance DB** : `vectispire-agent` ne possède aucun composant JDBC sur son classpath.
+- **Sécurité des clés** : L'agent ne détient jamais la clé maître `ENCRYPTION_KEY` ([ADR
+  0003](../../fr/decisions/0003-long-polling-for-agents.md)).

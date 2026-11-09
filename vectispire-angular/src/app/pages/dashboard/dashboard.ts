@@ -1,0 +1,402 @@
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { ChartModule } from '@openng/optimus-ui/chart';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { DashboardApi } from '../../core/api/dashboard.api';
+import { RemediationApi } from '../../core/api/remediation.api';
+import { ScorecardsApi } from '../../core/api/scorecards.api';
+import type {
+    DashboardOverview,
+    GateViolation,
+    PortfolioScorecard,
+    Trends,
+    PostureTrendAnalytics,
+    SecurityDebtReport
+} from '../../core/api.models';
+import { LastScanTag } from '../../shared/last-scan';
+import { GradeLabelPipe, gradeLabel } from '../../shared/grade-label';
+import { RiskPointsPipe } from '../../shared/risk-points';
+import { DATED_MARKER } from '../../shared/dated-marker';
+import { LatestRequest } from '../../core/latest-request';
+import { SEVERITY_TONES } from '../../shared/severity';
+import { gateReason } from '../../shared/gate-reason';
+import { messageOf } from '../../core/api-error';
+import { GradeTonePipe } from './grade-tone.pipe';
+
+/** The severities in descending order, with their colour from the one scale every screen uses. A
+ *  fixed order, not derived from the data: otherwise two successive loads could present them
+ *  differently. The label key is spelt out rather than built from `key`, so the i18n check reads it
+ *  (decision 0019). */
+const SEVERITY_TILES = [
+    { key: 'critical', labelKey: 'severities.critical', severity: SEVERITY_TONES.critical },
+    { key: 'high', labelKey: 'severities.high', severity: SEVERITY_TONES.high },
+    { key: 'medium', labelKey: 'severities.medium', severity: SEVERITY_TONES.medium },
+    { key: 'low', labelKey: 'severities.low', severity: SEVERITY_TONES.low }
+];
+
+/**
+ * The tag of each gate rule. Literal keys (decision 0019), and every rule spelt: the template used
+ * to read "KEV, or else Severity", so a coverage violation — and a target never examined — was
+ * tagged "Severity" beside a reason that said otherwise. A rule added to the type fails to compile
+ * here instead.
+ */
+const RULE_KEYS = {
+    kev: 'dashboard.rule_kev',
+    severity: 'dashboard.rule_severity',
+    coverage: 'dashboard.rule_coverage',
+    observation: 'dashboard.rule_observation'
+} as const satisfies Record<GateViolation['rule'], string>;
+
+/** The windows offered. Days, because that is the unit the route clamps and the axis shows. */
+const WINDOW_DAYS = [
+    { key: 'dashboard.window_30d', value: 30 },
+    { key: 'dashboard.window_90d', value: 90 },
+    { key: 'dashboard.window_1y', value: 365 }
+];
+
+/**
+ * A colour from the theme, or the fallback.
+ *
+ * Chart.js paints onto a canvas, where `var(--p-primary-500)` is not a colour but an unparsable
+ * string that silently renders as transparent. So the variable is resolved to its value here, and
+ * a fallback is kept for the case where it resolves to nothing — a chart with invisible lines
+ * looks exactly like a chart with no data.
+ */
+function themeColour(variable: string, fallback: string): string {
+    if (typeof document === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    return value || fallback;
+}
+
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
+import { TargetKindPipe } from '@/app/shared/target-kind';
+
+/**
+ * A calendar day (`yyyy-MM-dd`) on the date axis, day first as every date on screen: `slice(5)` wrote
+ * "10-20", month first, to a French reader. The year is left out because the window says it.
+ */
+function dayAndMonth(day: string): string {
+    return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+}
+
+@Component({
+    selector: 'app-dashboard',
+    imports: [
+        DatePipe,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        ChartModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        LastScanTag,
+        TranslatePipe,
+        GradeLabelPipe,
+        RiskPointsPipe,
+        LocalNumberPipe,
+        LocalPercentPipe,
+        TargetKindPipe,
+        GradeTonePipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './dashboard.html'
+})
+export class Dashboard {
+    private readonly i18n = inject(I18nService);
+    private readonly dashboardApi = inject(DashboardApi);
+    private readonly remediationApi = inject(RemediationApi);
+    private readonly scorecardsApi = inject(ScorecardsApi);
+    readonly severities = computed(() => {
+        this.i18n.translations();
+        return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(tile.labelKey) }));
+    });
+    readonly windows = computed(() => {
+        this.i18n.translations();
+        return WINDOW_DAYS.map((w) => ({ value: w.value, label: this.i18n.t(w.key) }));
+    });
+
+    readonly data = signal<DashboardOverview | null>(null);
+    readonly securityDebt = signal<SecurityDebtReport | null>(null);
+    /** The debt panel's failure, said in its place: left blank, a failed estimate read as no debt at all. */
+    readonly debtError = signal<string | null>(null);
+    readonly loading = signal(true);
+    readonly error = signal<string | null>(null);
+
+    /**
+     * The backlog over time, apart from the overview.
+     *
+     * Its own request and its own error state. The series is the one thing on this page that
+     * loads two timestamps per issue in scope, so it is the one that can be slow or fail on its
+     * own — and when it does, the panel says so instead of showing an empty frame that reads as
+     * "no issues were ever opened".
+     */
+    readonly trends = signal<Trends | null>(null);
+    readonly postureAnalytics = signal<PostureTrendAnalytics | null>(null);
+    readonly trendError = signal<string | null>(null);
+    /** The analytics' failure: the time to resolve by severity and the scoreboard are missing, and say why. */
+    readonly analyticsError = signal<string | null>(null);
+    readonly window = signal(90);
+    private readonly trendsLoad = new LatestRequest();
+    private readonly analyticsLoad = new LatestRequest();
+
+    /**
+     * The estate's grades, with no grade of its own (decision 0036): a single grade over an estate is
+     * crushed by its size when the backlogs are added up, or is the worst target's grade under another
+     * name. How many targets read each grade, the weakest, and what is open are what a reader acts on.
+     * Its own request: a failure leaves the panel out rather than the page.
+     */
+    readonly portfolio = signal<PortfolioScorecard | null>(null);
+    readonly portfolioError = signal<string | null>(null);
+
+    /** The scale's order is the server's; each row's accessible name says grade and count together. */
+    readonly portfolioGrades = computed(() => {
+        this.i18n.translations();
+        const t = this.i18n.t.bind(this.i18n);
+        return (this.portfolio()?.grades ?? []).map((row) => ({
+            ...row,
+            label: gradeLabel(row.grade, t),
+            accessibleName: t('dashboard.portfolio.grade_count', {
+                count: row.targets,
+                grade: gradeLabel(row.grade, t)
+            })
+        }));
+    });
+
+    /** Drawn on both charts; the label only on the upper one, whose top has room for it. */
+    readonly chartPlugins = [DATED_MARKER];
+
+    /**
+     * The day this installation's grades changed formula, when it falls in the window — the point
+     * the dated line stands on. The series are the backlog's, which the formula does not move; the
+     * line is for the reader who sets a grade beside them. Outside the window, nothing: a line at
+     * the edge would read as a change on the window's first day.
+     */
+    readonly formulaChange = computed(() => {
+        const series = this.trends();
+        const day = series?.score_formula_changed_on;
+        if (!series || !day) return null;
+        const index = series.points.findIndex((point) => point.day === day);
+        return index < 0 ? null : { index, day };
+    });
+
+    constructor() {
+        this.dashboardApi.dashboard().subscribe({
+            next: (overview) => {
+                this.data.set(overview);
+                this.loading.set(false);
+            },
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('dashboard.load_failed')));
+                this.loading.set(false);
+            }
+        });
+        this.remediationApi.getSecurityDebt().subscribe({
+            next: (debt) => this.securityDebt.set(debt),
+            error: (response: unknown) =>
+                this.debtError.set(messageOf(response, this.i18n.t('dashboard.debt_load_failed')))
+        });
+        this.scorecardsApi.getPortfolioScorecard().subscribe({
+            next: (portfolio) => this.portfolio.set(portfolio),
+            error: (response: unknown) =>
+                this.portfolioError.set(messageOf(response, this.i18n.t('dashboard.portfolio.load_failed')))
+        });
+        this.loadTrends(this.window());
+    }
+
+    /**
+     * The series for one window. Clearing before the request is not enough on its own: the answer
+     * for the previous window still arrives, and landed under the new window's label — a chart
+     * labelled 30 days showing a year is a lie nobody would suspect. Each stream holds its own
+     * {@link LatestRequest}, so choosing a window cancels the request still in flight for the last
+     * one, the analytics included.
+     */
+    loadTrends(days: number): void {
+        this.window.set(days);
+        this.trends.set(null);
+        this.trendError.set(null);
+        this.analyticsError.set(null);
+        this.trendsLoad.run(this.dashboardApi.trends(days), {
+            next: (series) => this.trends.set(series),
+            error: (response: unknown) =>
+                this.trendError.set(messageOf(response, this.i18n.t('dashboard.trend_load_failed')))
+        });
+
+        this.analyticsLoad.run(this.dashboardApi.getPostureAnalytics(days), {
+            next: (analytics) => this.postureAnalytics.set(analytics),
+            // The panel is left out rather than showing the previous window's figures under this one.
+            error: (response: unknown) => {
+                this.postureAnalytics.set(null);
+                this.analyticsError.set(messageOf(response, this.i18n.t('dashboard.analytics_load_failed')));
+            }
+        });
+    }
+
+    /**
+     * The mean time to resolve, in words.
+     *
+     * `null` is **not** rendered as zero: zero reads as "everything is fixed the day it appears",
+     * which is the opposite of "nothing was resolved in this window, so there is nothing to
+     * measure". The two states look identical in a stat tile, and one of them would flatter the
+     * team that fixed nothing. Worked out per series or language: `t` and `decimal` read the bundle's
+     * and the language's signals.
+     */
+    readonly meanLabel = computed(() => {
+        const mean = this.trends()?.mean_days_to_resolve;
+        if (mean === null || mean === undefined) return this.i18n.t('dashboard.no_measurement');
+        // One decimal always ("5,0 jours" beside "12,5 jours"), in the reader's mark: `toFixed` wrote
+        // "11.4 jours" on the French dashboard. The plural reads the figure back in the same marks.
+        return this.i18n.t('dashboard.days_count', { count: this.i18n.decimal(mean, 1, 1) });
+    });
+
+    /** Why there is no mean, when there is none — a stat with no explanation gets read as a bug. */
+    readonly meanCaption = computed(() => {
+        const series = this.trends();
+        if (!series) return '';
+        if (series.mean_days_to_resolve === null || series.mean_days_to_resolve === undefined) {
+            return this.i18n.t('dashboard.nothing_resolved_in_window');
+        }
+        // The denominator, stated beside the average: an average with no population behind it is a
+        // number people quote and should not.
+        return this.i18n.t('dashboard.mean_population', { count: series.resolved_in_window });
+    });
+
+    /**
+     * The backlog, on a chart of its own.
+     *
+     * <h2>Why two charts and not two axes</h2>
+     *
+     * <p>The backlog and the daily movements differ by two orders of magnitude on a real estate: on
+     * a single axis, "opened" and "resolved" flatten onto zero and the panel shows one curve
+     * claiming to be three. The diagnosis was right; the remedy — a second axis on the right — was
+     * not.
+     *
+     * <p><b>A dual axis lets a reader see a crossing that means nothing.</b> The relative position
+     * of the two curves is fixed by the framing the library chose, not by the data: a reader sees
+     * "resolutions rise above the backlog" and concludes something from it, when one more day in
+     * the window is enough to move the crossing. On the panel projected in a meeting, that is the
+     * costliest mistake of all.
+     *
+     * <p>Two stacked charts sharing the date axis: nothing is lost, and no crossing is suggested
+     * any more.
+     */
+    readonly backlogChart = computed(() => {
+        const points = this.trends()?.points ?? [];
+        return {
+            labels: points.map((point) => dayAndMonth(point.day)),
+            datasets: [
+                {
+                    label: this.i18n.t('dashboard.chart.open_backlog'),
+                    data: points.map((point) => point.open),
+                    borderColor: themeColour('--p-primary-500', '#3b82f6'),
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0,
+                    borderWidth: 2
+                }
+            ]
+        };
+    });
+
+    /** The day's movements, over the same window and the same dates as the backlog. */
+    readonly flowChart = computed(() => {
+        const points = this.trends()?.points ?? [];
+        return {
+            labels: points.map((point) => dayAndMonth(point.day)),
+            datasets: [
+                {
+                    label: this.i18n.t('dashboard.chart.opened'),
+                    data: points.map((point) => point.opened),
+                    borderColor: '#f97316',
+                    pointRadius: 0,
+                    borderWidth: 1
+                },
+                {
+                    label: this.i18n.t('dashboard.chart.resolved'),
+                    data: points.map((point) => point.resolved),
+                    borderColor: '#22c55e',
+                    pointRadius: 0,
+                    borderWidth: 1
+                }
+            ]
+        };
+    });
+
+    /**
+     * The backlog on top, without date labels.
+     *
+     * <p>They are carried by the chart below: two sets of dates one under the other repeat the same
+     * information and steal the height used to read the curves. That is what makes the two panels a
+     * single reading rather than two neighbouring charts.
+     */
+    readonly backlogOptions = computed(() =>
+        this.options(this.i18n.t('dashboard.chart.open_backlog'), false, this.i18n.t('dashboard.score_formula_changed'))
+    );
+
+    readonly flowOptions = computed(() => this.options(this.i18n.t('dashboard.chart.per_day'), true));
+
+    private options(title: string, showDates: boolean, markerLabel?: string) {
+        const text = themeColour('--p-text-muted-color', '#71717a');
+        const grid = themeColour('--p-content-border-color', '#e4e4e7');
+        const change = this.formulaChange();
+        return {
+            maintainAspectRatio: false,
+            // A year of daily points on eight hundred pixels: interpolation is what keeps the
+            // shape readable where one pixel holds several days.
+            spanGaps: true,
+            interaction: { mode: 'index' as const, intersect: false },
+            plugins: {
+                legend: { labels: { color: text } },
+                datedMarker: { index: change?.index ?? -1, label: change ? markerLabel : undefined, colour: text }
+            },
+            scales: {
+                x: {
+                    ticks: { color: text, maxTicksLimit: 12, display: showDates },
+                    grid: { color: grid }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: title, color: text },
+                    ticks: { color: text, precision: 0 },
+                    grid: { color: grid }
+                }
+            }
+        };
+    }
+
+    /**
+     * The failing targets, each with its first violations in words, worked out per overview or
+     * language rather than per row on every pass. Spread rather than wrapped, so a row still reads as
+     * the target it is.
+     *
+     * Three violations at most: beyond that the row becomes a wall of text and the table stops serving
+     * its purpose, which is spotting what to handle. Why the gate refused is in the reader's language
+     * ({@link gateReason}): the row knows no observation, so an `observation` violation reads the
+     * general sentence, and the server's own is the line's tooltip.
+     */
+    readonly failing = computed(() =>
+        (this.data()?.failing ?? []).map((target) => ({
+            ...target,
+            firstViolations: target.violations.slice(0, 3).map((violation) => ({
+                ...violation,
+                label: this.ruleLabel(violation.rule),
+                text: gateReason(this.i18n, violation)
+            }))
+        }))
+    );
+
+    /** A rule this version does not know shows as the server spells it rather than as another rule. */
+    private ruleLabel(rule: string): string {
+        const key = (RULE_KEYS as Record<string, string | undefined>)[rule];
+        return key ? this.i18n.t(key) : rule;
+    }
+}

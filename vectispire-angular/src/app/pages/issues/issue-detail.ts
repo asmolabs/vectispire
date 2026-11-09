@@ -1,0 +1,161 @@
+import { DatePipe } from '@angular/common';
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
+import { IssuesApi } from '../../core/api/issues.api';
+import { SessionStore } from '../../core/session.store';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { triageStatusLabel } from '../../shared/triage-status';
+import type { IssueDetail } from '../../core/api.models';
+import { findingTypeLabel } from '../../shared/finding-types';
+
+/**
+ * One issue, with what a row in the backlog cannot carry.
+ *
+ * The list already sends every column of an issue; this page exists for the two things that need
+ * a query of their own — **where it was seen**, scan by scan with the project version each one
+ * read, and **what was decided**, every triage transition with its author and justification.
+ *
+ * Those two answer the questions a row provokes and cannot settle: "is this still there in the
+ * release we shipped" and "why is this dismissed".
+ */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { SeverityLabelPipe, severityTone } from '@/app/shared/severity';
+import { IssueStatePipe } from '@/app/shared/scan-status';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+
+@Component({
+    selector: 'app-issue-detail',
+    imports: [
+        DatePipe,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        TableModule,
+        TagModule,
+        MessageModule,
+        TranslatePipe,
+        SeverityLabelPipe,
+        IssueStatePipe,
+        LocalNumberPipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './issue-detail.html'
+})
+export class IssueDetailPage {
+    private readonly issuesApi = inject(IssuesApi);
+    private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
+
+    readonly id = input.required<string>();
+    readonly issue = signal<IssueDetail | null>(null);
+    readonly error = signal<string | null>(null);
+
+    /**
+     * The ticket tracking this finding.
+     *
+     * <p><b>The sweep opened tickets, and nobody else could attach one.</b> It deals only with
+     * findings that breach the gate, using the globally configured tracker: a team tracking this one
+     * in `SEC-1234` had no way of saying so, and the closing webhook — which finds the finding *by
+     * its reference* — could therefore not recognise it.
+     *
+     * <p>The form is offered only to accounts that can act: showing it to an auditor would be
+     * offering a door the server closes.
+     */
+    readonly canAttach = computed(() => this.session.canCauseEffects());
+    readonly editingTicket = signal(false);
+    readonly attaching = signal(false);
+    readonly ticketError = signal<string | null>(null);
+
+    ticketReference = '';
+    ticketUrl = '';
+
+    constructor() {
+        queueMicrotask(() => {
+            this.issuesApi.issue(Number(this.id())).subscribe({
+                next: (detail) => this.issue.set(detail),
+                error: () => this.error.set(this.i18n.t('issues.detail_load_failed'))
+            });
+        });
+    }
+
+    /**
+     * What the page shows of the issue in words and colour, worked out per issue or language rather
+     * than by a method per binding on every pass; `t` reads the bundle's signal, so a switch
+     * recomputes it. The decisions carry both ends of their transition in words.
+     */
+    readonly view = computed(() => {
+        const detail = this.issue();
+        if (!detail) return null;
+        return {
+            detail,
+            type: findingTypeLabel(this.i18n, detail.type),
+            tone: severityTone(detail.severity),
+            triage: this.triageLabel(detail.triageStatus),
+            pluginId: pluginIdOf(detail.tool),
+            decisions: detail.decisions.map((decision) => ({
+                ...decision,
+                fromLabel: this.triageLabel(decision.fromStatus),
+                toLabel: this.triageLabel(decision.toStatus)
+            }))
+        };
+    });
+
+    private triageLabel(status: string | null): string {
+        return status ? triageStatusLabel(this.i18n, status) : '—';
+    }
+
+    /** Opens the form, pre-filled with what is already attached. */
+    editTicket(): void {
+        const detail = this.issue();
+        this.ticketReference = detail?.ticketRef ?? '';
+        this.ticketUrl = detail?.ticketUrl ?? '';
+        this.ticketError.set(null);
+        this.editingTicket.set(true);
+    }
+
+    /**
+     * Attaches, or corrects.
+     *
+     * <p>An empty reference is not sent: the server refuses it, and rightly — a field emptied by
+     * mistake would make the finding invisible to the webhook *and* reopen the door to a second
+     * ticket from the sweep, with nothing saying so. The screen therefore does not offer the move
+     * rather than having it refused.
+     */
+    saveTicket(): void {
+        const detail = this.issue();
+        const reference = this.ticketReference.trim();
+        // Enter in a field submits the form whatever the button shows: one request at a time.
+        if (!detail || !reference || this.attaching()) return;
+
+        this.attaching.set(true);
+        this.ticketError.set(null);
+        this.issuesApi.attachTicket(detail.id, reference, this.ticketUrl.trim() || null).subscribe({
+            next: (updated) => {
+                this.attaching.set(false);
+                this.editingTicket.set(false);
+                // The finding the server returns carries the reference as it was written — trimmed,
+                // possibly refused — and that is the one to show.
+                this.issue.set({ ...detail, ticketRef: updated.ticketRef, ticketUrl: updated.ticketUrl });
+            },
+            error: (response) => {
+                this.attaching.set(false);
+                this.ticketError.set(messageOf(response, this.i18n.t('issues.ticket_attach_failed')));
+            }
+        });
+    }
+}
+
+/** `plugin:<id>` → the id, which names the plugin in the registry. */
+function pluginIdOf(tool: string | null): string | null {
+    return tool?.startsWith('plugin:') ? tool.slice('plugin:'.length) : null;
+}

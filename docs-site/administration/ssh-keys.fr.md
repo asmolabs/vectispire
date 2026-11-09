@@ -1,0 +1,55 @@
+# Clés SSH
+
+Des clés de déploiement, pour que Vectispire puisse cloner des dépôts privés.
+
+## En ajouter une
+
+**Clés SSH → ajouter**, collez la moitié privée, et enregistrez la moitié publique chez votre
+hébergeur Git avec un accès **en lecture seule**. Vectispire ne pousse jamais.
+
+Le stockage d'une clé est **refusé net** tant que `ENCRYPTION_KEY` ou `ENCRYPTION_KEY_FILE`
+n'est pas posé. La moitié privée est chiffrée au repos avec.
+
+Un clone avec la clé vérifie aussi la **clé d'hôte** de la forge : apprise au premier contact,
+refusée si elle change ensuite, ou épinglée par vous à l'avance — voir
+[En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys).
+
+## Après une rotation de clé
+
+Changez la clé de chiffrement et les valeurs existantes cessent de se déchiffrer. Déclarez la
+clé précédente pour qu'elles se déchiffrent à nouveau :
+
+```bash
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS=ancienne-cle-1,ancienne-cle-2
+# ou, mieux, entièrement hors de l'environnement :
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE=/run/secrets/vectispire-previous-keys
+```
+
+Les clés précédentes ne sont essayées **qu'au déchiffrement**. Les valeurs migrent vers la
+nouvelle clé au fur et à mesure qu'elles sont réenregistrées, et cette page marque les clés de
+déploiement qui dépendent encore d'une ancienne. Les clés de déploiement ne sont qu'un stockage
+scellé parmi douze — les seconds facteurs, la clé de signature et les secrets d'intégration en sont
+d'autres —, si bien que la rotation est terminée quand `/actuator/encryption` répond
+`"rotationFinished": true`, pas quand cette page seule ne marque plus rien.
+
+![Trois clés de déploiement, une par état de chiffrement : lisible sous la clé courante, encore sous une précédente, et une qu'aucune clé configurée ne lit.](../assets/screens/fr/ssh-keys.png)
+
+La forme fichier accepte une liste séparée par des virgules ou des sauts de ligne, pour qu'une
+rotation n'ait pas à remettre l'ancienne clé dans l'environnement.
+
+Procédure complète : [Rotation et purge](maintenance.md).
+
+## Une clé affichée « illisible »
+
+Aucune clé configurée ne la déchiffre. Le plus probable est qu'elle précède tout
+`ENCRYPTION_KEY` et qu'elle a été chiffrée avec un défaut qui était autrefois livré dans ce
+dépôt.
+
+Ce défaut a été retiré, et **sa moitié privée est publique**. N'essayez pas de récupérer la
+clé : remplacez la paire chez votre hébergeur Git, puis enregistrez la nouvelle ici.
+
+## Voir aussi
+
+[Dépôts](../guide/repositories.md#credentials) ·
+[Agents](agents.md#credentials-modes) — comment une clé déléguée atteint un agent distant, et
+ce que cela coûte.

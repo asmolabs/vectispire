@@ -1,0 +1,96 @@
+# Dossier d'Architecture — 05. Vue Développement & Exploitation
+
+* **Projet :** Vectispire — ASPM & Control Plane de Sécurité
+* **Modèle :** `bflorat/modele-da` — Modèle de Dossier d'Architecture (Bertrand Florat)
+* **Statut :** Validé · **Version :** 1.0
+
+---
+
+## 1. Environnement de Développement & Stack Technique
+
+| Composant | Technologie & Version | Outil de Build & Gestionnaire |
+|---|---|---|
+| **Backend Control Plane** | JDK 25 / Spring Boot 4.1 | Gradle (Kotlin DSL `build.gradle.kts`) |
+| **Frontend Interface** | Node LTS 24 / Angular 22 / TypeScript 6.0 | npm Workspaces (`package.json` pinned `.nvmrc`) |
+| **Composants UI** | Optimus UI / Vanilla CSS | Tailwind CSS (Strict confirmations) |
+| **Tests d'Architecture** | ArchUnit 1.3 | Gradle `:vectispire-core:test` |
+| **Tests d'Intégration** | Testcontainers — PostgreSQL, MySQL | `./gradlew integrationTestAll` |
+
+---
+
+## 2. Contraintes d'Architecture & Validation Automatisée
+
+### 2.1 Couplage Inter-Couches (ArchUnit)
+L'isolation des couches d'architecture est vérifiée automatiquement par ArchUnit dans
+`ArchitectureTest`, à l'intérieur de chaque module vertical de `vectispire-core` (décisions 0028, 0029) :
+```
+domain  ◄──  scanning  ◄──  persistence  ◄──  services  ◄──  api
+```
+Le paquet `persistence` d'un module porte ses entités et ses repositories, sa racine et `internal` ses
+services, son `web` ses contrôleurs ; les paquets par couche (`core.repositories` et les autres) ont
+disparu. Entre modules, c'est le `verify()` de Spring Modulith qui fait autorité (décision 0030).
+- **Règle 1** : Une couche de domaine ne doit jamais importer de classes Spring.
+- **Règle 2** : Un service ne doit pas exécuter de SQL brut.
+- **Règle 2b** : Un repository Spring Data se nomme `<Entité>Repository` et vit dans le `persistence`
+  de son module ; rien d'autre ne se termine par `Repository`.
+- **Règle 3** : Le module `vectispire-agent` ne doit jamais inclure de dépendances JDBC sur son
+  classpath.
+
+---
+
+## 3. Chaîne d'Intégration Continue (CI/CD) & Sécurité Supply Chain
+
+Le pipeline est [`.github/workflows/`](../../../../.github/workflows/) — `ci.yml`, `nightly.yml`
+et `release.yml` — sur GitHub, dépôt `asmolabs/vectispire`. L'histoire mérite une phrase parce
+qu'elle explique la forme actuelle : les contrôles ont d'abord été écrits comme des GitHub Actions
+alors que l'unique remote était GitLab, si bien qu'**aucun n'avait jamais tourné**, ce que l'audit
+du 25 août 2026 a établi. Ils ont ensuite été réécrits en `.gitlab-ci.yml`
+pour tourner quelque part, puis réécrits une seconde fois au passage sur GitHub — une réécriture
+dans chaque sens plutôt qu'une traduction, parce que les contraintes Docker-in-Docker s'inversent
+selon l'endroit où vit le démon. Le fichier GitLab est conservé jusqu'à ce que le pipeline GitHub
+soit passé au vert sur un cycle complet, tag compris ; il n'est pas maintenu.
+
+Le pipeline exécute les étapes de validation suivantes :
+
+```mermaid
+flowchart LR
+    GitPush["Git Push / Tag"] --> UnitTests["Tests Unitaires & ArchUnit (Gradle & npm)"]
+    UnitTests --> SupplyChain["Audit Supply Chain (Syft SBOM & Grype Audit)"]
+    SupplyChain --> PackageJar["Package Fat JAR & Sign (Sigstore Keyless)"]
+    PackageJar --> VerifySignature["Vérification Signature Avant Publication"]
+```
+
+1. **Audit de la Supply Chain (`supply-chain`)** : Syft construit un SBOM du JAR produit. Grype
+   vérifie l'absence de vulnérabilités High fixables.
+2. **Signature Cryptographique Sigstore** : Les releases publiées lors des tags `v*` sont signées
+   sans clé avec Sigstore, et la signature est vérifiée automatiquement avant toute publication
+   ([AGENTS.md](../../../../AGENTS.md)).
+
+---
+
+## 4. Procédures d'Exploitation & Maintenance
+
+### 4.1 Script de Lancement Local Backend & Database
+```bash
+export VECTISPIRE_DB_URL="jdbc:mysql://localhost:3306/vectispire"
+export VECTISPIRE_DB_USER="vectispire"
+export VECTISPIRE_DB_PASSWORD="vectispire"
+# Générée, pas recopiée : un runbook qui distribue une clé fixe enseigne l'habitude d'en
+# utiliser une, et `docker-compose.yml` refuse déjà de démarrer sans la vôtre.
+export ENCRYPTION_KEY="$(openssl rand -base64 32)"
+export VECTISPIRE_BOOTSTRAP_USERNAME="admin"
+export VECTISPIRE_BOOTSTRAP_PASSWORD="AdminVectispire2026!"
+cd vectispire-java && ./gradlew :vectispire-core:bootRun
+```
+
+### 4.2 Lancement du Frontend Angular
+```bash
+npm run start --workspace @vectispire/frontend
+```
+
+### 4.3 Validation Complète Multi-Engines (Campagne d'Intégration)
+```bash
+cd vectispire-java && ./gradlew integrationTestAll
+```
+*(Valide le comportement du plan de contrôle sur PostgreSQL et MySQL ; les suites unitaires et HTTP
+de `./gradlew build` tournent elles aussi sur MySQL — ADR 0034).*

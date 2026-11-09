@@ -1,0 +1,42 @@
+package com.asmolabs.vectispire.core.inventory.persistence;
+
+import java.util.Collection;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+public interface ApiEndpointRepository extends JpaRepository<ApiEndpointEntity, Long> {
+
+    /**
+     * The rows belonging to these repositories, and to no others.
+     *
+     * <p>Added for the global attack surface, which read every row and answered with all of
+     * them: an API inventory is a map of somebody's exposed paths and methods, and a restricted
+     * reader was being handed everybody's.
+     */
+    List<ApiEndpointEntity> findByRepositoryIdIn(Collection<Long> repositoryIds);
+
+    List<ApiEndpointEntity> findByRepositoryIdOrderByPathAsc(Long repositoryId);
+
+    @Query("select e from ApiEndpointEntity e where e.scanId in :scanIds order by e.path asc")
+    List<ApiEndpointEntity> findByScanIdIn(@Param("scanIds") Collection<Long> scanIds);
+
+    @Query("select distinct e.framework from ApiEndpointEntity e where e.framework is not null")
+    List<String> findDistinctFrameworks();
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ApiEndpointEntity e where (:repositoryId is not null and e.repositoryId = :repositoryId) or e.scanId = :scanId")
+    @Transactional
+    void deleteByRepositoryIdOrScanId(@Param("repositoryId") Long repositoryId, @Param("scanId") long scanId);
+
+    @Transactional
+    void deleteByScanId(long scanId);
+
+    @Transactional
+    void deleteByScanIdIn(Collection<Long> scanIds);
+
+    @Transactional
+    void deleteByRepositoryId(Long repositoryId);
+}

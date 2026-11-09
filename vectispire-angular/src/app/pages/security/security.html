@@ -1,0 +1,147 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'security.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'security.subtitle' | translate }}</p>
+
+    <!--
+        **Here a green target may never have been looked at.** The screen counts failing targets; a
+        code analysis with no rule for the repository's language produces none, and the column reads
+        as a healthy estate. The banner is what prevents that reading.
+    -->
+    <zs-rule-coverage-banner />
+
+    @if (overview(); as data) {
+        @if (exportError(); as message) {
+            <p-message data-testid="export-error" severity="error" styleClass="w-full mb-4" [text]="message" />
+        }
+        <div class="flex flex-wrap gap-6 mb-4">
+            <div>
+                <span class="text-2xl font-medium" [class.text-red-500]="data.failingCount > 0">{{
+                    data.failingCount
+                }}</span>
+                <span class="text-muted-color ml-2"
+                    >/ {{ data.totalCount }} {{ 'security.failing_count' | translate }}</span
+                >
+            </div>
+            <div>
+                <span class="text-2xl font-medium">{{ data.kevCount }}</span
+                ><span class="text-muted-color ml-2">{{ 'security.open_kev' | translate }}</span>
+            </div>
+            <div>
+                <span class="text-2xl font-medium">{{ data.neverScannedCount }}</span
+                ><span class="text-muted-color ml-2">{{ 'security.never_scanned' | translate }}</span>
+            </div>
+            <div>
+                <span class="text-2xl font-medium">{{ data.lastScanFailedCount }}</span
+                ><span class="text-muted-color ml-2">{{ 'security.last_scan_failed' | translate }}</span>
+            </div>
+        </div>
+
+        @if (data.neverScannedCount + data.lastScanFailedCount > 0) {
+            <p-message severity="warn" styleClass="w-full mb-4" [text]="'security.unobserved_warn' | translate" />
+        }
+
+        <p-table [value]="rows()" [tableStyle]="{ 'min-width': '50rem' }">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'security.target' | translate }}</th>
+                    <th>{{ 'security.verdict' | translate }}</th>
+                    <th>{{ 'security.evaluated' | translate }}</th>
+                    <th>{{ 'security.policy' | translate }}</th>
+                    <th>{{ 'security.last_scan' | translate }}</th>
+                    <th></th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-row>
+                <tr>
+                    <td>
+                        <span class="font-medium">{{ row.target.name }}</span>
+                        <div class="text-muted-color text-sm">
+                            {{
+                                (row.target.kind === 'repository' ? 'security.repository' : 'security.container')
+                                    | translate
+                            }}
+                        </div>
+                    </td>
+                    <td>
+                        <p-tag
+                            [severity]="row.target.passed ? 'success' : 'danger'"
+                            [value]="(row.target.passed ? 'security.passing' : 'security.failing') | translate"
+                        />
+                        @if (row.observation; as observation) {
+                            <p-tag severity="warn" [value]="observation" styleClass="ml-2" />
+                        }
+                        @if (row.target.verdict.violations.length) {
+                            <div
+                                class="text-muted-color text-sm mt-1"
+                                [title]="row.target.verdict.violations[0].reason"
+                                data-testid="violation-reason"
+                            >
+                                {{ row.reason }}
+                            </div>
+                        }
+                    </td>
+                    <td>{{ row.target.verdict.evaluated }}</td>
+                    <td class="text-muted-color">
+                        {{ row.target.policy.source | policySource }}
+                        @if (row.target.policy.version !== null) {
+                            <span> · v{{ row.target.policy.version }}</span>
+                        }
+                    </td>
+                    <td class="text-muted-color">{{ row.lastScan }}</td>
+                    <td>
+                        <p-button
+                            [label]="'security.issues_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            [routerLink]="['/issues']"
+                            [queryParams]="row.issueFilter"
+                        />
+                        <!--
+                            Buttons and not links: the session token lives in memory and
+                            is put on requests by the interceptor, so a browser
+                            navigation to the same URL carries no credential and answers
+                            401. Going through the HTTP client is what authenticates it.
+                        -->
+                        <p-button
+                            [label]="'security.pdf_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'posture.pdf')"
+                        />
+                        <p-button
+                            [label]="'security.csv_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'issues.csv')"
+                        />
+                        <p-button
+                            [label]="'security.vex_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'vex')"
+                        />
+                        <p-button
+                            [label]="'security.csaf_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'issues.csaf.json')"
+                        />
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="6" class="text-center text-muted-color py-6">
+                        {{ 'security.no_targets' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full" />
+    }
+</div>

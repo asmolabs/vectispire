@@ -1,0 +1,18 @@
+<p-dialog
+    [header]="'agents.signing_key_title' | translate"
+    [(visible)]="page.signingKeyVisible"
+    [modal]="true"
+    [closable]="false"
+    [style]="{ width: '36rem' }"
+>
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+        {{ 'agents.signing_key_notice_before' | translate }} <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span
+        >{{ 'agents.signing_key_notice_after' | translate }}
+    </p-message>
+    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">
+        {{ page.issuedSigningKey() }}
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.confirm' | translate" (onClick)="dismissSigningKey()" />
+    </ng-template>
+</p-dialog>

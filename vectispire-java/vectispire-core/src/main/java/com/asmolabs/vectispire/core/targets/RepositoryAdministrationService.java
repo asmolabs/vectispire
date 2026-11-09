@@ -1,0 +1,694 @@
+package com.asmolabs.vectispire.core.targets;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.domain.targets.AssetTier;
+import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryIdentity;
+import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.TargetGrants;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+
+/**
+ * The repositories under watch: listing them within an allowance, and changing the inventory.
+ *
+ * <p><b>No transaction of its own, on purpose.</b> Each write is one {@code save}, which carries
+ * the repository's own transaction; the route this was lifted from never opened a wider one, and
+ * wrapping the lookup and the save together here would change what a concurrent edit sees. It is
+ * also what lets each write be audited here, straight after it: the audit entry opens its own
+ * transaction, and inside an outer one it would describe a write that may still roll back.
+ */
+@Service
+public class RepositoryAdministrationService {
+
+    private final GitRepositoryRepository repositories;
+    private final TargetScans scans;
+    private final TargetBacklog backlog;
+    private final TargetDeletionService targetDeletion;
+    private final AuditLogService audit;
+    private final GitTokenRepository gitTokens;
+    private final SshKeyRepository sshKeys;
+    private final GitHostAllowlist allowedHosts;
+    private final TargetNaming naming;
+    private final TargetSchedules schedules;
+
+    /**
+     * The width of {@code url}, {@code branch}, {@code name} and {@code required_agent_label}, and of
+     * the image columns next door. Past it the database refused the row at the write, as a 500.
+     */
+    static final int COLUMN_LENGTH = 255;
+
+    public RepositoryAdministrationService(
+            GitRepositoryRepository repositories,
+            TargetScans scans,
+            TargetBacklog backlog,
+            TargetDeletionService targetDeletion,
+            AuditLogService audit,
+            GitTokenRepository gitTokens,
+            SshKeyRepository sshKeys,
+            GitHostAllowlist allowedHosts,
+            TargetNaming naming,
+            TargetSchedules schedules) {
+        this.repositories = repositories;
+        this.scans = scans;
+        this.backlog = backlog;
+        this.targetDeletion = targetDeletion;
+        this.audit = audit;
+        this.gitTokens = gitTokens;
+        this.sshKeys = sshKeys;
+        this.allowedHosts = allowedHosts;
+        this.naming = naming;
+        this.schedules = schedules;
+    }
+
+    /**
+     * A repository as the inventory shows it: the row, its latest scan, what waits on it, and the
+     * project it is filed in.
+     *
+     * @param projectName {@code Solution / Project}, or null for a repository in no project
+     * @param detectedLanguages the languages its newest completed scan found in the tree; empty when
+     *     unknown — no completed scan, or one that recorded no whole census — which is not the empty
+     *     set (see {@link TargetScans#detectedLanguages})
+     * @param schedule the schedule in force — the installation's default included, which the row
+     *     alone cannot say
+     */
+    public record Listed(
+            RepositoryView repository,
+            Optional<LatestScan> latestScan,
+            long openIssues,
+            String projectName,
+            Optional<Set<Language>> detectedLanguages,
+            Schedules.InForce schedule) {}
+
+    /**
+     * What an operator asked for, field by field.
+     *
+     * <p>Strings rather than typed values for the reason the route gives: on update, {@code null}
+     * is "leave alone" and the empty string is "clear", and a typed field could not say both.
+     */
+    public record Changes(
+            String url,
+            String branch,
+            String name,
+            String subPath,
+            Integer scanIntervalMinutes,
+            String scanCron,
+            String requiredAgentLabel,
+            String sshKeyId,
+            String tier,
+            String httpsTokenId,
+            Boolean scanManualOnly) {
+
+        /** The shape callers had before "manual only" was a choice: no change to it. */
+        public Changes(
+                String url,
+                String branch,
+                String name,
+                String subPath,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String sshKeyId,
+                String tier,
+                String httpsTokenId) {
+            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier,
+                    httpsTokenId, null);
+        }
+
+        /** The shape callers had before HTTPS tokens: no token change. */
+        public Changes(
+                String url,
+                String branch,
+                String name,
+                String subPath,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String sshKeyId,
+                String tier) {
+            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier, null, null);
+        }
+    }
+
+    public record Triggered(RepositoryView repository, TargetScans.Queued scan) {}
+
+    /** Every repository the allowance permits, with each one's latest scan and open issue count. */
+    public List<Listed> list(Visibility allowed) {
+        return list(allowed, Optional.empty());
+    }
+
+    /**
+     * The repositories the allowance permits, by identifier, all of them or one page.
+     *
+     * <p><b>The page is cut from what the caller sees, after the allowance</b>: an offset counting the
+     * estate's rows would start a restricted reader's second page among targets they may not see, and hand
+     * them fewer rows than they asked for while more remained. Ordered by identifier in both forms, so the
+     * pages of a list are the list cut in pieces; it was the table's own order before, which is the
+     * identifier's on MySQL and whatever the heap holds on PostgreSQL.
+     *
+     * <p>What a row carries beyond its own columns — its project's name, its languages — is read for the
+     * page's rows only; the latest scans and the open counts are still read for the estate in one grouped
+     * query each, which a page does not shorten.
+     *
+     * @param limit rows per page, or null for the whole list ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Visibility allowed, Integer limit, Integer offset) {
+        return list(allowed, ListWindow.requested(limit, offset));
+    }
+
+    private List<Listed> list(Visibility allowed, Optional<ListWindow> window) {
+        Map<Long, LatestScan> latest = scans.latestPerRepository();
+        Map<Long, Long> open = backlog.openPerRepository();
+
+        List<RepositoryEntity> permitted = repositories.findAll().stream()
+                .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
+                .sorted(Comparator.comparing(RepositoryEntity::getId))
+                .toList();
+        List<RepositoryEntity> visible = window.map(page -> page.of(permitted)).orElse(permitted);
+        // Named for the visible rows only, in one pass: a project's name is shown only beside a
+        // repository the reader already sees, so the list reveals no project the tree would not.
+        Map<Long, String> projectNames = naming.projectNames(visible.stream()
+                .map(RepositoryEntity::getProjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+        // Asked for the visible rows only: which languages a hidden repository is written in is as
+        // much its own as its findings.
+        Map<Long, Set<Language>> languages = scans.detectedLanguages(visible.stream().map(RepositoryEntity::getId).toList());
+        Duration defaultInterval = schedules.defaultInterval();
+        return visible.stream()
+                .map(repository -> {
+                    RepositoryView view = RepositoryView.of(repository);
+                    return new Listed(
+                            view,
+                            Optional.ofNullable(latest.get(repository.getId())),
+                            open.getOrDefault(repository.getId(), 0L),
+                            repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId()),
+                            Optional.ofNullable(languages.get(repository.getId())),
+                            TargetSchedules.inForce(view, defaultInterval));
+                })
+                .toList();
+    }
+
+    /**
+     * One row of {@link #list}, read the same way.
+     *
+     * <p>Through the list rather than by id so that what a create or an update answers is
+     * exactly the row the inventory will show — latest scan and count included — and so that the
+     * allowance decides it the same way.
+     */
+    public Optional<Listed> listed(Visibility allowed, long id) {
+        return list(allowed).stream()
+                .filter(listed -> listed.repository().id().equals(id))
+                .findFirst();
+    }
+
+    /**
+     * Files a new repository target.
+     *
+     * @param allowed what the caller sees, which decides only how a duplicate is refused — see {@link
+     *     TargetAlreadyRegisteredException}
+     * @throws TargetAlreadyRegisteredException when the same repository, branch and sub-path is already
+     *     a target
+     */
+    public RepositoryView create(Changes changes, Visibility allowed, RequestActor actor) {
+        RepositoryEntity saved = file(built(changes), allowed);
+        audit.record(added(actor, saved, ""));
+        return RepositoryView.of(saved);
+    }
+
+    /**
+     * Why {@link #create} would refuse these changes, without writing anything: the form's refusals, for a caller
+     * that shows them before the write — decision 0037's import preview. Empty when they would be accepted; a
+     * target already registered is not asked here, the caller having its own words for it.
+     */
+    Optional<String> refusal(Changes changes) {
+        try {
+            built(changes);
+            return Optional.empty();
+        } catch (InvalidInputException refused) {
+            return Optional.of(refused.getMessage());
+        }
+    }
+
+    /**
+     * {@link #create} for an import (decision 0037 §5), inside the transaction {@code TargetImports} holds open:
+     * the same refusals and the same entry, which is handed to {@code entries} for the batch to record once its
+     * transaction has committed — inside it, the entry would describe a write that may still roll back.
+     *
+     * @param projectId the project the target is filed into at its creation, or null; said in the entry, which
+     *     stands for the filing a form would have audited apart
+     * @param scheduledFrom stamped as its last scheduled round, so that the installation's default schedule first
+     *     takes it at its own slot in the coming interval rather than at the next tick — a target never picked up
+     *     is due at once, and a thousand imported in one gesture would all be scanned in the next minute
+     * @param provenance appended to the entry: where it came from
+     */
+    RepositoryView createImported(Changes changes, Long projectId, Instant scheduledFrom, String provenance,
+            RequestActor actor, List<AuditLogService.Record> entries) {
+        RepositoryEntity repository = built(changes);
+        repository.setLastScheduledScanAt(scheduledFrom);
+        RepositoryEntity saved = file(repository, Visibility.everything());
+        if (projectId != null) {
+            // The column's one writer, as for a filing by hand: the entity maps it read-only. Flushed first, since
+            // the update clears the persistence context the batch is writing in.
+            repositories.assignProject(saved.getId(), projectId);
+        }
+        entries.add(added(actor, saved, provenance));
+        return repositories.findById(saved.getId()).map(RepositoryView::of).orElseThrow();
+    }
+
+    private static AuditLogService.Record added(RequestActor actor, RepositoryEntity saved, String provenance) {
+        return actor.entry(AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()),
+                "Repository added: " + RepositoryUrl.redact(saved.getUrl()) + provenance);
+    }
+
+    /** A new target's row, validated as the form validates it, and not yet written. */
+    private RepositoryEntity built(Changes changes) {
+        String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
+        // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
+        // is arbitrary code execution, not a typo.
+        RepositoryUrl.validate(url).ifPresent(message -> {
+            throw new InvalidInputException(message);
+        });
+        refuseCredentialInUrl(url);
+        refuseUnlistedHost(url);
+
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl(url);
+        repository.setBranch(branch(changes.branch()));
+        repository.setName(BoundedText.optional(changes.name(), COLUMN_LENGTH, "The repository name"));
+        // Checked like the URL, and for the same reason: it is resolved against a clone on the
+        // scanning host — see RepositorySubPath.
+        repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
+        // Validated at the entry point: discovering that an expression was rejected by watching
+        // scans *not* happen is the expensive way.
+        schedule(repository, ScheduleChoice.NONE.apply(
+                changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
+        repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
+        repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
+        repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
+        repository.setTier(AssetTier.fromInput(changes.tier()).name());
+        requireMatchingCredential(repository);
+        return repository;
+    }
+
+    /** Writes a new target, refusing the twin of one already registered. */
+    private RepositoryEntity file(RepositoryEntity repository, Visibility allowed) {
+        // Checked before the write although the unique index would refuse the row anyway: the ordinary
+        // duplicate — somebody pasting the SSH URL of a repository filed over HTTPS — is then refused
+        // without a failed statement, which the driver logs as an error and an engine pays for with an
+        // identity value. The index is for the race this check cannot see.
+        Optional<RepositoryIdentity> identity = identityOf(repository);
+        identity.ifPresent(target -> refuseIfRegistered(target, null, allowed));
+        stamp(repository, identity, true);
+        return saveRefusingARacedTwin(repository, identity, allowed);
+    }
+
+    /**
+     * Applies what was sent and leaves the rest.
+     *
+     * <p><b>Absent means unchanged, not cleared</b> — see the route for why that convention and
+     * not its opposite.
+     *
+     * <p>The absent row is refused before the allowance is consulted, each in its own words,
+     * because that is the order and the wording this route has always answered with.
+     *
+     * <p>The audit entry names the previous URL as well, redacted, for the reason the route gives.
+     */
+    public RepositoryView update(long id, Changes changes, Visibility allowed, RequestActor actor) {
+        // Absent and hidden refused in one sentence: the absent row used to say "No repository
+        // with id 7." and the hidden one "Target not found.", which told them apart.
+        RepositoryEntity repository =
+                RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
+
+        String previousUrl = repository.getUrl();
+        Optional<RepositoryIdentity> previousIdentity = identityOf(repository);
+        // The list sends the URL masked; a form saved without touching it sends the mask back,
+        // which must leave the stored URL — credential included — as it was.
+        if (changes.url() != null && !RepositoryUrl.isMaskedFormOf(trim(changes.url()), previousUrl)) {
+            String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
+            // Validated on update exactly as on create: an unvalidated URL reaching a git clone
+            // is arbitrary code execution, and a row edited later is no safer than a row added.
+            RepositoryUrl.validate(url).ifPresent(message -> {
+                throw new InvalidInputException(message);
+            });
+            refuseCredentialInUrl(url);
+            refuseUnlistedHost(url);
+            repository.setUrl(url);
+        }
+        if (changes.branch() != null) {
+            repository.setBranch(branch(changes.branch()));
+        }
+        if (changes.name() != null) {
+            repository.setName(BoundedText.optional(changes.name(), COLUMN_LENGTH, "The repository name"));
+        }
+        if (changes.subPath() != null) {
+            repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
+        }
+        schedule(repository, new ScheduleChoice(
+                        repository.isScanManualOnly(), repository.getScanIntervalMinutes(), repository.getScanCron())
+                .apply(changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
+        if (changes.requiredAgentLabel() != null) {
+            repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
+        }
+        if (changes.sshKeyId() != null) {
+            repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
+        }
+        if (changes.httpsTokenId() != null) {
+            repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
+        }
+        // Checked whenever what the credential is paired with changes. Not on an unrelated edit of
+        // a row that predates the rule — renaming it must not fail over a pairing nobody touched.
+        if (!repository.getUrl().equals(previousUrl) || changes.sshKeyId() != null || changes.httpsTokenId() != null) {
+            requireMatchingCredential(repository);
+        }
+        if (changes.tier() != null) {
+            repository.setTier(AssetTier.fromInput(changes.tier()).name());
+        }
+        // Refused only when the edit makes this row another target's twin. A row filed twice before
+        // the rule keeps its name, its schedule and its credential editable: refusing those over a
+        // pair nobody touched would hold every setting of it hostage to a merge.
+        Optional<RepositoryIdentity> identity = identityOf(repository);
+        boolean otherTarget = !identity.equals(previousIdentity);
+        if (otherTarget) {
+            identity.ifPresent(target -> refuseIfRegistered(target, id, allowed));
+        }
+        stamp(repository, identity, guardIsFree(identity, id));
+
+        RepositoryEntity saved = saveRefusingARacedTwin(repository, identity, allowed);
+        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                String.valueOf(saved.getId()),
+                "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved));
+        return RepositoryView.of(saved);
+    }
+
+    /**
+     * @param allowed what the caller may see. Only administrators reach this route, whose
+     *     visibility is everything — but an integration key acting for one is narrowed to its
+     *     target, and without this check a key restricted to one repository scanned any other.
+     */
+    public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
+        RepositoryEntity repository =
+                RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
+        RepositoryView view = RepositoryView.of(repository);
+        TargetScans.Queued scan = scans.queue(view);
+        audit.record(actor.entry(
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.id()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
+        return new Triggered(view, scan);
+    }
+
+    /** Deletes the repository and everything hanging off it. */
+    public void delete(long id, RequestActor actor) {
+        RepositoryEntity repository = repositories.findById(id)
+                .orElseThrow(() -> new NotFoundException("Repository not found."));
+        TargetGrants.Revoked revoked = targetDeletion.deleteRepository(id);
+        TargetDeletionAudit.record(audit, actor, id, "repository " + id,
+                "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()), revoked);
+    }
+
+    /**
+     * The same repository, branch and sub-path filed a second time: 409, typed {@code
+     * urn:vectispire:problem:target-already-registered}.
+     *
+     * <p><b>Named only to a caller who sees it.</b> The sentence then names the target and the problem
+     * carries its id ({@code existingRepositoryId}), so the screen can lead to it. To a caller who does
+     * not, the refusal is the same 409 without either: the database refuses the row whoever asks, so the
+     * only alternatives are to say so or to pretend, and a 404 or a 400 would be the pretence. What it
+     * reveals is one bit about a URL the caller already holds — some target files it — and nothing of
+     * which one, in which project, or what it found; a refusal that named it would hand out exactly the
+     * estate {@code Visibility} withholds. Only administrators reach the two routes today, and an
+     * administrator sees everything; the narrower form is for the callers that come next (decision
+     * 0037's import), and is tested at the service.
+     */
+    public static final class TargetAlreadyRegisteredException extends ConflictException {
+
+        /** The token the problem's {@code type} ends with, published in the routes' descriptions. */
+        public static final String CAUSE = "target-already-registered";
+
+        TargetAlreadyRegisteredException(String message) {
+            super(message, CAUSE);
+        }
+
+        TargetAlreadyRegisteredException(String message, long existingRepositoryId) {
+            super(message, CAUSE, Map.of("existingRepositoryId", existingRepositoryId));
+        }
+    }
+
+    /**
+     * The targets filed twice: repositories sharing one {@link RepositoryIdentity}, oldest first in
+     * each group, groups by their oldest member. Rows the rule found already doubled when it arrived
+     * (V73); nothing deletes them, since either one may hold the triage — merging is an administrator's
+     * gesture, written in the repository guide.
+     *
+     * <p>Grouped over the rows the caller sees and computed from the URLs as they are, not from the
+     * stored identity: a row the keying has not reached yet is listed all the same.
+     *
+     * <p>With a window, one page of groups — never a group cut in two, which would read as a target filed once.
+     *
+     * @param limit groups per page, or null for every group ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<Duplicated> duplicates(Visibility allowed, Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        Map<RepositoryIdentity, List<Listed>> byTarget = new java.util.LinkedHashMap<>();
+        list(allowed).stream()
+                .sorted(java.util.Comparator.comparing(listed -> listed.repository().id()))
+                .forEach(listed -> RepositoryIdentity.of(
+                                listed.repository().url(), listed.repository().branch(), listed.repository().subPath())
+                        .ifPresent(identity -> byTarget.computeIfAbsent(identity, ignored -> new java.util.ArrayList<>())
+                                .add(listed)));
+        List<Duplicated> every = byTarget.entrySet().stream()
+                .filter(group -> group.getValue().size() > 1)
+                .map(group -> new Duplicated(group.getKey(), List.copyOf(group.getValue())))
+                .toList();
+        return window.map(page -> page.of(every)).orElse(every);
+    }
+
+    /** One target filed more than once, and each of its filings. */
+    public record Duplicated(RepositoryIdentity identity, List<Listed> targets) {}
+
+    private static Optional<RepositoryIdentity> identityOf(RepositoryEntity repository) {
+        return RepositoryIdentity.of(repository.getUrl(), repository.getBranch(), repository.getSubPath());
+    }
+
+    /** Whether no row but {@code self} holds the guard — always, for a URL that names no host. */
+    private boolean guardIsFree(Optional<RepositoryIdentity> identity, Long self) {
+        return identity.flatMap(target -> repositories.findByIdentityGuard(target.guard()))
+                .filter(holder -> !holder.getId().equals(self))
+                .isEmpty();
+    }
+
+    private static void stamp(RepositoryEntity repository, Optional<RepositoryIdentity> identity, boolean holdsGuard) {
+        repository.setUrlIdentity(identity.map(RepositoryIdentity::repository).orElse(null));
+        repository.setIdentityGuard(holdsGuard ? identity.map(RepositoryIdentity::guard).orElse(null) : null);
+    }
+
+    private void refuseIfRegistered(RepositoryIdentity identity, Long self, Visibility allowed) {
+        Optional<RepositoryEntity> holder = repositories.findByIdentityGuard(identity.guard())
+                .filter(existing -> !existing.getId().equals(self));
+        if (holder.isEmpty()) {
+            return;
+        }
+        RepositoryEntity existing = holder.get();
+        if (!allowed.permits(new ScanTarget.Repository(existing.getId()))) {
+            throw new TargetAlreadyRegisteredException(
+                    "This repository is already registered, on this branch and sub-path.");
+        }
+        String where = identity.subPath().isEmpty() ? "at its root" : "under " + identity.subPath();
+        throw new TargetAlreadyRegisteredException(
+                "This repository is already registered as \"" + RepositoryUrl.displayName(existing.getName(), existing.getUrl())
+                        + "\" (id " + existing.getId() + "), on branch " + identity.branch() + ", " + where
+                        + ". Edit that target, or choose another branch or sub-path.",
+                existing.getId());
+    }
+
+    /**
+     * Saves, and reads a refused write as the race it may have been.
+     *
+     * <p><b>Two creations racing pass the check before the write together</b>; the unique index on the guard lets
+     * one commit and refuses the other. But a failed write does not say why it failed — a lock timeout
+     * or a dropped connection fails it the same way — so the refusal is not read from the exception:
+     * once the write has rolled back, the committed row answers. Present, the caller is answered the
+     * 409 the check would have given a moment later; absent, the failure was something else and is
+     * thrown as it came.
+     */
+    private RepositoryEntity saveRefusingARacedTwin(
+            RepositoryEntity repository, Optional<RepositoryIdentity> identity, Visibility allowed) {
+        try {
+            return repositories.save(repository);
+        } catch (RuntimeException failed) {
+            identity.filter(target -> target.guard().equals(repository.getIdentityGuard()))
+                    .ifPresent(target -> refuseIfRegistered(target, repository.getId(), allowed));
+            throw failed;
+        }
+    }
+
+    private static void schedule(RepositoryEntity repository, ScheduleChoice choice) {
+        repository.setScanManualOnly(choice.manualOnly());
+        repository.setScanIntervalMinutes(choice.intervalMinutes());
+        repository.setScanCron(choice.cron());
+    }
+
+    /**
+     * A valid cron expression, {@code null}, or a 400 the operator can read.
+     *
+     * <p>A 400 and not a 500: the expression came from the user, and the message carries the
+     * expected format.
+     */
+    static String validatedCron(String expression) {
+        String trimmed = trim(expression);
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        if (!CronExpressions.isValid(trimmed)) {
+            throw new InvalidInputException(
+                    "Unusable cron expression: \"" + trimmed + "\". Expected five fields, for example "
+                            + "\"0 2 * * *\" (every day at 02:00) or \"0 */6 * * *\" (every six hours).");
+        }
+        return trimmed;
+    }
+
+    static String trim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    static String optional(String value) {
+        String trimmed = trim(value);
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * A credential in the URL is refused for new URLs (decision 0022).
+     *
+     * <p>It was the only way to clone a private repository over HTTPS, and it stored the token in
+     * the clear in this row and handed it to every agent. A URL already stored that way keeps
+     * working — refusing it on upgrade would stop its scans silently — but none is added.
+     */
+    private void refuseUnlistedHost(String url) {
+        if (!allowedHosts.permits(url)) {
+            throw new InvalidInputException(allowedHosts.refusal(url));
+        }
+    }
+
+    private static void refuseCredentialInUrl(String url) {
+        if (RepositoryUrl.carriesCredential(url)) {
+            throw new InvalidInputException("The URL carries a credential. Remove it from the URL and attach an "
+                    + "HTTPS token instead: it is stored encrypted and sent only to its own host.");
+        }
+    }
+
+    /**
+     * One credential, of the kind the URL uses, and for a token the token's own host.
+     *
+     * <p>The host rule is what makes the token safe to attach at all: without it, pointing a
+     * repository's URL at another server would send that server the forge's token (decision 0022).
+     */
+    private void requireMatchingCredential(RepositoryEntity repository) {
+        UUID tokenId = repository.getHttpsTokenId();
+        if (tokenId != null && repository.getSshKeyId() != null) {
+            throw new InvalidInputException("A repository uses an SSH key or an HTTPS token, not both.");
+        }
+        if (tokenId != null) {
+            if (!RepositoryUrl.isHttps(repository.getUrl())) {
+                throw new InvalidInputException("An HTTPS token only works with an https:// URL.");
+            }
+            String host = gitTokens.findById(tokenId)
+                    .orElseThrow(() -> new InvalidInputException("No HTTPS token with id " + tokenId + "."))
+                    .getHost();
+            if (!RepositoryUrl.hasHost(repository.getUrl(), host)) {
+                throw new InvalidInputException("This token is issued for " + host
+                        + " and would be sent to no other host; the URL names another one.");
+            }
+        }
+        if (repository.getSshKeyId() != null && RepositoryUrl.isHttps(repository.getUrl())) {
+            throw new InvalidInputException(
+                    "An SSH key is not used over HTTPS. Use an ssh:// or git@ URL, or attach an HTTPS token.");
+        }
+    }
+
+    private static UUID credentialId(String value, String what) {
+        String trimmed = trim(value);
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException malformed) {
+            throw new InvalidInputException("\"" + trimmed + "\" is not a valid " + what + " identifier.");
+        }
+    }
+
+    /**
+     * Reads the deployment key the form named, where blank means "no key".
+     *
+     * <p>Rejecting a malformed identifier here rather than storing it matters: a repository
+     * pointing at a key that does not exist falls back to the host's own SSH and fails at clone
+     * time with "requires authentication" — an error that names neither the wrong identifier nor
+     * this form. The 400 arrives while the operator is still looking at the field.
+     *
+     * <p><b>A well-formed identifier of no key is refused too</b>, as the HTTPS token's is. Only the
+     * shape used to be checked, and the foreign key then refused the row at the write: a 500 for a
+     * key deleted in another tab, and the message a constraint name.
+     */
+    private UUID sshKeyId(String value) {
+        String trimmed = trim(value);
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        UUID id;
+        try {
+            id = UUID.fromString(trimmed);
+        } catch (IllegalArgumentException malformed) {
+            throw new InvalidInputException("\"" + trimmed + "\" is not a valid SSH key identifier.");
+        }
+        if (!sshKeys.existsById(id)) {
+            throw new InvalidInputException("No SSH key with id " + id + ".");
+        }
+        return id;
+    }
+
+    /** Blank is {@code main}, the default the clone falls back to; anything else must fit its column. */
+    private static String branch(String value) {
+        String branch = BoundedText.optional(value, COLUMN_LENGTH, "The branch");
+        return branch == null ? "main" : branch;
+    }
+
+    /**
+     * Normalized on entry: without it, "Production" here and "production" on the agent would never
+     * meet, and the scan would wait for an agent that is present. Bounded after normalization,
+     * because that is the value stored.
+     */
+    static String requiredLabel(String value) {
+        return AgentLabels.normalizeRequirement(value)
+                .map(label -> BoundedText.within(label, COLUMN_LENGTH, "The required agent label"))
+                .orElse(null);
+    }
+}

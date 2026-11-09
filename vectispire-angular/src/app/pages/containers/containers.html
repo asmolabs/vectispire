@@ -1,0 +1,272 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'containers.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'containers.subtitle' | translate }}</p>
+    </div>
+    @if (isAdmin()) {
+        <p-button [label]="'containers.add_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-dataview
+    [value]="rows()"
+    [loading]="loading()"
+    layout="list"
+    [paginator]="true"
+    [rows]="pageSize"
+    [first]="first()"
+    (onPage)="first.set($event.first)"
+    [alwaysShowPaginator]="false"
+>
+    <ng-template #list let-items>
+        <!--
+            Cards rather than rows, as on the repository list and for the same reason: these are
+            entities, not measurements. Nobody reads down the column of image references looking
+            for a pattern, and the alignment a table buys is paid for in horizontal scrolling on
+            a narrow screen.
+        -->
+        <div class="flex flex-col">
+            @for (container of items; track container.id) {
+                <div
+                    class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-t"
+                    style="border-color: var(--surface-border)"
+                >
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <div class="font-medium">{{ container.imageName }}</div>
+                            @if (container.tier === 'TIER_1_MISSION_CRITICAL') {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800"
+                                    >{{ 'containers.tier_1_badge' | translate }}</span
+                                >
+                            } @else if (container.tier === 'TIER_3_INTERNAL') {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                    >{{ 'containers.tier_3_badge' | translate }}</span
+                                >
+                            } @else {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                    >{{ 'containers.tier_2_badge' | translate }}</span
+                                >
+                            }
+                        </div>
+                        <!--
+                            Truncated with the whole value on hover: a digest reference is sixty
+                            characters of hexadecimal that would push everything else off a phone,
+                            and it is read to be compared rather than to be read.
+                        -->
+                        <div class="text-sm text-muted-color break-all" [title]="container.reference">
+                            {{ container.shortReference }}
+                        </div>
+                        <div class="text-sm text-muted-color mt-1">
+                            <span class="font-mono" [title]="container.tag">{{ container.shortTag }}</span> ·
+                            @if (container.openIssues > 0) {
+                                <a
+                                    [routerLink]="['/issues']"
+                                    [queryParams]="{ container_id: container.id }"
+                                    class="font-medium"
+                                    >{{ 'containers.outstanding' | translate: { count: container.openIssues } }}</a
+                                >
+                            } @else {
+                                <span>{{ 'containers.nothing_outstanding' | translate }}</span>
+                            }
+                            · <span>{{ container.scheduleText }}</span>
+                            <!--
+                                The project, linking to its place in the tree as the repository list
+                                does. "No project" is said in words and links to that group: an image
+                                in none is outside every project grant, a state an administrator
+                                has to act on rather than an absence of data.
+                            -->
+                            ·
+                            <span data-testid="container-project"
+                                >{{ 'containers.project' | translate }}
+                                @if (container.projectId != null) {
+                                    <a [routerLink]="['/solutions']" [fragment]="'project-' + container.projectId">{{
+                                        container.projectName
+                                    }}</a>
+                                } @else {
+                                    <a [routerLink]="['/solutions']" fragment="unfiled">{{
+                                        'containers.no_project' | translate
+                                    }}</a>
+                                }
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 shrink-0">
+                        <!--
+                            Linked to the scan, as the repository list and the dashboard already
+                            were. Without it this screen was the one place a failure had no way
+                            out: the tag said "failed", the message underneath was clipped to the
+                            width of the block, and the full text existed only in a `title`
+                            attribute — which is nothing at all on a touch device. The scan page
+                            shows it whole, and this is the route to it.
+                        -->
+                        @if (container.lastScan; as scan) {
+                            <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                        } @else {
+                            <app-last-scan [scan]="null" />
+                        }
+
+                        @if (isAdmin()) {
+                            <div class="whitespace-nowrap">
+                                <p-button
+                                    icon="pi pi-play"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'containers.aria_scan' | translate: { name: container.reference }"
+                                    [disabled]="busy() === container.id"
+                                    (onClick)="triggerScan(container)"
+                                />
+                                <p-button
+                                    icon="pi pi-pencil"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'containers.aria_edit' | translate: { name: container.reference }"
+                                    (onClick)="openForm(container)"
+                                />
+                                <p-button
+                                    icon="pi pi-trash"
+                                    severity="danger"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'containers.aria_delete' | translate: { name: container.reference }"
+                                    (onClick)="askDelete(container)"
+                                />
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </ng-template>
+    <ng-template #empty>
+        <div class="text-center text-muted-color py-6">{{ 'containers.empty' | translate }}</div>
+    </ng-template>
+</p-dataview>
+
+<p-dialog
+    [header]="editing() ? ('containers.header_edit' | translate) : ('containers.header_add' | translate)"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+>
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
+        <div class="flex flex-col gap-2">
+            <label for="registry" class="font-medium"
+                >{{ 'containers.registry' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="registry"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.registry"
+                placeholder="ghcr.io"
+            />
+            <small class="text-muted-color">{{ 'containers.registry_hint' | translate }}</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="tier" class="font-medium">{{ 'containers.target_tier' | translate }}</label>
+            <select
+                id="tier"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.tier"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="TIER_1_MISSION_CRITICAL">{{ 'containers.tier_option_1' | translate }}</option>
+                <option value="TIER_2_BUSINESS_OPERATIONAL">{{ 'containers.tier_option_2' | translate }}</option>
+                <option value="TIER_3_INTERNAL">{{ 'containers.tier_option_3' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="image" class="font-medium">{{ 'containers.image_name_label' | translate }}</label>
+            <input
+                pInputText
+                id="image"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.imageName"
+                placeholder="team/service"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="tag" class="font-medium">{{ 'containers.tag' | translate }}</label>
+            <input
+                pInputText
+                id="tag"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.tag"
+                placeholder="latest"
+            />
+            <small class="text-muted-color">{{ 'containers.tag_hint' | translate }}</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="agent-label" class="font-medium"
+                >{{ 'containers.agent_label' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="agent-label"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.requiredAgentLabel"
+                placeholder="customer-network"
+            />
+            <small class="text-muted-color">
+                {{ 'containers.agent_hint' | translate }}
+            </small>
+        </div>
+        <app-schedule-fields
+            idPrefix="container"
+            [(interval)]="form.scanIntervalMinutes"
+            [(cron)]="form.scanCron"
+            [(manualOnly)]="form.scanManualOnly"
+            [defaultMinutes]="defaultScanMinutes()"
+        />
+        @if (formError(); as message) {
+            <!-- The server's wording is what names the rejected cron field by field; a generic
+                 "invalid" would send somebody back to guessing. -->
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button
+            [label]="editing() ? ('common.save' | translate) : ('common.add' | translate)"
+            [loading]="saving()"
+            (onClick)="submit()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'containers.delete_header' | translate"
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (pendingDelete(); as container) {
+        <p class="m-0">
+            <span class="font-medium">{{ container.reference }}</span>
+            {{ 'containers.delete_body' | translate: { count: container.openIssues } }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="saving()"
+            (onClick)="confirmDelete()"
+        />
+    </ng-template>
+</p-dialog>

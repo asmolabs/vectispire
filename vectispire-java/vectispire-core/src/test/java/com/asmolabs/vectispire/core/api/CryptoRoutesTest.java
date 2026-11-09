@@ -1,0 +1,154 @@
+package com.asmolabs.vectispire.core.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
+
+@DisplayName("the cryptographic signing and verification routes")
+class CryptoRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private SigningKeyService signingKeyService;
+
+    @Test
+    @DisplayName("downloads the active instance public key in PEM format")
+    void downloadsPublicKey() throws Exception {
+        MvcResult result = mvc.perform(get("/api/v1/crypto/public-key.pub"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"vectispire-signing-key.pub\""))
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        assertThat(body).contains("-----BEGIN PUBLIC KEY-----");
+        assertThat(body).contains("-----END PUBLIC KEY-----");
+    }
+
+    @Test
+    @DisplayName("verifies digital signature of a payload")
+    void verifiesSignature() throws Exception {
+        String token = asAdmin();
+        String payload = "{\"status\": \"passed\", \"scanId\": 42}";
+        String signature = signingKeyService.sign(payload.getBytes(StandardCharsets.UTF_8));
+
+        String requestJson = String.format("""
+                {
+                  "payload": "%s",
+                  "signature": "%s"
+                }
+                """, payload.replace("\"", "\\\""), signature);
+
+        mvc.perform(authenticated(post("/api/v1/crypto/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.keyStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.algorithm").value("SHA256withECDSA"));
+
+        String tamperedRequest = String.format("""
+                {
+                  "payload": "{\\"status\\": \\"failed\\", \\"scanId\\": 42}",
+                  "signature": "%s"
+                }
+                """, signature);
+
+        mvc.perform(authenticated(post("/api/v1/crypto/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(tamperedRequest), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(false))
+                // It answered with the active key's id and "ACTIVE": read alone, a key that signed it.
+                .andExpect(jsonPath("$.keyStatus").doesNotExist())
+                .andExpect(jsonPath("$.keyId").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("the published public key verifies what the instance signs, as a consumer would check it")
+    void thePublishedKeyVerifiesTheSignatures() throws Exception {
+        String pem = mvc.perform(get("/api/v1/crypto/public-key.pub"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        byte[] payload = "{\"status\": \"passed\"}".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(CosignSigner.verify(payload, signingKeyService.sign(payload), CosignSigner.parsePublicKey(pem)))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("a signature made with the caller's own key is never reported as Vectispire's")
+    void aForgeryUnderAnotherKeyIsNamedAsSuch() throws Exception {
+        // It answered "Signature valid and authentic." with Vectispire's key id: sign a forged
+        // document with your own key, supply that key, and the response vouched for it.
+        KeyPair forger = CosignSigner.generateKeyPair();
+        String payload = "{\"status\": \"passed\"}";
+        String signature = CosignSigner.sign(payload.getBytes(StandardCharsets.UTF_8), forger.getPrivate());
+
+        mvc.perform(authenticated(post("/api/v1/crypto/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of(
+                                "payload", payload,
+                                "signature", signature,
+                                "publicKey", CosignSigner.toPem(forger.getPublic())))), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.vectispireKey").value(false))
+                .andExpect(jsonPath("$.keyId").value(CosignSigner.computeKeyId(forger.getPublic())))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("not Vectispire's")));
+    }
+
+    @Test
+    @DisplayName("returns cosign CLI helper commands")
+    void returnsCosignCliHelper() throws Exception {
+        String token = asAdmin();
+
+        mvc.perform(authenticated(get("/api/v1/crypto/cosign-cli-helper"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.keyAlgorithm").value("ECDSA_P256"))
+                .andExpect(jsonPath("$.commands.cosignVerifyManifest").exists())
+                // Without it cosign looks for the signature in Rekor, where Vectispire uploads nothing,
+                // and refuses every export — checked against the pinned cosign image.
+                .andExpect(jsonPath("$.commands.cosignVerifyManifest",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")))
+                .andExpect(jsonPath("$.commands.cosignVerifyVex",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")))
+                .andExpect(jsonPath("$.commands.cosignVerifyCycloneDx",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")));
+    }
+
+    @Test
+    @DisplayName("publishes every signing key to an anonymous caller, and each one by its id as a PEM file")
+    void publishesTheKeysByTheirIds() throws Exception {
+        String keyId = signingKeyService.getKeyId();
+
+        mvc.perform(get("/api/v1/crypto/public-keys"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].keyId").value(keyId))
+                .andExpect(jsonPath("$[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$[0].publicKey").value(signingKeyService.getPublicKeyPem()));
+
+        String pem = mvc.perform(get("/api/v1/crypto/public-keys/" + keyId + ".pub"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"vectispire-signing-key-" + keyId.substring(0, 12) + ".pub\""))
+                .andReturn().getResponse().getContentAsString();
+        byte[] payload = "{\"status\": \"passed\"}".getBytes(StandardCharsets.UTF_8);
+        assertThat(CosignSigner.verify(payload, signingKeyService.sign(payload), CosignSigner.parsePublicKey(pem))).isTrue();
+
+        mvc.perform(get("/api/v1/crypto/public-keys/" + "0".repeat(64) + ".pub")).andExpect(status().isNotFound());
+    }
+}

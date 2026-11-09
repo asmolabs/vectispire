@@ -1,0 +1,74 @@
+<p-card styleClass="mb-6">
+    <ng-template #title>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="pi pi-bolt text-blue-500 text-lg"></i>
+                <span>{{ 'agents.running_title' | translate }}</span>
+            </div>
+            @if (runs().length; as count) {
+                <p-tag [value]="'agents.running_count' | translate: { count: count }" severity="info" />
+            }
+        </div>
+    </ng-template>
+
+    @if (runs().length) {
+        <p-table [value]="runs()" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'agents.target' | translate }}</th>
+                    <th>{{ 'agents.branch' | translate }}</th>
+                    <th>{{ 'agents.assigned_agent' | translate }}</th>
+                    <th>{{ 'agents.labels' | translate }}</th>
+                    <th>{{ 'agents.elapsed' | translate }}</th>
+                    <th class="text-right">{{ 'common.status' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-run>
+                <tr>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <i
+                                [class]="
+                                    run.targetType === 'repository'
+                                        ? 'pi pi-github text-primary'
+                                        : 'pi pi-box text-purple-500'
+                                "
+                            ></i>
+                            <span class="font-medium">{{ run.targetName }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="font-mono text-sm">{{ run.branch || '—' }}</span>
+                    </td>
+                    <td>
+                        <p-tag [value]="run.agentName" severity="secondary" icon="pi pi-server" />
+                    </td>
+                    <td>
+                        @if (run.requiredLabel) {
+                            <p-tag [value]="run.requiredLabel" severity="info" />
+                        } @else {
+                            <span class="text-muted-color text-sm">—</span>
+                        }
+                    </td>
+                    <td>
+                        <span class="font-medium text-blue-600 dark:text-blue-400">{{
+                            run.durationSeconds | duration
+                        }}</span>
+                    </td>
+                    <td class="text-right">
+                        <p-tag
+                            [value]="'agents.status_busy' | translate"
+                            severity="info"
+                            icon="pi pi-spin pi-spinner"
+                        />
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <div class="py-6 text-center text-muted-color flex flex-col items-center justify-center gap-2">
+            <i class="pi pi-check text-2xl text-green-500"></i>
+            <span>{{ 'agents.no_running' | translate }}</span>
+        </div>
+    }
+</p-card>

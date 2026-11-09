@@ -1,0 +1,389 @@
+package com.asmolabs.vectispire.core.targets;
+
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomComponentRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+/**
+ * A target carrying a row in every table that names it, directly or through its issues and scans.
+ *
+ * <p><b>Two copies, kept identical:</b> under {@code src/test} for the unit suite on MySQL, and under
+ * {@code src/integrationTest} for the campaign on PostgreSQL, MySQL and the fixture. The campaign's
+ * source set does not see the unit suite's classes, and widening its classpath to them would bring
+ * the unit suite's configuration along. Change one, change the other.
+ *
+ * <p>Rows are written through the entities rather than as SQL, so the same code runs on the three
+ * engines whatever each calls a timestamp or a boolean; they are counted as SQL, so a row the
+ * persistence context still holds but the database no longer has cannot pass for present.
+ */
+final class TargetRowsFixture {
+
+    private static final Instant AT = Instant.parse("2026-09-01T10:00:00Z");
+
+    private final BeanFactory beans;
+    private final JdbcTemplate jdbc;
+
+    TargetRowsFixture(BeanFactory beans, JdbcTemplate jdbc) {
+        this.beans = beans;
+        this.jdbc = jdbc;
+    }
+
+    ScanTarget repository(String name) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl("https://example.invalid/" + name + ".git");
+        repository.setName(name);
+        repository.setBranch("main");
+        return new ScanTarget.Repository(beans.getBean(GitRepositoryRepository.class).save(repository).getId());
+    }
+
+    ScanTarget container(String name) {
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName("example/" + name);
+        container.setTag("1.0");
+        return new ScanTarget.Container(beans.getBean(ContainerRepository.class).save(container).getId());
+    }
+
+    /** One row per dependent table, all naming {@code target}. */
+    void populate(ScanTarget target) {
+        TargetDeleted named = new TargetDeleted(target);
+        Long repoId = target instanceof ScanTarget.Repository r ? r.id() : null;
+        Long containerId = target instanceof ScanTarget.Container c ? c.id() : null;
+        String suffix = named.kind() + "-" + named.id() + "-" + UUID.randomUUID();
+
+        UserEntity user = new UserEntity();
+        user.setUsername("grantee-" + suffix);
+        user.setRole(Role.USER.name());
+        user.setIsActive(true);
+        user.setCreatedAt(AT);
+        user.setUpdatedAt(AT);
+        long userId = beans.getBean(UserRepository.class).save(user).getId();
+        beans.getBean(UserTargetRepository.class).save(new UserTargetEntity(userId, named.kind(), named.id()));
+        // A pipeline key restricted to the target: a grant of the same shape, revoked with it.
+        ApiKeyEntity key = new ApiKeyEntity();
+        key.setName("pipeline-" + suffix);
+        key.setKeyHash("not a real hash");
+        key.setScopes("read");
+        key.setCreatedAt(AT);
+        key.setOwnerUserId(userId);
+        key.setTargetKind(named.kind());
+        key.setTargetId(named.id());
+        beans.getBean(ApiKeyRepository.class).save(key);
+
+        TeamEntity team = new TeamEntity();
+        team.setName("team-" + suffix);
+        team.setCreatedAt(AT);
+        long teamId = beans.getBean(TeamRepository.class).save(team).getId();
+        beans.getBean(TeamTargetRepository.class).save(new TeamTargetEntity(teamId, named.kind(), named.id()));
+
+        GatePolicyEntity policy = new GatePolicyEntity();
+        policy.setTargetKind(named.kind());
+        policy.setTargetId(named.id());
+        policy.setVersion(1);
+        policy.setIsActive(true);
+        policy.setCreatedAt(AT);
+        beans.getBean(GatePolicyRepository.class).save(policy);
+
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setContainerId(containerId);
+        scan.setBranch("main");
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(AT);
+        long scanId = beans.getBean(ScanRepository.class).save(scan).getId();
+
+        IssueEntity issue = new IssueEntity();
+        issue.setRepoId(repoId);
+        issue.setContainerId(containerId);
+        issue.setFingerprint(suffix.substring(0, Math.min(64, suffix.length())));
+        issue.setType(FindingType.VULNERABILITY.wireName());
+        issue.setIdentifier("CVE-2021-44228");
+        issue.setSeverity(Severity.HIGH.wireName());
+        issue.setState(IssueState.OPEN.wireName());
+        issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
+        issue.setFirstSeenAt(AT);
+        issue.setLastSeenAt(AT);
+        issue.setFirstSeenScanId(scanId);
+        issue.setLastSeenScanId(scanId);
+        issue.setTimesSeen(1);
+        long issueId = beans.getBean(IssueRepository.class).save(issue).getId();
+
+        TriageEventEntity event = new TriageEventEntity();
+        event.setIssueId(issueId);
+        event.setScanId(scanId);
+        event.setFromStatus(TriageStatus.UNDER_REVIEW.wireName());
+        event.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        event.setOrigin("system");
+        event.setOccurredAt(AT);
+        beans.getBean(TriageEventRepository.class).save(event);
+
+        IssueTicketEntity ticket = new IssueTicketEntity();
+        ticket.setIssueId(issueId);
+        ticket.setProvider("jira");
+        ticket.setTicketKey("SEC-1");
+        ticket.setTicketUrl("https://tracker.invalid/SEC-1");
+        ticket.setStatus("open");
+        ticket.setCreatedAt(AT);
+        ticket.setUpdatedAt(AT);
+        beans.getBean(IssueTicketRepository.class).save(ticket);
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scanId);
+        finding.setIssueId(issueId);
+        finding.setType(FindingType.VULNERABILITY.wireName());
+        finding.setIdentifier("CVE-2021-44228");
+        finding.setSeverity(Severity.HIGH.wireName());
+        finding.setPackageName("log4j-core");
+        finding.setSource("grype");
+        finding.setCreatedAt(AT);
+        beans.getBean(FindingRepository.class).save(finding);
+
+        ComponentEntity component = new ComponentEntity();
+        component.setScanId(scanId);
+        component.setRepoId(repoId);
+        component.setContainerId(containerId);
+        component.setScanCreatedAt(AT);
+        component.setName("log4j-core");
+        component.setVersion("2.14.1");
+        beans.getBean(ComponentRepository.class).save(component);
+
+        AiReviewResultEntity review = new AiReviewResultEntity();
+        review.setScanId(scanId);
+        review.setRepoId(repoId);
+        review.setModel("model");
+        review.setPrompt("prompt");
+        review.setStatus("completed");
+        review.setCreatedAt(AT);
+        beans.getBean(AiReviewResultRepository.class).save(review);
+
+        GateVerdictEntity verdict = new GateVerdictEntity();
+        verdict.setId(UUID.randomUUID());
+        verdict.setRepoId(repoId);
+        verdict.setContainerId(containerId);
+        verdict.setPassed(true);
+        verdict.setPolicySource("default");
+        verdict.setDecidedAt(AT);
+        beans.getBean(GateVerdictRepository.class).save(verdict);
+
+        if (repoId != null) {
+            ApiEndpointEntity endpoint = new ApiEndpointEntity();
+            endpoint.setScanId(scanId);
+            endpoint.setRepositoryId(repoId);
+            endpoint.setHttpMethod("GET");
+            endpoint.setPath("/orders");
+            endpoint.setAuthRequired(false);
+            endpoint.setVisibility("PUBLIC");
+            endpoint.setCreatedAt(AT);
+            beans.getBean(ApiEndpointRepository.class).save(endpoint);
+
+            ApiContractEntity contract = new ApiContractEntity();
+            contract.setRepositoryId(repoId);
+            contract.setScanId(scanId);
+            contract.setContractPath("openapi.yaml");
+            contract.setEndpointsCount(1);
+            contract.setCreatedAt(AT);
+            beans.getBean(ApiContractRepository.class).save(contract);
+
+            // A SARIF source declared for this repository alone, and one import it made: neither has
+            // a foreign key (a common migration), so only the plugins module's listener takes them.
+            SarifSourceEntity source = new SarifSourceEntity();
+            source.setSlug(("ci-" + UUID.randomUUID()).substring(0, 20));
+            source.setName("ci");
+            source.setApiKeyId(UUID.randomUUID());
+            source.setRepositoryId(repoId);
+            source.setTools("semgrep");
+            source.setKinds("sarif,coverage,test_report");
+            source.setEnabled(true);
+            source.setCreatedAt(AT);
+            source.setCreatedBy("governor");
+            long sourceId = beans.getBean(SarifSourceRepository.class).save(source).getId();
+
+            SarifImportEntity imported = new SarifImportEntity();
+            imported.setSourceId(sourceId);
+            imported.setSourceSlug(source.getSlug());
+            imported.setRepoId(repoId);
+            imported.setTools("semgrep 1.0");
+            imported.setDocumentSha256("0".repeat(64));
+            imported.setImportedAt(AT);
+            imported.setImportedBy("pipeline");
+            imported.setApiKeyId(source.getApiKeyId());
+            beans.getBean(SarifImportRepository.class).save(imported);
+
+            // A coverage figure with one package and a test report with one suite, each child naming its
+            // import: the listener takes the children before the imports they are found through.
+            CoverageImportEntity coverage = new CoverageImportEntity();
+            coverage.setSourceId(sourceId);
+            coverage.setSourceSlug(source.getSlug());
+            coverage.setRepoId(repoId);
+            coverage.setFormat("jacoco");
+            coverage.setLinesCovered(1);
+            coverage.setLinesTotal(2);
+            coverage.setDocumentSha256("0".repeat(64));
+            coverage.setImportedAt(AT);
+            coverage.setImportedBy("pipeline");
+            coverage.setApiKeyId(source.getApiKeyId());
+            long coverageId = beans.getBean(CoverageImportRepository.class).save(coverage).getId();
+            CoveragePackageEntity coveragePackage = new CoveragePackageEntity();
+            coveragePackage.setImportId(coverageId);
+            coveragePackage.setPath("com/example/app");
+            coveragePackage.setLinesCovered(1);
+            coveragePackage.setLinesTotal(2);
+            beans.getBean(CoveragePackageRepository.class).save(coveragePackage);
+
+            TestReportImportEntity report = new TestReportImportEntity();
+            report.setSourceId(sourceId);
+            report.setSourceSlug(source.getSlug());
+            report.setRepoId(repoId);
+            report.setFormat("junit");
+            report.setDocumentsCount(1);
+            report.setSuitesCount(1);
+            report.setTestsCount(1);
+            report.setDocumentSha256("0".repeat(64));
+            report.setImportedAt(AT);
+            report.setImportedBy("pipeline");
+            report.setApiKeyId(source.getApiKeyId());
+            long reportId = beans.getBean(TestReportImportRepository.class).save(report).getId();
+            TestSuiteResultEntity suite = new TestSuiteResultEntity();
+            suite.setImportId(reportId);
+            suite.setName("com.example.AppTest");
+            suite.setTestsCount(1);
+            beans.getBean(TestSuiteResultRepository.class).save(suite);
+
+            // A build SBOM and one of its components, the child naming its import (V82).
+            BuildSbomEntity sbom = new BuildSbomEntity();
+            sbom.setSourceId(sourceId);
+            sbom.setSourceSlug(source.getSlug());
+            sbom.setRepoId(repoId);
+            sbom.setSpecVersion("1.6");
+            sbom.setComponentsCount(1);
+            sbom.setDocumentSha256("0".repeat(64));
+            sbom.setImportedAt(AT);
+            sbom.setImportedBy("pipeline");
+            sbom.setApiKeyId(source.getApiKeyId());
+            long sbomId = beans.getBean(BuildSbomRepository.class).save(sbom).getId();
+            BuildSbomComponentEntity listed = new BuildSbomComponentEntity();
+            listed.setImportId(sbomId);
+            listed.setName("spring-jcl");
+            listed.setVersion("6.1.14");
+            listed.setPurl("pkg:maven/org.springframework/spring-jcl@6.1.14");
+            beans.getBean(BuildSbomComponentRepository.class).save(listed);
+        }
+    }
+
+    /**
+     * How many rows each dependent table holds for {@code target}, reached the way the schema reaches
+     * them: by the target's column, or through its issues and scans.
+     */
+    Map<String, Integer> rowsNaming(ScanTarget target) {
+        TargetDeleted named = new TargetDeleted(target);
+        String column = target instanceof ScanTarget.Repository ? "repo_id" : "container_id";
+        long id = named.id();
+        String issues = "select i.id from t_issue i where i." + column + " = " + id;
+        String scans = "select s.id from t_scan s where s." + column + " = " + id;
+        // Children are also reached through the identifiers the fixture wrote, so a child whose
+        // parent was deleted without it — the orphan this test exists to catch — still counts.
+        Map<String, Integer> rows = new LinkedHashMap<>();
+        rows.put("t_user_target", count("t_user_target where target_kind = ? and target_id = ?", named.kind(), id));
+        rows.put("t_team_target", count("t_team_target where target_kind = ? and target_id = ?", named.kind(), id));
+        rows.put("t_api_key", count("t_api_key where target_kind = ? and target_id = ?", named.kind(), id));
+        rows.put("t_gate_policy", count("t_gate_policy where target_kind = ? and target_id = ?", named.kind(), id));
+        rows.put("t_scan", count("t_scan where " + column + " = ?", id));
+        rows.put("t_issue", count("t_issue where " + column + " = ?", id));
+        rows.put("t_gate_verdict", count("t_gate_verdict where " + column + " = ?", id));
+        rows.put("t_issue_triage_event", count("t_issue_triage_event where issue_id in (" + issues + ")"
+                + " or issue_id not in (select id from t_issue)"));
+        rows.put("t_issue_ticket", count("t_issue_ticket where issue_id in (" + issues + ")"
+                + " or issue_id not in (select id from t_issue)"));
+        rows.put("t_finding", count("t_finding where scan_id in (" + scans + ") or issue_id in (" + issues + ")"
+                + " or scan_id not in (select id from t_scan)"));
+        rows.put("t_component", count("t_component where scan_id in (" + scans + ")"
+                + " or scan_id not in (select id from t_scan)"));
+        rows.put("t_ai_review_result", count("t_ai_review_result where scan_id in (" + scans + ")"
+                + " or scan_id not in (select id from t_scan)"));
+        if (target instanceof ScanTarget.Repository) {
+            rows.put("t_api_endpoint", count("t_api_endpoint where repository_id = ? or scan_id in (" + scans + ")"
+                    + " or scan_id not in (select id from t_scan)", id));
+            rows.put("t_api_contract", count("t_api_contract where repository_id = ? or scan_id in (" + scans + ")", id));
+            rows.put("t_sarif_source", count("t_sarif_source where repository_id = ?", id));
+            rows.put("t_sarif_import", count("t_sarif_import where repo_id = ?", id));
+            rows.put("t_coverage_import", count("t_coverage_import where repo_id = ?", id));
+            rows.put("t_coverage_package", count("t_coverage_package where import_id in (select c.id from "
+                    + "t_coverage_import c where c.repo_id = ?) or import_id not in (select id from t_coverage_import)",
+                    id));
+            rows.put("t_build_sbom", count("t_build_sbom where repo_id = ?", id));
+            rows.put("t_build_sbom_component", count("t_build_sbom_component where import_id in (select b.id from "
+                    + "t_build_sbom b where b.repo_id = ?) or import_id not in (select id from t_build_sbom)", id));
+            rows.put("t_test_report_import", count("t_test_report_import where repo_id = ?", id));
+            rows.put("t_test_suite_result", count("t_test_suite_result where import_id in (select t.id from "
+                    + "t_test_report_import t where t.repo_id = ?) or import_id not in (select id from t_test_report_import)",
+                    id));
+        }
+        return rows;
+    }
+
+    private int count(String fromWhere, Object... arguments) {
+        Integer count = jdbc.queryForObject("select count(*) from " + fromWhere, Integer.class, arguments);
+        return count == null ? 0 : count;
+    }
+}

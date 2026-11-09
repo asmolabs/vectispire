@@ -1,0 +1,547 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { Epss } from './epss';
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
+import { aiAdvisorStatus } from '@/app/core/testing/intel.fixtures';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+
+/**
+ * The screen where one looks at a CVE before knowing whether it concerns them.
+ *
+ * <p><b>This is where the question "what is it" gets asked, and there was nowhere to ask it.</b>
+ * The advisor was reachable only from a finding in the estate — that is, only once the answer was
+ * already "yes, it concerns you". The route explaining an arbitrary CVE existed, with a
+ * deterministic fallback for those the estate does not carry, and no component called it.
+ */
+describe('EPSS prioritisation', () => {
+    let fixture: ComponentFixture<Epss>;
+    let http: HttpTestingController;
+
+    const RECORD = asSchema('ThreatIntelRecord', {
+        cveId: 'CVE-2021-44228',
+        epssScore: 0.97,
+        epssPercentile: 0.99,
+        isKev: true,
+        dateAdded: '2021-12-10',
+        notes: null
+    });
+
+    /** Mounts the screen and answers the two start-up calls. */
+    async function mount(aiEnabled: boolean): Promise<void> {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Epss],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
+        }).compileComponents();
+
+        TestBed.inject(I18nService).translations.set({
+            common: { close: 'Close' },
+            epss: {
+                explain: 'Explain this CVE (AI)',
+                explain_failed: 'The model did not answer. Nothing was produced.'
+            },
+            // Deliberately not the English the server carries: a case asserting on the same words
+            // could not tell a translated sentence from the fallback printed as it stands.
+            ai: {
+                summary: 'TRANSLATED: {{id}} touche {{package}} {{version}}',
+                summary_no_component: 'TRANSLATED: {{id}}, composant inconnu',
+                kev_listed: 'KEV: inscrite.',
+                kev_not_listed: 'KEV: absente.',
+                kev_unknown: 'KEV: inconnue.',
+                epss: 'EPSS: {{chance}}.',
+                epss_unknown: 'EPSS: inconnue.',
+                fix_none: 'Aucun correctif enregistré.'
+            }
+        });
+
+        fixture = TestBed.createComponent(Epss);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+
+        http.expectOne((call) => call.url === '/api/v1/epss/priorities').flush(
+            asSchema('EpssFleetSummary', {
+                totalVulnerabilities: 0,
+                activeKevCount: 0,
+                highEpssCount: 0,
+                averageFleetEpss: 0,
+                topPriorities: [],
+                breakdownByTier: {}
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush(
+            aiAdvisorStatus(aiEnabled, { availableModels: [] })
+        );
+        fixture.detectChanges();
+    }
+
+    /** Searches for a CVE and renders the card. */
+    function lookup(): void {
+        fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
+        fixture.componentInstance.searchCve();
+        http.expectOne((call) => call.url.includes('/api/v1/epss/cve/')).flush(RECORD);
+        fixture.detectChanges();
+    }
+
+    beforeEach(async () => {
+        await mount(true);
+    }, 20_000);
+
+    it('a sync that could not read the catalogue is shown as a failure, with its reason', () => {
+        fixture.componentInstance.syncThreatIntel();
+        http.expectOne({ method: 'POST', url: '/api/v1/epss/sync' }).flush(
+            asSchema('ThreatIntelSyncStatus', {
+                lastSyncedAt: '2026-09-27T06:00:00Z',
+                totalCves: 1480,
+                totalKev: 1478,
+                status: 'FAILED',
+                backlogUpdatedCount: 0,
+                kevCatalogVersion: '2026.09.26',
+                kevReleasedAt: '2026-09-26T15:00:00Z',
+                lastAttemptAt: '2026-09-27T12:00:00Z',
+                lastError: 'KEV catalogue: connection refused',
+                epss: {
+                    status: 'SYNCED',
+                    lastSyncedAt: '2026-09-27T06:00:00Z',
+                    modelVersion: 'v2025.03.14',
+                    scoreDate: '2026-09-26T12:00:00Z',
+                    totalScored: 380066,
+                    lastAttemptAt: '2026-09-27T12:00:00Z',
+                    lastError: null,
+                    backlogUpdatedCount: 0,
+                    inProgress: false
+                }
+            })
+        );
+
+        expect(fixture.componentInstance.error()).toBe('KEV catalogue: connection refused');
+        expect(fixture.componentInstance.syncFeedback()).toBeNull();
+    });
+
+    it('a sync whose EPSS file could not be read is a failure too, though the catalogue was read', () => {
+        // The ranking on this screen is made of the file's scores: announced as a success, the sync
+        // would say they are today's when they are exactly as old as they were.
+        fixture.componentInstance.syncThreatIntel();
+        http.expectOne({ method: 'POST', url: '/api/v1/epss/sync' }).flush(
+            asSchema('ThreatIntelSyncStatus', {
+                lastSyncedAt: '2026-09-27T12:00:00Z',
+                totalCves: 1480,
+                totalKev: 1478,
+                status: 'SYNCED',
+                backlogUpdatedCount: 0,
+                kevCatalogVersion: '2026.09.27',
+                kevReleasedAt: '2026-09-27T10:00:00Z',
+                lastAttemptAt: '2026-09-27T12:00:00Z',
+                lastError: null,
+                epss: {
+                    status: 'FAILED',
+                    lastSyncedAt: '2026-09-26T06:00:00Z',
+                    modelVersion: 'v2025.03.14',
+                    scoreDate: '2026-09-25T12:00:00Z',
+                    totalScored: 380066,
+                    lastAttemptAt: '2026-09-27T12:00:00Z',
+                    lastError: 'the file is not a whole gzip archive',
+                    backlogUpdatedCount: 0,
+                    inProgress: false
+                }
+            })
+        );
+
+        expect(fixture.componentInstance.error()).toBe('the file is not a whole gzip archive');
+        expect(fixture.componentInstance.syncFeedback()).toBeNull();
+    });
+
+    it('explains the CVE on screen, and not the one typed in the field', () => {
+        lookup();
+
+        // The card is authoritative: the field may have been edited since the search, and
+        // explaining one CVE under another's numbers is the worst of both worlds.
+        fixture.componentInstance.cveSearchQuery = 'CVE-2000-0000';
+        fixture.componentInstance.explain();
+
+        const call = http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'));
+        expect(call.request.url).toContain('CVE-2021-44228');
+        // The model answers in the screen's language; the component is not the caller's to state.
+        expect(call.request.params.get('language')).toBe('en');
+        expect(call.request.params.keys()).toEqual(['language']);
+        call.flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: 'Log4Shell',
+                summaryExplanation: 'Remote code execution.',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: {
+                    fixAction: 'Upgrade to 2.17.1',
+                    suggestedVersion: '2.17.1',
+                    codeSnippetOrDiff: '',
+                    cliCommand: ''
+                },
+                vexSuggestion: { status: 'affected', justification: '', impactStatement: '', actionStatement: '' },
+                references: []
+            })
+        );
+        fixture.detectChanges();
+
+        // On the signal and not on the DOM: the dialog renders into an overlay attached outside the
+        // component's own element.
+        expect(fixture.componentInstance.advice()?.summaryExplanation).toBe('Remote code execution.');
+    });
+
+    it('clears the explanation when another CVE is searched for', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'Remote code execution.',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: []
+            })
+        );
+
+        // An analysis left under another CVE's numbers reads as that CVE's own.
+        lookup();
+        expect(fixture.componentInstance.advice()).toBeNull();
+    });
+
+    /**
+     * Clearing was not enough: an explanation still on its way for the previous CVE arrived after the
+     * next search had cleared it, and the model's words about Log4Shell sat under another CVE's
+     * numbers. The answer below comes last on purpose.
+     */
+    it("does not show the previous CVE's explanation when it arrives after the next search", () => {
+        lookup();
+        fixture.componentInstance.explain();
+        const slow = http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'));
+
+        fixture.componentInstance.cveSearchQuery = 'CVE-2023-4863';
+        fixture.componentInstance.searchCve();
+        http.expectOne((call) => call.url.includes('/api/v1/epss/cve/')).flush(
+            asSchema('ThreatIntelRecord', { ...RECORD, cveId: 'CVE-2023-4863' })
+        );
+        // A request still open would deliver the old explanation now; a cancelled one cannot.
+        if (!slow.cancelled) {
+            slow.flush(
+                asSchema('AiVulnerabilityAdvice', {
+                    identifier: 'CVE-2021-44228',
+                    title: '',
+                    summaryExplanation: 'LOG4SHELL ADVICE',
+                    exploitMechanics: '',
+                    exposureAssessment: '',
+                    remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                    vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                    references: []
+                })
+            );
+        }
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('CVE-2023-4863');
+        expect(text).not.toContain('LOG4SHELL ADVICE');
+        // The button is offered again for the CVE now on screen, not left spinning for the last one.
+        expect(text).toContain('Explain this CVE (AI)');
+        expect(fixture.componentInstance.adviceLoading()).toBe(false);
+    });
+
+    it("shows the CVE searched last when the previous search's answer comes last", () => {
+        fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
+        fixture.componentInstance.searchCve();
+        fixture.componentInstance.cveSearchQuery = 'CVE-2023-4863';
+        fixture.componentInstance.searchCve();
+
+        const [first, second] = http.match((call) => call.url.includes('/api/v1/epss/cve/'));
+        second.flush(asSchema('ThreatIntelRecord', { ...RECORD, cveId: 'CVE-2023-4863' }));
+        if (!first.cancelled) first.flush(RECORD);
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('CVE-2023-4863');
+        expect(text).not.toContain('CVE-2021-44228');
+    });
+
+    /**
+     * **Whose words are on the screen.**
+     *
+     * These fields carry a model's own prose when a model answers, so they cannot become tokens.
+     * What the server says instead is who wrote them: `deterministic` is set only when the product
+     * wrote them itself, and then the screen must render the reader's language rather than the
+     * English the response carries.
+     *
+     * Before this, the fallback was French for everybody — including the English reader — and the
+     * screen printed whatever arrived.
+     */
+    it('translates the wording the product wrote itself', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: [],
+                deterministic: {
+                    packageName: 'log4j-core',
+                    currentVersion: '2.14.1',
+                    targetVersion: '2.17.1',
+                    kev: 'NOT_LISTED',
+                    exploitProbability: null
+                }
+            })
+        );
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('TRANSLATED: CVE-2021-44228 touche log4j-core 2.14.1');
+        expect(text).not.toContain('ENGLISH FALLBACK FROM THE SERVER');
+    });
+
+    it('rewords the product wording when the language changes, without asking again', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+                exploitMechanics: 'x',
+                exposureAssessment: '',
+                remediation: { fixAction: 'x', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: [],
+                deterministic: {
+                    packageName: 'log4j-core',
+                    currentVersion: '2.14.1',
+                    targetVersion: null,
+                    kev: 'NOT_LISTED',
+                    exploitProbability: null
+                }
+            })
+        );
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('KEV: absente.');
+
+        useEnglish();
+        TestBed.inject(I18nService).translations.update((bundle) => ({
+            ...bundle,
+            ai: { ...(bundle['ai'] as object), kev_not_listed: 'KEV: SWITCHED.' }
+        }));
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('KEV: SWITCHED.');
+        expect(document.body.textContent).not.toContain('KEV: absente.');
+        http.expectNone((request) => request.url.includes('/ai-advisor/explain/cve/'));
+    });
+
+    it("words each priority's tier in the reader language, after a switch too", () => {
+        useEnglish();
+        const priority = (issueId: number, priorityTier: 'CRITICAL_ARMED' | 'LOW_PROBABILITY') => ({
+            issueId,
+            identifier: `CVE-2026-000${issueId}`,
+            title: 'something',
+            severity: 'high',
+            targetName: 'alpha',
+            targetKind: 'repository',
+            recommendedAction: 'P0_48H' as const,
+            priorityTier,
+            priorityScore: 90,
+            isKev: false,
+            cvssScore: null,
+            epssScore: null,
+            epssPercentile: null
+        });
+        fixture.componentInstance.summary.set(
+            asSchema('EpssFleetSummary', {
+                totalVulnerabilities: 2,
+                activeKevCount: 0,
+                highEpssCount: 0,
+                averageFleetEpss: 0,
+                topPriorities: [priority(1, 'CRITICAL_ARMED'), priority(2, 'LOW_PROBABILITY')],
+                breakdownByTier: {}
+            })
+        );
+        fixture.detectChanges();
+        const tags = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody .p-tag')]
+                .filter((tag) => /P[0-3]/.test(tag.textContent))
+                .map((tag) => [tag.textContent.trim(), tag.className.match(/p-tag-(danger|secondary)/)?.[1]]);
+        expect(tags()).toEqual([
+            ['Critical / Weaponised (P0)', 'danger'],
+            ['Low probability (P3)', 'secondary']
+        ]);
+        useFrench();
+        fixture.detectChanges();
+        expect(tags().map(([label]) => label)).toEqual(['Critique / Armée (P0)', 'Faible probabilité (P3)']);
+    });
+
+    /**
+     * A CVE the estate does not carry, asked about before either feed was read.
+     *
+     * The server answered 75 % and "actively exploited" for CVE-2021-44228 because its identifier
+     * was typed into the code; and had it sent no score, this screen would have printed 85 %.
+     */
+    it('says unknown for an exploitation nobody measured, and fills in no component or fix', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+                exploitMechanics: 'ENGLISH MECHANICS FROM THE SERVER',
+                exposureAssessment: '',
+                remediation: {
+                    fixAction: 'ENGLISH FIX FROM THE SERVER',
+                    suggestedVersion: null,
+                    codeSnippetOrDiff: '',
+                    cliCommand: ''
+                },
+                vexSuggestion: {
+                    status: 'under_investigation',
+                    justification: '',
+                    impactStatement: '',
+                    actionStatement: ''
+                },
+                references: [],
+                deterministic: {
+                    packageName: null,
+                    currentVersion: null,
+                    targetVersion: null,
+                    kev: 'UNKNOWN',
+                    exploitProbability: null
+                }
+            })
+        );
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('TRANSLATED: CVE-2021-44228, composant inconnu');
+        expect(text).toContain('KEV: inconnue. EPSS: inconnue.');
+        expect(text).toContain('Aucun correctif enregistré.');
+        expect(text).not.toContain('85');
+        expect(text).not.toContain('ENGLISH MECHANICS FROM THE SERVER');
+    });
+
+    it('states the listing and the score the feeds hold, unrounded to zero', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: '',
+                exploitMechanics: 'ENGLISH MECHANICS FROM THE SERVER',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: null, codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: 'affected', justification: '', impactStatement: '', actionStatement: '' },
+                references: [],
+                deterministic: {
+                    packageName: null,
+                    currentVersion: null,
+                    targetVersion: null,
+                    kev: 'LISTED',
+                    exploitProbability: 0.00043
+                }
+            })
+        );
+        fixture.detectChanges();
+
+        expect(document.body.textContent ?? '').toContain('KEV: inscrite. EPSS: 0.043%.');
+    });
+
+    it('shows no percentile for a CVE the EPSS file does not score', () => {
+        fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
+        fixture.componentInstance.searchCve();
+        http.expectOne((call) => call.url.includes('/api/v1/epss/cve/')).flush(
+            asSchema('ThreatIntelRecord', {
+                ...RECORD,
+                epssScore: null,
+                epssPercentile: null
+            })
+        );
+        fixture.detectChanges();
+
+        // The card printed "0.0e %" — a rank nobody computed — beside an EPSS shown as "—".
+        const text = document.body.textContent ?? '';
+        expect(text).not.toContain('0.0e');
+    });
+
+    it("writes the lookup's probability and percentile in the reader's marks", () => {
+        useEnglish();
+        lookup();
+        const card = () => (document.body.textContent ?? '').replace(/\s+/g, ' ');
+        // Each language spaces the sign its own way: none in English, a no-break space in French.
+        expect(document.body.textContent).toContain('97.00%');
+        expect(card()).toContain('pctl 99.0');
+
+        // The percentile was `toFixed(1) + 'e %'`: a French ordinal glued to an English decimal.
+        useFrench();
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('97,00\u00a0%');
+        expect(card()).toContain('99,0e pctl');
+    });
+
+    it('shows the matrix and its help as text, with no HTML entity left in them', () => {
+        useFrench();
+        fixture.detectChanges();
+        const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+        expect(text).toContain('CVSS × EPSS');
+        expect(text).toContain('EPSS ≥ 50\u00a0% et CVSS ≥ 7,0');
+        expect(text).not.toMatch(/&(?:[a-z]+|#\d+);/);
+    });
+
+    it("leaves a model's own words alone", () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'What the model actually wrote.',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: []
+            })
+        );
+        fixture.detectChanges();
+
+        // Rewriting a model's sentence in this product's words would be putting words in its mouth,
+        // on a screen whose whole point is to show what the model said.
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('What the model actually wrote.');
+        expect(text).not.toContain('TRANSLATED:');
+    });
+
+    it('says the model did not answer, rather than showing nothing', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).error(
+            new ProgressEvent('failed')
+        );
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.adviceError()).toContain('did not answer');
+        expect(fixture.componentInstance.adviceLoading()).toBe(false);
+    });
+
+    it('offers nothing to explain when no model is configured', async () => {
+        await mount(false);
+        lookup();
+
+        // An absent option must be absent, not present and refusing.
+        expect(fixture.componentInstance.aiEnabled()).toBe(false);
+        expect(document.body.textContent).not.toContain('Explain this CVE');
+    });
+});

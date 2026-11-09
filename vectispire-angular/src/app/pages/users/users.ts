@@ -1,0 +1,522 @@
+import { DatePipe } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import type { Observable } from 'rxjs';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { DialogModule } from '@openng/optimus-ui/dialog';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { MultiSelectModule } from '@openng/optimus-ui/multiselect';
+import { SelectModule } from '@openng/optimus-ui/select';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
+import { AccountChange, AccountsApi } from '../../core/api/accounts.api';
+import { SettingsApi } from '../../core/api/settings.api';
+import { SolutionsApi } from '../../core/api/solutions.api';
+import type {
+    AccountRequest,
+    ApiKeyTargets,
+    SolutionTree,
+    TargetGrant,
+    UserSummary,
+    UserTargetAssignment
+} from '../../core/api.models';
+import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
+import { grantOptions } from '../../shared/grant-options';
+
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
+@Component({
+    selector: 'app-users',
+    imports: [
+        DatePipe,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        MultiSelectModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './users.html'
+})
+export class Users {
+    private readonly i18n = inject(I18nService);
+    private readonly accountsApi = inject(AccountsApi);
+    private readonly settingsApi = inject(SettingsApi);
+    private readonly solutionsApi = inject(SolutionsApi);
+    readonly roles = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('roles.user'), value: 'USER' },
+            // Between USER and the roles that act: sees the whole estate, changes none of it.
+            { label: this.i18n.t('roles.auditor'), value: 'AUDITOR' },
+            { label: this.i18n.t('roles.security_champion'), value: 'SECURITY_CHAMPION' },
+            { label: this.i18n.t('roles.ciso'), value: 'CISO' },
+            { label: this.i18n.t('roles.admin'), value: 'ADMIN' },
+            { label: this.i18n.t('roles.superuser'), value: 'SUPERUSER' }
+        ];
+    });
+
+    readonly users = signal<UserSummary[]>([]);
+    readonly currentUserId = signal<number | null>(null);
+    /**
+     * Each account with which of its actions it offers, worked out per list or reader rather than by
+     * two methods per row on every pass.
+     */
+    readonly rows = computed(() =>
+        this.users().map((user) => ({
+            ...user,
+            canLift: this.canLift(user),
+            canResetSecondFactor: this.canResetSecondFactor(user)
+        }))
+    );
+    readonly loading = signal(true);
+    readonly saving = signal(false);
+    /** The id of the row being modified: two simultaneous actions on the same account would
+     *  both start from an already stale state. */
+    readonly busy = signal<number | null>(null);
+    readonly error = signal<string | null>(null);
+    readonly formError = signal<string | null>(null);
+    readonly formVisible = signal(false);
+    readonly resetVisible = signal(false);
+    readonly deleteVisible = signal(false);
+    readonly pendingReset = signal<UserSummary | null>(null);
+    readonly pendingDelete = signal<UserSummary | null>(null);
+    readonly liftVisible = signal(false);
+    readonly pendingLift = signal<UserSummary | null>(null);
+    readonly secondFactorVisible = signal(false);
+    readonly pendingSecondFactor = signal<UserSummary | null>(null);
+    readonly isEmpty = computed(() => this.users().length === 0);
+
+    /**
+     * The account gestures four-eyes holds for a second administrator. Shown above the accounts,
+     * because the list below still shows each account as it was: a role change that waits reads, on
+     * the row, as a change that did not happen.
+     */
+    readonly requests = signal<AccountRequest[]>([]);
+    /**
+     * Each request with its roles named and whether it is the caller's own, worked out per list, language or
+     * reader — as `rows` is for the accounts — rather than by method calls on every pass.
+     */
+    readonly requestRows = computed(() =>
+        this.requests().map((request) => ({
+            ...request,
+            own: this.isOwnRequest(request),
+            heldLabel: this.roleLabel(request.heldRole),
+            requestedLabel: this.roleLabel(request.requestedRole)
+        }))
+    );
+    readonly requestsError = signal<string | null>(null);
+    /** The request being approved or rejected: one decision at a time on each. */
+    readonly requestBusy = signal<number | null>(null);
+    /**
+     * Said after a gesture the server filed rather than applied (202). Without it the dialog closed
+     * as on a success and the list came back unchanged, which reads as a change silently lost.
+     */
+    readonly notice = signal<string | null>(null);
+
+    form = { username: '', displayName: '', role: 'USER', password: '' };
+    resetPassword = '';
+
+    /**
+     * Visibility, account by account.
+     *
+     * <p><b>This half of the model could only be administered through the API.</b>
+     * {@code VisibilityService} reads the direct assignments to decide what an account sees — it is
+     * the read scope of the entire application — and teams had their screen when accounts had none.
+     * Restricting somebody took a `curl`, which amounts to not offering the restriction at all.
+     */
+    readonly accessVisible = signal(false);
+    readonly accessUser = signal<UserSummary | null>(null);
+    private readonly targets = signal<ApiKeyTargets | null>(null);
+    /** Where the grantable projects come from: every project, named "Solution / Project". */
+    private readonly tree = signal<SolutionTree | null>(null);
+    /**
+     * What the open account holds, as the server names it. Kept beside the selection so a grant
+     * the lists above do not carry still has an option to be shown by — see `grantOptions`.
+     */
+    private readonly grants = signal<TargetGrant[]>([]);
+
+    /** Labelled at render time, not at load: the language changes at runtime. */
+    readonly targetOptions = computed(() => {
+        this.i18n.translations();
+        return grantOptions(this.targets(), this.tree(), this.grants(), {
+            repository: this.i18n.t('users.target_repository'),
+            container: this.i18n.t('users.target_image'),
+            project: this.i18n.t('users.target_project')
+        });
+    });
+    /**
+     * A signal because the dialog fills it from the answer to `userTargets`, after it has opened:
+     * a plain field written from a subscription is not rendered in a zoneless application, so the
+     * dialog showed nothing ticked, and saving it as shown took every grant away.
+     */
+    readonly selectedTargets = signal<string[]>([]);
+
+    /**
+     * The deployment's visibility mode, read so the screen can denounce itself.
+     *
+     * <p>In {@code everyone} mode, every signed-in account sees the whole estate and these
+     * assignments decide nothing. A screen letting somebody tick targets without saying so would
+     * suggest a restriction had been applied; the same fault as the work order that did not explain
+     * its single line.
+     */
+    readonly visibilityMode = signal<string | null>(null);
+
+    /** Vrai quand le mode rend ces affectations sans effet, pour personne. */
+    readonly restrictionsInactive = computed(() => this.visibilityMode() === 'everyone');
+
+    /**
+     * The open account's role ignores every restriction.
+     *
+     * <p>The globally scoped roles are exactly those that read governance — deliberately so on the
+     * server: reading the audit log or the gate policy tells you about every target's posture, so
+     * granting it to a restricted account would bypass the scope rather than be a reduced version
+     * of it.
+     */
+    readonly accessUnrestricted = computed(() => {
+        const role = this.accessUser()?.role;
+        return role != null && GOVERNANCE_READER_ROLES.includes(role);
+    });
+
+    constructor() {
+        this.reload();
+
+        // The targets and the mode are loaded separately: failing to get them degrades the dialog
+        // without preventing the administration of accounts, which is the screen's subject.
+        this.accountsApi.apiKeyTargets().subscribe({
+            next: (targets) => this.targets.set(targets ?? null),
+            error: () => this.targets.set(null)
+        });
+        this.solutionsApi.solutionTree().subscribe({
+            next: (tree) => this.tree.set(tree ?? null),
+            error: () => this.tree.set(null)
+        });
+        this.settingsApi.settings().subscribe({
+            next: (result) =>
+                this.visibilityMode.set(
+                    (result?.settings ?? []).find((setting) => setting.key === 'target_visibility')?.value ?? null
+                ),
+            error: () => this.visibilityMode.set(null)
+        });
+    }
+
+    /** Opens the visibility dialog, reading again what the account has today. */
+    openAccess(user: UserSummary): void {
+        this.accessUser.set(user);
+        this.formError.set(null);
+        this.selectedTargets.set([]);
+        this.grants.set([]);
+        this.accessVisible.set(true);
+
+        this.accountsApi.userTargets(user.id).subscribe({
+            next: (targets) => {
+                this.grants.set(targets ?? []);
+                this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`));
+            },
+            error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
+        });
+    }
+
+    /**
+     * Sends the set as it is shown, empty included.
+     *
+     * <p>Empty is a decision and not the absence of one: it is how one takes away everything
+     * somebody could see, and a guard of "send nothing if nothing is ticked" would have made that
+     * removal a button with no effect.
+     */
+    saveAccess(): void {
+        const user = this.accessUser();
+        if (!user) return;
+
+        const targets: UserTargetAssignment[] = this.selectedTargets().map((value) => {
+            const [kind, id] = value.split(':');
+            return { kind, id: Number(id) };
+        });
+
+        this.saving.set(true);
+        this.formError.set(null);
+        this.accountsApi.setUserTargets(user.id, targets).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.accessVisible.set(false);
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.access_save_failed')));
+            }
+        });
+    }
+
+    /**
+     * `preserveError` exists for one precise reason: after a refusal from the server the screen
+     * reloads the list to bring it back in line with the database — and used to erase, in the
+     * same move, the message that explained the refusal. The button then looked as though it did
+     * nothing. It only shows by clicking.
+     */
+    reload(preserveError = false): void {
+        this.reloadRequests();
+        this.loading.set(true);
+        this.accountsApi.users().subscribe({
+            next: (result) => {
+                // An answer without the list drew an empty table before the rows were computed: still.
+                this.users.set(result.users ?? []);
+                this.currentUserId.set(result.currentUserId);
+                if (!preserveError) this.error.set(null);
+                this.loading.set(false);
+            },
+            error: () => {
+                this.error.set(this.i18n.t('users.error_load'));
+                this.loading.set(false);
+            }
+        });
+    }
+
+    /** Kept apart from the accounts: a failure here must not hide the list the screen is about. */
+    private reloadRequests(): void {
+        this.accountsApi.accountRequests().subscribe({
+            next: (result) => {
+                this.requests.set(result.requests ?? []);
+                this.requestsError.set(null);
+            },
+            error: (response) => this.requestsError.set(messageOf(response, this.i18n.t('users.requests_error_load')))
+        });
+    }
+
+    /** The role's label, or the value as sent when the client does not know it. */
+    private roleLabel(role: string | null): string {
+        if (role == null) return '';
+        return this.roles().find((option) => option.value === role)?.label ?? role;
+    }
+
+    /** One's own request is withdrawn, never approved: the server refuses that, and a second pair of eyes is the point. */
+    private isOwnRequest(request: AccountRequest): boolean {
+        const me = this.currentUserId();
+        return me != null && request.requestedById === me;
+    }
+
+    approveRequest(request: AccountRequest): void {
+        this.decide(request, this.accountsApi.approveAccountRequest(request.id), 'users.requests_error_approve');
+    }
+
+    rejectRequest(request: AccountRequest): void {
+        this.decide(request, this.accountsApi.rejectAccountRequest(request.id), 'users.requests_error_reject');
+    }
+
+    /**
+     * Both lists are read again whatever the answer: an approval changes an account, and a refusal
+     * (already decided, stale, an approver not independent of the requester) usually means the
+     * request on screen is not the one the server holds.
+     */
+    private decide(
+        request: AccountRequest,
+        call: Observable<unknown>,
+        fallback: 'users.requests_error_approve' | 'users.requests_error_reject'
+    ): void {
+        if (this.requestBusy() != null) return;
+        this.requestBusy.set(request.id);
+        this.error.set(null);
+        this.notice.set(null);
+        call.subscribe({
+            next: () => {
+                this.requestBusy.set(null);
+                this.reload();
+            },
+            error: (response) => {
+                this.requestBusy.set(null);
+                this.error.set(messageOf(response, this.i18n.t(fallback)));
+                this.reload(true);
+            }
+        });
+    }
+
+    /** Says so when the server filed the gesture for a second administrator rather than applying it. */
+    private announce(change: AccountChange): void {
+        this.notice.set(change.applied ? null : this.i18n.t('users.request_filed'));
+    }
+
+    changeRole(user: UserSummary, role: string): void {
+        if (role === user.role) return;
+        this.patch(user, { role });
+    }
+
+    toggleActive(user: UserSummary): void {
+        this.patch(user, { is_active: !user.isActive });
+    }
+
+    private patch(user: UserSummary, body: { role?: string; is_active?: boolean; password?: string }): void {
+        this.busy.set(user.id);
+        this.error.set(null);
+        this.notice.set(null);
+        this.accountsApi.updateUser(user.id, body).subscribe({
+            next: (change) => {
+                this.announce(change);
+                this.busy.set(null);
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                // Le refus porte sa raison — « dernier administrateur actif », « votre
+                // own account". Replacing it with a generic message would suggest a fault where
+                // there is a rule.
+                this.error.set(messageOf(response, this.i18n.t('users.error_operation')));
+                // Reloaded to bring the list back in line with the database — otherwise the role
+                // selector keeps showing the refused value.
+                this.reload(true);
+            }
+        });
+    }
+
+    openForm(): void {
+        this.form = { username: '', displayName: '', role: 'USER', password: '' };
+        this.formError.set(null);
+        this.formVisible.set(true);
+    }
+
+    submit(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
+        this.saving.set(true);
+        this.notice.set(null);
+        this.accountsApi
+            .createUser({
+                username: this.form.username.trim(),
+                password: this.form.password,
+                role: this.form.role,
+                display_name: this.form.displayName.trim() || undefined
+            })
+            .subscribe({
+                next: (change) => {
+                    this.announce(change);
+                    this.saving.set(false);
+                    this.formVisible.set(false);
+                    this.reload();
+                },
+                error: (response) => {
+                    this.saving.set(false);
+                    this.formError.set(messageOf(response, this.i18n.t('users.error_create')));
+                }
+            });
+    }
+
+    openReset(user: UserSummary): void {
+        this.pendingReset.set(user);
+        this.resetPassword = '';
+        this.formError.set(null);
+        this.resetVisible.set(true);
+    }
+
+    confirmReset(): void {
+        const user = this.pendingReset();
+        if (!user) return;
+        this.saving.set(true);
+        this.notice.set(null);
+        this.accountsApi.updateUser(user.id, { password: this.resetPassword }).subscribe({
+            next: (change) => {
+                this.announce(change);
+                this.saving.set(false);
+                this.resetVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_reset')));
+            }
+        });
+    }
+
+    /**
+     * Offered where the server would accept it: an account the identity provider signs in, owing a
+     * change, and not one's own. An account signing in with its own password lifts the requirement by
+     * changing it — lifting it for them would keep valid a password somebody else chose.
+     */
+    private canLift(user: UserSummary): boolean {
+        return user.mustChangePassword && user.federated && user.id !== this.currentUserId();
+    }
+
+    askLift(user: UserSummary): void {
+        this.pendingLift.set(user);
+        this.formError.set(null);
+        this.liftVisible.set(true);
+    }
+
+    /** The refusal stays in the dialog, read with `messageOf`: the server's sentence says which rule. */
+    confirmLift(): void {
+        const user = this.pendingLift();
+        if (!user) return;
+        this.saving.set(true);
+        this.accountsApi.clearPasswordChangeRequirement(user.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.liftVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_lift')));
+            }
+        });
+    }
+
+    /** Offered where the server would accept it: a second factor enrolled, on an account not one's own. */
+    private canResetSecondFactor(user: UserSummary): boolean {
+        return user.mfaEnabled && user.id !== this.currentUserId();
+    }
+
+    askResetSecondFactor(user: UserSummary): void {
+        this.pendingSecondFactor.set(user);
+        this.formError.set(null);
+        this.secondFactorVisible.set(true);
+    }
+
+    /** As the lift: the refusal (the governor's rule) stays in the dialog, in the server's words. */
+    confirmResetSecondFactor(): void {
+        const user = this.pendingSecondFactor();
+        if (!user) return;
+        this.saving.set(true);
+        this.accountsApi.resetSecondFactor(user.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.secondFactorVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_second_factor')));
+            }
+        });
+    }
+
+    askDelete(user: UserSummary): void {
+        this.pendingDelete.set(user);
+        this.deleteVisible.set(true);
+    }
+
+    confirmDelete(): void {
+        const user = this.pendingDelete();
+        if (!user) return;
+        this.saving.set(true);
+        this.accountsApi.deleteUser(user.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.deleteVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.deleteVisible.set(false);
+                this.error.set(messageOf(response, this.i18n.t('users.error_delete')));
+                this.reload(true);
+            }
+        });
+    }
+}

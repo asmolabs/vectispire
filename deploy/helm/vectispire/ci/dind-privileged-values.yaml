@@ -1,0 +1,53 @@
+# Rendered in CI: agents in the cluster, with a privileged docker:dind sidecar on nodes of their own.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+networkPolicy:
+  enabled: true
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+agents:
+  enabled: true
+  controlPlaneUrl: https://vectispire.example.org
+  token:
+    secretName: vectispire-agent
+  signingKey:
+    secretName: vectispire-agent
+  knownHosts: |
+    gitlab.example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyNotARealHostKeyxxxxxxxxxxxxxxxx
+  nodeSelector:
+    vectispire.dev/agents: "true"
+  tolerations:
+    - key: vectispire.dev/agents
+      operator: Exists
+      effect: NoSchedule
+  dind:
+    imageCache:
+      enabled: true
+  networkPolicy:
+    excludeCidrs:
+      - 10.244.0.0/16
+      - 10.96.0.0/12
+    # The ingress controller, inside the excluded pod range, on its TLS port only; and a Git host over
+    # SSH, protocol stated.
+    allowTo:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: ingress-nginx
+        ports:
+          - port: 443
+      - ipBlock:
+          cidr: 10.0.30.12/32
+        ports:
+          - port: 22
+            protocol: TCP

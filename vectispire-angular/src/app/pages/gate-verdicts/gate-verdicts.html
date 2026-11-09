@@ -1,0 +1,164 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'gate_verdicts.title' | translate }}</div>
+    <p class="text-muted-color mb-4" style="max-width: 62ch">{{ 'gate_verdicts.subtitle' | translate }}</p>
+
+    @if (register(); as data) {
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <div>
+                <div class="text-2xl font-medium">{{ shown().length }}</div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.loaded' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium text-red-700">{{ data.refused }}</div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.refused' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium">
+                    @if (refusalRate() !== null) {
+                        {{ refusalRate() | localPercent }}
+                    } @else {
+                        —
+                    }
+                </div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.refusal_rate' | translate }}</div>
+            </div>
+        </div>
+
+        <label class="inline-flex items-center gap-2 mb-4 cursor-pointer">
+            <input type="checkbox" [ngModel]="refusalsOnly()" (ngModelChange)="refusalsOnly.set($event)" />
+            <span class="font-medium">{{ 'gate_verdicts.refusals_only' | translate }}</span>
+        </label>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="border-collapse: collapse">
+                <thead>
+                    <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.target' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.verdict' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.examined' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium">{{ 'gate_verdicts.column.policy' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.asked_by' | translate }}
+                        </th>
+                        <th class="py-2 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.when' | translate }}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (entry of rows(); track entry.verdict.id) {
+                        <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
+                            <td class="py-3 pr-4">
+                                <div class="font-medium">
+                                    @if (entry.verdict.target_kind === null) {
+                                        —
+                                    } @else if (entry.verdict.target_name) {
+                                        {{ entry.verdict.target_name }}
+                                    } @else {
+                                        {{
+                                            entry.verdict.target_kind === 'REPOSITORY'
+                                                ? ('gate_verdicts.kind.repository' | translate)
+                                                : ('gate_verdicts.kind.container' | translate)
+                                        }}
+                                        {{ entry.verdict.target_id }}
+                                    }
+                                </div>
+                                @if (entry.verdict.target_kind !== null && entry.verdict.target_name) {
+                                    <div class="text-muted-color text-xs">
+                                        {{
+                                            entry.verdict.target_kind === 'REPOSITORY'
+                                                ? ('gate_verdicts.kind.repository' | translate)
+                                                : ('gate_verdicts.kind.container' | translate)
+                                        }}
+                                    </div>
+                                }
+                            </td>
+                            <td class="py-3 pr-4">
+                                @if (entry.verdict.passed) {
+                                    <p-tag severity="success" [value]="'gate_verdicts.passed' | translate" />
+                                } @else {
+                                    <p-tag severity="danger" [value]="'gate_verdicts.refused_one' | translate" />
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                <div>{{ entry.verdict.evaluated }}</div>
+                                @if (entry.verdict.evaluated === 0) {
+                                    <div class="text-muted-color text-xs">
+                                        {{ 'gate_verdicts.nothing_to_judge' | translate }}
+                                    </div>
+                                } @else if (entry.verdict.violations > 0) {
+                                    <div class="text-red-700 text-xs font-medium">
+                                        {{ entry.verdict.violations }} {{ 'gate_verdicts.in_violation' | translate }}
+                                    </div>
+                                } @else {
+                                    <div class="text-muted-color text-xs">
+                                        {{ 'gate_verdicts.no_violation' | translate }}
+                                    </div>
+                                }
+                            </td>
+                            <td class="py-3 pr-4">
+                                <div>
+                                    {{ 'gate_verdicts.fails_at' | translate }}
+                                    <strong>{{ entry.verdict.fail_on_severity | severityLabel }}</strong>
+                                </div>
+                                <div class="text-muted-color text-xs">
+                                    {{ entry.verdict.policy_source | policySource }}
+                                    @if (entry.verdict.policy_version) {
+                                        <span> · v{{ entry.verdict.policy_version }}</span>
+                                    }
+                                </div>
+                                @if (entry.verdict.relaxations_ignored) {
+                                    <div class="text-orange-700 text-xs font-medium">
+                                        {{ 'gate_verdicts.relaxation_refused' | translate }}
+                                    </div>
+                                }
+                                @for (count of entry.counts; track count.severity) {
+                                    <span class="text-muted-color text-xs mr-2"
+                                        >{{ count.severity | severityLabel }} {{ count.count }}</span
+                                    >
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs">
+                                {{ entry.verdict.decided_by ?? ('gate_verdicts.unattributed' | translate) }}
+                            </td>
+                            <td class="py-3 whitespace-nowrap text-muted-color">
+                                {{ entry.verdict.decided_at | date: 'dd/MM/yyyy HH:mm' }}
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td class="py-6 text-muted-color" colspan="6">
+                                {{
+                                    refusalsOnly()
+                                        ? ('gate_verdicts.empty_refusals' | translate)
+                                        : ('gate_verdicts.empty' | translate)
+                                }}
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (hasMore()) {
+            <div class="mt-4">
+                <p-button
+                    [label]="'gate_verdicts.more' | translate"
+                    [outlined]="true"
+                    [disabled]="loadingMore()"
+                    (onClick)="more()"
+                />
+            </div>
+        }
+
+        <p class="text-muted-color text-sm mt-4" style="max-width: 72ch">{{ 'gate_verdicts.footnote' | translate }}</p>
+    } @else if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full" />
+    }
+</div>

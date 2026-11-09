@@ -1,0 +1,163 @@
+import { KeyValuePipe, NgClass, NgTemplateOutlet } from '@angular/common';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { DialogModule } from '@openng/optimus-ui/dialog';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { SelectModule } from '@openng/optimus-ui/select';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { TargetsApi } from '../../core/api/targets.api';
+import { ExposureApi } from '../../core/api/exposure.api';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
+import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { NodeIconPipe, RiskScoreColorPipe, SeverityTonePipe } from './attack-paths.pipes';
+
+@Component({
+    selector: 'app-attack-paths',
+    imports: [
+        KeyValuePipe,
+        NgClass,
+        NgTemplateOutlet,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        MessageModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe,
+        SeverityLabelPipe,
+        SeverityTonePipe,
+        NodeIconPipe,
+        RiskScoreColorPipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './attack-paths.html'
+})
+export class AttackPaths implements OnInit {
+    private readonly graphRequest = new LatestRequest();
+
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly exposureApi = inject(ExposureApi);
+    private readonly i18n = inject(I18nService);
+
+    readonly repositories = signal<MonitoredRepository[]>([]);
+    readonly selectedRepoId = signal<number | null>(null);
+    readonly graph = signal<AttackPathGraph | null>(null);
+    readonly overviewList = signal<AttackPathGraph[]>([]);
+    readonly loading = signal<boolean>(false);
+    readonly error = signal<string | null>(null);
+    /** The fleet overview's failure, said in its tab: an empty table there read as an estate with no path. */
+    readonly overviewError = signal<string | null>(null);
+
+    readonly selectedNode = signal<AttackPathNode | null>(null);
+    readonly nodeDetailsVisible = signal<boolean>(false);
+    readonly selectedPath = signal<AttackPath | null>(null);
+    readonly filterCriticalOnly = signal<boolean>(false);
+    readonly activeTab = signal<'graph' | 'paths' | 'overview'>('graph');
+
+    // Grouping nodes by logical topological column
+    readonly ingressNodes = computed(() => {
+        const g = this.graph();
+        if (!g) return [];
+        return g.nodes.filter((n) => n.type === 'INTERNET_INGRESS');
+    });
+
+    readonly endpointNodes = computed(() => {
+        const g = this.graph();
+        if (!g) return [];
+        const nodes = g.nodes.filter((n) => n.type === 'API_ENDPOINT');
+        return this.filterCriticalOnly() ? nodes.filter((n) => n.isExploitable) : nodes;
+    });
+
+    readonly vulnNodes = computed(() => {
+        const g = this.graph();
+        if (!g) return [];
+        const nodes = g.nodes.filter((n) => n.type === 'VULNERABLE_COMPONENT');
+        return this.filterCriticalOnly() ? nodes.filter((n) => n.isExploitable) : nodes;
+    });
+
+    readonly sinkNodes = computed(() => {
+        const g = this.graph();
+        if (!g) return [];
+        return g.nodes.filter((n) => n.type === 'SECRET' || n.type === 'DATABASE' || n.type === 'INFRASTRUCTURE');
+    });
+
+    readonly highlightedNodeIds = computed(() => {
+        const sp = this.selectedPath();
+        if (!sp) return new Set<string>();
+        return new Set(sp.nodeIds);
+    });
+
+    ngOnInit(): void {
+        this.loadRepositories();
+        this.loadOverview();
+    }
+
+    loadRepositories(): void {
+        this.targetsApi.repositories().subscribe({
+            next: (repos) => {
+                this.repositories.set(repos);
+                if (repos.length > 0 && !this.selectedRepoId()) {
+                    this.selectedRepoId.set(repos[0].id);
+                    this.loadGraph(repos[0].id);
+                }
+            },
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('repositories.error_load')))
+        });
+    }
+
+    loadOverview(): void {
+        this.overviewError.set(null);
+        this.exposureApi.getAttackPathsOverview().subscribe({
+            next: (list) => this.overviewList.set(list),
+            error: (response: unknown) =>
+                this.overviewError.set(messageOf(response, this.i18n.t('attack_paths.error_overview')))
+        });
+    }
+
+    onRepoChange(repoId: number): void {
+        this.selectedRepoId.set(repoId);
+        this.selectedNode.set(null);
+        this.selectedPath.set(null);
+        this.loadGraph(repoId);
+    }
+
+    loadGraph(repoId: number): void {
+        this.loading.set(true);
+        this.error.set(null);
+        this.graphRequest.run(this.exposureApi.getAttackPathGraph(repoId), {
+            next: (g) => {
+                this.graph.set(g);
+                this.loading.set(false);
+            },
+            error: (response: unknown) => {
+                // The previous repository's chain must not stay under the selector naming this one:
+                // it would attribute one target's exposure to another.
+                this.graph.set(null);
+                this.error.set(messageOf(response, this.i18n.t('attack_paths.error_graph')));
+                this.loading.set(false);
+            }
+        });
+    }
+
+    inspectNode(node: AttackPathNode): void {
+        this.selectedNode.set(node);
+        this.nodeDetailsVisible.set(true);
+    }
+
+    focusPath(path: AttackPath | null): void {
+        if (this.selectedPath()?.id === path?.id) {
+            this.selectedPath.set(null);
+        } else {
+            this.selectedPath.set(path);
+        }
+    }
+}

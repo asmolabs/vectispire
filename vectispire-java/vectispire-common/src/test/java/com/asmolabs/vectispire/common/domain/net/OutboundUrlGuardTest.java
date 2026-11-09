@@ -1,0 +1,456 @@
+package com.asmolabs.vectispire.common.domain.net;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.net.InetAddress;
+import java.util.Arrays;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+@DisplayName("outbound URL guard")
+class OutboundUrlGuardTest {
+
+    /** A resolver that answers with fixed literals, so no test depends on DNS. */
+    private static OutboundUrlGuard guardResolving(String... addresses) {
+        return new OutboundUrlGuard(hostname -> Arrays.stream(addresses)
+                .map(address -> {
+                    try {
+                        return InetAddress.ofLiteral(address).getAddress();
+                    } catch (IllegalArgumentException e) {
+                        throw new AssertionError("test fixture is not an address: " + address, e);
+                    }
+                })
+                .toList());
+    }
+
+    private static final OutboundUrlGuard NO_DNS = new OutboundUrlGuard(hostname -> List.of());
+
+    @Nested
+    @DisplayName("shape of the URL")
+    class Shape {
+
+        @ParameterizedTest(name = "refuses the {0} scheme")
+        @ValueSource(strings = {"file:///etc/passwd", "gopher://host/", "ftp://host/"})
+        void refusesForeignSchemes(String url) {
+            assertThatThrownBy(() -> NO_DNS.validate(url, OutboundPolicy.INTERNAL_ALLOWED, "Scan API"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("is not allowed");
+        }
+
+        @Test
+        @DisplayName("refuses an empty value with a message naming the setting")
+        void refusesEmpty() {
+            // The message reaches an administrator on a settings screen. "Invalid URL" would
+            // send them looking at the wrong field.
+            assertThatThrownBy(() -> NO_DNS.validate("   ", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .hasMessageContaining("Webhook");
+        }
+    }
+
+    @Nested
+    @DisplayName("the metadata endpoint, refused under every policy")
+    class LinkLocal {
+
+        @ParameterizedTest(name = "refuses {0}, however it is spelled")
+        @ValueSource(strings = {
+            "169.254.169.254",
+            // The normalized IPv6 form of the same address. Comparing text rather than bytes
+            // is what let this one through a guard written on string prefixes.
+            "::ffff:169.254.169.254",
+            "::ffff:a9fe:a9fe",
+            // NAT64, which genuinely reaches the IPv4 wherever the translation exists.
+            "64:ff9b::169.254.169.254",
+            // Obsolete IPv4-compatible form, still accepted by the stacks.
+            "::169.254.169.254",
+            "fe80::1"
+        })
+        void refusesLinkLocalEverySpelling(String address) {
+            // Nothing legitimate lives in 169.254.0.0/16, and it is precisely the address the
+            // attack wants: the metadata endpoint hands out the host's credentials.
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                assertThatThrownBy(() -> guardResolving(address).validate("http://host/", policy, "Setting"))
+                        .as("policy %s", policy)
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("link-local");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("addresses no policy accepts")
+    class NeverADestination {
+
+        @ParameterizedTest(name = "{0} is a cloud metadata address")
+        @ValueSource(strings = {
+            // Alibaba Cloud, inside carrier-grade NAT, which the internal policies accept.
+            "100.100.100.200",
+            "::ffff:100.100.100.200",
+            // AWS on an IPv6-only instance, inside unique local.
+            "fd00:ec2::254",
+            // Oracle Cloud's legacy endpoint, and Azure's WireServer — a public address.
+            "192.0.0.192",
+            "168.63.129.16"
+        })
+        void refusesMetadataOutsideLinkLocal(String address) {
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                assertThatThrownBy(() -> guardResolving(address).validate("http://host/", policy, "Setting"))
+                        .as("policy %s", policy)
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("metadata");
+            }
+        }
+
+        @ParameterizedTest(name = "{0} is the unspecified address")
+        @ValueSource(strings = {"0.0.0.0", "0.1.2.3", "::", "::ffff:0.0.0.0"})
+        void refusesTheUnspecifiedAddress(String address) {
+            // A connection to it reaches this machine on Linux: under an internal policy that walked past a
+            // reservation written `localhost`.
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                assertThatThrownBy(() -> guardResolving(address).validate("http://host/", policy, "Setting"))
+                        .as("policy %s", policy)
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("unspecified");
+            }
+        }
+
+        @ParameterizedTest(name = "{0}:3306 is the database reserved as localhost")
+        @ValueSource(strings = {"127.0.0.2", "127.255.0.1", "[::1]", "[::ffff:127.0.0.9]"})
+        void loopbackIsOneMachineForAReservation(String host) {
+            OutboundUrlGuard guard = new OutboundUrlGuard(
+                    hostname -> List.of(InetAddress.ofLiteral(hostname.equals("localhost") ? "127.0.0.1" : hostname)
+                            .getAddress()),
+                    ReservedEndpoints.ofDatasource("jdbc:mysql://localhost/vectispire"));
+
+            assertThatThrownBy(() -> guard.validate("http://" + host + ":3306/", OutboundPolicy.INTERNAL_ALLOWED,
+                            "Scan API"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("no setting may send requests to");
+            assertThat(guard.validate("http://" + host + ":11434/", OutboundPolicy.INTERNAL_ALLOWED, "Scan API"))
+                    .as("another port of the same machine").isEqualTo("http://" + host + ":11434/");
+        }
+    }
+
+    @Nested
+    @DisplayName("a public destination is expected")
+    class PublicOnly {
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {
+            "127.0.0.1",
+            "10.0.0.1",
+            "172.16.0.1",
+            "192.168.1.1",
+            // Carrier-grade NAT, which InetAddress's own predicates do not classify.
+            "100.64.0.1",
+            "198.18.0.1",
+            "::1",
+            "fc00::1",
+            "::ffff:127.0.0.1"
+        })
+        void refusesInternalAddresses(String address) {
+            assertThatThrownBy(() -> guardResolving(address).validate("https://host/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+
+        @Test
+        @DisplayName("accepts a public address")
+        void acceptsPublic() {
+            assertThat(guardResolving("93.184.216.34").validate("https://example.com/hook", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isEqualTo("https://example.com/hook");
+        }
+
+        @Test
+        @DisplayName("refuses a name that resolves to both a public and a private address")
+        void checksEveryResolvedAddress() {
+            // Checking only the first answer lets the other through, which is the entire point
+            // of resolving them all.
+            assertThatThrownBy(() -> guardResolving("93.184.216.34", "10.0.0.1")
+                            .validate("https://host/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("an internal destination is expected — the endpoint receives source code")
+    class InternalRequired {
+
+        @Test
+        @DisplayName("refuses a well-formed public URL, which no anti-SSRF check would flag")
+        void refusesPublic() {
+            // The mirror image of the webhook rule. Ollama receives the scanned repository's
+            // source: the risk is that the URL points outward, and a public URL is exactly what
+            // an exfiltration channel looks like.
+            assertThatThrownBy(() -> guardResolving("93.184.216.34")
+                            .validate("https://evil.example.com/", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("receives source code");
+        }
+
+        @Test
+        @DisplayName("accepts loopback")
+        void acceptsLoopback() {
+            assertThat(guardResolving("127.0.0.1")
+                            .validate("http://localhost:11434", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isEqualTo("http://localhost:11434");
+        }
+
+        @Test
+        @DisplayName("refuses an unresolvable host rather than failing open")
+        void refusesUnresolvable() {
+            // Failing open is defensible for "is this private?". It is not defensible for
+            // "this must be private": an unresolvable name proves nothing.
+            assertThatThrownBy(() -> NO_DNS.validate("http://ollama.internal", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("could not be resolved");
+        }
+    }
+
+    @Nested
+    @DisplayName("the non-throwing variant")
+    class Reason {
+
+        @Test
+        @DisplayName("gives the reason, or nothing at all")
+        void reportsWithoutThrowing() {
+            assertThat(guardResolving("93.184.216.34").unsafeReason("https://example.com", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isEmpty();
+            assertThat(guardResolving("10.0.0.1").unsafeReason("https://host", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isPresent();
+        }
+    }
+
+    @Nested
+    @DisplayName("Vectispire's own infrastructure, refused under every policy")
+    class Reserved {
+
+        // docker-proxy resolves to 172.18.0.3, the database to 172.18.0.4; everything else to 172.18.0.9.
+        private final OutboundUrlGuard guard = new OutboundUrlGuard(
+                hostname -> List.of(InetAddress.ofLiteral(switch (hostname) {
+                            case "docker-proxy" -> "172.18.0.3";
+                            case "db" -> "172.18.0.4";
+                            default -> hostname.matches("[0-9.]+") ? hostname : "172.18.0.9";
+                        }).getAddress()),
+                java.util.stream.Stream.concat(
+                                ReservedEndpoints.ofDockerHost("tcp://docker-proxy:2375").stream(),
+                                ReservedEndpoints.ofDatasource("jdbc:mysql://db/vectispire").stream())
+                        .toList());
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {
+            "http://docker-proxy:2375/containers/create",
+            "http://DOCKER-PROXY:2375/v1.43/containers/create",
+            "http://172.18.0.3:2375/containers/create",
+            "http://db:3306/",
+            "http://172.18.0.4:3306/"
+        })
+        void refusesTheDaemonAndTheDatabase(String url) {
+            // INTERNAL_REQUIRED is the Ollama default, and the proxy is internal: no policy would
+            // have stopped a security lead pointing it at the daemon.
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                if (policy == OutboundPolicy.PUBLIC_ONLY) {
+                    continue; // refused already for being private, which is not what is under test
+                }
+                assertThatThrownBy(() -> guard.validate(url, policy, "Ollama"))
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("no setting may send requests to");
+            }
+        }
+
+        @Test
+        @DisplayName("another port on the same internal network stays reachable")
+        void anotherPortIsNotReserved() {
+            assertThat(guard.validate("http://172.18.0.3:11434/api", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isEqualTo("http://172.18.0.3:11434/api");
+            assertThat(guard.validate("http://ollama:11434/api", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isEqualTo("http://ollama:11434/api");
+        }
+
+        @Test
+        @DisplayName("a Unix socket or a file database reserves nothing, having no address")
+        void socketsReserveNothing() {
+            assertThat(ReservedEndpoints.ofDockerHost("unix:///var/run/docker.sock")).isEmpty();
+            assertThat(ReservedEndpoints.ofDockerHost("npipe:////./pipe/docker_engine")).isEmpty();
+            assertThat(ReservedEndpoints.ofDockerHost("")).isEmpty();
+            assertThat(ReservedEndpoints.ofDatasource("jdbc:sqlite:/tmp/v.db")).isEmpty();
+            assertThat(ReservedEndpoints.ofDatasource("jdbc:h2:mem:vectispire")).isEmpty();
+        }
+
+        @ParameterizedTest(name = "{0} reserves {1}")
+        @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+            // An underscore is legal in a container name and not in a java.net.URI host: the
+            // reservation silently vanished.
+            "tcp://docker_proxy:2375|docker_proxy:2375",
+            "tcp://docker-proxy|docker-proxy:2375 docker-proxy:2376",
+            "https://daemon.internal:2376/|daemon.internal:2376",
+            "tcp://[fd00::5]:2375|fd00::5:2375"
+        })
+        void theDaemonIsReadWhateverItsName(String dockerHost, String expected) {
+            assertThat(ReservedEndpoints.ofDockerHost(dockerHost))
+                    .extracting(endpoint -> endpoint.host() + ":" + endpoint.port())
+                    .containsExactly(expected.split(" "));
+        }
+
+        @ParameterizedTest(name = "{0} reserves {1}")
+        @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+            "jdbc:postgresql://pg:6543/v|pg:6543",
+            "jdbc:postgresql://pg_primary,pg_standby:5433/v?targetServerType=primary|pg_primary:5432 pg_standby:5433",
+            "jdbc:postgresql://[fd00::7]/v|fd00::7:5432",
+            "jdbc:postgresql:vectispire|localhost:5432",
+            // Every host, and the X protocol's port beside the classic one.
+            "jdbc:mysql://db/vectispire|db:3306 db:33060",
+            "jdbc:mysql://user:secret@db_1:3307/vectispire|db_1:3307 db_1:33060",
+            "jdbc:mysql://db-a:3306,db-b:3307/vectispire|db-a:3306 db-a:33060 db-b:3307 db-b:33060",
+            "jdbc:mysql:replication://primary,replica/vectispire|primary:3306 primary:33060 replica:3306 replica:33060",
+            "jdbc:mysql:loadbalance://lb-a,lb-b/vectispire|lb-a:3306 lb-a:33060 lb-b:3306 lb-b:33060",
+            "jdbc:mysql://address=(host=db_x)(port=3310)(type=source)/vectispire|db_x:3310 db_x:33060",
+            "jdbc:mysql://(host=db-kv,port=3311,user=v)/vectispire|db-kv:3311 db-kv:33060",
+            "jdbc:mysql:///vectispire|localhost:3306 localhost:33060",
+            "jdbc:mariadb:sequential://maria-a,maria-b:3307/vectispire|maria-a:3306 maria-b:3307"
+        })
+        void everyDatabaseHostIsRead(String datasource, String expected) {
+            assertThat(ReservedEndpoints.ofDatasource(datasource))
+                    .extracting(endpoint -> endpoint.host() + ":" + endpoint.port())
+                    .containsExactly(expected.split(" "));
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {
+            "jdbc:mysql+srv://_mysql._tcp.example.com/vectispire",
+            "jdbc:oracle:thin:@db:1521/v",
+            "jdbc:mysql:vectispire",
+            "jdbc:postgresql://pg:notaport/v",
+            "postgresql://pg/v"
+        })
+        void aDatasourceWhoseHostsCannotBeReadIsRefused(String datasource) {
+            // Refused rather than reserving nothing: the application then does not start, which is
+            // where an operator reads the reason.
+            assertThatThrownBy(() -> ReservedEndpoints.ofDatasource(datasource))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("refuses to start")
+                    .hasMessageNotContaining("secret");
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {"ssh://admin@docker-host", "tcp://", "tcp://:2375", "docker-proxy:2375"})
+        void aDaemonWhoseHostCannotBeReadIsRefused(String dockerHost) {
+            assertThatThrownBy(() -> ReservedEndpoints.ofDockerHost(dockerHost))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("IPv6 forms that carry an IPv4, or are not public")
+    class TunnelledForms {
+
+        @ParameterizedTest(name = "{0} is the metadata endpoint")
+        @ValueSource(strings = {
+            "2002:a9fe:a9fe::1",      // 6to4 of 169.254.169.254
+            "64:ff9b:1::a9fe:a9fe",   // local-use NAT64
+            "2001:0:1:2::5601:5601"   // Teredo, client 169.254.169.254 inverted
+        })
+        void refusedAsLinkLocal(String address) {
+            assertThatThrownBy(() -> guardResolving(address).validate("http://h/", OutboundPolicy.INTERNAL_ALLOWED, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("link-local");
+        }
+
+        @ParameterizedTest(name = "{0} is not a public destination")
+        @ValueSource(strings = {"2002:7f00:1::", "2002:a00:1::", "fec0::1", "2001:db8::1", "2001:0:1:2::80ff:fffe"})
+        void refusedWherePublicIsRequired(String address) {
+            assertThatThrownBy(() -> guardResolving(address).validate("http://h/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+
+        @Test
+        @DisplayName("a 6to4 address of a public IPv4 stays public")
+        void aPublicTunnelEndIsPublic() {
+            assertThat(guardResolving("2002:0808:0808::1").validate("http://h/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isEqualTo("http://h/");
+        }
+    }
+
+    @Nested
+    @DisplayName("a bare host and port — a syslog collector — judged by the same rules as a URL")
+    class Endpoints {
+
+        private final OutboundUrlGuard guard = new OutboundUrlGuard(
+                hostname -> List.of(InetAddress.ofLiteral(switch (hostname) {
+                            case "docker-proxy" -> "172.18.0.3";
+                            case "db" -> "172.18.0.4";
+                            // A public-looking name that answers with loopback: the rebinding shape.
+                            case "collector.rebind.example" -> "127.0.0.1";
+                            case "collector.example.com" -> "93.184.216.34";
+                            default -> hostname;
+                        }).getAddress()),
+                java.util.stream.Stream.concat(
+                                ReservedEndpoints.ofDockerHost("tcp://docker-proxy:2375").stream(),
+                                ReservedEndpoints.ofDatasource("jdbc:mysql://db/vectispire").stream())
+                        .toList());
+
+        @Test
+        @DisplayName("a public collector passes, with the address it was checked at")
+        void acceptsAPublicCollector() {
+            OutboundUrlGuard.Destination destination =
+                    guard.validateAndResolveEndpoint("collector.example.com", 6514, OutboundPolicy.PUBLIC_ONLY, "SIEM");
+
+            assertThat(destination.host()).isEqualTo("collector.example.com");
+            assertThat(destination.url()).isEqualTo("collector.example.com:6514");
+            assertThat(destination.addresses()).extracting(InetAddress::getHostAddress).containsExactly("93.184.216.34");
+        }
+
+        @ParameterizedTest(name = "refuses {0} when a public destination is expected")
+        @ValueSource(strings = {"127.0.0.1", "10.0.0.5", "::1", "collector.rebind.example"})
+        void refusesPrivateUnderPublicOnly(String host) {
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, 514, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("private or local");
+        }
+
+        @ParameterizedTest(name = "refuses the metadata address {0} even when private ones are allowed")
+        @ValueSource(strings = {"169.254.169.254", "fe80::1"})
+        void refusesLinkLocalUnderEveryPolicy(String host) {
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, 514, OutboundPolicy.INTERNAL_ALLOWED, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("link-local");
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {"docker-proxy:2375", "172.18.0.3:2375", "db:3306", "172.18.0.4:3306"})
+        void refusesTheDaemonAndTheDatabase(String endpoint) {
+            // A TCP syslog frame sent to the Docker proxy is a request the daemon tries to parse:
+            // the reservation holds for sockets exactly as it does for URLs.
+            String host = endpoint.substring(0, endpoint.indexOf(':'));
+            int port = Integer.parseInt(endpoint.substring(endpoint.indexOf(':') + 1));
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, port, OutboundPolicy.INTERNAL_ALLOWED, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("no setting may send requests to");
+        }
+
+        @Test
+        @DisplayName("loopback is reachable only when private destinations were allowed")
+        void loopbackFollowsThePolicy() {
+            assertThat(guard.validateAndResolveEndpoint("127.0.0.1", 5514, OutboundPolicy.INTERNAL_ALLOWED, "SIEM")
+                            .addresses())
+                    .extracting(InetAddress::getHostAddress)
+                    .containsExactly("127.0.0.1");
+        }
+
+        @Test
+        @DisplayName("an IPv6 literal is written back bracketed, and a bad port is refused")
+        void shape() {
+            assertThat(guardResolving("2606:4700::1111")
+                            .validateAndResolveEndpoint("[2606:4700::1111]", 6514, OutboundPolicy.PUBLIC_ONLY, "SIEM")
+                            .url())
+                    .isEqualTo("[2606:4700::1111]:6514");
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint("collector.example.com", 0, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class);
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(" ", 514, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+    }
+}

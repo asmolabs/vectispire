@@ -1,0 +1,242 @@
+# Agents
+
+Vectispire is a **Spring Boot 4 / JDK 25** control plane in [`vectispire-java/`](vectispire-java/) with an
+**Angular 22** interface in [`vectispire-angular/`](vectispire-angular/). They talk over HTTP and are
+built by different toolchains: Gradle for the backend, npm for the frontend.
+
+Read [`vectispire-java/README.md`](vectispire-java/README.md) before working there. It carries the
+module graph, what each guarantee is enforced by, and the index of the defects that were fixed
+rather than reproduced.
+
+## The stack
+
+| | |
+|---|---|
+| Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
+| Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
+| Database | MySQL 8.4 LTS and 9.x, the campaign running both — PostgreSQL's code is kept but untested and outside 1.0 (decision 0043 §3) — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
+| Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
+
+```bash
+cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites (MySQL: needs Docker)
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x and 8.4 (PostgreSQL: integrationTestPostgres, unsupported)
+
+npm ci                                            # respects the lockfile
+npm run build                                     # the Angular interface
+npm test
+```
+
+**GitHub is the forge.** The repository is `asmolabs/vectispire`; the pipeline that runs is
+[`.github/workflows/`](.github/workflows/) — `ci.yml`, `nightly.yml`, `release.yml`, and
+`docs.yml`, which builds the user guide on `develop` and pull requests and publishes it to
+GitHub Pages from `main`. [`.github/dependabot.yml`](.github/dependabot.yml) proposes weekly,
+grouped updates as pull requests against `develop` — never MkDocs 2, never Node 25, no major of
+Angular, TypeScript or vitest, which move together through `ng update`, nor of happy-dom, the
+unit-test DOM, whose majors change what every spec observes — nor a TypeScript minor, since Angular
+supports exactly one at a time, nor a Jackson 3 minor beyond the one Spring Boot manages. Playwright comes in
+a pull request of its own: the e2e image pinned in `ci.yml` and `nightly.yml` has to move with it. It is a
+rewrite of the GitLab pipeline rather than a translation, because the Docker-in-Docker
+workarounds invert when the daemon shares the runner's filesystem: `docker run -v "$PWD:…"`
+works again, a job's `services:` share its network, and the nightly schedule is `cron:` **in the
+file** instead of a setting somebody has to remember to create.
+
+`.gitlab-ci.yml` is **gone**, and with it the GitLab remote. It had been kept as a fallback until
+GitHub's pipeline had been green for a full cycle including a tag; abandoning GitLab as a forge
+ended the reason to hold it rather than the condition. It is recoverable from history if that
+turns out to have been early — `git log -- .gitlab-ci.yml` finds it.
+
+Do not read that as GitLab leaving the product. [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](ci/gitlab/vectispire-gate.gitlab-ci.yml)
+is a template we ship for *other people's* pipelines, GitLab tickets are a tracker integration and
+SARIF is exported for GitLab among others. Those stay whatever forge we live on — the thing we
+abandoned is where our own code lives, which has nothing to do with where our users' code lives.
+
+Workflows from before this port are archived under
+[`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/); the reason they
+had to leave `.github/` is written there — a file under `.github/workflows/` is not a document,
+it is a trigger, and those would have fired on the first push. For most of this project's life
+the checks lived only in that inert directory while the sole remote was GitLab, which means
+*nothing had ever been verified by a machine* until 2026-08-25.
+
+On a push to `develop` and on every pull request, the `verify` workflow (`ci.yml`) runs
+`secrets`, `docs-consistency` (links, doc facts, and `scripts/check-db-pins.py`: the upgrade drill's
+and the job services' hand-pinned database images against `Engine.java`'s tags), `c4-drift`, `api-compat` (the served
+`openapi.json` against the last `v*` tag, failing on a change that breaks a client unless
+`ci/openapi/accepted-breaks.txt` lists it with its reason), `dockerfile-policy` (checkov, and every
+image of a compose file pinned as `name:tag@sha256:…`), `jvm`
+(`./gradlew build`), `kubernetes` (the agent's Kubernetes executor against k3s, decision 0045 — on the
+runner, since `jvm`'s container has no Docker), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
+`vulnerabilities` and `npm-audit`; `images` then builds the three images with Jib — the control plane, the agent and the demonstration
+report plugin — **starts the control plane against a real MySQL** before believing them, and renders an
+export twice with the plugin's image to the same bytes. `previous-agent` runs the newest `v*` release's
+agent image — by digest, verified with cosign by `scripts/release-image.sh` — against the control plane
+built at the commit, and fails unless that agent claims and finishes the composition's scans (decision
+0043 §2). Syft and Grype are digest-pinned to
+what `ScannerImages` pins, so the same scanner version audits Vectispire as audits its targets.
+`main` is not a push trigger: a commit reaching it without going through `develop` has no checks
+to show, and that is the flow the rule is meant to enforce.
+
+**Three suites run on push only when their own ground moved.** `engines` runs `integrationTestAll`
+when anything engine-sensitive changed — a migration, the query layer and the entity mappings (each
+module's `core/<module>/persistence/`), the datasource setup (`core/config/`), the campaign itself,
+or a dependency version — `e2e` runs the Playwright suite when `vectispire-angular/` or the
+lockfile changed, and `dockerfiles` builds the three Dockerfiles when what only they read changed —
+the files, `.dockerignore`, the Gradle build definition, the npm manifests, the CLI script — since
+`images` builds with Jib and a broken Dockerfile was otherwise first seen by the nightly; a diff
+range that cannot be resolved counts as changed. Both also run
+unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
+alongside `dockerfiles`, `restore`, `upgrade` and `zap` — on `cron: '30 2 * * *'`. `zap` runs
+OWASP ZAP's baseline (passive) scan against the image on MySQL, signed in, the interface spidered and
+every GET of the API contract sent (`scripts/zap-baseline.sh`): a medium or high alert not accepted in
+`ci/zap/accepted-alerts.txt` with its reason fails it, and so does a run whose answers show the session
+never reached the API. `upgrade` runs
+`scripts/upgrade-drill.sh` on MySQL: the newest `v*` release — by the digest the
+registry serves, run only once `cosign verify` accepts it against `release.yml`'s identity at that
+tag, with the cosign `ImageSignatureVerifier` pins — writes data through
+its API, this commit's image starts on the same database — Flyway and `ddl-auto: validate` before
+health — and reads every field back unchanged, unless `ci/upgrade/accepted-rewrites.txt` declares
+the migration that rewrites it. On GitLab the nightly depended
+on a schedule created in the project settings, invisible to anyone reading the repository, and it
+went unnoticed for two days; the `cron:` is in the file precisely so that gap cannot reopen. Note
+the GitHub rule behind it: a scheduled workflow runs from the **default branch only**, so a
+nightly living on `develop` and not on `main` does not fire. **A green push pipeline still does
+not mean portability was checked** — a service that hands an existing query new parameters
+touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
+release should not go out on a nightly that has not been green.
+
+**The Rust port is off `develop` for now** (2026-10-29): the work, its CI jobs, its agent and skills live on
+the `rust/main` branch, at the `develop` commit they left from (ba38a4137). `develop` carries the Java control plane
+and its interface only, and a Java change no longer has a Rust side to move with it. Bringing the port back is a
+merge of `rust/main` brought up to date — its reference sets regenerated against the Java of that day — and the
+required checks `rust-changes`, `rust`, `rust-replay` and `rust-image` restored in the `develop` ruleset.
+
+
+## Agents and skills
+
+Three agents and two skills live in [`.claude/`](.claude/), tracked with the code so the rules they
+carry move with it:
+
+| | Use it for |
+|---|---|
+| [`jvm-porter`](.claude/agents/jvm-porter.md) | any change to the control plane or the agent in `vectispire-java/` |
+| [`angular-frontend`](.claude/agents/angular-frontend.md) | any change to `vectispire-angular/` — screens, API clients, tests, Playwright |
+| [`security-reviewer`](.claude/agents/security-reviewer.md) | a read-only review of one security area or of a diff |
+| [`quality-gate`](.claude/skills/quality-gate/SKILL.md) | the checks a change passes before it is committed and pushed, and the develop → CI → main flow |
+| [`security-audit`](.claude/skills/security-audit/SKILL.md) | a four-area review in parallel, verified and deduplicated into one ranked report |
+
+Each carries the defects already made here, so that the next change does not make them again. When a
+new class of defect is found, add it to the agent or skill that should have caught it.
+
+## Before you change anything
+
+**Read [`docs/architecture/`](docs/architecture/) first.** Documents 01 to 04 describe the
+system as it is; the [decision register](docs/architecture/en/decisions/) says why, and what
+was rejected. When a document and a module contradict each other, the module is right and
+the document has a bug — say so rather than working around it.
+
+**The layering is enforced, not suggested.** `ArchitectureTest` reads the import graph with
+ArchUnit: `domain ← scanning ← persistence ← services ← api`, one place of each inside every
+vertical module ([0028](docs/architecture/en/decisions/0028-vertical-modules.md),
+[0029](docs/architecture/en/decisions/0029-core-domains-become-modules.md)). A service writing
+SQL, or a domain class importing Spring, fails the suite. Every domain is `core/<module>/` with
+`web`, `internal` and `persistence` beneath; the packages by layer are gone and `core/config/` is the
+one package outside a module — it uses no module and no module uses it (`configSitsUnderEveryModule`).
+A service (a module's root or `internal`) holds no query API — nothing of `jakarta.persistence`,
+Spring Data JPA, `org.springframework.jdbc` or a driver; it hands its repository criteria, and only
+Spring Data's paging vocabulary (`org.springframework.data.domain`) crosses (`servicesHoldNoQueryApi`).
+A controller holds nothing of JPA, Spring Data or JDBC at all (`controllersHoldNoPersistenceApi`). No
+class reaches the network through `RestClient`, `RestTemplate`, `WebClient` or a `URLConnection`: an
+outbound call goes through `PinnedHttpSender` and the guard in front of it
+(`onlyTheOutboundDoorSpeaksHttpOutwards`). **Between modules, Spring Modulith is the authority**
+([0030](docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)):
+`ModularityTest` runs `verify()` and fails the build on a cycle, on a reach into another module's
+internals, and on a dependency the module's `package-info` does not list in
+`@ApplicationModule(allowedDependencies = …)`. Adding a line there is a decision for the review, with
+its reason beside it. A JPQL string naming another module's entity is invisible to both tools;
+`CrossModuleQueriesTest` holds those to a list that only shrinks.
+
+**The agent's isolation is not one of those rules — it is a fact about the build graph.**
+`vectispire-agent` does not depend on `vectispire-core`, so no JDBC driver is on its compile
+classpath and the violation fails to compile rather than failing review. That is a **security
+property**: an agent holding a database connection would also need `ENCRYPTION_KEY`, which
+decrypts every deployment key Vectispire stores — see
+[decision 0003](docs/architecture/en/decisions/0003-long-polling-for-agents.md).
+
+**A change the previous agent would not understand is made in two releases.** The control plane serves
+an agent of its own minor and of the previous one
+([0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §2), so `AgentContract` is a range,
+`OLDEST_SERVED` to `CURRENT`. A new envelope, a new mandatory field, a step the agent must now run: the
+first release raises `CURRENT`, keeps the old form beside the new and hands each agent the one its
+announced number reads; the next raises `OLDEST_SERVED` and deletes the old form. Never both in one
+release, and never the new form without the number — 0.11.0 sealed credentials in an envelope 0.10
+agents cannot open and left the contract at 1, so the old agent was accepted and then failed on its
+work. An optional field an agent may ignore is not a break. `previous-agent` is what decides which
+one a change is.
+
+**Four traps**, each with a decision or an executable rule behind it. The first leaks other
+accounts' data; the rest lose your own:
+
+- **A role marker is not authorization**, and this is the mistake made most often here.
+  `@RequiresAccount` proves the caller is signed in; it says nothing about *whose* estate the
+  response describes. Twenty-three routes carried a marker, passed `RouteAuthorizationTest`,
+  and served other accounts' repositories, containers and findings. A route naming a target
+  must resolve a `Visibility` — `VisibilityService.of(user, credentialRestriction)`, the
+  account's grant intersected with the credential's — and pass it to the query, or refuse
+  through `Visibilities.requireVisible(...)`, which answers **404 and never 403**: a refusal
+  has to be indistinguishable from an absence, or it confirms the thing exists.
+  `AuthorizationCoverageTest` is the rule that catches the omission, because four manual sweeps
+  did not converge — the twenty-first hole appeared hours after the twentieth was closed.
+- Anything entering an issue's **fingerprint** is a data contract. Changing a rule id, a
+  finding type or a path normalization resolves every existing issue and recreates it,
+  losing all triage — silently, across every target.
+- An analyzer that fails returns **absent, never empty**. `ScanArtifacts` uses `Optional`
+  fields for exactly this: an empty list means "ran, found nothing", which resolves the
+  backlog ([0007](docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)). The same
+  rule decides a scan's status — every step absent and something broken means the target was
+  never examined, and `completed` would say the opposite.
+- **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, written by
+  hand in native SQL. From V40 on, a migration that differs only by column types is written
+  **once** under `db/migration/common` with the type placeholders `MigrationDialect` spells per
+  engine (`${ts}`, `${id}`, `${bool}`…); one whose structure diverges — a foreign key, a column
+  change, date arithmetic — is written **twice**, under `db/migration/{postgresql,mysql}/`, and
+  forgetting one is a startup failure on that engine only
+  ([0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md),
+  [0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)).
+  A version lives in exactly one of the two places, and `MigrationLayoutTest` fails the build
+  otherwise. V1–V39 are never moved or edited: Flyway checks their checksums on every start.
+  `SchemaParityIntegrationTest` checks on every engine the campaign runs that the entities agree
+  with it.
+  Letting Hibernate reconcile the schema would mean two authorities for one schema, and the
+  one that runs second wins silently.
+
+## Writing code here
+
+**Comments explain why, not what.** This codebase's comments carry the reasoning — the
+defect that motivated a guard, the alternative that was tried and failed, the cost being
+accepted. Match that: a comment that restates the line below it is noise, a comment naming
+the consequence of getting it wrong is why the next person does not break it.
+
+**A guarantee that is not executed is not a guarantee.** Concurrency, dialect behaviour and
+schema agreement are checked against real servers by `integrationTestAll`, because each of
+them has already produced a defect that was invisible on SQLite and to a careful reading. Do
+not replace a running check with an assertion.
+
+**And a wiring that is not exercised is not wired.** The built-in worker claimed nothing for
+as long as it existed, because no bean supplied its `ScanRunner` and the dispatcher's
+`Optional` was empty; every queued scan stayed `pending`, silently, on an install whose own
+defaults say the worker is on. No unit test could see it. Start the application.
+
+It has happened twice. `IssueTriageService.expireStale` was called by **nothing** — its own
+javadoc said "called from the maintenance tick", and that sentence was the only place the claim
+existed. An acceptance recorded "for thirty days" kept its review date, exported it into SARIF as
+"to review on …", and never came back. Every service involved had passing tests, because no test
+of a service can see that its caller is missing. `MaintenanceJobsTest` now asserts the
+composition itself, which is the only level at which that class of defect is visible.
+
+**Never skip silently.** There is no "skip if the database is missing" guard in the
+integration suite, deliberately: a suite that skips itself reports green without checking
+anything.
+
+**Documentation stays in sync across languages.** Whenever regulatory frameworks, security
+roles, VEX/CSAF formats, triage workflows, or API contracts evolve, update both `docs/fr/` and
+`docs/en/` simultaneously. A feature without documentation is invisible to auditors and teams.
+

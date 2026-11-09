@@ -1,0 +1,156 @@
+import { formatDate } from '@angular/common';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { DashboardApi } from '@/app/core/api/dashboard.api';
+import { DocumentsApi } from '@/app/core/api/documents.api';
+import { saveDocument } from '@/app/core/download';
+import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
+
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import { messageOf } from '@/app/core/api-error';
+import { PolicySourcePipe } from '@/app/shared/policy-source';
+import { gateReason } from '@/app/shared/gate-reason';
+import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+
+/**
+ * The security posture — the gate's verdict, shown at last.
+ *
+ * It had always been computed for `POST /api/v1/gate` and displayed nowhere: a team could only
+ * learn whether its repository passed by running a build against it.
+ *
+ * **The verdict and the observation go together.** An empty backlog passes every policy, so a
+ * target nobody had successfully scanned read as "compliant" here and passed the gate; the server
+ * now refuses it, with an `observation` violation, and the "not observed" badge says why — or, for
+ * a scan still running, that the verdict rests on the scan before it. The banner repeats it at the top.
+ */
+@Component({
+    selector: 'zs-security',
+    imports: [
+        TableModule,
+        TagModule,
+        ButtonModule,
+        MessageModule,
+        RouterLink,
+        TranslatePipe,
+        PolicySourcePipe,
+        RuleCoverageBanner
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './security.html'
+})
+export class Security {
+    private readonly dashboardApi = inject(DashboardApi);
+    private readonly documentsApi = inject(DocumentsApi);
+
+    readonly overview = signal<SecurityOverview | null>(null);
+    readonly error = signal<string | null>(null);
+    /**
+     * A failed export, shown above the table. It was written to `error`, which the page shows only
+     * when the overview is missing — so once the table had loaded, a failed download said nothing.
+     */
+    readonly exportError = signal<string | null>(null);
+
+    /**
+     * Each target with its badge, its reason, its last scan and its backlog link worked out once per
+     * overview or language — not per binding on every pass, with a new query-parameter object each time
+     * for the router to read again.
+     */
+    readonly rows = computed(() => {
+        this.i18n.translations();
+        return (this.overview()?.targets ?? []).map((target) => ({
+            target,
+            observation: target.observed ? null : this.observationLabel(target),
+            reason: target.verdict.violations.length ? this.reasonOf(target) : null,
+            lastScan: this.formatDate(target.lastScanAt),
+            issueFilter: this.issueFilter(target)
+        }));
+    });
+
+    constructor() {
+        this.dashboardApi.securityOverview().subscribe({
+            next: (data) => this.overview.set(data),
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('security.error_load')))
+        });
+    }
+
+    /**
+     * The timestamp, made readable.
+     *
+     * The API returns the text the database holds — `2026-08-10 18:45:18.408868` — which is the
+     * right thing to transport (the microsecond survives, no time zone is applied on the way)
+     * and the wrong thing to display. The conversion therefore happens here, at the last
+     * moment, and nowhere earlier.
+     */
+    private formatDate(value: string | null): string {
+        if (!value) return '—';
+        // Explicit `Z` suffix: the value is UTC with no zone, and without it the browser would
+        // read it as local time — and therefore display it shifted.
+        //
+        // Day first in both languages, as every date pipe of the interface writes it: `en-US`
+        // would swap day and month for the people reading this. The pattern is spelt out rather
+        // than left to a locale (`fr-BE` was written here) so the screen reads like the others.
+        const at = new Date(`${value.replace(' ', 'T')}Z`);
+        return Number.isNaN(at.getTime()) ? value : formatDate(at, 'dd/MM/yyyy HH:mm', this.locale);
+    }
+
+    private readonly locale = inject(LOCALE_ID);
+    private readonly i18n = inject(I18nService);
+
+    /**
+     * The first violation's reason in the reader's language ({@link gateReason}), naming which examination
+     * is missing from the target's own observation; the server's sentence is its tooltip.
+     */
+    private reasonOf(target: TargetPosture): string {
+        this.i18n.translations();
+        return gateReason(this.i18n, target.verdict.violations[0], target.observation);
+    }
+
+    private observationLabel(target: TargetPosture): string {
+        if (target.observation === 'never_scanned') return this.i18n.t('security.never_scanned_badge');
+        if (target.observation === 'last_scan_failed') return this.i18n.t('security.last_scan_failed_badge');
+        return this.i18n.t('security.scan_in_progress');
+    }
+
+    /**
+     * The link to the backlog filtered on this target.
+     *
+     * These parameters were already produced by the Reflex version — and **never read** by its
+     * Issues screen, which used URL parameters nowhere. Here the Angular router passes them on
+     * and the screen honours them.
+     */
+    /** The row whose export is in flight, so the three buttons cannot be pressed twice. */
+    readonly downloading = signal<number | null>(null);
+
+    /**
+     * Fetches an export and hands it to the browser.
+     *
+     * **The filename comes from `Content-Disposition`, not from here.** The server builds it
+     * from the kind and the numeric id precisely because a target's name is operator-supplied
+     * text; re-deriving it in the browser would put that text back in play and give the same
+     * document two names depending on where it was saved from.
+     */
+    download(target: TargetPosture, document: string): void {
+        this.downloading.set(target.targetId);
+        this.exportError.set(null);
+        this.documentsApi.exportDocument(target.kind, target.targetId, document).subscribe({
+            next: (response) => {
+                this.downloading.set(null);
+                saveDocument(response, document);
+            },
+            // A Blob body, which messageOf cannot read synchronously: it answers with the fallback.
+            error: (response: unknown) => {
+                this.downloading.set(null);
+                this.exportError.set(messageOf(response, this.i18n.t('security.error_export')));
+            }
+        });
+    }
+
+    private issueFilter(target: TargetPosture): Record<string, number> {
+        return target.kind === 'repository' ? { repository_id: target.targetId } : { container_id: target.targetId };
+    }
+}

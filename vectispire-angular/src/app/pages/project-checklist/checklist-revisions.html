@@ -1,0 +1,60 @@
+<p-card styleClass="mb-4" data-testid="revisions">
+    <ng-template #title>{{ 'project_checklist.revisions_title' | translate }}</ng-template>
+    <p-table [value]="rows()" dataKey="revision" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'project_checklist.col_revision' | translate }}</th>
+                <th>{{ 'project_checklist.field_status' | translate }}</th>
+                <th>{{ 'project_checklist.field_version' | translate }}</th>
+                <th>{{ 'project_checklist.field_opened' | translate }}</th>
+                <th>{{ 'project_checklist.field_signed_off' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-row>
+            <tr [attr.data-testid]="'revision-' + row.revision">
+                <td>{{ row.revision }}</td>
+                <td><p-tag [severity]="row.statusTone" [value]="row.statusText" /></td>
+                <td>
+                    {{ row.templateName }} ·
+                    {{ 'project_checklist.version_n' | translate: { ordinal: row.versionOrdinal } }}
+                </td>
+                <td>{{ row.openedBy }} {{ row.openedAt | date: 'dd/MM/yyyy' }}</td>
+                <td>
+                    @if (row.signedOffAt) {
+                        {{ row.signedOffBy }} {{ row.signedOffAt | date: 'dd/MM/yyyy' }}
+                    } @else {
+                        —
+                    }
+                </td>
+                <td class="text-right">
+                    <p-button
+                        icon="pi pi-download"
+                        size="small"
+                        [text]="true"
+                        [loading]="page.downloading() === row.revision"
+                        [ariaLabel]="
+                            row.signed
+                                ? ('project_checklist.aria_document_signed' | translate: { revision: row.revision })
+                                : ('project_checklist.aria_document_unsigned' | translate: { revision: row.revision })
+                        "
+                        [attr.data-testid]="'download-document-' + row.revision"
+                        (onClick)="page.downloadDocument(row.revision)"
+                    />
+                    @if (row.revision === page.summary()?.revision) {
+                        <p-tag severity="info" [value]="'project_checklist.shown_tag' | translate" />
+                    } @else {
+                        <p-button
+                            icon="pi pi-eye"
+                            size="small"
+                            [text]="true"
+                            [label]="'project_checklist.show_revision_btn' | translate"
+                            [ariaLabel]="'project_checklist.aria_show_revision' | translate: { revision: row.revision }"
+                            (onClick)="page.read(row.revision)"
+                        />
+                    }
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>

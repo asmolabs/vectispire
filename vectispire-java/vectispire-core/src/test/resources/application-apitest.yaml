@@ -1,0 +1,57 @@
+# The API suite's configuration.
+#
+# The database is MySQL, set per JVM by `TestDatabase` (decision 0034). Nothing about the engine is
+# repeated here: the dialect is detected from the connection, and `ddl-auto` stays the application's
+# `validate` — the suite ran with `none` on SQLite, whose affinities fail every timestamp column, so
+# 120 classes ran against a schema Hibernate had never checked.
+#
+# No `flyway` block either: the suite reads the locations the application reads. It used to repeat
+# them, and a copy is the one that stays behind when the original gains a directory.
+
+vectispire:
+  # The periodic jobs are switched off, not merely slowed: a scheduler tick firing mid-test
+  # would queue scans no assertion accounts for, and the failure would be intermittent — the
+  # one kind nobody can debug from a CI log.
+  worker:
+    enabled: false
+    initial-delay: 24h
+  # The report executor's turn too: a test drives it through `ReportWorker.drain`, on its own thread.
+  reports:
+    initial-delay: 24h
+  # And the discoveries': a test drives them through `DiscoveryWorker.drain`.
+  forges:
+    discovery:
+      initial-delay: 24h
+  jobs:
+    # The interval spaces the runs that follow; the initial delay is what stops the first one
+    # firing the instant the context is ready — which is inside every test.
+    initial-delay: 24h
+    relay-interval: 24h
+    scheduler-interval: 24h
+    maintenance-interval: 24h
+  bootstrap:
+    username: ""
+    password: ""
+  threat-intel:
+    # Names that cannot resolve, so no test reaches CISA or FIRST: a sync nobody replaced fails at
+    # once and says so, and a test that needs a feed stands one in for `KevCatalogSource` or
+    # `EpssFileSource`.
+    kev-url: https://kev-catalogue.invalid/known_exploited_vulnerabilities.json
+    epss-url: https://epss-file.invalid/epss_scores-current.csv.gz
+  encryption:
+    key: ${ENCRYPTION_KEY:vectispire-test-encryption-passphrase-placeholder}
+  # `/scim` accepts the SCIM token and nothing else, so the suite drives it with one (`asScim()`).
+  scim:
+    enabled: true
+    token: apitest-scim-token-0123456789abcdef
+  # `/actuator/prometheus` accepts the scrape token beside an administrator's session (`PrometheusScrapeTest`).
+  metrics:
+    scrape-token: apitest-scrape-token-0123456789abcdef
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+

@@ -1,0 +1,124 @@
+# Scans
+
+Un scan est une exécution du pipeline contre une cible, par un agent.
+
+## Le pipeline
+
+Le pipeline est coupé selon une ligne unique : **l'exécuteur lance les scanners et ne touche
+jamais la base de données ; l'ingesteur lit ses résultats et n'exécute jamais de conteneur.**
+C'est ce qui permet à un code identique de tourner dans le plan de contrôle ou sur un agent
+distant qui ne détient aucun identifiant de base de données.
+
+1. **Cloner ou mettre à jour** la cible dans un répertoire de travail temporaire.
+2. **Cataloguer** avec Syft, ce qui produit le SBOM.
+3. **Rapprocher** les vulnérabilités connues avec Grype.
+4. **Secrets** avec gitleaks, sous la configuration de Vectispire plutôt que sous une configuration
+   fournie par la cible. Le fichier, la ligne et la règle sont conservés — jamais la valeur.
+5. **IaC** avec checkov, pour Terraform et Kubernetes.
+6. **Code source** avec Semgrep, si activé — voir
+   [Jeux de règles Semgrep](../administration/rule-sets.md).
+7. **Normaliser** l'ensemble en lignes `Finding`, enrichir avec EPSS et KEV, évaluer la liste
+   de blocage de licences, contrôler la fin de support, et réconcilier avec les issues
+   existantes.
+
+La cible ne configure pas son propre audit : avant qu'un analyseur ne tourne, les fichiers par
+lesquels un dépôt pourrait lui dire quoi ignorer — `.checkov.yaml`, `.checkov.yml`,
+`.gitleaksignore` et tout `.semgrepignore` — sont retirés du clone qu'en fait Vectispire, où qu'ils
+se trouvent. Le dépôt lui-même n'est pas modifié ; une équipe qui veut écarter une anomalie
+enregistre une exception dans Vectispire, où elle est revue et auditée ([Exceptions](exceptions.md)).
+
+Les étapes 2 à 6 s'exécutent dans des conteneurs éphémères avec **le réseau désactivé**, un
+montage en lecture seule, `cap_drop: ALL` et `no-new-privileges`. Chaque image est épinglée par
+empreinte.
+
+En dehors de la récupération de la cible elle-même, les scanners ne font aucun appel réseau. Ce qui
+quitte la machine, et quand :
+
+- **la consultation de fin de support** envoie des noms de produits et des versions (un runtime, une
+  distribution) au catalogue de fin de support — avant l'écriture des résultats du scan, jamais
+  pendant ;
+- **un plugin de jeu de règles Semgrep** s'exécute sans réseau, sauf si son manifeste déclare
+  l'exception, avec une justification consignée au journal d'audit ([Plugins](../administration/plugins.md)) ;
+- **la revue par IA**, désactivée par défaut, envoie les constats ouverts d'un dépôt — identifiants,
+  composants, chemins, descriptions, jamais son code source — au point d'accès de modèle configuré
+  quand son rapport OWASP est rédigé : une machine que vous exploitez ou, une fois un point d'accès
+  public explicitement autorisé, un tiers comme OpenAI ([Réglages](../administration/settings.md#revue-par-ia)).
+  Aucun scan n'envoie de code à un modèle.
+
+Les scores EPSS et le statut KEV sont lus dans le fichier quotidien du FIRST et le catalogue de la
+CISA, que le plan de contrôle synchronise en entier, si bien qu'aucun tiers n'apprend quelles CVE
+porte un dépôt. Aucun code analysé ne quitte votre réseau et, revue par IA désactivée ou gardée sur celui-ci, aucun
+constat non plus.
+
+## Lire un scan
+
+Le détail d'un scan montre ce qui a été trouvé et, plus utile, ce qui a **changé** : les issues
+nouvelles, les issues désormais résolues. Sur un dépôt analysé chaque nuit, le total courant
+bouge à peine, et le delta est toute la nouvelle.
+
+**Issues et occurrences sont deux comptes.** La carte du haut compte les **issues** — les problèmes
+que ce scan a vus ouverts, une par empreinte, la même unité que la [liste des constats](issues.md) —
+et en dessous les **occurrences** : une par endroit signalé par un outil. La liste plus bas contient
+les occurrences. Une empreinte ne porte pas de numéro de ligne : une même règle qui touche le même
+fichier sur quinze lignes fait une issue et quinze occurrences, et un scan qui affiche *28 issues ·
+56 occurrences* au-dessus d'une liste de 56 lignes n'a rien perdu ni rien dupliqué. L'historique et
+les dernières analyses de la vue d'ensemble montrent le nombre d'issues.
+
+![Un scan : sept issues et, en dessous, dix occurrences ; ce qu'il a examiné ; un plugin produit, un non applicable.](../assets/screens/fr/scan-detail.png)
+
+![Les occurrences de ce scan : le même jeton sur deux lignes et la même règle sur trois, une ligne chacune.](../assets/screens/fr/scan-detail-occurrences.png)
+
+Les sorties brutes sont conservées à côté des constats normalisés — le SBOM tel que le
+catalogueur l'a produit, et la sortie brute du moteur de rapprochement — à fin d'audit. C'est
+ce que vous remettez à quelqu'un qui veut re-dériver vos conclusions plutôt que les prendre
+pour argent comptant.
+
+Une carte **Ce que ce scan a examiné** dit quelles étapes intégrées ont regardé l'arbre :
+vulnérabilités, secrets, IaC, analyse du code (sécurité et qualité ensemble), fin de vie, licences.
+Une étape rangée sous **Examiné** a produit — un type sans constat dans ce scan a été recherché et
+non trouvé, et ses issues ouvertes sur la cible ont été résolues. Une étape sous **Non examiné** n'a
+pas regardé — elle a échoué (le message du scan dit laquelle et pourquoi), ou ce scan ne la lance
+pas, comme une analyse d'image ne lance ni IaC ni analyse du code — et ses issues sont restées en
+l'état. Un scan antérieur à cet enregistrement affiche **Non enregistré** plutôt que de montrer
+chaque étape comme non examinée : rien n'a noté ce qu'il a regardé, et le prochain scan de la cible
+l'enregistre. C'est ce même enregistrement qu'une checklist lit pour dire qu'un dépôt a été examiné :
+une étape en échec ne compte jamais comme une étape passée sans constat.
+
+Quand des [plugins](../administration/plugins.md) ont tourné, une carte **Plugins** liste chacun dans
+l'un de trois états, dessinés distinctement : **produit** (vert, avec le nombre de constats de son
+rapport), **non applicable** (gris — aucun de ses langages n'est dans l'arbre ; pas un échec) et
+**absent — échec** (rouge, avec la raison). Seul le dernier est le problème de quelqu'un.
+
+## Un scan qui n'a pas pu s'exécuter
+
+Un scan qui s'arrête avant qu'un résultat existe — le clonage refusé, l'identifiant de la tâche
+inutilisable, le réseau coupé — n'est pas retenté à l'aveugle. **Un échec qu'une autre tentative
+rencontrerait de nouveau fait échouer le scan aussitôt**, avec la raison : une clé d'hôte qui a changé,
+une authentification refusée, un dépôt, une branche ou un sous-chemin qui n'existe pas, une URL que le
+clonage refuse. **Tout le reste attend puis réessaie** : le scan revient dans la file, *En attente*, et
+ne peut pas être réclamé de nouveau avant une minute après sa première tentative, cinq après la
+deuxième — sa page indique *la suivante peut démarrer à …* — et échoue pour de bon à la troisième. Il en
+va de même que le worker intégré ou un agent l'ait exécuté. Voir
+[Agents](../administration/agents.md#quand-une-analyse-ne-peut-pas-sexecuter-sur-un-agent) pour la façon
+dont la nature de l'échec est décidée.
+
+Ce n'est pas une étape qui a échoué dans un scan qui s'est exécuté : celle-là laisse ses propres
+résultats absents, les autres tiennent, et le scan dit laquelle c'était.
+
+## Un scan échoué n'est pas un scan propre
+
+Un scan qui a échoué ne produit aucun constat, et une cible sans constat passe toutes les
+politiques. La [vue d'ensemble Sécurité](dashboard.md) nomme cet état explicitement pour cette
+raison. Vérifiez-le avant de lire un tableau de bord vert comme une bonne nouvelle.
+
+Les causes fréquentes sont dans la [FAQ](../reference/faq.md).
+
+## Où il a tourné
+
+Chaque scan enregistre son agent. Sur une installation mono-machine, c'est toujours l'agent
+intégré — le processus web lui-même, créé automatiquement au démarrage, ce qui est pourquoi une
+installation fonctionne sans aucune configuration d'agent.
+
+Un résultat produit sur un agent distant est indiscernable d'un résultat local : mêmes lignes,
+même enrichissement, même politique, même réconciliation. Voir
+[Agents](../administration/agents.md).

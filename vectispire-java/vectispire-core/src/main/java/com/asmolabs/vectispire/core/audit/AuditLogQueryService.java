@@ -1,0 +1,171 @@
+package com.asmolabs.vectispire.core.audit;
+
+import com.asmolabs.vectispire.common.domain.paging.Batches;
+import com.asmolabs.vectispire.common.domain.text.Texts;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+
+/**
+ * Reading the audit trail and reporting its integrity.
+ *
+ * <p>Apart from {@link AuditLogService}, which writes the log and verifies the chain, because a
+ * page of entries filtered for a screen is not something the writer needs to know about.
+ */
+@Service
+public class AuditLogQueryService {
+
+    private static final int MAX_PAGE_SIZE = 200;
+
+    private final AuditLogRepository entries;
+    private final AuditLogService log;
+    private final ApplicationEventPublisher events;
+    private final Clock clock;
+
+    public AuditLogQueryService(
+            AuditLogRepository entries, AuditLogService log, ApplicationEventPublisher events, Clock clock) {
+        this.entries = entries;
+        this.log = log;
+        this.events = events;
+        this.clock = clock;
+    }
+
+    /** @param limit and {@code offset} as actually applied, after clamping */
+    public record Entries(List<AuditEntryView> items, long total, int limit, int offset) {}
+
+    /** See the controller's {@code Verification} for what each figure means to a reader. */
+    public record Integrity(
+            long total,
+            int unverifiable,
+            long verified,
+            boolean intact,
+            String broken,
+            boolean mirrored,
+            int missingFromTable,
+            int missingFromMirror,
+            Instant checkedAt) {}
+
+    /**
+     * {@code limit}/{@code offset} as on {@code /issues}.
+     *
+     * <p>One pagination convention across the API beats a local convenience, and the client's
+     * page type relies on it. {@code search} is bounded like every list route's free text
+     * ({@link BoundedText#SEARCH_MAX}), refused in words past it.
+     */
+    public Entries page(String operationType, String userId, String search, int limit, int offset) {
+        int size = Math.clamp(limit, 1, MAX_PAGE_SIZE);
+        int from = Math.max(offset, 0);
+
+        String term = BoundedText.search(search, "search");
+        Page<AuditLogEntity> page = entries.findFiltered(
+                Texts.blankToNull(operationType),
+                Texts.blankToNull(userId),
+                term == null ? null : "%" + term.toLowerCase(Locale.ROOT) + "%",
+                PageRequest.of(from / Math.max(size, 1), size,
+                        Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
+
+        return new Entries(
+                page.getContent().stream().map(AuditEntryView::of).toList(), page.getTotalElements(), size, from);
+    }
+
+    /**
+     * How many entries of one operation were written since {@code since}: whether this week's posture
+     * digest already went out is answered by the entry its sending writes.
+     *
+     * <p>This method and {@link #asJsonLines} exist because the trail is this module's table. While
+     * the code was packaged by layer, {@code posture} and {@code compliance} read it through the
+     * repository — a dependency on the audit log's storage that nothing showed.
+     */
+    public long countSince(String operationType, Instant since) {
+        return entries.countByOperationTypeAndTimestampGreaterThanEqual(operationType, since);
+    }
+
+    /**
+     * Which of these resources at least one entry of {@code operationType} names — whether a scan's
+     * credential ever left for an agent is answered by the {@code AGENT_CREDENTIAL_SENT} it wrote.
+     *
+     * <p>A thousand identifiers a statement: the list is the caller's, and every engine stops binding
+     * somewhere.
+     */
+    public java.util.Set<String> resourcesNamed(String operationType, java.util.Collection<String> resourceIds) {
+        List<String> distinct = List.copyOf(java.util.Set.copyOf(resourceIds));
+        java.util.Set<String> named = new java.util.HashSet<>();
+        for (List<String> batch : Batches.of(distinct, 1_000)) {
+            named.addAll(entries.findResourcesNamed(operationType, batch));
+        }
+        return java.util.Set.copyOf(named);
+    }
+
+    /**
+     * The whole trail, oldest first, one document per line as {@code json} writes an entry: the
+     * evidence bundle's {@code 02_immutable_audit_log.jsonl}.
+     *
+     * <p><b>The row itself is serialized, with the caller's mapper</b> — not {@link AuditEntryView},
+     * and not this module's mapper: the bundle is a document an auditor already holds copies of, and
+     * the same trail must produce the same bytes it did before the audit log became a module.
+     */
+    public JsonLines asJsonLines(ObjectMapper json) throws JsonProcessingException {
+        List<AuditLogEntity> all = entries.findAllByOrderByTimestampAscIdAsc();
+        StringBuilder lines = new StringBuilder();
+        for (AuditLogEntity entry : all) {
+            lines.append(json.writeValueAsString(entry)).append("\n");
+        }
+        return new JsonLines(lines.toString(), all.size());
+    }
+
+    /** @param entries how many lines {@code text} holds, which the bundle's manifest states */
+    public record JsonLines(String text, int entries) {}
+
+    /** The values actually present, so the filter offers nothing empty. */
+    public List<String> operationTypes() {
+        return entries.distinctOperationTypes();
+    }
+
+    public Integrity verify() {
+        AuditChain.Verification result = log.verify();
+        AuditLogService.MirrorComparison mirror = log.verifyAgainstMirror();
+        long total = entries.count();
+        boolean intact = result.broken() == null && mirror.missingFromTable() == 0;
+        if (!intact) {
+            // **Sent every time a verification finds it, not once.** A SOC deduplicates; what it
+            // cannot do is hear about a tampering that was reported to one screen and nowhere else.
+            // The SIEM queues it in the outbox, which the tampering did not touch — and says where
+            // the chain broke, so the alarm does not depend on the log it is about.
+            //
+            // **A plain event, heard synchronously, and deliberately not an after-commit one.** This
+            // method opens no transaction: the two reads above each ran in their own read-only one,
+            // closed by now. A `@TransactionalEventListener` published with no transaction active is
+            // dropped without a word unless told otherwise — the alarm lost, which is the one outcome
+            // this path exists to prevent. There is nothing to roll back either: a verification
+            // writes nothing, and the event describes the table's state, not a change this call made.
+            // The listener queues it in a transaction of its own and never throws, as the direct
+            // call did.
+            events.publishEvent(new AuditChainBroken(result.broken(), mirror.missingFromTable()));
+        }
+        return new Integrity(
+                total,
+                result.unverifiable(),
+                total - result.unverifiable(),
+                // **The chain holding is no longer the whole answer.** An entry the mirror has
+                // and the table lost leaves the chain intact by construction, so reporting
+                // `intact` on the chain alone would call a deletion a clean bill of health.
+                intact,
+                result.broken(),
+                mirror.configured(),
+                mirror.missingFromTable(),
+                mirror.missingFromMirror(),
+                clock.instant());
+    }
+}

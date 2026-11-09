@@ -1,0 +1,335 @@
+# Defaults for a single-instance deployment. Everything here is overridable, and the two
+# settings that must never be is stated below rather than left to a reviewer's memory.
+spring:
+  application:
+    name: vectispire
+
+  config:
+    # **Secrets as files, read under the name of the variable they replace.** A file
+    # `/run/secrets/ENCRYPTION_KEY` answers `${ENCRYPTION_KEY}` below exactly as the variable would,
+    # so the shipped compose hands the three secrets over this way and nothing else changes. The
+    # environment was the wrong place for them: it is part of what the daemon's inspect returns to
+    # any client of the socket proxy. A variable, when set, still wins; `optional:` because a
+    # deployment without the directory is a deployment without file secrets, not a broken one.
+    import: optional:configtree:/run/secrets/
+
+  datasource:
+    # **MySQL is the default engine**, and the same one `docker-compose.yml` ships — the two
+    # used to disagree, so a reader had to guess which was authoritative. The engine is chosen
+    # by this URL and nothing else: Hibernate and Flyway both read it from here.
+    url: ${VECTISPIRE_DB_URL:jdbc:mysql://localhost:3306/vectispire}
+    username: ${VECTISPIRE_DB_USER:vectispire}
+    password: ${VECTISPIRE_DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      # **`validate`, never `update`, and never `create`.** The schema belongs to the migrations.
+      # Letting Hibernate reconcile it would mean two authorities for one schema, and the one
+      # that runs second wins silently — on whichever engine happens to boot first.
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    # **Common first, then the engine's own (decision 0027).** A migration that differs between
+    # engines only by its column types is written once under `common`, with the placeholders
+    # `MigrationPlaceholders` sets for the engine; one whose structure diverges is written in each
+    # vendor directory. A version lives in exactly one of the two places, which
+    # `MigrationLayoutTest` enforces — V1 to V39 predate the rule and stay where they are, since
+    # Flyway would refuse every existing installation if their checksums moved.
+    locations: classpath:db/migration/common,classpath:db/migration/{vendor}
+
+server:
+  # The API and the agent protocol share it. Long polling holds a request open, which is why
+  # the read timeout below is generous and the connection count is not.
+  port: ${VECTISPIRE_PORT:3180}
+
+# **What an operator can see while this runs.**
+#
+# Only `health` was exposed, which answers "is it up" and nothing else. The questions an incident
+# raises — is the queue draining, are the agents being served, is the outbox behind, how long does
+# a scan take now — had no instrument at all, and the audit log is the wrong one: it records what
+# people did, not how the system is behaving.
+#
+# `health` stays anonymous because a container probe has no session; everything else here needs
+# an administrator's session — not an agent or integration key, and not a session that still owes a
+# password change, none of which the application's route confinement reaches here (ActuatorAccess). A metrics endpoint names internal structure and volumes, which is not something to publish
+# to whoever can reach the port.
+#
+# `prometheus` also accepts the scrape token, `vectispire.metrics.scrape-token` below, since a
+# Prometheus server holds no session; the token opens that page and nothing else.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,encryption
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      # Every series says which instance produced it. Without this a fleet's numbers are summed
+      # into one line, and "the queue is draining" can be true of the fleet while one instance
+      # has stopped claiming anything at all.
+      application: ${spring.application.name}
+
+vectispire:
+  # **The token a Prometheus server scrapes `/actuator/prometheus` with**, as a bearer: at least 32
+  # characters (`openssl rand -base64 32`), or a file holding it — Docker's and Kubernetes' secrets.
+  # Unset, the page answers an administrator's session only.
+  metrics:
+    scrape-token: ${VECTISPIRE_METRICS_SCRAPE_TOKEN:}
+    scrape-token-file: ${VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE:}
+
+  scanning:
+    # Empty lets the daemon pick, which means the host's architecture — an arm64 development
+    # machine would then audit a variant nobody deploys.
+    image-platform: ${VECTISPIRE_IMAGE_SCAN_PLATFORM:}
+
+    # A repository with no deployment key attached falls back to this machine's own ~/.ssh.
+    host-ssh: ${VECTISPIRE_HOST_SSH:true}
+
+    # **The matcher's database, once per host.** Downloaded here under a lock — some 3 GB — and
+    # mounted read-only by every scan of the built-in worker, instead of once per scan. Blank is a
+    # directory beside the workspaces; a disk that survives a restart spares the first scan after
+    # one the download. The daemon mounts it, so it is a path on the daemon's host.
+    vulnerability-db-dir: ${VECTISPIRE_VULNERABILITY_DB_DIR:}
+
+    # **The scanner images, overridable one by one.** Blank keeps the digest Vectispire ships
+    # with — the pinned, reviewed one. Set these to run from an internal registry (an air-gapped
+    # or regulated estate has no other option), or to substitute an engine.
+    #
+    # Whoever overrides one takes on what the digest was protecting: a tag pulls whatever came
+    # down this morning, into a container that reads code nobody controls. Prefer a digest.
+    images:
+      syft: ${VECTISPIRE_IMAGE_SYFT:}
+      grype: ${VECTISPIRE_IMAGE_GRYPE:}
+      gitleaks: ${VECTISPIRE_IMAGE_GITLEAKS:}
+      checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
+      semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
+
+    # **Where plugin images are pulled from.** Unlike the scanner images, not a reference to replace
+    # but a registry to relocate to: the host of each plugin's image is swapped for this one and its
+    # path and digest are kept, so a mirror can serve a plugin but never substitute another one
+    # (decision 0017). Blank pulls each image from its own registry.
+    plugin-registry: ${VECTISPIRE_PLUGIN_REGISTRY:}
+
+    # **Whether the built-in worker runs a plugin whose manifest declares no signer.** A declared
+    # signer is verified whatever this says — cosign, pinned, before the image is pulled — and an image
+    # it does not verify is never run (refused, signature_unverified). **On by default** since
+    # 2026-09-30: an unsigned plugin is refused (unsigned) unless the platform governor waived the
+    # requirement for it, in writing and audited, on the plugin itself — the documented way. False
+    # runs every unsigned plugin on this executor. The agent has the same setting for its own host
+    # (decision 0017 §9.1).
+    plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:true}
+
+  threat-intel:
+    # **Where the CISA KEV catalogue is read from**, every six hours and on a lead's demand. Blank
+    # reads CISA's own (`known_exploited_vulnerabilities.json`); set it to a mirror for an estate that
+    # cannot reach cisa.gov. The document must be the whole catalogue, in CISA's format: a partial one
+    # is refused, because what it leaves out would be read as "no longer exploited".
+    kev-url: ${VECTISPIRE_KEV_URL:}
+    # A mirror inside the estate resolves to a private address, which the outbound guard refuses
+    # unless this says otherwise. Link-local — the cloud metadata endpoint — stays refused regardless.
+    kev-allow-private: ${VECTISPIRE_KEV_ALLOW_PRIVATE:false}
+    # **Where FIRST's daily EPSS file is read from**, once a day and on a lead's demand. Blank reads
+    # FIRST's own (`epss_scores-current.csv.gz`, which redirects once to the day's file on the same
+    # host); set it to a mirror for an estate that cannot reach it. Scans read the stored scores and
+    # ask nobody. The file must be whole and not older than the one in use, or it is refused.
+    epss-url: ${VECTISPIRE_EPSS_URL:}
+    # As `kev-allow-private`, for the EPSS mirror.
+    epss-allow-private: ${VECTISPIRE_EPSS_ALLOW_PRIVATE:false}
+
+  branding:
+    # **The two nested chains in this file are the only real ones, and they are here on purpose.**
+    # Each name is an earlier spelling kept working for deployments that already set it, tried in
+    # order, newest first. Eight other settings carried the same shape by accident — the same
+    # variable written three times, which is exactly `${X:default}` — and reading them made these
+    # two impossible to recognise as deliberate. Do not add a level unless it names a *different*
+    # variable.
+    name: ${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:${VECTISPIRE_INSTANCE_NAME:Vectispire}}}
+    gitlab-url: ${VECTISPIRE_GITLAB_URL:https://github.com/asmolabs/vectispire}
+
+  exports:
+    # Named in SARIF's information URI and in a VEX document's identifier, so a document handed
+    # to somebody else says where it came from.
+    public-url: ${VECTISPIRE_PUBLIC_URL:}
+    vex-author: ${VECTISPIRE_VEX_AUTHOR:${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:Vectispire}}}
+    # **Empty means the build's own version**, read from build-info by `ProductVersion`, which
+    # every signed document uses. A VEX or CSAF document names the tool that wrote it, and a version
+    # other than the artefact's makes the two unreconcilable where an assessor reads them. Set only
+    # for a rebuild shipped under a version of its own. It used to repeat the version as a literal,
+    # to be edited at every release.
+    tool-version: ${VECTISPIRE_VERSION:}
+
+  bootstrap:
+    username: ${VECTISPIRE_BOOTSTRAP_USERNAME:}
+    password: ${VECTISPIRE_BOOTSTRAP_PASSWORD:}
+
+  security:
+    # **Whose word to take for the client's address.** Empty means "nothing in front of us", so
+    # `X-Forwarded-For` is ignored entirely and the peer address is what the rate limiter counts.
+    # Behind a load balancer, name it here (address or CIDR, comma-separated) — otherwise every
+    # request arrives from the balancer and the whole estate shares one bucket.
+    trusted-proxies: ${VECTISPIRE_TRUSTED_PROXIES:}
+
+    # **Who may read the API's own map.** `springdoc` below is off by default, so nothing is
+    # served until it is switched on; this decides who may read it when it is. Default closed —
+    # a control plane that inventories other people's attack surface should not publish its own
+    # endpoint catalogue to anonymous callers unless somebody decided it should. `true` suits a
+    # public demo, or a deployment behind a gateway that already authenticates.
+    anonymous-api-docs: ${VECTISPIRE_ANONYMOUS_API_DOCS:false}
+
+    # **A ceiling on refused bearer tokens**, which the password had and the keys did not. Sessions,
+    # agent API keys and the SCIM token count together, per address, and only failures count: an
+    # agent long-polling with a valid key spends nothing.
+    #
+    # Deliberately generous. These tokens are long and random, so the threat is not guessing but
+    # silence: a sweep left no trace distinguishable from a misconfigured agent retrying. Most of
+    # the control's value is the audit entry written when the ceiling is reached, not the refusal
+    # itself — hence a threshold that does not lock an operator out of their own control plane.
+    bearer-failures-per-window: ${VECTISPIRE_BEARER_FAILURES_PER_WINDOW:60}
+    bearer-failure-window: ${VECTISPIRE_BEARER_FAILURE_WINDOW:PT5M}
+
+    # **A budget per integration API key**, on successful requests this time (decision 0024). A key
+    # acts for an account from a machine that may loop: a pipeline retried in a tight loop, or a
+    # leaked key, should hit a 429 with Retry-After rather than the database.
+    api-key-requests-per-minute: ${VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE:600}
+
+    # **A ceiling per address on the inbound tracker webhook**, the one anonymous route that writes.
+    # Generous, because a bulk transition of a few hundred tickets is a few hundred deliveries in a
+    # minute from one of the tracker's addresses; a flood beyond it is answered 429 before any secret
+    # is decrypted. Its refusals are audited sparingly whatever this says — see `WebhookRefusals`.
+    webhook-requests-per-window: ${VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW:300}
+    webhook-request-window: ${VECTISPIRE_WEBHOOK_REQUEST_WINDOW:PT1M}
+
+  # **The password throttle's ceilings**, counted in the database over a sliding quarter of an hour
+  # (`LoginThrottle`, `SignInLimits`). Per account from one client: the owner's mistypes. Per client
+  # across accounts: one password tried on many names. Per account from every client: a guess spread over
+  # many addresses — a budget and not a lock, since anyone who knows a name could otherwise keep its owner
+  # out. Past it, a client that has not signed in to the account within the retention is answered 429
+  # `account-throttled`; one that has, or one sending the second factor with the password, is not.
+  # Zero, negative or unset reads as the value shown.
+  sign-in:
+    failures-per-account-from-client: ${VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT_FROM_CLIENT:5}
+    failures-per-account: ${VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT:50}
+    failures-per-client: ${VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT:20}
+    known-client-retention: ${VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION:P30D}
+    # **Password derivations at once, across every caller.** Each holds 19 MiB while it runs, and the
+    # ceilings above count per address and per account, not in total. Past the bound a derivation
+    # waits up to `queue-wait` for its turn, then the request is answered 503 with Retry-After. Zero sizes it
+    # from the machine: one per processor, at least two, at most what a quarter of the heap holds.
+    # The reasoning is on `DerivationGate`.
+    derivations:
+      concurrent: ${VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT:0}
+      queue-wait: ${VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT:PT2S}
+
+  # **Every request body**, which no container setting bounds: Tomcat's and Spring's limits apply to
+  # forms and multipart only. `default` holds for every route not named below; a named route takes
+  # its own value instead, larger or smaller. Past these, 413. The reasoning for each value is on
+  # `RequestBodyLimitFilter`.
+  http:
+    max-body:
+      default: ${VECTISPIRE_MAX_BODY_DEFAULT:1MB}
+      rule-set-upload: ${VECTISPIRE_MAX_BODY_RULE_SET_UPLOAD:64MB}
+      ticket-webhook: ${VECTISPIRE_MAX_BODY_TICKET_WEBHOOK:1MB}
+      vex-ingest: ${VECTISPIRE_MAX_BODY_VEX_INGEST:16MB}
+      agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}
+      sign-in: ${VECTISPIRE_MAX_BODY_SIGN_IN:16KB}
+      sarif-import: ${VECTISPIRE_MAX_BODY_SARIF_IMPORT:32MB}
+      coverage-import: ${VECTISPIRE_MAX_BODY_COVERAGE_IMPORT:16MB}
+      test-report-import: ${VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT:32MB}
+      sbom-import: ${VECTISPIRE_MAX_BODY_SBOM_IMPORT:32MB}
+      checklist-template-import: ${VECTISPIRE_MAX_BODY_CHECKLIST_TEMPLATE_IMPORT:10MB}
+
+  session:
+    absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}
+    idle-lifetime: ${VECTISPIRE_SESSION_IDLE:60m}
+
+  oidc:
+    password-login: ${VECTISPIRE_PASSWORD_LOGIN:true}
+    # **Whether a privileged account may be linked on its first sign-on by its username** — any role
+    # but USER: an administrator, the governor, a CISO, an auditor or a security champion. Off: a
+    # username is a claim, and in a realm with self-registration anyone can claim `admin`. Turn it on
+    # only for a realm where nobody chooses their own username; otherwise link those accounts through
+    # SCIM, which takes the subject from the provider. An account with a local second factor is never
+    # linked on a claim, whatever this says.
+    link-privileged-accounts: ${VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS:false}
+    # **Whether an account is linked on its first sign-on by its username at all.** On: a plain
+    # account (role USER) is linked to the identity that claims its name, under the rules above. Off:
+    # nothing is linked on a claim — accounts are bound to their subject by SCIM, and an identity SCIM
+    # did not bind is refused. Turn it off for a realm whose users can choose or edit their username.
+    link-by-claim: ${VECTISPIRE_OIDC_LINK_BY_CLAIM:true}
+    # **A single sign-on skips the local TOTP: the provider owns the second factor.** Every
+    # federated sign-in records what the provider stated (RFC 8176 `amr`, or an `acr` level named
+    # below). With require-mfa, a sign-on stating none is refused — turn it on once the provider is
+    # configured to send `amr` (Keycloak: an "Authentication Method Reference" mapper) or an `acr`.
+    require-mfa: ${VECTISPIRE_OIDC_REQUIRE_MFA:false}
+    mfa-amr: ${VECTISPIRE_OIDC_MFA_AMR:mfa,otp,hwk,fido}
+    mfa-acr: ${VECTISPIRE_OIDC_MFA_ACR:}
+
+  git:
+    # **The hosts repositories may be cloned from.** Empty (the default) means every host but the
+    # link-local ones, which are always refused: a forge on the internal network is the ordinary
+    # case. Listed — `gitlab.corp.example, *.corp.example` — only those are cloned from, checked
+    # when a URL is entered and again before each scan.
+    allowed-hosts: ${VECTISPIRE_GIT_ALLOWED_HOSTS:}
+
+  audit:
+    mirror-path: ${VECTISPIRE_AUDIT_MIRROR:}
+
+  encryption:
+    key: ${ENCRYPTION_KEY:}
+    key-file: ${ENCRYPTION_KEY_FILE:}
+    previous-keys: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:}
+    previous-keys-file: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:}
+
+  queue:
+    # **How long a scan waits after an attempt that could not run for a transient reason** — the
+    # network, a timeout, a lapsed lease — before another claim may take it: the first after the
+    # first attempt, the last for every attempt past the list, bounded by the attempt limit (3). A
+    # permanent failure — a host key refused, a repository absent — fails at once and waits for
+    # nothing. Without the wait, a lone agent took back at its next poll the scan it had just
+    # reported, and spent the three attempts in seconds.
+    retry-delays: ${VECTISPIRE_SCAN_RETRY_DELAYS:1m,5m,15m}
+
+  worker:
+    enabled: ${VECTISPIRE_EMBEDDED_WORKER:true}
+    max-concurrent: ${VECTISPIRE_SCAN_MAX_CONCURRENT:2}
+    labels: ${VECTISPIRE_WORKER_LABELS:}
+    interval: ${VECTISPIRE_WORKER_INTERVAL:15s}
+
+  reports:
+    # **The report plugins' executor (decision 0035 §2)** — on the control plane's own container endpoint,
+    # under the built-in worker's switch: with VECTISPIRE_EMBEDDED_WORKER=false there is none, and a report
+    # request is refused (409 report-executor-unavailable) rather than queued for nobody. How many runs it
+    # carries out at once — each a pull, a signature check and a container of up to five minutes — and how
+    # often it looks for waiting ones.
+    concurrency: ${VECTISPIRE_REPORT_CONCURRENCY:2}
+    interval: ${VECTISPIRE_REPORT_INTERVAL:10s}
+
+  forges:
+    discovery:
+      # **Forge discoveries (decision 0037 §3)** — listed by the control plane, on every instance, whatever the
+      # built-in worker's switch: never by an agent, which would need the connection's token. How many run at once
+      # and how often an instance looks for waiting ones. The bounds of a run — thirty minutes, twenty thousand
+      # repositories, a rate-limit wait of up to a minute spent inside it — are the decision's (answer 8), and
+      # read from `vectispire.forges.discovery.max-duration`, `max-repositories` and `max-rate-limit-wait` only so
+      # that a test reaches each in seconds; a larger estate is discovered per group.
+      concurrency: ${VECTISPIRE_DISCOVERY_CONCURRENCY:2}
+      interval: ${VECTISPIRE_DISCOVERY_INTERVAL:5s}
+
+  jobs:
+    relay-interval: ${VECTISPIRE_RELAY_INTERVAL:60s}
+    scheduler-interval: ${VECTISPIRE_SCHEDULER_INTERVAL:60s}
+    maintenance-interval: ${VECTISPIRE_MAINTENANCE_INTERVAL:1h}
+
+springdoc:
+  swagger-ui:
+    # Disabled by default in production. Enable explicitly with VECTISPIRE_SWAGGER_UI_ENABLED=true
+    enabled: ${VECTISPIRE_SWAGGER_UI_ENABLED:false}
+  api-docs:
+    # OpenAPI JSON specification endpoint. Enable explicitly with VECTISPIRE_API_DOCS_ENABLED=true
+    enabled: ${VECTISPIRE_API_DOCS_ENABLED:false}
+

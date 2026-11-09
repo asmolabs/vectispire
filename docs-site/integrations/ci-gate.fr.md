@@ -1,0 +1,110 @@
+# Barrière CI
+
+La barrière répond à une question posée par votre pipeline : **cette construction doit-elle
+échouer ?**
+
+## La version courte
+
+```bash
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-gate.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-gate.sh
+sh vectispire-gate.sh --repository <repository-id>
+```
+
+Téléchargé, vérifié, puis lancé — jamais redirigé dans `sh`, où les octets s'exécutent à mesure
+qu'ils arrivent et où rien ne peut être vérifié d'abord. Sans `cosign`, comparez le SHA-256 du
+fichier au `VECTISPIRE_GATE_SHA256` du modèle GitLab au même tag, ce que fait le modèle lui-même. Le
+script est un asset de version depuis la 0.10.0.
+
+Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la main :
+
+- [`ci/vectispire-gate.sh`](https://github.com/asmolabs/vectispire/blob/main/ci/vectispire-gate.sh) — un script shell pour n'importe quel exécuteur ;
+- [`ci/github-action/action.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/github-action/action.yml) — une action composite GitHub ;
+- [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — un modèle GitLab, inclus depuis votre projet : il récupère le script de barrière de la version, ne le lance qu'à l'empreinte qu'il épingle, et fait échouer le pipeline sur un verdict rouge ([branché ici](ci-examples.md#gitlab-ci)).
+
+Les trois demandent `VECTISPIRE_URL` et `VECTISPIRE_TOKEN` dans l'environnement du job. Le jeton
+est une [clé d'API](../administration/api-keys.md) de portée `scan` — demander un verdict compte
+comme analyser — de préférence limitée à la seule cible que le pipeline contrôle.
+
+[Exemples CI](ci-examples.md) le branche de bout en bout dans GitLab CI et Jenkins — analyser,
+attendre, barrer — et importe les résultats de SonarQube par une source déclarée.
+
+## Le verdict nomme sa politique
+
+La réponse dit quelle politique a été appliquée. Cela compte quand une construction échoue et
+que son auteur veut savoir à quelle barre il a été tenu — « la politique globale, version 4 »
+est une réponse ; « échec » n'en est pas une.
+
+![Le registre des verdicts : ce que la barrière a répondu par cible, du plus récent au plus ancien, avec le taux de refus à côté du compte.](../assets/screens/fr/gate-verdicts.png)
+
+## Les politiques sont stockées, pas envoyées
+
+**Un objet `policy` dans la requête ne peut que *durcir* ce qui s'applique, jamais l'assouplir.**
+
+Cela n'a pas toujours été le cas. Les règles arrivaient autrefois dans le corps de la requête,
+ce qui signifiait que chaque projet décidait de sa propre barre, donc que la barrière ne
+mesurait rien de comparable à l'échelle du parc. Désormais, la politique appliquée est une
+politique **stockée et versionnée** — globale, ou redéfinie par cible — écrite dans
+**Administration → Politiques de barrière**. Une requête peut être plus stricte qu'elle. Elle
+ne peut pas être plus laxiste.
+
+Là où rien n'est stocké, le défaut intégré s'applique. L'écran montre ce défaut à côté de ce
+qui est stocké, pour que « non posé » et « posé à la même valeur » ne se ressemblent pas.
+
+[Configurer les politiques →](../administration/gate-policies.md)
+
+## Ce qu'une politique peut prendre en compte
+
+| | |
+|---|---|
+| **Seuil** | la gravité à partir de laquelle la construction échoue |
+| **Corrigeables seulement** | ignorer ce dont aucun correctif n'est publié — on ne peut pas demander à une équipe de corriger ce que l'amont n'a pas corrigé |
+| **Activement exploitées** | traiter les entrées KEV différemment du reste |
+| **Constats triés** | si une issue triée compte encore |
+| **Violations de licence** | échouer sur une licence bloquée |
+| **Revue par modèle** | si un verdict de revue IA participe |
+| **Plugins** (`include_plugins`) | si les constats des [plugins et imports SARIF](../administration/plugins.md) participent — désactivé par défaut |
+
+## La qualité ne fait jamais échouer une construction
+
+Les constats de qualité Semgrep ne peuvent pas faire échouer une barrière, par construction
+plutôt que par configuration. Voir [Qualité du code](../guide/quality.md) pour comprendre
+pourquoi cette frontière est portante.
+
+## Une cible que personne n'a examinée ne passe jamais {#a-target-nobody-examined-never-passes}
+
+**Une cible dont aucun scan n'est allé à son terme échoue à la barrière, quoi que dise la
+politique** : jamais analysée, ses seuls scans encore en attente ou en cours, ou le dernier scan
+terminé a échoué. Son backlog est vide ou périmé, et un backlog vide satisferait toute règle qui en lit
+un. La réponse est un HTTP 200 comme tout autre refus — `passed: false`, et une violation de règle
+`observation`, sans issue derrière elle, dont la `reason` dit de quel cas il s'agit — : le script sort
+en 1, le verdict entre au registre et le refus est signalé au SIEM.
+
+Aucun indicateur de politique ne la désactive, et une requête non plus : `include_triaged`,
+`fixable_only` et le seuil choisissent les constats qui comptent, et cette règle n'en compte aucun.
+Un scan encore en cours ne change rien, dans un sens comme dans l'autre — le verdict repose sur le
+dernier scan *terminé*, si bien qu'une réanalyse planifiée ne fait pas virer au rouge une cible qui
+passe pendant qu'elle tourne.
+
+## Où placer la barrière
+
+Après le scan et avant le déploiement. Deux modes d'échec à éviter :
+
+**Barrer sur un scan périmé.** Un verdict sur le commit de la semaine dernière ne dit rien de
+celui-ci. Déclenchez le scan dans le pipeline, puis barrez dessus.
+
+**Barrer avant la fin du scan.** Une cible dont le premier scan n'est pas terminé échoue avec une
+violation `observation`, de même qu'une cible dont le dernier scan a échoué — un build rouge, pas un
+vert. Attendez le scan que le pipeline a déclenché, puis barrez. Voir
+[Lire les résultats](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
+
+## Annoter aussi la demande de fusion
+
+Une barrière est binaire et arrive à la fin. Exportez du
+[SARIF](../guide/exports.md#sarif-210) à côté, pour que les constats atterrissent sur le
+différentiel, là où ils se corrigent au lieu de se trier.

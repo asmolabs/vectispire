@@ -1,0 +1,305 @@
+package com.asmolabs.vectispire.core.access;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import java.time.Instant;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+/**
+ * Authentication against a database.
+ *
+ * <p>The unit suite proves the ordering with fakes. What only a database shows is that the
+ * throttle's counters are really written and really counted — the query is a window on a
+ * timestamp column, and a throttle that counts nothing is a throttle that is not there.
+ */
+@DisplayName("logging in, against a database")
+class AuthDatabaseTest extends VectispireContextTest {
+
+    private static final String PASSWORD = "correct horse battery staple";
+
+    @Autowired
+    private AuthService auth;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private SessionRepository sessions;
+
+    @Autowired
+    private LoginAttemptRepository attempts;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.access.persistence.SignInClientRepository knownClients;
+
+    @Autowired
+    private java.time.Clock clock;
+
+    @BeforeEach
+    void seedAccount() {
+        UserEntity user = new UserEntity();
+        user.setUsername("alice");
+        user.setPassword(PasswordHasher.hash(PASSWORD));
+        user.setRole(Role.ADMIN.name());
+        user.setIsActive(true);
+        user.setCreatedAt(Instant.now());
+        user.setUpdatedAt(Instant.now());
+        users.save(user);
+    }
+
+    @Test
+    @DisplayName("a hash made under weaker parameters is rewritten on the way in")
+    void aStaleHashIsUpgradedOnSuccessfulLogin() {
+        // A hash at m=4096,t=1 — the shape a deployment carries after the cost has been raised
+        // past it. Derived by the same code under the old parameters rather than pasted as a
+        // literal: a fixture nobody can regenerate is one nobody dares touch.
+        UserEntity alice = users.findByUsername("alice").orElseThrow();
+        alice.setPassword(PasswordHasher.hash(PASSWORD, 4096, 1, 1));
+        users.save(alice);
+        assertThat(PasswordHasher.needsRehash(alice.getPassword())).isTrue();
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .as("an old hash still verifies under its own parameters — that is the point of PHC")
+                .isInstanceOf(AuthService.Outcome.Success.class);
+
+        // **The claim that had no implementation.** `PasswordHasher`'s javadoc promised the hash
+        // "can be rewritten on the next successful login"; `needsRehash` existed, was tested, and
+        // was called from no production code. Raising the cost would have left every existing
+        // account at the old parameters for ever.
+        String stored = users.findByUsername("alice").orElseThrow().getPassword();
+        assertThat(PasswordHasher.needsRehash(stored))
+                .as("the stored hash should now carry today's parameters")
+                .isFalse();
+        assertThat(PasswordHasher.verify(PASSWORD, stored))
+                .as("and it must still be the same password")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("a session is written, and resolves back")
+    void aSessionSurvivesTheRoundTrip() {
+        AuthService.LoginResult result = auth.login(request("alice", PASSWORD));
+
+        assertThat(result.outcome()).isInstanceOf(AuthService.Outcome.Success.class);
+        String token = ((AuthService.Outcome.Success) result.outcome()).issued().token();
+        assertThat(auth.resolve("Bearer " + token)).isPresent();
+    }
+
+    @Test
+    @DisplayName("what the store holds is a verifier, not the token")
+    void theStoredValueDoesNotAuthenticate() {
+        String token = ((AuthService.Outcome.Success) auth.login(request("alice", PASSWORD)).outcome())
+                .issued()
+                .token();
+
+        // The property, checked against a real row rather than against the mapping: nothing in
+        // the table equals the token, and the value that is there is its hash. A dump of
+        // `t_session` therefore hands over no session — which is the entire point.
+        assertThat(sessions.findAll()).singleElement().satisfies(row -> {
+            assertThat(row.getTokenHash()).isNotEqualTo(token).isEqualTo(Sessions.hashOf(token));
+            // And presenting the stored value does not get in. Reading the table is not enough;
+            // one would have to invert SHA-256.
+            assertThat(auth.resolve("Bearer " + row.getTokenHash())).isEmpty();
+        });
+        assertThat(sessions.findById(token)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the throttle counts real rows, and locks after five")
+    void theThrottleActuallyCounts() {
+        for (int attempt = 0; attempt < LoginThrottle.MAX_ATTEMPTS_PER_USER; attempt++) {
+            assertThat(auth.login(request("alice", "wrong")).outcome())
+                    .isInstanceOf(AuthService.Outcome.Invalid.class);
+        }
+
+        // Each failure writes five rows — the account and the typed name folded, each from this
+        // address and from everywhere, and the address — and the sixth attempt is refused before
+        // the password is judged at all, leaving no row of its own: being refused does not extend
+        // the lockout.
+        assertThat(attempts.findAll()).hasSize(5 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.Blocked.class);
+        assertThat(attempts.findAll()).hasSize(5 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+    }
+
+    @Test
+    @DisplayName("an account locked from one address still opens to the right password from another")
+    void aLockoutStaysWithTheClientThatCausedIt() {
+        // One counter shared by every client let anyone who knew the name keep the account locked,
+        // the right password from the owner's own workstation refused with the rest.
+        for (int attempt = 0; attempt < LoginThrottle.MAX_ATTEMPTS_PER_USER; attempt++) {
+            auth.login(new AuthService.LoginRequest("alice", "wrong", "curl/8", "203.0.113.7"));
+        }
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.7")).outcome())
+                .isInstanceOf(AuthService.Outcome.Blocked.class);
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.Success.class);
+    }
+
+    @Test
+    @DisplayName("a guess spread over many addresses meets the account's budget, whatever the password")
+    void guessesSpreadAcrossClientsAreThrottled() {
+        // Each address stays under every ceiling of its own — one failure each, five allowed — so
+        // only the account's budget across clients sees the guess. Real sign-ins, not rows: what is
+        // under test is that the attempts of fifty different clients add up.
+        for (int client = 1; client <= LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT; client++) {
+            assertThat(auth.login(new AuthService.LoginRequest("alice", "guess " + client, "curl/8", "203.0.113." + client))
+                            .outcome())
+                    .isInstanceOf(AuthService.Outcome.Invalid.class);
+        }
+        long rows = attempts.count();
+
+        AuthService.LoginResult wrong = auth.login(new AuthService.LoginRequest("alice", "guess 51", "curl/8", "203.0.113.51"));
+        assertThat(wrong.outcome()).isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+        assertThat(((AuthService.Outcome.AccountThrottled) wrong.outcome()).retryAfter())
+                .isPositive()
+                .isLessThanOrEqualTo(LoginThrottle.WINDOW);
+        assertThat(wrong.audit().signal()).isEqualTo(com.asmolabs.vectispire.common.domain.siem.SecurityEventType.SIGN_IN_THROTTLED);
+        // And the right one is answered the same: past the budget a new client learns nothing from the
+        // password — it is not even derived — and the refusals leave no row to extend the window with.
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.52")).outcome())
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+        assertThat(attempts.count()).isEqualTo(rows);
+    }
+
+    @Test
+    @DisplayName("past the account's budget, an unknown name is refused exactly as an existing account is")
+    void theBudgetSaysNothingAboutWhetherTheAccountExists() {
+        spendTheBudget(LoginThrottle.userKey("nobody"), clock.instant().minusSeconds(5));
+        spendTheBudget(LoginThrottle.userKey("alice"), clock.instant().minusSeconds(5));
+
+        assertThat(auth.login(new AuthService.LoginRequest("nobody", "guess", "curl/8", "203.0.113.9")).outcome())
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+        assertThat(auth.login(new AuthService.LoginRequest("alice", "guess", "curl/8", "203.0.113.9")).outcome())
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+    }
+
+    @Test
+    @DisplayName("the owner still signs in from a client that has signed in to the account before")
+    void theOwnerSignsInFromAKnownClient() {
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "firefox", "198.51.100.10")).outcome())
+                .isInstanceOf(AuthService.Outcome.Success.class);
+        long id = users.findByUsername("alice").orElseThrow().getId();
+        spendTheBudget(LoginThrottle.accountKey(id), clock.instant().minusSeconds(5));
+
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.7")).outcome())
+                .as("a client the account has never signed in from")
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "firefox", "198.51.100.10")).outcome())
+                .as("the owner's own client, past the same budget")
+                .isInstanceOf(AuthService.Outcome.Success.class);
+        // Held to its own ceilings still: a known client is exempt from the others' failures, not
+        // from its own.
+        for (int attempt = 0; attempt < LoginThrottle.MAX_ATTEMPTS_PER_USER; attempt++) {
+            auth.login(new AuthService.LoginRequest("alice", "wrong", "firefox", "198.51.100.10"));
+        }
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "firefox", "198.51.100.10")).outcome())
+                .isInstanceOf(AuthService.Outcome.Blocked.class);
+    }
+
+    @Test
+    @DisplayName("a client the account has not signed in from for the retention is not known any more")
+    void aKnownClientIsForgottenAfterTheRetention() {
+        long id = users.findByUsername("alice").orElseThrow().getId();
+        com.asmolabs.vectispire.core.access.persistence.SignInClientEntity old =
+                new com.asmolabs.vectispire.core.access.persistence.SignInClientEntity();
+        old.setClientKey(LoginThrottle.knownClientKey(id, "198.51.100.10"));
+        old.setAccountId(id);
+        old.setLastSignedInAt(clock.instant().minus(SignInLimits.DEFAULT_KNOWN_CLIENT_RETENTION).minusSeconds(60));
+        knownClients.save(old);
+        spendTheBudget(LoginThrottle.accountKey(id), clock.instant().minusSeconds(5));
+
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "firefox", "198.51.100.10")).outcome())
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+    }
+
+    @Test
+    @DisplayName("the account's budget comes back once its failures leave the window")
+    void theBudgetResetsAfterTheWindow() {
+        long id = users.findByUsername("alice").orElseThrow().getId();
+        Instant now = clock.instant();
+        // Just inside the window: still spent.
+        spendTheBudget(LoginThrottle.accountKey(id), now.minus(LoginThrottle.WINDOW).plusSeconds(30));
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.7")).outcome())
+                .isInstanceOf(AuthService.Outcome.AccountThrottled.class);
+
+        // The same failures a minute older have left it, and a new client is let through.
+        attempts.deleteAll();
+        spendTheBudget(LoginThrottle.accountKey(id), now.minus(LoginThrottle.WINDOW).minusSeconds(30));
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.7")).outcome())
+                .isInstanceOf(AuthService.Outcome.Success.class);
+    }
+
+    /** Rows rather than fifty Argon2 derivations, where the counter is what is under test. */
+    private void spendTheBudget(String counterKey, Instant at) {
+        for (int failure = 0; failure < LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT; failure++) {
+            LoginAttemptEntity row = new LoginAttemptEntity();
+            row.setCounterKey(counterKey);
+            row.setOccurredAt(at);
+            attempts.save(row);
+        }
+    }
+
+    @Test
+    @DisplayName("a success clears the account's and the name's counters, and keeps the address's failures")
+    void successClearsWhatCameBefore() {
+        auth.login(request("alice", "wrong"));
+        auth.login(request("alice", "wrong"));
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.Success.class);
+        // Five mistypes then the right password is not an attack on the account. The address keeps
+        // its two failures — a sign-in to one's own account used to erase what the same address had
+        // tried against others — as do the account's and the name's global counters, which other
+        // clients may have fed; the success itself left no row: it is not a failure.
+        long id = users.findByUsername("alice").orElseThrow().getId();
+        assertThat(attempts.findAll())
+                .extracting(LoginAttemptEntity::getCounterKey)
+                .containsExactlyInAnyOrder(
+                        LoginThrottle.clientKey("10.0.0.1"), LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.accountKey(id), LoginThrottle.accountKey(id),
+                        LoginThrottle.userKey("alice"), LoginThrottle.userKey("alice"));
+    }
+
+    @Test
+    @DisplayName("signing out really removes the row")
+    void revokingDeletes() {
+        AuthService.IssuedSession issued =
+                ((AuthService.Outcome.Success) auth.login(request("alice", PASSWORD)).outcome()).issued();
+
+        auth.revoke(issued.session());
+
+        assertThat(sessions.findById(issued.session().tokenHash())).isEmpty();
+        assertThat(auth.resolve("Bearer " + issued.token())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a deactivated account cannot sign in, and its message is the ordinary refusal")
+    void aDeactivatedAccountIsRefusedLikeAnyOther() {
+        UserEntity user = users.findByUsername("alice").orElseThrow();
+        user.setIsActive(false);
+        users.save(user);
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.Invalid.class);
+    }
+
+    private static AuthService.LoginRequest request(String username, String password) {
+        return new AuthService.LoginRequest(username, password, "curl/8", "10.0.0.1");
+    }
+
+}

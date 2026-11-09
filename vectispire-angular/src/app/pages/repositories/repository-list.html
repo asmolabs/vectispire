@@ -1,0 +1,170 @@
+<p-dataview
+    [value]="page.repositories()"
+    [loading]="page.loading()"
+    layout="list"
+    [paginator]="true"
+    [rows]="page.pageSize"
+    [first]="page.first()"
+    (onPage)="page.first.set($event.first)"
+    [alwaysShowPaginator]="false"
+>
+    <ng-template #list let-items>
+        <!--
+            A card per repository rather than a row, because these are entities and not
+            measurements: nobody compares the URL of the third against the URL of the seventh, and
+            the alignment a table buys is paid for in horizontal scrolling on a narrow screen.
+            The tabular screens — issues, inventory, the audit log — keep their tables, where
+            reading down a column is the whole point.
+        -->
+        <div class="flex flex-col">
+            @for (repository of items; track repository.id) {
+                <div
+                    class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-t"
+                    style="border-color: var(--surface-border)"
+                >
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <div class="font-medium">{{ repository.displayName }}</div>
+                            @if (repository.tier === 'TIER_1_MISSION_CRITICAL') {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800"
+                                    >{{ 'repositories.tier_1_badge' | translate }}</span
+                                >
+                            } @else if (repository.tier === 'TIER_3_INTERNAL') {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                    >{{ 'repositories.tier_3_badge' | translate }}</span
+                                >
+                            } @else {
+                                <span
+                                    class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                    >{{ 'repositories.tier_2_badge' | translate }}</span
+                                >
+                            }
+                        </div>
+                        <div class="text-sm text-muted-color break-all">
+                            {{ repository.url }}
+                            <!--
+                                Shown because two rows can now be the same URL. Without it a
+                                monorepo registered twice reads as the same target listed twice,
+                                and nobody can tell which one they are scanning.
+                            -->
+                            @if (repository.subPath) {
+                                <span class="font-mono">· {{ repository.subPath }}</span>
+                            }
+                        </div>
+                        <div class="text-sm text-muted-color mt-1">
+                            {{ repository.branch }} ·
+                            @if (repository.openIssues > 0) {
+                                <a
+                                    [routerLink]="['/issues']"
+                                    [queryParams]="{ repository_id: repository.id }"
+                                    class="font-medium"
+                                    >{{ 'repositories.outstanding' | translate: { count: repository.openIssues } }}</a
+                                >
+                            } @else {
+                                <span>{{ 'repositories.nothing_outstanding' | translate }}</span>
+                            }
+                            · <span>{{ schedules()[repository.id] }}</span>
+                            <!--
+                                The project it is filed in, linking to that project in the tree; a
+                                dash when it is in none, because "no project" is a state an
+                                administrator has to act on, not an absence of data.
+                            -->
+                            ·
+                            <span data-testid="repository-project"
+                                >{{ 'repositories.project' | translate }}
+                                @if (repository.projectId != null) {
+                                    <a [routerLink]="['/solutions']" [fragment]="'project-' + repository.projectId">{{
+                                        repository.projectName
+                                    }}</a>
+                                } @else {
+                                    <span>—</span>
+                                }
+                            </span>
+                        </div>
+                        <!--
+                            What the newest completed scan counted, in the plugin manifests' own
+                            words, so "would this plugin run here?" is answered by reading.
+                        -->
+                        <div
+                            class="text-sm text-muted-color mt-1 flex flex-wrap items-center gap-2"
+                            data-testid="repository-languages"
+                        >
+                            <span>{{ 'detected_languages.label' | translate }}</span>
+                            <app-detected-languages [languages]="repository.detectedLanguages" />
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0">
+                        <p-button
+                            icon="pi pi-shield"
+                            [label]="'repositories.scorecard_btn' | translate"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="page.openScorecard(repository)"
+                        />
+
+                        <p-button
+                            icon="pi pi-bolt"
+                            label="CI/CD"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="page.openCicd(repository)"
+                        />
+
+                        <p-button
+                            icon="pi pi-file-import"
+                            [label]="'repositories.imports_btn' | translate"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            [ariaLabel]="'repositories.aria_imports' | translate: { name: repository.displayName }"
+                            data-testid="sarif-imports-btn"
+                            (onClick)="page.openSarifImports(repository)"
+                        />
+
+                        @if (repository.lastScan; as scan) {
+                            <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                        } @else {
+                            <app-last-scan [scan]="null" />
+                        }
+
+                        @if (page.isAdmin()) {
+                            <div class="whitespace-nowrap">
+                                <p-button
+                                    icon="pi pi-play"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'repositories.aria_scan' | translate: { name: repository.url }"
+                                    [disabled]="page.busy() === repository.id"
+                                    (onClick)="page.triggerScan(repository)"
+                                />
+                                <p-button
+                                    icon="pi pi-pencil"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'repositories.aria_edit' | translate: { name: repository.url }"
+                                    (onClick)="edit.emit(repository)"
+                                />
+                                <p-button
+                                    icon="pi pi-trash"
+                                    severity="danger"
+                                    [text]="true"
+                                    [rounded]="true"
+                                    [ariaLabel]="'repositories.aria_delete' | translate: { name: repository.url }"
+                                    (onClick)="page.askDelete(repository)"
+                                />
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </ng-template>
+    <ng-template #empty>
+        <div class="text-center text-muted-color py-6">{{ 'repositories.no_repo' | translate }}</div>
+    </ng-template>
+</p-dataview>

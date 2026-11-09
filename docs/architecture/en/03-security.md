@@ -1,0 +1,110 @@
+# 03 — Security
+
+> The formal analysis is separate and longer: the
+> **[STRIDE threat model](../security/en/STRIDE_THREAT_MODEL.en.md)** walks each category with the
+> control that answers it. This page is the shape of the problem; that one is the enumeration.
+
+Vectispire is a security tool, which does not make it secure: it makes it **interesting to attack**.
+It holds deployment keys, it reaches a Docker daemon, it displays strings produced by hostile code,
+and it returns a verdict someone has an interest in making lie.
+
+## Assets and Assets Protection
+
+| Asset | Where | Consequence of a leak |
+|---|---|---|
+| SSH deployment keys | `ssh_key`, AES-GCM encrypted | read access to every watched repository |
+| HTTPS clone tokens | `t_git_token`, AES-GCM encrypted under the row's id; presented to the one host written when the token was added, which nothing edits ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | what the token grants on that forge |
+| `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
+| Access to the Docker daemon | through `docker-socket-proxy`, never the socket file ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | root-equivalent on the host that runs it |
+| The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
+| Raw gitleaks reports | `scan.cves`, purged | **secrets in clear text** |
+| Audit log | `audit_log`, chained | erases history |
+
+## Trust boundaries
+
+```mermaid
+flowchart LR
+    subgraph hostile["Hostile data"]
+        CODE["Scanned source code"]
+        FEED["Advisory feeds, package metadata"]
+    end
+    subgraph proc["Vectispire process — has ENCRYPTION_KEY"]
+        SCAN["Analysis containers<br/>cap_drop ALL, no-new-privileges, network off"]
+        APP["Services and API"]
+    end
+    subgraph daemon["Docker daemon — root on its host"]
+        PROXY["docker-socket-proxy<br/>ping, info, containers, images — no secrets, no exec start"]
+    end
+    subgraph edge["Edge"]
+        USER["Analyst's browser"]
+        CI["Build pipeline — API key"]
+        AGENT["Remote agent — agent-scoped key"]
+    end
+
+    CODE --> SCAN
+    SCAN -->|"results = data, never instructions"| APP
+    APP -->|"DOCKER_HOST, internal network"| PROXY
+    PROXY --> SCAN
+    FEED --> APP
+    APP -->|"CSP: an injected string is inert"| USER
+    CI --> APP
+    AGENT -->|"never the database"| APP
+```
+
+## Who sees what
+
+Every read that names a target is narrowed by a `Visibility`, resolved once per request by
+`VisibilityService`: everything for an administrator or a role with a global scope, otherwise the
+**union** of what the account was granted directly and what its teams were granted, **intersected**
+with the credential's own restriction. A grant names a repository, an image or a **project**; a
+project grant is resolved at that moment into the repositories and images filed in the project
+([0023](decisions/0023-solutions-projects-and-repositories.md)), so filing a repository or an image
+into a project grants it at once to the project's holders, and moving it out revokes it at once — the audit
+entry for the move says so. What reaches the queries is still a set of targets, and a target the
+reader may not see answers 404, exactly like one that does not exist.
+
+## Three boundaries worth naming separately
+
+**The daemon is the one that is narrowed rather than closed.** No Vectispire container mounts
+`/var/run/docker.sock`; a proxy holds it and allows the six API groups Vectispire calls. But
+`POST /containers/create` accepts `Binds`, and it is the call the product exists to make — so code
+execution inside the control plane can still reach the host. The boundary that actually separates
+the two is a second machine: a remote agent, with `VECTISPIRE_EMBEDDED_WORKER=false` here.
+[Decision 0018](decisions/0018-the-docker-socket-is-never-mounted.md) says this at length,
+including what it does not buy.
+
+**Handing back a scan result is the highest-integrity operation there is.** Artifacts that are
+present and empty mean "analysed, found nothing", which resolves the target's whole backlog of that
+type — correctly, per [0007](decisions/0007-none-is-not-an-empty-list.md). An operator may
+therefore pin an Ed25519 public key on an agent's row, out of band; that agent's results must then
+carry a signature over the scan id and the exact body. The key is deliberately **not** one the agent
+announces: a signature checked against a key its signer published on the same channel proves only
+what the bearer token already proved. A stolen API key can claim tasks; it cannot declare a target
+clean.
+
+**A forwarded header is worth the peer that sent it.** `X-Forwarded-For` decides who is
+rate-limited and which address the audit log records, and `X-Forwarded-Proto` whether the single
+sign-on hand-off cookie is marked `Secure`; both are honoured only from an address named in
+`vectispire.security.trusted-proxies`. (`X-Forwarded-Proto` also decided whether a deployment key
+could travel to an agent, until decision 0031 sealed every delegated credential whatever the link.)
+Empty — the default — means the peer is the client and only a genuinely encrypted connection counts.
+The address believed is the rightmost entry of `X-Forwarded-For` the list does not name, and it is
+only what that proxy saw: behind a hop that translates the source (a Kubernetes node's SNAT), it is
+the hop's.
+
+## Residual risks, stated rather than implied
+
+**A repository URL is checked against Vectispire's own endpoints where it is entered, not where it
+is cloned.** The git host allowlist refuses a URL naming the control plane's Docker daemon, its
+database or its cluster API (`ReservedEndpoints`), when the URL is entered and again when a scan
+task is built. Two things escape it. The name is resolved by that check and resolved again by the
+clone, which re-checks only link-local and metadata addresses: a name whose answer changes between
+the two (DNS rebinding) reaches what the first answer did not name. And an agent's own endpoints —
+its `DOCKER_HOST`, `agent-docker-proxy:2375` in the shipped compose — are not the control plane's to
+know. What reaches such an endpoint is the opening of an `https`, `ssh` or `git` transport, the only
+schemes a repository URL may use: a handshake, or a read of a path ending in `/info/refs`, never
+carrying a credential — a token is presented to its own host only. The plain-HTTP daemon proxies
+refuse all of it; an HTTPS API answers it as it answers an anonymous caller. Closing it would mean
+pinning, inside each of JGit's transports, the addresses checked; that was judged disproportionate
+to this impact before 1.0, and is reconsidered if a transport that speaks plain HTTP is ever
+accepted.

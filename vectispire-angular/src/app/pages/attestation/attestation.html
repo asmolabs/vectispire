@@ -1,0 +1,131 @@
+<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'attestation.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            @if (establishedAt(); as at) {
+                {{ 'attestation.established' | translate }}
+                <strong>{{ at | date: 'dd/MM/yyyy HH:mm' }}</strong>
+            }
+            @if (establishedBy()) {
+                · {{ establishedBy() }}
+            }
+            @if (compliance(); as summary) {
+                · {{ summary.totalMonitoredTargets }} {{ 'attestation.targets' | translate }}
+            }
+        </p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <p-button
+            [label]="'attestation.download' | translate"
+            icon="pi pi-download"
+            [loading]="downloading()"
+            (onClick)="download()"
+        />
+        <p-button
+            [label]="'attestation.recheck' | translate"
+            icon="pi pi-refresh"
+            [outlined]="true"
+            [loading]="rechecking()"
+            (onClick)="recheck()"
+        />
+        <p-button
+            [label]="'attestation.open_audit_log' | translate"
+            icon="pi pi-history"
+            [text]="true"
+            routerLink="/audit-log"
+        />
+    </div>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<!--
+    **The chain first.** It is the only claim on this page that proves itself on the spot: the rest
+    is a measurement. `broken` names the entry where the chain breaks, `unverifiable` counts the
+    entries predating the chaining — neither a proof nor an alarm, and conflating them would pass
+    an old history off as tampering.
+-->
+@if (chain(); as c) {
+    <div
+        class="rounded-lg border p-4 mb-4"
+        [class.border-green-600]="c.intact"
+        [class.bg-green-50]="c.intact"
+        [class.dark:bg-green-900/20]="c.intact"
+        [class.border-red-600]="!c.intact"
+        [class.bg-red-50]="!c.intact"
+        [class.dark:bg-red-900/20]="!c.intact"
+    >
+        <div class="flex flex-wrap items-center gap-3">
+            <i
+                class="pi text-xl"
+                [class.pi-verified]="c.intact"
+                [class.pi-exclamation-triangle]="!c.intact"
+                [class.text-green-700]="c.intact"
+                [class.text-red-700]="!c.intact"
+            ></i>
+            <span class="font-semibold" [class.text-green-700]="c.intact" [class.text-red-700]="!c.intact">
+                {{ (c.intact ? 'attestation.chain_intact' : 'attestation.chain_broken') | translate }}
+            </span>
+            <span class="text-sm text-muted-color">
+                {{ c.total }} {{ 'attestation.entries' | translate }} · {{ c.verified }}
+                {{ 'attestation.verified' | translate }} · {{ c.unverifiable }}
+                {{ 'attestation.unverifiable' | translate }}
+            </span>
+        </div>
+        @if (c.broken) {
+            <div class="mt-2 font-mono text-sm text-red-700">{{ c.broken }}</div>
+        }
+    </div>
+}
+
+<h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.frameworks' | translate }}</h2>
+<p class="text-muted-color text-sm mt-0 mb-3">{{ 'attestation.frameworks_note' | translate }}</p>
+
+@if (complianceError(); as message) {
+    <p-message data-testid="compliance-error" severity="warn" [closable]="false" styleClass="w-full">{{
+        message
+    }}</p-message>
+}
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    @for (f of tiles(); track f.framework) {
+        <div class="rounded-lg border p-3 flex flex-col gap-1" style="border-color: var(--surface-border)">
+            <span class="text-xs text-muted-color">{{ f.name }}</span>
+            <span
+                class="text-2xl font-semibold"
+                [class.text-green-700]="f.tone === 'ok'"
+                [class.text-amber-600]="f.tone === 'partial'"
+                [class.text-red-700]="f.tone === 'no'"
+            >
+                @if (f.tone === 'none') {
+                    —
+                } @else {
+                    {{ f.scorePercentage | localPercent }}
+                }
+            </span>
+            <span
+                class="text-xs font-semibold"
+                [class.text-green-700]="f.tone === 'ok'"
+                [class.text-amber-600]="f.tone === 'partial'"
+                [class.text-red-700]="f.tone === 'no'"
+                >{{ f.verdict }}</span
+            >
+        </div>
+    } @empty {
+        @if (!complianceError()) {
+            <div class="col-span-full text-muted-color">{{ 'attestation.no_compliance' | translate }}</div>
+        }
+    }
+</div>
+
+<!--
+    **The bundle's contents are described, not listed.** The nine sections carry file names the
+    server fixes; copying them here would create a second list that would drift at the first
+    rename, with nothing reporting it. Naming what they contain stays true longer than naming what
+    they are called.
+-->
+<h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.bundle' | translate }}</h2>
+<div class="rounded-lg border p-4" style="border-color: var(--surface-border)">
+    <p class="m-0 text-muted-color">{{ 'attestation.bundle_desc' | translate }}</p>
+</div>

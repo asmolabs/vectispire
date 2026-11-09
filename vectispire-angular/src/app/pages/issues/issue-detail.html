@@ -1,0 +1,329 @@
+@if (view(); as shown) {
+    @let detail = shown.detail;
+    <div class="mb-4">
+        <a routerLink="/issues" class="text-sm">{{ 'issues.back_to_issues' | translate }}</a>
+        <h1 class="text-2xl font-semibold m-0 mt-1">
+            {{ detail.identifier ?? detail.type }}
+        </h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ detail.targetName }} · {{ shown.type }} ·
+            {{
+                detail.timesSeen === 1
+                    ? ('issues.seen_once' | translate)
+                    : ('issues.seen_many' | translate: { count: detail.timesSeen })
+            }}
+        </p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'issues.filter_severity' | translate }}</div>
+            <div class="mt-2">
+                <p-tag [value]="detail.severity ?? 'unknown' | severityLabel" [severity]="shown.tone" />
+            </div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'issues.filter_state' | translate }}</div>
+            <div class="mt-2">
+                <p-tag [value]="detail.state | issueState" [severity]="detail.state === 'open' ? 'warn' : 'success'" />
+            </div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'history.triage' | translate }}</div>
+            <div class="text-lg font-medium mt-1">{{ shown.triage }}</div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">Fix</div>
+            <div class="mt-1">
+                @if (detail.fixVersions) {
+                    <span class="font-medium">{{ detail.fixVersions }}</span>
+                } @else {
+                    <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
+                }
+            </div>
+        </p-card>
+    </div>
+
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'issues.what_it_is' | translate }}</ng-template>
+        @if (detail.description) {
+            <p class="mt-0">{{ detail.description }}</p>
+        }
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            @if (detail.packageName) {
+                <div>
+                    <span class="text-muted-color">{{ 'issues.component' | translate }}</span> ·
+                    {{ detail.packageName }} {{ detail.packageVersion }}
+                </div>
+            }
+            @if (detail.filePath) {
+                <div>
+                    <span class="text-muted-color">{{ 'issues.location' | translate }}</span> · {{ detail.filePath }}
+                    @if (detail.line) {
+                        :{{ detail.line }}
+                    }
+                </div>
+            }
+            @if (detail.isDirectDependency !== null) {
+                <div>
+                    <span class="text-muted-color">{{ 'issues.dependency' | translate }}</span> ·
+                    {{ (detail.isDirectDependency ? 'issues.declared_direct' : 'issues.transitive_dep') | translate }}
+                </div>
+            }
+            @if (detail.cvssScore) {
+                <div>
+                    <span class="text-muted-color">{{ 'issues.cvss' | translate }}</span> ·
+                    {{ detail.cvssScore | localNumber }}
+                </div>
+            }
+            @if (detail.epssScore) {
+                <div>
+                    <span class="text-muted-color">{{ 'issues.epss' | translate }}</span> ·
+                    {{ detail.epssScore | localNumber: 5 }}
+                </div>
+            }
+            @if (detail.isKev) {
+                <div class="font-medium" style="color: var(--red-500)">{{ 'issues.cisa_kev_badge' | translate }}</div>
+            }
+            <div>
+                <span class="text-muted-color">{{ 'issues.first_seen' | translate }}</span> ·
+                {{ detail.firstSeenAt | date: 'dd/MM/yyyy HH:mm' }}
+            </div>
+            <div>
+                <span class="text-muted-color">{{ 'issues.last_seen' | translate }}</span> ·
+                {{ detail.lastSeenAt | date: 'dd/MM/yyyy HH:mm' }}
+            </div>
+        </div>
+        @if (detail.link) {
+            <p class="mb-0 mt-3 text-sm">
+                <a [href]="detail.link" target="_blank" rel="noopener noreferrer">{{ detail.link }}</a>
+            </p>
+        }
+    </p-card>
+
+    <!--
+        **Where this issue came from (decision 0017).** "Analysed by Vectispire" and "declared by a
+        CI" are different claims, and an auditor weighs them differently: a plugin ran under
+        Vectispire's confinement on a tree it cloned, an import is a document a declared key sent.
+        The tool key is shown as it stands, because it is the issue's resolution scope — a later
+        report from that tool, and from no other, may resolve it.
+    -->
+    @if (detail.type === 'plugin' || detail.type === 'imported') {
+        <p-card styleClass="mb-4" data-testid="issue-provenance">
+            <ng-template #title>{{ 'issues.provenance' | translate }}</ng-template>
+            @if (detail.type === 'plugin') {
+                <p class="mt-0">{{ 'issues.provenance_plugin' | translate }}</p>
+            } @else {
+                <p class="mt-0">{{ 'issues.provenance_imported' | translate }}</p>
+            }
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                @if (shown.pluginId; as pluginId) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_plugin_label' | translate }}</span> ·
+                        <a class="font-mono" [routerLink]="['/plugins']" [queryParams]="{ id: pluginId }">{{
+                            pluginId
+                        }}</a>
+                    </div>
+                }
+                @if (detail.importSource) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_source' | translate }}</span> ·
+                        <span class="font-mono">{{ detail.importSource }}</span>
+                    </div>
+                }
+                @if (detail.toolName) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_tool' | translate }}</span> ·
+                        {{ detail.toolName }}
+                        @if (detail.toolVersion) {
+                            {{ detail.toolVersion }}
+                        }
+                    </div>
+                }
+                @if (detail.tool) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_scope' | translate }}</span> ·
+                        <span class="font-mono">{{ detail.tool }}</span>
+                    </div>
+                }
+            </div>
+        </p-card>
+    }
+
+    <!--
+        **The ticket tracking this finding.** The sweep opens them for findings that breach the
+        gate; for all the others, nobody could say "this one is tracked in SEC-1234". It is the
+        reference the tracker's webhook looks up to close the finding, so attaching it does more
+        than document: it wires up the synchronisation.
+    -->
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'issues.ticket' | translate }}</ng-template>
+
+        @if (ticketError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="mb-3 w-full">{{ message }}</p-message>
+        }
+
+        @if (!editingTicket()) {
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    @if (detail.ticketRef) {
+                        @if (detail.ticketUrl) {
+                            <a
+                                [href]="detail.ticketUrl"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="font-medium"
+                                >{{ detail.ticketRef }}</a
+                            >
+                        } @else {
+                            <span class="font-medium">{{ detail.ticketRef }}</span>
+                        }
+                        <div class="text-sm text-muted-color mt-1">{{ 'issues.ticket_synced' | translate }}</div>
+                    } @else {
+                        <span class="text-muted-color">{{ 'issues.ticket_none' | translate }}</span>
+                    }
+                </div>
+                @if (canAttach()) {
+                    <p-button
+                        size="small"
+                        [outlined]="true"
+                        icon="pi pi-link"
+                        [label]="(detail.ticketRef ? 'issues.ticket_change' : 'issues.ticket_attach') | translate"
+                        (onClick)="editTicket()"
+                    />
+                }
+            </div>
+        } @else {
+            <form class="flex flex-col gap-3" (ngSubmit)="saveTicket()">
+                <div class="flex flex-col gap-2">
+                    <label for="ticket-reference" class="font-medium">{{
+                        'issues.ticket_reference' | translate
+                    }}</label>
+                    <input
+                        pInputText
+                        id="ticket-reference"
+                        required
+                        name="ticket-reference"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="ticketReference"
+                    />
+                    <small class="text-muted-color">{{ 'issues.ticket_reference_help' | translate }}</small>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label for="ticket-url" class="font-medium">{{ 'issues.ticket_url' | translate }}</label>
+                    <input
+                        pInputText
+                        id="ticket-url"
+                        name="ticket-url"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="ticketUrl"
+                    />
+                </div>
+                <div class="flex gap-2">
+                    <p-button
+                        type="submit"
+                        size="small"
+                        [label]="'common.save' | translate"
+                        [loading]="attaching()"
+                        [disabled]="!ticketReference.trim()"
+                    />
+                    <p-button
+                        size="small"
+                        severity="secondary"
+                        [text]="true"
+                        [label]="'common.cancel' | translate"
+                        (onClick)="editingTicket.set(false)"
+                    />
+                </div>
+            </form>
+        }
+    </p-card>
+
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'history.decisions' | translate }}</ng-template>
+        @if (detail.decisions.length === 0) {
+            <p class="text-muted-color m-0">
+                {{ 'history.no_decision_recorded' | translate }}
+            </p>
+        } @else {
+            @for (decision of shown.decisions; track decision.occurredAt) {
+                <div class="mb-3">
+                    <div>
+                        <span class="text-muted-color"> {{ decision.occurredAt | date: 'dd/MM/yyyy HH:mm' }} — </span>
+                        {{ decision.fromLabel }} → {{ decision.toLabel }}
+                        @if (decision.justification) {
+                            ({{ decision.justification }})
+                        }
+                        @if (decision.origin === 'reopen') {
+                            <em>{{
+                                decision.previousResolvedAt
+                                    ? ('history.reopened_since'
+                                      | translate: { date: (decision.previousResolvedAt | date: 'dd/MM/yyyy') ?? '' })
+                                    : ('history.reopened' | translate)
+                            }}</em>
+                        } @else if (decision.actor) {
+                            {{ 'history.by' | translate }} {{ decision.actor }}
+                        } @else {
+                            <em>{{ 'history.expired_auto' | translate }}</em>
+                        }
+                    </div>
+                    @if (decision.comment) {
+                        <div class="text-sm text-muted-color italic">“{{ decision.comment }}”</div>
+                    }
+                </div>
+            }
+        }
+    </p-card>
+
+    <p-card>
+        <ng-template #title>
+            {{ 'issues.sightings_title' | translate }}
+            <span class="text-muted-color font-normal text-sm">
+                {{ 'issues.sightings_subtitle' | translate }}
+            </span>
+        </ng-template>
+        <p-table
+            [value]="detail.sightings"
+            dataKey="scanId"
+            styleClass="p-datatable-sm"
+            [paginator]="detail.sightings.length > 15"
+            [rows]="15"
+        >
+            <ng-template #header>
+                <tr>
+                    <th style="width: 7rem">{{ 'issues.col_scan' | translate }}</th>
+                    <th style="width: 12rem">{{ 'issues.col_when' | translate }}</th>
+                    <th style="width: 9rem">{{ 'history.branch' | translate }}</th>
+                    <th style="width: 10rem">{{ 'history.version' | translate }}</th>
+                    <th style="width: 8rem">{{ 'history.severity' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-sighting>
+                <tr>
+                    <td>
+                        <a [routerLink]="['/scans', sighting.scanId]">#{{ sighting.scanId }}</a>
+                    </td>
+                    <td>{{ sighting.scannedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ sighting.branch }}</td>
+                    <td>
+                        @if (sighting.version) {
+                            {{ sighting.version }}
+                        } @else {
+                            <span class="text-muted-color">{{ 'history.unknown_version' | translate }}</span>
+                        }
+                    </td>
+                    <td>{{ sighting.severity | severityLabel }}</td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="5" class="text-muted-color">
+                        {{ 'issues.sightings_empty' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+} @else if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+}

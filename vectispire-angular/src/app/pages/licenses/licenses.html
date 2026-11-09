@@ -1,0 +1,623 @@
+<div class="flex flex-col gap-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">{{ 'licenses.title' | translate }}</h1>
+            <p class="text-surface-600 dark:text-surface-400 mt-1">{{ 'licenses.subtitle' | translate }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button
+                pButton
+                icon="pi pi-refresh"
+                class="p-button-outlined"
+                [label]="'common.refresh' | translate"
+                [loading]="loading()"
+                (click)="loadData()"
+            ></button>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    @if (error()) {
+        <p-message severity="error" [text]="error()!"></p-message>
+    }
+    @if (targetsError(); as message) {
+        <p-message data-testid="targets-error" severity="warn" [closable]="false">{{ message }}</p-message>
+    }
+
+    <!-- KPI Summary Row -->
+    @if (summary(); as sum) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div
+                class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
+                <span class="text-xs uppercase font-semibold text-surface-500">{{
+                    'licenses.total_deps' | translate
+                }}</span>
+                <div class="text-2xl font-bold mt-2 text-surface-900 dark:text-surface-0">
+                    {{ sum.totalDependencies }}
+                </div>
+                <span class="text-xs text-surface-400 mt-1"
+                    >{{ sum.uniqueLicenses }} {{ 'licenses.unique_types' | translate }}</span
+                >
+            </div>
+
+            <div
+                class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
+                <span class="text-xs uppercase font-semibold text-green-600 dark:text-green-400">{{
+                    'licenses.permissive' | translate
+                }}</span>
+                <div class="text-2xl font-bold mt-2 text-green-600 dark:text-green-400">
+                    {{ sum.breakdownByRisk['PERMISSIVE'] ?? 0 }}
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{ 'licenses.permissive_examples' | translate }}</span>
+            </div>
+
+            <div
+                class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
+                <span class="text-xs uppercase font-semibold text-amber-600 dark:text-amber-400">{{
+                    'licenses.weak_copyleft' | translate
+                }}</span>
+                <div class="text-2xl font-bold mt-2 text-amber-600 dark:text-amber-400">
+                    {{ sum.breakdownByRisk['WEAK_COPYLEFT'] ?? 0 }}
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{ 'licenses.weak_copyleft_examples' | translate }}</span>
+            </div>
+
+            <div
+                class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
+                <span class="text-xs uppercase font-semibold text-red-600 dark:text-red-400">{{
+                    'licenses.strong_copyleft' | translate
+                }}</span>
+                <div class="text-2xl font-bold mt-2 text-red-600 dark:text-red-400">
+                    {{ (sum.breakdownByRisk['STRONG_COPYLEFT'] ?? 0) + (sum.breakdownByRisk['FORBIDDEN'] ?? 0) }}
+                </div>
+                <span class="text-xs text-red-700 dark:text-red-400 font-medium mt-1"
+                    >{{ sum.nonCompliantCount }} {{ 'licenses.policy_violations' | translate }}</span
+                >
+            </div>
+        </div>
+    }
+
+    <!-- Sub-navigation Tabs -->
+    <div class="flex items-center gap-2 border-b border-surface-200 dark:border-surface-700 pb-2">
+        <button
+            pButton
+            [text]="activeTab() !== 'inventory'"
+            [outlined]="activeTab() === 'inventory'"
+            icon="pi pi-list"
+            [label]="'licenses.tab_inventory' | translate"
+            size="small"
+            (click)="setTab('inventory')"
+        ></button>
+        <button
+            pButton
+            [text]="activeTab() !== 'conflicts'"
+            [outlined]="activeTab() === 'conflicts'"
+            icon="pi pi-exclamation-triangle"
+            [label]="'licenses.tab_conflicts' | translate"
+            size="small"
+            severity="warn"
+            (click)="setTab('conflicts')"
+        >
+            @if (blockingConflictsCount() > 0) {
+                <span class="ml-2 px-1.5 py-0.5 text-xs bg-red-600 text-white rounded-full font-bold">{{
+                    blockingConflictsCount()
+                }}</span>
+            }
+        </button>
+        <button
+            pButton
+            [text]="activeTab() !== 'matrix'"
+            [outlined]="activeTab() === 'matrix'"
+            icon="pi pi-table"
+            [label]="'licenses.tab_matrix' | translate"
+            size="small"
+            (click)="setTab('matrix')"
+        ></button>
+    </div>
+
+    <!-- TAB 1: INVENTORY & POLICIES -->
+    @if (activeTab() === 'inventory') {
+        <!--
+            **The rule that decides "non-compliant".** It was loaded by the screen and shown
+            nowhere: the violation counter at the top, every row's compliance and the conflicts all
+            follow from it, and nobody could either read it or change it. A count whose rule is
+            invisible cannot be argued with, only endured.
+        -->
+        <p-card styleClass="mb-4">
+            <ng-template #title>{{ 'licenses.policy_title' | translate }}</ng-template>
+
+            @if (policyError(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="mb-3 w-full">{{ message }}</p-message>
+            }
+
+            @if (policy(); as current) {
+                @if (!editingPolicy()) {
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="flex flex-col gap-2 text-sm">
+                            <div>
+                                <span class="text-muted-color">{{ 'licenses.policy_disallowed' | translate }}</span>
+                                @if (current.disallowedCategories.length === 0) {
+                                    <span class="ml-2">{{ 'licenses.policy_nothing_disallowed' | translate }}</span>
+                                } @else {
+                                    <span class="ml-2 flex flex-wrap gap-1 inline-flex">
+                                        @for (category of current.disallowedCategories; track category) {
+                                            <p-tag severity="danger" [value]="category" />
+                                        }
+                                    </span>
+                                }
+                            </div>
+                            @if (current.explicitlyAllowedLicenses.length > 0) {
+                                <div>
+                                    <span class="text-muted-color">{{
+                                        'licenses.policy_allowed_anyway' | translate
+                                    }}</span>
+                                    <span class="ml-2 font-mono">{{
+                                        current.explicitlyAllowedLicenses.join(', ')
+                                    }}</span>
+                                </div>
+                            }
+                            @if (current.explicitlyDisallowedLicenses.length > 0) {
+                                <div>
+                                    <span class="text-muted-color">{{
+                                        'licenses.policy_banned_outright' | translate
+                                    }}</span>
+                                    <span class="ml-2 font-mono">{{
+                                        current.explicitlyDisallowedLicenses.join(', ')
+                                    }}</span>
+                                </div>
+                            }
+                        </div>
+                        @if (canEditPolicy()) {
+                            <p-button
+                                size="small"
+                                [outlined]="true"
+                                icon="pi pi-pencil"
+                                [label]="'licenses.policy_edit' | translate"
+                                (onClick)="editPolicy()"
+                            />
+                        }
+                    </div>
+                } @else {
+                    <form class="flex flex-col gap-4" (ngSubmit)="savePolicy()">
+                        <p class="text-sm text-muted-color m-0">{{ 'licenses.policy_edit_warning' | translate }}</p>
+
+                        <div class="flex flex-col gap-2">
+                            @for (category of CATEGORIES; track category) {
+                                <div class="flex items-center gap-3">
+                                    <p-toggleswitch
+                                        [ngModelOptions]="{ standalone: true }"
+                                        [ngModel]="category | disallowedIn: draftDisallowed"
+                                        [name]="'policy-' + category"
+                                        [ariaLabelledBy]="'policy-label-' + category"
+                                        (ngModelChange)="toggleCategory(category, $event)"
+                                    />
+                                    <span class="text-sm" [id]="'policy-label-' + category">{{ category }}</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label for="policy-allowed" class="font-medium text-sm">{{
+                                'licenses.policy_allowed_anyway' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="policy-allowed"
+                                name="policy-allowed"
+                                [ngModelOptions]="{ standalone: true }"
+                                [(ngModel)]="draftAllowedLicenses"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="policy-banned" class="font-medium text-sm">{{
+                                'licenses.policy_banned_outright' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="policy-banned"
+                                name="policy-banned"
+                                [ngModelOptions]="{ standalone: true }"
+                                [(ngModel)]="draftDisallowedLicenses"
+                            />
+                        </div>
+
+                        <div class="flex gap-2">
+                            <p-button
+                                type="submit"
+                                size="small"
+                                [label]="'common.save' | translate"
+                                [loading]="savingPolicy()"
+                            />
+                            <p-button
+                                size="small"
+                                severity="secondary"
+                                [text]="true"
+                                [label]="'common.cancel' | translate"
+                                (onClick)="editingPolicy.set(false)"
+                            />
+                        </div>
+                    </form>
+                }
+            } @else {
+                <span data-testid="policy-unavailable" class="text-muted-color">{{
+                    policyLoadError() ?? ('licenses.policy_unavailable' | translate)
+                }}</span>
+            }
+        </p-card>
+
+        <!-- Inventory Card -->
+        <p-card>
+            <ng-template #title>
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <span>{{ 'licenses.inventory_title' | translate }}</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select
+                            [attr.aria-label]="'licenses.target' | translate"
+                            [ngModel]="selectedTarget()"
+                            (ngModelChange)="onTargetChange($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            @for (opt of targetOptions(); track opt.value) {
+                                <option [value]="opt.value">{{ opt.label }}</option>
+                            }
+                        </select>
+
+                        <select
+                            [attr.aria-label]="'licenses.col_risk_category' | translate"
+                            [ngModel]="selectedRisk()"
+                            (ngModelChange)="selectedRisk.set($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            <option value="ALL">{{ 'licenses.filter_all_risks' | translate }}</option>
+                            <option value="PERMISSIVE">{{ 'licenses.filter_permissive' | translate }}</option>
+                            <option value="WEAK_COPYLEFT">{{ 'licenses.filter_weak_copyleft' | translate }}</option>
+                            <option value="STRONG_COPYLEFT">{{ 'licenses.strong_copyleft' | translate }}</option>
+                            <option value="FORBIDDEN">{{ 'licenses.filter_forbidden' | translate }}</option>
+                        </select>
+
+                        <select
+                            [attr.aria-label]="'licenses.col_compliance' | translate"
+                            [ngModel]="selectedCompliance()"
+                            (ngModelChange)="selectedCompliance.set($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            <option value="ALL">{{ 'licenses.filter_all_statuses' | translate }}</option>
+                            <option value="COMPLIANT">{{ 'licenses.filter_compliant' | translate }}</option>
+                            <option value="NON_COMPLIANT">{{ 'licenses.filter_non_compliant' | translate }}</option>
+                        </select>
+                    </div>
+                </div>
+            </ng-template>
+
+            <p-table
+                [value]="filteredInventory()"
+                [loading]="loading()"
+                styleClass="p-datatable-sm"
+                [paginator]="true"
+                [rows]="15"
+            >
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'licenses.col_component' | translate }}</th>
+                        <th>{{ 'common.version' | translate }}</th>
+                        <th>{{ 'licenses.col_license_spdx' | translate }}</th>
+                        <th>{{ 'licenses.col_risk_category' | translate }}</th>
+                        <th>{{ 'licenses.target' | translate }}</th>
+                        <th>{{ 'licenses.col_compliance' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-item>
+                    <tr>
+                        <td class="font-medium font-mono text-sm">{{ item.packageName }}</td>
+                        <td class="text-surface-500 text-sm">{{ item.packageVersion }}</td>
+                        <td>
+                            <span class="font-semibold text-sm">{{ item.license }}</span>
+                        </td>
+                        <td>
+                            <p-tag [severity]="item.riskCategory | riskTone" [value]="item.riskCategory" />
+                        </td>
+                        <td>
+                            <div class="text-sm">{{ item.targetName }}</div>
+                        </td>
+                        <td>
+                            @if (item.compliant) {
+                                <p-tag severity="success" [value]="'licenses.tag_compliant' | translate" />
+                            } @else {
+                                <p-tag
+                                    severity="danger"
+                                    [value]="'licenses.tag_violation' | translate"
+                                    [title]="item.violationReason ?? ('licenses.disallowed' | translate)"
+                                />
+                            }
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template #emptymessage>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted-color py-6">
+                            {{ 'licenses.empty_filtered' | translate }}
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
+
+    <!-- TAB 2: COPYLEFT CONFLICTS & LEGAL RISK -->
+    @if (activeTab() === 'conflicts') {
+        <div class="flex flex-col gap-6">
+            <!-- Settings banner -->
+            <div
+                class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl flex flex-wrap items-center justify-between gap-4"
+            >
+                <div class="flex items-center gap-3">
+                    <i class="pi pi-building-columns text-amber-500 text-2xl"></i>
+                    <div>
+                        <h4 class="font-bold text-sm">{{ 'licenses.analysis_mode' | translate }}</h4>
+                        <p class="text-xs text-muted-color">{{ 'licenses.copyleft_help' | translate }}</p>
+                    </div>
+                </div>
+                <div
+                    class="flex items-center gap-3 bg-surface-0 dark:bg-surface-900 px-3 py-1.5 rounded-lg border border-surface-200 dark:border-surface-700"
+                >
+                    <span id="licenses-proprietary" class="text-xs font-semibold">{{
+                        'licenses.proprietary_product' | translate
+                    }}</span>
+                    <p-toggleswitch
+                        ariaLabelledBy="licenses-proprietary"
+                        [ngModel]="proprietaryMode()"
+                        (ngModelChange)="toggleProprietary($event)"
+                    />
+                </div>
+            </div>
+
+            <!-- Conflicts Table -->
+            <p-card>
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>{{ 'licenses.conflicts_title' | translate }} ({{ conflicts().length }})</span>
+                        <!-- No verdict, green or red, over a list that could not be read. -->
+                        @if (conflictsError() === null) {
+                            <p-tag
+                                [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'"
+                                [value]="
+                                    blockingConflictsCount() > 0
+                                        ? blockingConflictsCount() +
+                                          ' ' +
+                                          ('licenses.blocking_conflicts'
+                                              | translate: { count: blockingConflictsCount() })
+                                        : ('licenses.no_blocking_conflict' | translate)
+                                "
+                            />
+                        }
+                    </div>
+                </ng-template>
+
+                @if (conflictsError(); as message) {
+                    <p-message data-testid="conflicts-error" severity="error" [closable]="false" styleClass="w-full">{{
+                        message
+                    }}</p-message>
+                } @else {
+                    <p-table [value]="conflicts()" styleClass="p-datatable-sm" [paginator]="true" [rows]="10">
+                        <ng-template #header>
+                            <tr>
+                                <th>{{ 'licenses.dependency' | translate }}</th>
+                                <th>{{ 'licenses.licence' | translate }}</th>
+                                <th>{{ 'licenses.compatibility' | translate }}</th>
+                                <th>{{ 'licenses.target' | translate }}</th>
+                                <th>{{ 'licenses.legal_explanation' | translate }}</th>
+                                <th>{{ 'licenses.remediation_advice' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-conflict>
+                            <tr
+                                [class.bg-red-50]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
+                                [class.dark:bg-red-950/20]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
+                            >
+                                <td class="font-mono text-xs font-bold">
+                                    {{ conflict.packageName }}
+                                    <span class="text-muted-color font-normal">({{ conflict.packageVersion }})</span>
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="conflict.licenseExpression"
+                                        [severity]="conflict.riskCategory | riskTone"
+                                    />
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="conflict.compatibility"
+                                        [severity]="conflict.compatibility | compatTone"
+                                    />
+                                </td>
+                                <td class="text-xs">{{ conflict.targetName }}</td>
+                                <!--
+                                **Two sentences from one token, translated here.** They arrived from
+                                the server as French prose and were printed as they stood, beneath
+                                the two headers directly above — which do go through the bundle. The
+                                licence name is interpolated from the row's own field rather than
+                                baked into the sentence on the server.
+
+                                Literal keys under a `@switch`, because `check-i18n-keys` reads only
+                                those: a key built from the token would ship as an unresolved key.
+                            -->
+                                <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">
+                                    @switch (conflict.verdict) {
+                                        @case ('FORBIDDEN_LICENCE') {
+                                            {{
+                                                'licenses.verdict_forbidden'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_PROPRIETARY') {
+                                            {{
+                                                'licenses.verdict_strong_copyleft_proprietary'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_RECIPROCAL') {
+                                            {{
+                                                'licenses.verdict_strong_copyleft_reciprocal'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('WEAK_COPYLEFT') {
+                                            {{
+                                                'licenses.verdict_weak_copyleft'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('PERMISSIVE') {
+                                            {{
+                                                'licenses.verdict_permissive'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('UNKNOWN_LICENCE') {
+                                            {{ 'licenses.verdict_unknown' | translate }}
+                                        }
+                                    }
+                                </td>
+                                <td class="text-xs font-medium text-purple-700 dark:text-purple-300 max-w-xs">
+                                    <i class="pi pi-arrow-circle-right text-xs mr-1"></i>
+                                    @switch (conflict.verdict) {
+                                        @case ('FORBIDDEN_LICENCE') {
+                                            {{ 'licenses.advice_forbidden' | translate }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_PROPRIETARY') {
+                                            {{ 'licenses.advice_strong_copyleft_proprietary' | translate }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_RECIPROCAL') {
+                                            {{ 'licenses.advice_strong_copyleft_reciprocal' | translate }}
+                                        }
+                                        @case ('WEAK_COPYLEFT') {
+                                            {{ 'licenses.advice_weak_copyleft' | translate }}
+                                        }
+                                        @case ('PERMISSIVE') {
+                                            {{ 'licenses.advice_permissive' | translate }}
+                                        }
+                                        @case ('UNKNOWN_LICENCE') {
+                                            {{ 'licenses.advice_unknown' | translate }}
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        </ng-template>
+                        <ng-template #emptymessage>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted-color py-8">
+                                    <i class="pi pi-check-circle text-emerald-500 text-3xl mb-2"></i>
+                                    <p class="font-semibold">{{ 'licenses.no_conflict' | translate }}</p>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                }
+            </p-card>
+        </div>
+    }
+
+    <!-- TAB 3: MATRIX RULES -->
+    @if (activeTab() === 'matrix') {
+        <p-card>
+            <ng-template #title>
+                <span>{{ 'licenses.cross_rules' | translate }}</span>
+            </ng-template>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div
+                    class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30"
+                >
+                    <h5 class="font-bold text-emerald-800 dark:text-emerald-300 text-sm mb-1">
+                        {{ 'licenses.permissive_group' | translate }}
+                    </h5>
+                    <p class="text-xs text-emerald-700 dark:text-emerald-400">
+                        {{ 'licenses.rule_permissive' | translate }}
+                    </p>
+                </div>
+                <div
+                    class="p-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
+                >
+                    <h5 class="font-bold text-amber-800 dark:text-amber-300 text-sm mb-1">
+                        {{ 'licenses.weak_copyleft_group' | translate }}
+                    </h5>
+                    <p class="text-xs text-amber-700 dark:text-amber-400">
+                        {{ 'licenses.rule_weak_copyleft' | translate }}
+                    </p>
+                </div>
+                <div class="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/30">
+                    <h5 class="font-bold text-red-800 dark:text-red-300 text-sm mb-1">
+                        {{ 'licenses.strong_copyleft_group' | translate }}
+                    </h5>
+                    <p class="text-xs text-red-700 dark:text-red-400">
+                        {{ 'licenses.rule_strong_copyleft' | translate }}
+                    </p>
+                </div>
+            </div>
+
+            @if (matrixError(); as message) {
+                <p-message data-testid="matrix-error" severity="error" [closable]="false" styleClass="w-full">{{
+                    message
+                }}</p-message>
+            }
+            <p-table [value]="matrixRules()" styleClass="p-datatable-sm">
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'licenses.product_context' | translate }}</th>
+                        <th>{{ 'licenses.dependency_category' | translate }}</th>
+                        <th>{{ 'licenses.compatibility_verdict' | translate }}</th>
+                        <th>{{ 'licenses.legal_rule' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-rule>
+                    <tr>
+                        <td class="font-semibold text-xs">{{ rule.targetLicenseType }}</td>
+                        <td>
+                            <p-tag
+                                [value]="rule.dependencyLicenseCategory"
+                                [severity]="rule.dependencyLicenseCategory | riskTone"
+                            />
+                        </td>
+                        <td><p-tag [value]="rule.compatibility" [severity]="rule.compatibility | compatTone" /></td>
+                        <td class="text-xs text-surface-600 dark:text-surface-300">
+                            @switch (rule.note) {
+                                @case ('PERMISSIVE_IN_PROPRIETARY') {
+                                    {{ 'licenses.note_permissive_in_proprietary' | translate }}
+                                }
+                                @case ('WEAK_COPYLEFT_IN_PROPRIETARY') {
+                                    {{ 'licenses.note_weak_copyleft_in_proprietary' | translate }}
+                                }
+                                @case ('STRONG_COPYLEFT_IN_PROPRIETARY') {
+                                    {{ 'licenses.note_strong_copyleft_in_proprietary' | translate }}
+                                }
+                                @case ('FORBIDDEN_IN_PROPRIETARY') {
+                                    {{ 'licenses.note_forbidden_in_proprietary' | translate }}
+                                }
+                                @case ('PERMISSIVE_IN_PERMISSIVE') {
+                                    {{ 'licenses.note_permissive_in_permissive' | translate }}
+                                }
+                                @case ('WEAK_COPYLEFT_IN_PERMISSIVE') {
+                                    {{ 'licenses.note_weak_copyleft_in_permissive' | translate }}
+                                }
+                                @case ('STRONG_COPYLEFT_IN_PERMISSIVE') {
+                                    {{ 'licenses.note_strong_copyleft_in_permissive' | translate }}
+                                }
+                                @case ('PERMISSIVE_IN_GPL') {
+                                    {{ 'licenses.note_permissive_in_gpl' | translate }}
+                                }
+                                @case ('STRONG_COPYLEFT_IN_GPL') {
+                                    {{ 'licenses.note_strong_copyleft_in_gpl' | translate }}
+                                }
+                            }
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
+</div>

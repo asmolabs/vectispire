@@ -1,0 +1,63 @@
+@if (visible()) {
+    @if (coverage()?.state === 'UNCONFIGURED') {
+        <div
+            class="flex items-start gap-3 p-4 mb-4 rounded border border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-900"
+        >
+            <i class="pi pi-exclamation-triangle text-red-700 mt-1"></i>
+            <div class="flex-1">
+                <div class="font-medium text-red-700">{{ 'rule_coverage.unconfigured.title' | translate }}</div>
+                <div class="text-sm">{{ 'rule_coverage.unconfigured.body' | translate }}</div>
+            </div>
+            <p-button
+                [label]="'rule_coverage.import' | translate"
+                severity="danger"
+                size="small"
+                [routerLink]="['/rule-sets']"
+            />
+        </div>
+    } @else {
+        <div
+            class="flex items-start gap-3 p-4 mb-4 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900"
+        >
+            <i class="pi pi-info-circle text-amber-700 mt-1"></i>
+            <div class="flex-1">
+                <div class="font-medium text-amber-700">
+                    {{ 'rule_coverage.partial.title' | translate }} {{ uncoveredNames() }}
+                </div>
+                <div class="text-sm">{{ 'rule_coverage.partial.body' | translate }}</div>
+            </div>
+            <p-button
+                [label]="'rule_coverage.add' | translate"
+                severity="warn"
+                [outlined]="true"
+                size="small"
+                [routerLink]="['/rule-sets']"
+            />
+        </div>
+    }
+}
+@if (withOwaspTagging() && otherEditionFiles() > 0) {
+    <div
+        class="flex items-start gap-3 p-4 mb-4 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900"
+        data-testid="owasp-other-edition"
+    >
+        <i class="pi pi-info-circle text-amber-700 mt-1"></i>
+        <div class="flex-1">
+            <div class="font-medium text-amber-700">
+                {{ 'rule_coverage.owasp_other_edition.title' | translate: { count: otherEditionFiles() } }}
+            </div>
+            <ul class="text-sm my-1 pl-5">
+                @for (row of otherEdition(); track row.reason) {
+                    <li>
+                        @if (row.key; as key) {
+                            {{ key | translate: { count: row.ruleFiles } }}
+                        } @else {
+                            {{ row.reason }}: {{ row.ruleFiles }}
+                        }
+                    </li>
+                }
+            </ul>
+            <div class="text-sm">{{ 'rule_coverage.owasp_other_edition.body' | translate }}</div>
+        </div>
+    </div>
+}

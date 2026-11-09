@@ -1,0 +1,367 @@
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'inventory.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ 'inventory.subtitle' | translate }}
+        </p>
+    </div>
+    <div class="flex gap-2">
+        <p-button
+            [label]="'inventory.tab_search' | translate"
+            icon="pi pi-search"
+            [outlined]="activeTab() !== 'search'"
+            (onClick)="activeTab.set('search')"
+        />
+        <p-button
+            [label]="'inventory.tab_diff' | translate"
+            icon="pi pi-code"
+            [outlined]="activeTab() !== 'diff'"
+            (onClick)="activeTab.set('diff')"
+        />
+    </div>
+</div>
+
+@if (activeTab() === 'search') {
+    <p-card styleClass="mb-4">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
+            <div class="flex flex-col gap-1">
+                <label for="name" class="text-sm text-muted-color">{{ 'inventory.library_label' | translate }}</label>
+                <div class="flex flex-col">
+                    <input
+                        pInputText
+                        vsSearchBound
+                        #searchBound="vsSearchBound"
+                        id="name"
+                        [(ngModel)]="name"
+                        (keyup.enter)="search()"
+                        [placeholder]="'inventory.library_placeholder' | translate"
+                        class="w-full sm:min-w-[22rem]"
+                    />
+                    <vs-search-bound-hint [bound]="searchBound" />
+                </div>
+            </div>
+            <div class="flex flex-col gap-1">
+                <label for="version" class="text-sm text-muted-color">{{
+                    'inventory.version_label' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="version"
+                    [(ngModel)]="version"
+                    (keyup.enter)="search()"
+                    [placeholder]="'inventory.version_placeholder' | translate"
+                />
+            </div>
+            <p-button
+                [label]="'inventory.search_btn' | translate"
+                icon="pi pi-search"
+                (onClick)="search()"
+                [loading]="loading()"
+            />
+        </div>
+        <p class="text-sm text-muted-color mt-3 mb-0">
+            {{ 'inventory.search_help' | translate }}
+        </p>
+    </p-card>
+}
+
+@if (activeTab() === 'diff') {
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex items-center gap-2">
+                <i class="pi pi-code text-primary-500"></i>
+                <span>{{ 'inventory.diff_title' | translate }}</span>
+            </div>
+        </ng-template>
+        <p class="text-sm text-muted-color mt-0 mb-4">
+            {{ 'inventory.diff_help_long' | translate }}
+        </p>
+        @if (targetsError(); as message) {
+            <p-message data-testid="targets-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+                message
+            }}</p-message>
+        }
+
+        <!--
+            **The ordinary question first.** It is almost always asked like this: "what changed on
+            this target since last time". Answering it took typing two scan numbers that nothing
+            displays prominently, when the server could already answer the question as it is asked.
+            Comparing two named scans stays below: it answers a different question, which the latest
+            pair does not cover.
+        -->
+        <div
+            class="flex flex-wrap items-end gap-3 p-4 bg-surface-50 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-700"
+        >
+            <div class="flex flex-col gap-1">
+                <label for="diff-target" class="text-xs text-muted-color font-semibold">{{
+                    'inventory.diff_target' | translate
+                }}</label>
+                <p-select
+                    inputId="diff-target"
+                    [options]="targets()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [(ngModel)]="diffTarget"
+                    [filter]="true"
+                    [showClear]="true"
+                    (onChange)="onTargetChosen()"
+                    (onClear)="onTargetChosen()"
+                    [placeholder]="'inventory.diff_pick_target' | translate"
+                    styleClass="w-full sm:w-80"
+                />
+            </div>
+
+            <!--
+                **The two scans are chosen from the target's own history, not typed.** These were
+                two number fields — `ex: 10`, `ex: 12` — asking for identifiers no screen displays
+                prominently. The server has listed a target's scans all along; nothing called it.
+
+                They are preselected on the two most recent, so "what changed since last time" is
+                answered by opening the screen rather than by a second button.
+            -->
+            @if (diffTarget) {
+                <div class="flex flex-col gap-1">
+                    <label for="diff-from" class="text-xs text-muted-color font-semibold">{{
+                        'inventory.diff_from' | translate
+                    }}</label>
+                    <p-select
+                        inputId="diff-from"
+                        [options]="scanOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [(ngModel)]="fromScanId"
+                        [loading]="scansLoading()"
+                        [placeholder]="'inventory.diff_pick_scan' | translate"
+                        styleClass="w-full sm:w-72"
+                    />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="diff-to" class="text-xs text-muted-color font-semibold">{{
+                        'inventory.diff_to' | translate
+                    }}</label>
+                    <p-select
+                        inputId="diff-to"
+                        [options]="scanOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [(ngModel)]="toScanId"
+                        [loading]="scansLoading()"
+                        [placeholder]="'inventory.diff_pick_scan' | translate"
+                        styleClass="w-full sm:w-72"
+                    />
+                </div>
+                <p-button
+                    [label]="'inventory.diff_compare' | translate"
+                    icon="pi pi-bolt"
+                    [disabled]="!fromScanId || !toScanId || fromScanId === toScanId"
+                    (onClick)="runDiff()"
+                    [loading]="diffLoading()"
+                />
+            }
+        </div>
+
+        @if (diffError(); as err) {
+            <p-message data-testid="diff-error" severity="error" [closable]="false" styleClass="mt-4">{{
+                err
+            }}</p-message>
+        }
+
+        @if (diffReport(); as report) {
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                <div
+                    class="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl"
+                >
+                    <div class="text-xs text-emerald-700 dark:text-emerald-300 font-semibold uppercase">
+                        {{ 'inventory.added' | translate }}
+                    </div>
+                    <div class="text-3xl font-bold text-emerald-800 dark:text-emerald-200 mt-1">
+                        +{{ report.addedCount }}
+                    </div>
+                    <div class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                        {{ 'inventory.diff_new_components' | translate }}
+                    </div>
+                </div>
+                <div class="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                    <div class="text-xs text-red-700 dark:text-red-300 font-semibold uppercase">
+                        {{ 'inventory.removed' | translate }}
+                    </div>
+                    <div class="text-3xl font-bold text-red-800 dark:text-red-200 mt-1">-{{ report.removedCount }}</div>
+                    <div class="text-xs text-red-600 dark:text-red-400 mt-1">
+                        {{ 'inventory.removed_help' | translate }}
+                    </div>
+                </div>
+                <div class="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                    <div class="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase">
+                        {{ 'inventory.diff_versions_licences' | translate }}
+                    </div>
+                    <div class="text-3xl font-bold text-blue-800 dark:text-blue-200 mt-1">
+                        Δ {{ report.versionChangedCount + report.licenseChangedCount }}
+                    </div>
+                    <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">{{ 'inventory.drift' | translate }}</div>
+                </div>
+                <div
+                    class="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl"
+                >
+                    <div class="text-xs text-amber-700 dark:text-amber-300 font-semibold uppercase">
+                        {{ 'inventory.diff_cve_balance' | translate }}
+                    </div>
+                    <div class="text-3xl font-bold text-amber-800 dark:text-amber-200 mt-1">
+                        {{ report.resolvedCveCount }} / {{ report.introducedCveCount }}
+                    </div>
+                    <div class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        {{ 'inventory.resolved_introduced' | translate }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h3 class="text-base font-semibold mb-2">
+                    {{ 'inventory.diff_components_title' | translate: { count: report.componentDeltas.length } }}
+                </h3>
+                <p-table
+                    [value]="report.componentDeltas"
+                    styleClass="p-datatable-sm"
+                    [paginator]="report.componentDeltas.length > 10"
+                    [rows]="10"
+                >
+                    <ng-template #header>
+                        <tr>
+                            <th>{{ 'inventory.component' | translate }}</th>
+                            <th>{{ 'inventory.diff_change' | translate }}</th>
+                            <th>{{ 'inventory.diff_old_version' | translate }}</th>
+                            <th>{{ 'inventory.diff_new_version' | translate }}</th>
+                            <th>{{ 'inventory.diff_licence' | translate }}</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template #body let-delta>
+                        <tr>
+                            <td>
+                                <div class="font-medium">{{ delta.name }}</div>
+                                <div class="text-xs text-muted-color">{{ delta.type }}</div>
+                            </td>
+                            <td>
+                                @if (delta.changeType === 'ADDED') {
+                                    <p-tag [value]="'inventory.delta_added' | translate" severity="success" />
+                                } @else if (delta.changeType === 'REMOVED') {
+                                    <p-tag [value]="'inventory.delta_removed' | translate" severity="danger" />
+                                } @else if (delta.changeType === 'VERSION_CHANGED') {
+                                    <p-tag [value]="'inventory.delta_version' | translate" severity="info" />
+                                } @else if (delta.changeType === 'LICENSE_CHANGED') {
+                                    <p-tag [value]="'inventory.delta_license' | translate" severity="warn" />
+                                } @else {
+                                    <p-tag [value]="'inventory.delta_unchanged' | translate" severity="secondary" />
+                                }
+                            </td>
+                            <td>
+                                <span class="font-mono text-xs">{{ delta.oldVersion || '—' }}</span>
+                            </td>
+                            <td>
+                                <span class="font-mono text-xs font-semibold">{{ delta.newVersion || '—' }}</span>
+                            </td>
+                            <td>
+                                <span class="text-xs">{{ delta.newLicense || delta.oldLicense || '—' }}</span>
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </div>
+        }
+    </p-card>
+}
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+@if (searched()) {
+    <p-card>
+        <ng-template #title>
+            {{ occurrences().length }}
+            {{
+                (occurrences().length === 1 ? 'inventory.occurrences_single' : 'inventory.occurrences_plural')
+                    | translate
+            }}
+        </ng-template>
+
+        @if (truncated()) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full">
+                {{ 'inventory.truncated_warn' | translate }}
+            </p-message>
+        }
+
+        <p-table
+            [value]="occurrences()"
+            dataKey="scanId"
+            styleClass="p-datatable-sm"
+            [paginator]="occurrences().length > 25"
+            [rows]="25"
+            [rowsPerPageOptions]="[25, 50, 100]"
+        >
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'inventory.library' | translate }}</th>
+                    <th style="width: 9rem">{{ 'inventory.version' | translate }}</th>
+                    <th style="width: 8rem">{{ 'inventory.origin' | translate }}</th>
+                    <th>{{ 'inventory.project' | translate }}</th>
+                    <th style="width: 10rem">{{ 'inventory.project_version' | translate }}</th>
+                    <th style="width: 11rem">{{ 'inventory.scanned' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-row>
+                <tr>
+                    <td>
+                        <div class="font-medium">{{ row.component }}</div>
+                        @if (row.purl) {
+                            <div class="text-sm text-muted-color">{{ row.purl }}</div>
+                        }
+                    </td>
+                    <td>
+                        {{ row.componentVersion ?? '—' }}
+                        @if (row.source === 'build') {
+                            <p-tag
+                                [value]="'inventory.source_build' | translate"
+                                severity="info"
+                                [title]="'inventory.source_build_hint' | translate"
+                            />
+                        } @else if (row.source === 'both') {
+                            <p-tag
+                                [value]="'inventory.source_build' | translate"
+                                severity="secondary"
+                                [title]="
+                                    'inventory.source_both_hint' | translate: { version: row.scannerVersion ?? '—' }
+                                "
+                            />
+                        }
+                    </td>
+                    <td>
+                        @if (row.direct === true) {
+                            <p-tag [value]="'inventory.direct' | translate" severity="warn" />
+                        } @else if (row.direct === false) {
+                            <p-tag [value]="'inventory.transitive' | translate" severity="secondary" />
+                        } @else {
+                            <span class="text-muted-color text-sm">{{ 'inventory.unknown' | translate }}</span>
+                        }
+                    </td>
+                    <td>
+                        {{ row.targetName }} <span class="text-muted-color text-sm">· {{ row.branch }}</span>
+                    </td>
+                    <td>
+                        @if (row.projectVersion) {
+                            <span class="font-medium">{{ row.projectVersion }}</span>
+                        } @else {
+                            <span class="text-muted-color">{{ 'inventory.unknown' | translate }}</span>
+                        }
+                    </td>
+                    <td>{{ row.scannedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="6" class="text-muted-color">
+                        {{ 'inventory.no_results' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+}

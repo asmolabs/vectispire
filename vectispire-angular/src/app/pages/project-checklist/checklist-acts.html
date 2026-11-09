@@ -1,0 +1,152 @@
+<p-card styleClass="mb-4" data-testid="acts">
+    <ng-template #title>{{ 'project_checklist.actions_title' | translate }}</ng-template>
+    @if (status() === 'draft') {
+        <div class="flex flex-wrap items-center gap-3">
+            <p-button
+                id="submit-checklist"
+                icon="pi pi-send"
+                [label]="'project_checklist.submit_btn' | translate"
+                [disabled]="!canSubmit() || page.busy()"
+                [loading]="page.busy()"
+                (onClick)="submit()"
+            />
+            @if (!canSubmit()) {
+                <span class="text-sm text-muted-color" data-testid="submit-blocked">
+                    {{
+                        'project_checklist.submit_blocked'
+                            | translate: { lines: page.unready().join(', '), count: page.unready().length }
+                    }}
+                </span>
+            }
+        </div>
+    }
+    @if (status() === 'submitted') {
+        <div class="flex flex-wrap items-center gap-3">
+            <p-button
+                id="sign-off-checklist"
+                icon="pi pi-verified"
+                severity="success"
+                [label]="'project_checklist.sign_off_btn' | translate"
+                [disabled]="signOffBlock() !== null || changedSinceSubmission().length > 0 || page.busy()"
+                [loading]="page.busy()"
+                (onClick)="signOff()"
+            />
+            @if (changedSinceSubmission().length > 0) {
+                <span class="text-sm text-muted-color" data-testid="sign-off-blocked-measured">
+                    {{
+                        'project_checklist.sign_off_blocked_measured'
+                            | translate
+                                : {
+                                      lines: changedSinceSubmission().join(', '),
+                                      count: changedSinceSubmission().length
+                                  }
+                    }}
+                </span>
+            }
+            @if (signOffBlock() === 'not_approver') {
+                <span class="text-sm text-muted-color" data-testid="sign-off-blocked">
+                    {{ 'project_checklist.sign_off_not_approver' | translate }}
+                </span>
+            } @else if (signOffBlock() === 'four_eyes') {
+                <span class="text-sm text-muted-color" data-testid="sign-off-blocked">
+                    {{ 'project_checklist.sign_off_four_eyes' | translate }}
+                </span>
+            }
+            <p-button
+                id="return-checklist"
+                icon="pi pi-undo"
+                [outlined]="true"
+                [label]="'project_checklist.return_btn' | translate"
+                [disabled]="page.busy()"
+                (onClick)="startReturn()"
+            />
+        </div>
+        @if (page.returning()) {
+            <form class="flex flex-col gap-2 mt-3" data-testid="return-form" (ngSubmit)="confirmReturn()">
+                <label for="return-reason" class="font-medium">{{
+                    'project_checklist.field_return' | translate
+                }}</label>
+                <textarea
+                    pTextarea
+                    id="return-reason"
+                    rows="3"
+                    maxlength="4000"
+                    required
+                    [attr.aria-invalid]="!!returnError()"
+                    [attr.aria-describedby]="returnError() ? 'return-error' : null"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="returnReason"
+                ></textarea>
+                @if (returnError(); as message) {
+                    <small id="return-error" class="text-red-500" data-testid="return-error">{{ message }}</small>
+                }
+                <div class="flex gap-2">
+                    <p-button
+                        id="confirm-return"
+                        type="submit"
+                        [label]="'project_checklist.confirm_return_btn' | translate"
+                        [disabled]="page.busy()"
+                    />
+                    <p-button
+                        [text]="true"
+                        [label]="'common.cancel' | translate"
+                        (onClick)="page.returning.set(false)"
+                    />
+                </div>
+            </form>
+        }
+    }
+    @if (status() === 'signed_off') {
+        <div class="flex flex-wrap items-center gap-3">
+            <p-button
+                id="reopen-checklist"
+                icon="pi pi-replay"
+                [label]="'project_checklist.reopen_btn' | translate"
+                [disabled]="page.busy()"
+                (onClick)="reopen()"
+            />
+            <span class="text-sm text-muted-color">{{ 'project_checklist.reopen_explain' | translate }}</span>
+        </div>
+    }
+
+    <div class="border-t mt-4 pt-4" style="border-color: var(--surface-border)" data-testid="move">
+        <h3 class="text-base font-semibold mt-0 mb-1">{{ 'project_checklist.move_title' | translate }}</h3>
+        <p class="text-sm text-muted-color mt-0">{{ 'project_checklist.move_explain' | translate }}</p>
+        @if (moveOptions().length === 0) {
+            <p class="text-sm text-muted-color m-0" data-testid="move-none">
+                {{ 'project_checklist.move_none' | translate }}
+            </p>
+        } @else {
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="flex flex-col gap-2">
+                    <label for="move-version" class="font-medium">{{
+                        'project_checklist.move_field' | translate
+                    }}</label>
+                    <select
+                        id="move-version"
+                        [(ngModel)]="moveChoice"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
+                        <option [ngValue]="null">—</option>
+                        @for (option of moveOptions(); track option.value) {
+                            <option [ngValue]="option.value" [disabled]="option.disabled">
+                                {{ option.label }}
+                            </option>
+                        }
+                    </select>
+                </div>
+                <p-button
+                    id="move-checklist"
+                    icon="pi pi-arrow-right-arrow-left"
+                    [outlined]="true"
+                    [label]="'project_checklist.move_btn' | translate"
+                    [disabled]="!moveChoice() || page.busy()"
+                    (onClick)="moveChecklist()"
+                />
+            </div>
+            @for (note of moveUnrenderable(); track note.value) {
+                <p-message severity="warn" styleClass="mt-3" data-testid="move-unrenderable">{{ note.text }}</p-message>
+            }
+        }
+    </div>
+</p-card>

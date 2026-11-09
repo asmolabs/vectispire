@@ -1,0 +1,1048 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { Dashboard } from './dashboard';
+import { GradeTonePipe } from './grade-tone.pipe';
+import { gradeSeverity } from '@/app/shared/scorecard';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
+import type { GateViolation, HighImpactFix, SecurityGrade } from '../../core/api.models';
+import { DATED_MARKER, type MarkerChart } from '../../shared/dated-marker';
+
+/**
+ * The backlog trend, and the one figure that must not be rounded to zero.
+ *
+ * <p>`mean_days_to_resolve` is null when nothing was resolved in the window. Rendered as "0 days"
+ * it reads as "everything is fixed the day it appears" — the opposite of "there is nothing to
+ * measure", and the flattering one of the two. That is the whole reason the server sends null
+ * rather than a number, so it is what this suite pins.
+ */
+describe('the backlog trend', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const OVERVIEW = asSchema('DashboardOverview', {
+        posture: {
+            failingCount: 0,
+            totalCount: 2,
+            kevCount: 0,
+            neverScannedCount: 0,
+            lastScanFailedCount: 0,
+            overdueCount: 0
+        },
+        backlogBySeverity: {},
+        qualityTotal: 0,
+        failing: [],
+        recentScans: []
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        // **The series names come from the bundle, so the bundle is what the test loads.**
+        // Asserting the keys instead would pin that `t()` was called and nothing about whether
+        // the key resolves — and an unresolved key renders as itself, which is precisely the
+        // failure a reader would see on screen.
+        TestBed.inject(I18nService).translations.set({
+            dashboard: {
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            }
+        });
+
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(OVERVIEW);
+    }, 20_000);
+
+    function flushTrends(body: Record<string, unknown>): void {
+        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(body);
+        fixture.detectChanges();
+    }
+
+    it('asks for ninety days by default, as the route does', () => {
+        // The default lives in one place; a screen with its own would silently disagree with the
+        // window the server documents.
+        expect(fixture.componentInstance.window()).toBe(90);
+        flushTrends({ points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+    });
+
+    it('names the severity tiles and the windows in words, through keys the i18n check reads', () => {
+        flushTrends({ points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+        const component = fixture.componentInstance;
+
+        expect(component.severities().map((tile) => tile.label)).toEqual(['Critical', 'High', 'Medium', 'Low']);
+        expect(component.windows().map((choice) => choice.label)).toEqual(['30 days', '90 days', '1 year']);
+    });
+
+    it('says there is no measurement rather than showing zero days', () => {
+        flushTrends({
+            points: [
+                { day: '2026-08-20', open: 4, opened: 1, resolved: 0 },
+                { day: '2026-08-21', open: 4, opened: 0, resolved: 0 }
+            ],
+            mean_days_to_resolve: null,
+            resolved_in_window: 0
+        });
+
+        expect(fixture.componentInstance.meanLabel()).toBe('No measurement');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nothing was resolved in this window');
+        // Read from the tile and not from the page, whose window buttons legitimately say
+        // "30 days". What must never appear is a *measurement* of zero: it would read as "fixed
+        // the day it appears" on a window where nothing was fixed at all.
+        const tile = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#mean-days-to-resolve')!;
+        expect(tile.textContent.trim()).toBe('No measurement');
+        expect(tile.textContent).not.toContain('0');
+    });
+
+    it('shows the mean with the population it rests on', () => {
+        flushTrends({
+            points: [{ day: '2026-08-21', open: 7, opened: 2, resolved: 3 }],
+            mean_days_to_resolve: 12.42,
+            resolved_in_window: 9
+        });
+
+        expect(fixture.componentInstance.meanLabel()).toBe('12.4 days');
+        // An average with no denominator is a number people quote and should not.
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('9 issues resolved');
+    });
+
+    it('writes the mean with the French decimal mark, and keeps its one decimal', () => {
+        flushTrends({
+            points: [{ day: '2026-08-21', open: 7, opened: 2, resolved: 3 }],
+            mean_days_to_resolve: 11.42,
+            resolved_in_window: 9
+        });
+        useFrench();
+        fixture.detectChanges();
+
+        // "11.4 jours" was the screenshot: `toFixed` writes the English point whatever the language.
+        expect((fixture.nativeElement as HTMLElement).querySelector('#mean-days-to-resolve')!.textContent.trim()).toBe(
+            '11,4 jours'
+        );
+        expect(fixture.componentInstance.meanLabel()).toBe('11,4 jours');
+    });
+
+    it('separates the backlog from the movements, on two charts and not two axes', () => {
+        flushTrends({
+            points: [
+                { day: '2026-08-20', open: 5, opened: 2, resolved: 1 },
+                { day: '2026-08-21', open: 6, opened: 1, resolved: 0 }
+            ],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1
+        });
+
+        const page = fixture.componentInstance;
+
+        // **A dual axis let a reader see a crossing that means nothing**: the relative position of
+        // the curves came from the framing the library chose, not from the data.
+        expect(page.backlogChart().datasets.map((set) => set.label)).toEqual(['Open backlog']);
+        expect(page.backlogChart().datasets[0].data).toEqual([5, 6]);
+        expect(page.flowChart().datasets.map((set) => set.label)).toEqual(['Opened', 'Resolved']);
+        expect(page.flowChart().datasets[0].data).toEqual([2, 1]);
+
+        // The same dates, in the same order: it is what makes the two panels a single reading. A
+        // one-day shift between them would make the alignment lie.
+        expect(page.flowChart().labels).toEqual(page.backlogChart().labels);
+    });
+
+    it('does not repeat the dates from one chart to the other', () => {
+        flushTrends({
+            points: [{ day: '2026-08-20', open: 5, opened: 2, resolved: 1 }],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1
+        });
+
+        const page = fixture.componentInstance;
+        // Carried by the lower chart only: two sets of dates one under the other repeat the same
+        // information and steal the height used to read the curves.
+        expect(page.backlogOptions().scales.x.ticks.display).toBe(false);
+        expect(page.flowOptions().scales.x.ticks.display).toBe(true);
+        expect(page.backlogOptions().scales.y.title.text).toBe('Open backlog');
+        expect(page.flowOptions().scales.y.title.text).toBe('Per day');
+    });
+
+    it('re-asks the server for another window instead of slicing the series it holds', () => {
+        flushTrends({
+            points: [{ day: '2026-08-21', open: 1, opened: 0, resolved: 0 }],
+            mean_days_to_resolve: null,
+            resolved_in_window: 0
+        });
+
+        fixture.componentInstance.loadTrends(30);
+        const call = http.expectOne((request) => request.url === '/api/v1/dashboard/trends');
+        expect(call.request.urlWithParams).toContain('days=30');
+        // Cleared while the answer is in flight: a curve left under a new window's label is a
+        // chart that says thirty days and shows a year.
+        expect(fixture.componentInstance.trends()).toBeNull();
+        call.flush(
+            asSchema('Trends', {
+                points: [],
+                mean_days_to_resolve: null,
+                resolved_in_window: 0,
+                score_formula_changed_on: null
+            })
+        );
+    });
+
+    /**
+     * Clearing the series was not enough: the previous window's answer still arrived, after the new
+     * one, and its mean and its time-to-resolve sat under the "30 days" button. The answers below come
+     * back in the wrong order on purpose.
+     */
+    it("shows the chosen window's figures when the previous window's answers come last", () => {
+        fixture.detectChanges();
+        const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
+            (b) => b.textContent.trim() === '30 days'
+        );
+        expect(button).toBeDefined();
+        button!.click();
+        fixture.detectChanges();
+
+        const trends = http.match((call) => call.url === '/api/v1/dashboard/trends');
+        const analytics = http.match((call) => call.url === '/api/v1/dashboard/posture-analytics');
+        expect(trends.map((call) => call.request.params.get('days'))).toEqual(['90', '30']);
+        expect(analytics.map((call) => call.request.params.get('days'))).toEqual(['90', '30']);
+
+        const series = (mean: number) =>
+            asSchema('Trends', {
+                points: [],
+                mean_days_to_resolve: mean,
+                resolved_in_window: 1,
+                score_formula_changed_on: null
+            });
+        const posture = (critical: number, windowDays: number) =>
+            asSchema('PostureTrendAnalytics', {
+                mttrBySeverity: { CRITICAL: critical },
+                dailySeries: [],
+                overallMttrDays: null,
+                netResolutionRatePercentage: 0,
+                totalOpenedInWindow: 0,
+                totalResolvedInWindow: 0,
+                windowDays,
+                targetScoreboard: []
+            });
+        trends[1].flush(series(3));
+        analytics[1].flush(posture(4, 30));
+        // A request still open would deliver the old window's answer now; a cancelled one cannot.
+        if (!trends[0].cancelled) trends[0].flush(series(77));
+        if (!analytics[0].cancelled) analytics[0].flush(posture(88, 90));
+        fixture.detectChanges();
+
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.querySelector('#mean-days-to-resolve')?.textContent.trim()).toBe('3.0 days');
+        expect(page.textContent).toContain('4 d');
+        expect(page.textContent).not.toContain('88 d');
+        expect(trends[0].cancelled && analytics[0].cancelled).toBe(true);
+    });
+
+    /**
+     * The day the scorecard formula changed here (decision 0036). The curves are the backlog's, which
+     * the formula does not move; the line is for whoever sets a grade beside them, and the page says
+     * the same in words, since a canvas says nothing to a screen reader.
+     */
+    it('marks the day the score formula changed, on the chart and in words, when it falls in the window', () => {
+        flushTrends({
+            points: [
+                { day: '2026-10-19', open: 5, opened: 2, resolved: 1 },
+                { day: '2026-10-20', open: 6, opened: 1, resolved: 0 },
+                { day: '2026-10-21', open: 6, opened: 0, resolved: 0 }
+            ],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1,
+            score_formula_changed_on: '2026-10-20'
+        });
+
+        const page = fixture.componentInstance;
+        // The axis day first, as every date on screen; the year is the window's.
+        expect(page.backlogChart().labels).toEqual(['19/10', '20/10', '21/10']);
+        expect(page.flowChart().labels).toEqual(['19/10', '20/10', '21/10']);
+        expect(page.backlogOptions().plugins.datedMarker).toMatchObject({ index: 1, label: 'Score formula changed' });
+        // The lower chart repeats the line, not the label.
+        expect(page.flowOptions().plugins.datedMarker).toMatchObject({ index: 1, label: undefined });
+        const note = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="score-formula-change"]');
+        expect(note?.textContent).toContain('The scorecard formula changed on 20/10/2026 (0.11.0)');
+    });
+
+    it('draws no line and says nothing when the change is outside the window, or never happened here', () => {
+        flushTrends({
+            points: [{ day: '2026-10-21', open: 6, opened: 0, resolved: 0 }],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1,
+            score_formula_changed_on: '2026-10-20'
+        });
+
+        expect(fixture.componentInstance.backlogOptions().plugins.datedMarker.index).toBe(-1);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="score-formula-change"]')).toBeNull();
+    });
+
+    it('says the trend failed instead of drawing an empty history', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
+        fixture.detectChanges();
+
+        // An empty frame here reads as "no issue was ever opened", which is a statement about the
+        // estate rather than about the request.
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Could not load the backlog trend.');
+    });
+});
+
+/**
+ * The tag on a failing target's violation.
+ *
+ * <p>The row exists to make a KEV stand out — a vulnerability someone is known to be exploiting.
+ * The screen reads `violation.rule === 'kev'`, and this route used to send the domain record,
+ * whose rule serialises as the enum: `KEV`. Every violation on the dashboard was therefore tagged
+ * "Severity", the KEV ones included, and the one row meant to be unmissable read like the others.
+ * The route now sends the same spelling as every other; this is what says so from the screen's
+ * side.
+ */
+describe('the failing targets table', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const failing = (rule: GateViolation['rule']) =>
+        asSchema('DashboardOverview', {
+            posture: {
+                failingCount: 1,
+                totalCount: 2,
+                kevCount: 1,
+                neverScannedCount: 0,
+                lastScanFailedCount: 0,
+                overdueCount: 0
+            },
+            backlogBySeverity: { CRITICAL: 1 },
+            qualityTotal: 0,
+            failing: [
+                {
+                    kind: 'repository',
+                    targetId: 5,
+                    name: 'Arm Libs Spring',
+                    observed: true,
+                    violations: [
+                        {
+                            rule,
+                            issueId: 7,
+                            identifier: 'CVE-2026-1234',
+                            severity: 'critical',
+                            package: 'openssl',
+                            fixVersions: '3.0.14',
+                            reason: 'known exploited'
+                        }
+                    ]
+                }
+            ],
+            recentScans: []
+        });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        TestBed.inject(I18nService).translations.set({
+            dashboard: {
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            }
+        });
+
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('tags a known-exploited violation as KEV', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('kev'));
+        fixture.detectChanges();
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('KEV');
+    });
+
+    it('tags a target nobody examined as such, and never as a severity', () => {
+        // A never-scanned target fails the gate with an `observation` violation; the template read
+        // "KEV, or else Severity", which tagged it — and every coverage violation — "Severity".
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('observation'));
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('Not examined');
+        expect(text).not.toContain('Severity');
+    });
+
+    it('tags a coverage violation as coverage', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('coverage'));
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('Coverage');
+        expect(text).not.toContain('Severity');
+    });
+
+    it('links each severity figure to the list with unsettled=true, the clause the figure counts by', () => {
+        // The figure leaves settled triage out; a link without the flag opens a list that does
+        // not, and "1 critical" arrives on a page of several.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const links = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('a[href^="/issues"]')
+        );
+        const severityLinks = links.filter((link) => link.getAttribute('href')!.includes('severity='));
+        expect(severityLinks.length).toBeGreaterThan(0);
+        for (const link of severityLinks) {
+            expect(link.getAttribute('href')).toContain('unsettled=true');
+        }
+    });
+
+    // The legend the other screens' colours are read against: medium was grey here and blue in the
+    // time-to-resolve panel beside it, high orange here and red on the backlog it links to.
+    it('paints each severity tile in the colour every screen gives that severity', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const tiles = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('a[href*="unsettled=true"]')
+        ).map((link) => ({
+            severity: new URLSearchParams(link.getAttribute('href')!.split('?')[1]).get('severity'),
+            tone: Array.from(link.parentElement!.querySelector('.p-tag')!.classList).find((c) =>
+                /^p-tag-(danger|warn|info|secondary|success)$/.test(c)
+            )
+        }));
+        expect(tiles).toEqual([
+            { severity: 'critical', tone: 'p-tag-danger' },
+            { severity: 'high', tone: 'p-tag-warn' },
+            { severity: 'medium', tone: 'p-tag-info' },
+            { severity: 'low', tone: 'p-tag-secondary' }
+        ]);
+    });
+
+    // A scan's count is of issues; the scan it links to lists occurrences, and under one word the two
+    // read as a figure the page contradicts.
+    it("heads the recent scans' count as issues, not findings", () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                ...failing('severity'),
+                recentScans: [
+                    asSchema('RecentScan', {
+                        id: 34,
+                        repoId: 5,
+                        containerId: null,
+                        targetKind: 'repository',
+                        targetName: 'Recently Scanned',
+                        status: 'completed',
+                        findingsCount: 1234,
+                        error: null,
+                        createdAt: '2026-08-21T05:03:00Z'
+                    })
+                ]
+            })
+        );
+        fixture.detectChanges();
+
+        const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>
+            each.textContent.includes('Recently Scanned')
+        );
+        const headers = Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.textContent.trim());
+        const cells = Array.from(table?.querySelectorAll('tbody td') ?? []).map((td) => td.textContent.trim());
+        expect(headers).toContain('Issues');
+        expect(headers).not.toContain('Findings');
+        expect(cells).toContain('1,234');
+    });
+
+    // The figure is `violations.length`: one per gate rule the target fails, beside the rules
+    // named in the column before it. Headed "Findings", "2" read as two findings on a target that
+    // may hold hundreds.
+    it("heads a failing target's count as the gate violations it counts, not as findings", () => {
+        const overview = failing('kev');
+        const kev = overview.failing[0].violations[0];
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                ...overview,
+                failing: [{ ...overview.failing[0], violations: [kev, { ...kev, rule: 'severity', issueId: 8 }] }]
+            })
+        );
+        fixture.detectChanges();
+
+        const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>
+            each.textContent.includes('Arm Libs Spring')
+        );
+        const headers = Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.textContent.trim());
+        expect(headers).toEqual(['Target', 'Rule at fault', 'Violations']);
+        expect(table?.querySelector('[data-testid="failing-violations"]')?.textContent.trim()).toBe('2');
+    });
+
+    it('words each violation in the reader language, after a switch too', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+        const line = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-testid="violation-reason"]')
+                ?.textContent?.replace(/\s+/g, ' ')
+                .trim();
+        const english = line();
+        expect(english).toContain('Severity');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(line()).not.toBe(english);
+        expect(line()).not.toContain('Severity');
+        expect(line()).toContain('Critique');
+    });
+
+    it('tags anything else as a severity breach', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('Severity');
+        // The line is written from the rule and its severity, in the reader's language; the server's
+        // sentence — which names the threshold — stays one hover away.
+        const reason = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="violation-reason"]');
+        expect(reason?.textContent).toContain("Critical, at or above the policy's threshold.");
+        expect(reason?.getAttribute('title')).toBe('known exploited');
+    });
+});
+
+/**
+ * A target nobody scanned, on the maturity ranking.
+ *
+ * <p>The server ranks it last with `NO_DATA` and a null score. Rendered like the others it read
+ * "Grade NO_DATA", "/100" and an empty bar — a measured zero, the worst mark on the board, for a
+ * target that was never measured. Asserted through the DOM, since that is where the lie was.
+ */
+describe('the maturity ranking', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const row = (
+        targetId: number,
+        targetName: string,
+        maturityGrade: SecurityGrade,
+        securityScore: number | null,
+        riskPoints: number | null = null
+    ) => ({
+        targetId,
+        targetKind: 'repository',
+        targetName,
+        maturityGrade,
+        securityScore,
+        riskPoints,
+        targetMttrDays: null,
+        openCritical: 2,
+        openHigh: 0,
+        openMedium: 0,
+        openLow: 0,
+        totalResolved: 0
+    });
+
+    const ANALYTICS = asSchema('PostureTrendAnalytics', {
+        mttrBySeverity: {},
+        dailySeries: [],
+        overallMttrDays: null,
+        netResolutionRatePercentage: 0,
+        totalOpenedInWindow: 0,
+        totalResolvedInWindow: 0,
+        windowDays: 90,
+        targetScoreboard: [
+            row(3, 'clean-repo', 'A_PLUS', 100, 0),
+            row(1, 'graded-repo', 'B', 72, 18.125),
+            row(2, 'unscanned-repo', 'NO_DATA', null)
+        ]
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        TestBed.inject(I18nService).translations.set({
+            repositories: { grade_tag: 'Grade {{grade}}' },
+            dashboard: {
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            },
+            soa: { measured: { NO_DATA: 'No data' } }
+        });
+
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        // The ranking sits inside the overview's block: without an overview it is not rendered.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 2,
+                    kevCount: 0,
+                    neverScannedCount: 1,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/dashboard/posture-analytics').flush(ANALYTICS);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function rowOf(name: string): HTMLTableRowElement {
+        const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLTableRowElement>('tr'));
+        const found = rows.find((tr) => tr.textContent.includes(name));
+        expect(found).toBeDefined();
+        return found!;
+    }
+
+    it("writes the time to resolve per severity and per target in the reader's decimal mark", () => {
+        fixture.componentInstance.postureAnalytics.set({
+            ...ANALYTICS,
+            mttrBySeverity: { CRITICAL: 12.5, HIGH: 3 },
+            targetScoreboard: [{ ...row(1, 'graded-repo', 'B', 72, 18.125), targetMttrDays: 4.25 }]
+        });
+        useFrench();
+        fixture.detectChanges();
+
+        const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.grid-cols-2 > div')].map((tile) =>
+            [...tile.querySelectorAll('span')].map((span) => span.textContent.trim()).join(' ')
+        );
+        expect(tiles).toEqual(['Critique 12,5 j', 'Élevée 3 j', 'Moyenne —', 'Faible —']);
+        // The figure and its unit stay on one line in a half-width tile: "12,5" over "j" read as two values.
+        const figure = (fixture.nativeElement as HTMLElement).querySelector('.grid-cols-2 > div span.font-mono')!;
+        expect(figure.classList).toContain('whitespace-nowrap');
+        // …and apart from its label: without a gap, "Moyenne12,5 j" read as one word.
+        expect(figure.parentElement!.classList).toContain('gap-1');
+        expect(rowOf('graded-repo').textContent).toContain('4,3 jours');
+    });
+
+    it('shows no data, and neither a score nor a bar, for a target nobody scanned', () => {
+        const tr = rowOf('unscanned-repo');
+        expect(tr.querySelector('[data-testid="maturity-no-data"]')?.textContent).toContain('No data');
+        expect(tr.textContent).not.toContain('/100');
+        expect(tr.textContent).not.toContain('NO_DATA');
+        expect(tr.querySelector('[data-testid="maturity-score-bar"]')).toBeNull();
+        // The counts are not the score: they stay.
+        expect(tr.textContent).toContain('2');
+    });
+
+    it('keeps the grade, the score and the bar of a graded target', () => {
+        const tr = rowOf('graded-repo');
+        expect(tr.textContent).toContain('Grade B');
+        expect(tr.textContent).toContain('72/100');
+        expect(tr.querySelector<HTMLElement>('[data-testid="maturity-score-bar"]')?.style.width).toBe('72%');
+        expect(tr.querySelector('[data-testid="maturity-no-data"]')).toBeNull();
+    });
+
+    // What breaks a tie in the order, and what still moves deep in F (decision 0036).
+    it("writes the risk points in the reader's decimal mark, after a switch too", () => {
+        const points = () =>
+            rowOf('graded-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim();
+        expect(points()).toBe('18.125');
+        useFrench();
+        fixture.detectChanges();
+        expect(points()).toBe('18,125');
+    });
+
+    it('shows the risk points of each graded target, and a dash where there is no grade', () => {
+        expect(rowOf('graded-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe(
+            '18.125'
+        );
+        expect(rowOf('clean-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe('0');
+        expect(rowOf('unscanned-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe(
+            '—'
+        );
+    });
+
+    it('paints no grade as neutral, not as failing', () => {
+        expect(new GradeTonePipe().transform('NO_DATA')).toBe('secondary');
+        expect(new GradeTonePipe().transform('F')).toBe('danger');
+    });
+
+    // The ranking grades as the scorecard does, whose best grade is A+: the dashboard's own colours
+    // knew A to F only, and painted the best target on the board as failing.
+    it('paints a clean scanned target at A+ as the card paints it, not as failing', () => {
+        const tr = rowOf('clean-repo');
+        expect(tr.textContent).toContain('100/100');
+        expect(new GradeTonePipe().transform('A_PLUS')).toBe('success');
+        expect(tr.querySelector('.p-tag-danger')).toBeNull();
+        expect(tr.querySelector('.p-tag-success')).not.toBeNull();
+    });
+
+    // The grade used to be printed as its constant: "Grade A_PLUS" at the top of the board.
+    it('reads the best grade as A+, not as the name of its constant', () => {
+        const tr = rowOf('clean-repo');
+        expect(tr.querySelector('.p-tag')?.textContent.trim()).toBe('Grade A+');
+        expect(tr.textContent).not.toContain('A_PLUS');
+    });
+});
+
+/**
+ * The dated line itself, drawn on a chart whose canvas is a recording: happy-dom has no canvas, and
+ * what matters is where the line stands and that nothing is drawn without a day.
+ */
+describe('the dated marker', () => {
+    function chartRecording() {
+        const calls: string[] = [];
+        const ctx = new Proxy(
+            {},
+            {
+                get:
+                    (_target, name: string) =>
+                    (...args: unknown[]) =>
+                        calls.push(`${name}(${args.join(',')})`),
+                set: () => true
+            }
+        ) as MarkerChart['ctx'];
+        const chart: MarkerChart = {
+            ctx,
+            chartArea: { top: 10, bottom: 110 },
+            scales: { x: { getPixelForValue: (value: number) => 100 + value * 20 } }
+        };
+        return { chart, calls };
+    }
+
+    it('stands on the point of its day, from the top of the plot to its bottom, with its label', () => {
+        const { chart, calls } = chartRecording();
+        DATED_MARKER.afterDatasetsDraw(chart, {}, { index: 2, label: 'Score formula changed' });
+
+        expect(calls).toContain('moveTo(140,10)');
+        expect(calls).toContain('lineTo(140,110)');
+        expect(calls).toContain('fillText(Score formula changed,144,21)');
+    });
+
+    it('draws nothing without a day in the window', () => {
+        const { chart, calls } = chartRecording();
+        DATED_MARKER.afterDatasetsDraw(chart, {}, { index: -1, label: 'Score formula changed' });
+        DATED_MARKER.afterDatasetsDraw(chart, {}, undefined);
+
+        expect(calls).toEqual([]);
+    });
+});
+
+/**
+ * The portfolio, with no grade of its own (decision 0036): the distribution of the reader's targets
+ * over the grades, the weakest by name, and what is open in risk points — read from the DOM, each
+ * count with its grade in its accessible name, as a screen reader hears it.
+ */
+describe('the portfolio', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const PORTFOLIO = asSchema('PortfolioScorecard', {
+        totalTargets: 6,
+        observedTargets: 5,
+        grades: [
+            { grade: 'A_PLUS' as const, targets: 3 },
+            { grade: 'A' as const, targets: 0 },
+            { grade: 'B' as const, targets: 1 },
+            { grade: 'C' as const, targets: 0 },
+            { grade: 'D' as const, targets: 1 },
+            { grade: 'F' as const, targets: 0 },
+            { grade: 'NO_DATA' as const, targets: 1 }
+        ],
+        weakestTarget: {
+            targetKind: 'repository',
+            targetId: 4,
+            targetName: 'payments-api',
+            score: 54,
+            grade: 'D' as const,
+            riskPoints: 29.5
+        },
+        riskPoints: 40.5,
+        openCriticalCount: 2,
+        openHighCount: 1,
+        openKevCount: 1,
+        overdueCount: 0,
+        licenseViolationCount: 0
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        // The panel sits inside the overview's block, as the ranking does.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 6,
+                    kevCount: 1,
+                    neverScannedCount: 1,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+    }, 20_000);
+
+    function load(portfolio: object): HTMLElement {
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush(portfolio);
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    it('counts the targets of each grade, no data included, each count named with its grade', () => {
+        const page = load(PORTFOLIO);
+
+        const rows = Array.from(page.querySelectorAll('[data-testid="portfolio-distribution"] li'));
+        expect(rows.map((row) => row.getAttribute('aria-label'))).toEqual([
+            'Grade A+: 3 targets',
+            'Grade A: 0 targets',
+            'Grade B: 1 target',
+            'Grade C: 0 targets',
+            'Grade D: 1 target',
+            'Grade F: 0 targets',
+            'No data: 1 target'
+        ]);
+        expect(page.querySelector('[data-testid="portfolio-distribution"]')?.getAttribute('aria-label')).toBe(
+            'Targets by grade'
+        );
+    });
+
+    it("colours each grade's tag as every screen colours that grade", () => {
+        const page = load(PORTFOLIO);
+        const tones = Array.from(page.querySelectorAll('[data-testid="portfolio-distribution"] li')).map((row) => [
+            row.getAttribute('data-grade'),
+            row.querySelector('.p-tag')?.className.match(/p-tag-(success|warn|danger|secondary|info)/)?.[1]
+        ]);
+        expect(tones).toEqual(
+            ['A_PLUS', 'A', 'B', 'C', 'D', 'F', 'NO_DATA'].map((grade) => [grade, gradeSeverity(grade)])
+        );
+        expect(new Set(tones.map(([, tone]) => tone)).size).toBeGreaterThan(2);
+    });
+
+    it('names the weakest target and what is open, and states no single grade for the estate', () => {
+        const page = load(PORTFOLIO);
+
+        const weakest = page.querySelector('[data-testid="portfolio-weakest"]')?.textContent ?? '';
+        expect(weakest).toContain('payments-api');
+        expect(weakest).toContain('Grade D');
+        expect(weakest).toContain('54/100');
+        expect(page.querySelector('[data-testid="portfolio-risk-points"]')?.textContent).toContain('40.5 risk points');
+    });
+
+    it('says no target is scanned yet rather than naming one', () => {
+        const page = load({ ...PORTFOLIO, observedTargets: 0, weakestTarget: null });
+
+        expect(page.querySelector('[data-testid="portfolio-weakest"]')?.textContent).toContain(
+            'No target scanned yet.'
+        );
+    });
+
+    it('leaves the panel out for a reader who sees no target', () => {
+        const page = load({ ...PORTFOLIO, totalTargets: 0, observedTargets: 0, weakestTarget: null });
+
+        expect(page.querySelector('[data-testid="portfolio-distribution"]')).toBeNull();
+    });
+});
+
+/**
+ * A panel whose request failed says so, in the server's words. Each one used to swallow its error
+ * (`error: () => {}`) and simply not appear: a failed debt estimate read as no debt, a failed
+ * portfolio as an estate with nothing to grade. RFC 7807 puts the explanation in `detail`.
+ */
+describe('a dashboard panel that fails to load', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const problem = (detail: string) => ({ type: 'about:blank', title: 'Internal Server Error', status: 500, detail });
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function overview(): void {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 1,
+                    kevCount: 0,
+                    neverScannedCount: 0,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+    }
+
+    it('shows the overview’s failure in the server’s words', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(problem('Database unavailable.'), failure);
+
+        expect(page().textContent).toContain('Database unavailable.');
+    });
+
+    it('says the security debt could not be estimated, with the detail, where the panel would be', () => {
+        overview();
+        http.expectOne((call) => call.url.startsWith('/api/v1/remediation/')).flush(
+            problem('The debt estimator timed out.'),
+            failure
+        );
+
+        expect(page().querySelector('[data-testid="security-debt-error"]')?.textContent).toContain(
+            'The debt estimator timed out.'
+        );
+    });
+
+    it('says the portfolio could not be read, and falls back to its own sentence without a detail', () => {
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush({}, failure);
+
+        expect(page().querySelector('[data-testid="portfolio-error"]')?.textContent).toContain(
+            'Could not load the portfolio grades.'
+        );
+    });
+
+    it('says the trend and the analytics failed, each in its own place', () => {
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(
+            problem('Trend query refused.'),
+            failure
+        );
+        http.expectOne((call) => call.url === '/api/v1/dashboard/posture-analytics').flush(
+            problem('Analytics are being rebuilt.'),
+            failure
+        );
+
+        const shown = page();
+        expect(shown.textContent).toContain('Trend query refused.');
+        expect(shown.querySelector('[data-testid="analytics-error"]')?.textContent).toContain(
+            'Analytics are being rebuilt.'
+        );
+    });
+
+    it('says the panel failures in French to a French reader', () => {
+        useFrench();
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush({}, failure);
+
+        expect(page().querySelector('[data-testid="portfolio-error"]')?.textContent).toContain(
+            'Impossible de charger les notes du portefeuille.'
+        );
+    });
+});
+
+/**
+ * A high-impact fix with no published version. `recommendedVersion` is null when no finding
+ * announces a fix, and the row printed `v: 3.0.1 ➔ ` — an upgrade to nothing — while the
+ * remediation screen already said there was none. The contract now says the field may be null.
+ */
+describe('a high-impact fix no version fixes', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const fix = (packageName: string, recommendedVersion: string | null): HighImpactFix =>
+        asSchema('HighImpactFix', {
+            packageName,
+            currentVersion: '3.0.1',
+            recommendedVersion,
+            cveCountResolved: 2,
+            criticalCveCount: 0,
+            highCveCount: 1,
+            estimatedHours: 2,
+            leverageScore: 1,
+            affectedCves: ['CVE-2026-1234'],
+            affectedTargetNames: ['Arm Libs Spring']
+        });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('says no fixed version is published instead of an arrow to nothing, and keeps the arrow for one', () => {
+        // The panels sit inside the overview: without it the page shows none of them.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 1,
+                    kevCount: 0,
+                    neverScannedCount: 0,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/remediation/debt').flush(
+            asSchema('SecurityDebtReport', {
+                totalOpenIssues: 2,
+                criticalIssues: 0,
+                highIssues: 2,
+                mediumIssues: 0,
+                lowIssues: 0,
+                totalEstimatedHours: 4,
+                totalEstimatedPersonDays: 0.5,
+                vulnerabilitiesDebtHours: 4,
+                secretsDebtHours: 0,
+                sastDebtHours: 0,
+                iacDebtHours: 0,
+                licenseDebtHours: 0,
+                eolDebtHours: 0,
+                topHighImpactFixes: [fix('openssl', null), fix('log4j-core', '2.17.1')]
+            })
+        );
+        fixture.detectChanges();
+
+        const versions = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="high-impact-version"]')
+        ].map((cell) => cell.textContent.trim());
+        expect(versions).toEqual(['v: 3.0.1 — no fixed version published', 'v: 3.0.1 ➔ 2.17.1']);
+    });
+});

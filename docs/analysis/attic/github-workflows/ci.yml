@@ -1,0 +1,289 @@
+name: CI
+
+# What CI keeps, in the order it actually broke:
+#   1. the test suites;
+#   2. the schema — entities run under `ddl-auto: validate` and *describe* tables the
+#      migrations create; a gap between the two only shows against a real server;
+#   3. portability across engines, which no simulated database can demonstrate.
+#
+# **Point 3 is not run here, deliberately, and that is a gap worth naming.**
+# `./gradlew integrationTestAll` needs Docker and takes about ten minutes; it caught five
+# engine divergences during the port and it is run by hand before a release. Somebody
+# reading a green tick on this file should know it does not cover that.
+#
+# Node is pinned by `.nvmrc` to LTS 24: Angular refuses Node 25.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Secret detection gate: blocks commits containing known secret patterns (API keys, PEM blocks, etc.)
+  # Uses the exact pinned Gitleaks digest from ScannerImages.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for secrets
+        run: |
+          docker run --rm -v "$PWD:/code:ro" \
+            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source=/code --verbose
+
+  # The control plane and the remote agent. This is the implementation of record.
+  # **A broken link is invisible until a reader hits it.** The documentation moved into
+  # `en/` and `fr/` subtrees and 53 of 305 relative links — one in four — stayed pointed at
+  # where the files used to be. Nothing failed, because nothing was checking. This is what
+  # keeps the count at zero, and it costs a second.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Documentation links resolve
+        run: python3 scripts/check-doc-links.py
+
+      # **The C4 diagrams are generated, or they are just pictures.** The committed artifacts had
+      # drifted from `workspace.dsl` — a different exporter's output, so running the documented
+      # script rewrote all of them. Nothing failed, because nothing compared them. This does.
+      #
+      # Only the `.puml` files, and deliberately: structurizr's text export is byte-for-byte
+      # reproducible (verified by exporting twice and diffing), while PlantUML's PNGs are a
+      # rendering of them and not worth gating on. A flaky drift check is worse than none — it
+      # teaches people to re-run the job until it passes.
+      - name: C4 diagrams match the model
+        run: |
+          mkdir -p /tmp/c4-check
+          docker run --rm -v "$PWD:/work" -v /tmp/c4-check:/out -w /work \
+            structurizr/structurizr export \
+            -w docs/architecture/c4/workspace.dsl -f plantuml/c4plantuml -o /out
+
+          for f in /tmp/c4-check/*.puml; do
+            committed="docs/architecture/c4/diagrams/$(basename "$f")"
+            if ! diff -u "$committed" "$f"; then
+              echo
+              echo "The committed C4 diagrams no longer match workspace.dsl."
+              echo "Run ./scripts/generate-c4-diagrams.sh and commit the result."
+              exit 1
+            fi
+          done
+          echo "C4 diagrams are in step with the model."
+
+  # **The images are built here, and one of them is started.**
+  #
+  # `Dockerfile`, `Dockerfile.agent` and `release.yml` all copied `vectispire-core.jar` while the
+  # build emitted `vectispire-core-0.9.0.jar`. Both container images and the release were broken
+  # for an unknown period, and it was found by accident — because nothing here ever built an image
+  # or cut a release. One job closes that whole class.
+  #
+  # Jib rather than `docker build` on this path: it needs no daemon for the build itself, it is
+  # fast enough to run on every push, and there is no path string between the build and the image
+  # to get wrong. The `Dockerfile` route is still the shipped image — it is the one that can chown
+  # the audit mirror's directory, which Jib cannot express — so the nightly workflow builds that
+  # one, where ten minutes is affordable.
+  images:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: vectispire
+          MYSQL_USER: vectispire
+          MYSQL_PASSWORD: vectispire
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uvectispire -pvectispire"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The interface is a build input to the image, not a separate artifact: without it the jar
+      # serves the API and answers 404 at `/`. Verified by building an image without it and
+      # asking — which is how this step came to exist.
+      - name: Build the interface
+        run: npm run build
+
+      - name: Build both images
+        working-directory: vectispire-java
+        run: |
+          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild -x test \
+            -PuiDist="$PWD/../vectispire-angular/dist/vectispire/browser"
+
+      # **An image that builds is not an image that runs.** This is the assertion the jar-name
+      # defect would have failed: the container starts, reaches its database, and answers on the
+      # health endpoint that only says UP once the schema validated.
+      - name: The control plane image starts and serves
+        run: |
+          docker run -d --name vectispire-smoke --network host \
+            -e VECTISPIRE_DB_URL="jdbc:mysql://127.0.0.1:3306/vectispire" \
+            -e VECTISPIRE_DB_USER=vectispire \
+            -e VECTISPIRE_DB_PASSWORD=vectispire \
+            -e ENCRYPTION_KEY="Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=" \
+            -e VECTISPIRE_BOOTSTRAP_PASSWORD="CiSmoke2026!" \
+            -e VECTISPIRE_EMBEDDED_WORKER=false \
+            vectispire:latest
+
+          for attempt in $(seq 1 90); do
+            if curl -sf http://localhost:3180/actuator/health > /dev/null; then
+              echo "control plane image healthy after ${attempt}s"
+              # The interface is in the image, which the health endpoint does not prove.
+              curl -sf -o /dev/null http://localhost:3180/ \
+                || { echo "the image serves the API but not the interface"; exit 1; }
+              echo "interface served"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "the image did not become healthy — last 100 lines:"
+          docker logs --tail 100 vectispire-smoke
+          exit 1
+
+      - name: Keep the container log
+        if: always()
+        run: docker logs --tail 200 vectispire-smoke || true
+
+  jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          # Matches the toolchain the build declares. Letting the runner's default JDK
+          # decide is how a build passes here and fails on a developer's machine.
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Compiles all three modules, runs the unit suites, the architecture suite and the
+      # HTTP suite against a real SQLite database.
+      - name: Build and test
+        working-directory: vectispire-java
+        run: ./gradlew build
+
+  # The Angular interface.
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        # `npm ci` and not `npm install`: the lockfile is what makes the dependency tree
+        # reproducible, and for a tool that audits supply chains, installing without
+        # honouring it would be hard to defend.
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  # **Vectispire's own supply chain, scanned by Vectispire's own scanners.** A tool that reports
+  # other people's vulnerable dependencies and never looks at its own is making a claim it has
+  # not checked.
+  #
+  # The images are the digests `ScannerImages` pins, not `:latest`: CI and the product must
+  # agree on which scanner ran, and a floating tag makes "why did this pass last week"
+  # unanswerable.
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The artifact that ships, so the SBOM describes what is deployed rather than what the
+      # build files declare. A dependency raised by conflict resolution is in one and not the
+      # other — and it is the resolved version that runs.
+      - name: Build the jar
+        working-directory: vectispire-java
+        run: ./gradlew :vectispire-core:bootJar
+
+      - name: SBOM of the control plane
+        run: |
+          docker run --rm --network none \
+            -v "$PWD/vectispire-java/vectispire-core/build/libs:/scan:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan file:/scan/vectispire-core.jar -o cyclonedx-json > vectispire-jvm.cdx.json
+          echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
+
+      # Kept whether the scan below passes or fails: the SBOM is the evidence, and it is most
+      # wanted on the run that failed.
+      - name: Keep the SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vectispire-sbom
+          path: vectispire-jvm.cdx.json
+
+      # **`--only-fixed`, and that is the whole design of this gate.** Failing on an advisory
+      # with no released fix turns CI red for something nobody in this repository can do
+      # anything about, and a gate that cannot be satisfied is a gate somebody disables — the
+      # same reasoning as decision 0005, applied to ourselves. `--fail-on high` draws the line
+      # where acting is proportionate; everything below it is reported in the step's log and
+      # blocks nobody.
+      #
+      # It went green by fixing, not by lowering: turning this on found fixable High findings in
+      # httpcore5 and the PostgreSQL driver, and the catalog now raises all three above what the
+      # Spring Boot BOM asks for.
+      - name: Known vulnerabilities, where a fix exists
+        run: |
+          docker run --rm -v "$PWD:/sbom:ro" \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            sbom:/sbom/vectispire-jvm.cdx.json --only-fixed -o table
+          docker run --rm -v "$PWD:/sbom:ro" \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            sbom:/sbom/vectispire-jvm.cdx.json --only-fixed --fail-on high -q -o table
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # **`npm audit`, run rather than believed.** `03-security.md` said it reported nothing and
+      # that this was worth stating rather than assuming. Stating it was not checking it; this
+      # step is. Production dependencies fail the job — they are what ships in the bundle an
+      # analyst loads. The development tree is reported and blocks nothing: a build-time
+      # advisory in a transitive test dependency is not a hole in the deployed interface, and
+      # treating the two alike is how the gate stops being read.
+      - name: npm audit — what ships
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm audit — the whole tree, for the record
+        if: always()
+        run: npm audit || true

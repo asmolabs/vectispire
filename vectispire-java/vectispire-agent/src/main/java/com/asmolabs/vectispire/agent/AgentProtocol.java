@@ -1,0 +1,695 @@
+package com.asmolabs.vectispire.agent;
+
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
+import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
+import com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The agent protocol's client: a handful of routes, and nothing else.
+ *
+ * <p><b>No database access, and that is a security property rather than a detail.</b> An agent
+ * with a connection would also need the encryption key — that is, the means to decrypt
+ * <em>every</em> deployment key Vectispire holds. It therefore knows the control plane only
+ * through these calls, authenticated by an API key bearing the {@code agent} scope, and it opens
+ * no inbound port. When it needs to tell the control plane something new — the signed sealing key,
+ * since decision 0031 — that is one more call, never a dependency.
+ *
+ * <p>This class only speaks HTTP: what actually runs the scanners is the shared {@code
+ * ScanRunner}. That sharing is what makes a result produced on another machine
+ * indistinguishable from a local one — same findings, same enrichment, same reconciliation.
+ */
+public class AgentProtocol {
+
+    /** The announcement's answer. */
+    public record Identity(
+            String id, String name, String contractVersion, int maxConcurrent, String credentialsMode) {}
+
+    /**
+     * A received task: what the runner expects, plus the identifier to report against.
+     *
+     * @param attempt which attempt of the scan the claim is, which a failure report names; null from a
+     *     control plane older than the report, which has no route to send it to either
+     */
+    public record AssignedTask(long scanId, Integer attempt, ScanTask task) {
+
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public AssignedTask {}
+
+        public AssignedTask(long scanId, ScanTask task) {
+            this(scanId, null, task);
+        }
+    }
+
+    /** What became of a report that a claimed scan could not run. */
+    public enum FailureReported {
+        /** Recorded: the scan is back in the queue, with the attempt counted, and waits before its next claim. */
+        RETRIED,
+        /** Recorded: the scan failed for good — the failure was permanent, or that was its last attempt. */
+        FAILED,
+        /** Not this agent's at that attempt any more (409): the lease lapsed first, or it was already reported. */
+        NOT_YOURS,
+        /** The control plane predates the report (404, or no attempt on the claim): the lease will lapse. */
+        NOT_SUPPORTED
+    }
+
+    /**
+     * A task that arrived and cannot be used — a sealed credential that will not open, a clear one
+     * where a sealed one was due. The scan is claimed all the same, so it is the caller's to report.
+     *
+     * <p>An {@link IllegalStateException}, as the refusal it wraps was before the report existed: a
+     * caller that treats it as a failed claim still does.
+     *
+     * <p><b>Permanent</b>: the credential this agent was handed will not open for it, and taking the
+     * scan again would hand it the same one — the owner's decision of 2026-09-28. The scan fails with
+     * the reason rather than spending its attempts on it.
+     */
+    public static class UnusableTaskException extends IllegalStateException implements ClassifiedFailure {
+
+        private static final long serialVersionUID = 1L;
+
+        private final transient AssignedTask assigned;
+
+        public UnusableTaskException(AssignedTask assigned, String message) {
+            super(message);
+            this.assigned = assigned;
+        }
+
+        /** As received, before anything was opened — what the report names, and the secrets to scrub. */
+        public AssignedTask assigned() {
+            return assigned;
+        }
+
+        @Override
+        public FailureKind failureKind() {
+            return FailureKind.PERMANENT;
+        }
+    }
+
+    /**
+     * The answer to a claim: a task or none, and the limit the control plane held it to.
+     *
+     * @param maxConcurrent empty when the control plane sent none — an older one, which never
+     *     applied a limit either. The agent then keeps what its hello said
+     */
+    public record Claim(Optional<AssignedTask> task, OptionalInt maxConcurrent) {
+
+        public static Claim nothing() {
+            return new Claim(Optional.empty(), OptionalInt.empty());
+        }
+    }
+
+    /**
+     * What the agent says about itself. Purely informational, except the contract — and the executors, which
+     * decide what the control plane hands it.
+     *
+     * @param executors what it can run scans with as it last probed them; null to say nothing, which a control
+     *     plane reads as "unknown" and serves as it serves an agent older than the field
+     */
+    public record Description(
+            String hostname, String platform, String version, String scannerEngine, WorkerExecutors executors) {
+
+        public Description(String hostname, String platform, String version, String scannerEngine) {
+            this(hostname, platform, version, scannerEngine, null);
+        }
+    }
+
+    /** What became of a report of this agent's executors. */
+    public enum ExecutorReport {
+        /** Recorded: the next claim is decided by it. */
+        ACCEPTED,
+        /** The control plane predates the report (404): it claims for this agent as it always did. */
+        NOT_SUPPORTED,
+        /** Anything else: not recorded, and worth sending again. */
+        FAILED
+    }
+
+    /**
+     * What became of this process's sealing key announcement (decision 0031).
+     *
+     * <p>A closed set, because each answer asks something different of the operator, and the runner
+     * says which in the log: nothing, an upgrade of the control plane, a key to pin, a key to fix, a
+     * clock to fix.
+     */
+    public enum SealingKeyOutcome {
+        /** Verified against the pinned key: delegated credentials are sealed for this process. */
+        ACCEPTED,
+        /** The control plane predates signed sealing keys (404): it seals for the hello's key. */
+        NOT_SUPPORTED,
+        /** No signing key is pinned for this agent (412): it is handed no delegated credential. */
+        NOT_PINNED,
+        /** The signature does not verify against the pinned key (403): the configured key is not it. */
+        REFUSED,
+        /** Older than the key the control plane holds (409): this host's clock went back. */
+        STALE,
+        /** Nothing to sign with, or nothing to sign: no signing key configured, or no hello answered yet. */
+        UNSIGNABLE
+    }
+
+    /** The two failures whose fix is a deployment or a configuration change, not a retry. */
+    public static class ContractMismatchException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public ContractMismatchException(String message) {
+            super(message);
+        }
+    }
+
+    public static class UnauthorizedException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public UnauthorizedException(String message) {
+            super(message);
+        }
+    }
+
+    private final AgentHttp http;
+    private final ObjectMapper json;
+
+    /**
+     * This process's ephemeral pair, or empty to seal nothing.
+     *
+     * <p>Its private half is neither serialized nor written: it dies with the process, so there
+     * is no key file to protect, rotate or forget.
+     */
+    private final Optional<SealedEnvelope.KeyPair> keyPair;
+
+    private final SealedEnvelope envelopes = new SealedEnvelope();
+
+    /**
+     * The Ed25519 seed whose public half an administrator pinned, or blank.
+     *
+     * <p>Unlike {@link #keyPair} this one is <b>configuration</b>, not an announcement, and the
+     * asymmetry is the whole point: the control plane must have learned this key from somebody
+     * who is not this process. See {@code ResultAttestation}.
+     */
+    private final String signingKey;
+
+    /** Keyed by hash, therefore never to invalidate — see {@link #ruleSet}. */
+    private final Map<String, List<StoredFile>> ruleSetCache = new ConcurrentHashMap<>();
+
+    /** Keyed by id and digest, therefore never to invalidate either — see {@link #plugin}. */
+    private final Map<PluginRef, PluginManifest> pluginCache = new ConcurrentHashMap<>();
+
+    /**
+     * When {@link #keyPair} was made, in epoch milliseconds — the generation the sealing key's
+     * signature covers, so the control plane can keep the newest and refuse an older one replayed.
+     */
+    private final long keyPairGeneration;
+
+    /** This agent's id, learnt from the hello's answer: the sealing key's signature covers it. */
+    private volatile UUID agentId;
+
+    /** The last announcement's outcome; {@link #claim} announces again only after an acceptance. */
+    private volatile SealingKeyOutcome sealing = SealingKeyOutcome.UNSIGNABLE;
+
+    public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, Clock clock) {
+        this(http, json, keyPair, "", clock);
+    }
+
+    /**
+     * The pair's generation read from {@code clock}, the moment the pair is handed over.
+     *
+     * <p><b>The injected clock, not the wall clock.</b> This read {@code System.currentTimeMillis()}
+     * while the runner passed {@code clock.millis()}: two sources for one value, and the one no test
+     * could fix was the one every convenience caller took.
+     */
+    public AgentProtocol(
+            AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey, Clock clock) {
+        this(http, json, keyPair, signingKey, clock.millis());
+    }
+
+    /** @param keyPairGeneration when {@code keyPair} was made, in epoch milliseconds */
+    public AgentProtocol(
+            AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey, long keyPairGeneration) {
+        this.http = http;
+        this.json = json;
+        this.keyPair = Optional.ofNullable(keyPair);
+        this.keyPairGeneration = keyPairGeneration;
+        this.signingKey = signingKey == null ? "" : signingKey.trim();
+        if (!this.signingKey.isEmpty() && !ResultAttestation.isUsablePrivateKey(this.signingKey)) {
+            // At construction and not at the first result: a key that is one character short would
+            // otherwise be discovered after the first scan, by a 403 whose text points at the
+            // control plane.
+            throw new IllegalStateException(
+                    "vectispire.agent.signing-key is not 32 bytes of base64. Leave it blank for an agent whose "
+                            + "results are not attested.");
+        }
+    }
+
+    /**
+     * The announcement, and <b>an operator's first diagnostic</b>.
+     *
+     * <p>If this call answers, the URL, the key, the scope and the agent row are all correct. A
+     * contract disagreement is a distinct error because its fix is distinct: a deployment, not a
+     * configuration change.
+     */
+    public Identity hello(Description description) {
+        Map<String, Object> body = new LinkedHashMap<>(Map.of(
+                "contract_version", AgentContract.VERSION,
+                "hostname", description.hostname(),
+                "platform", description.platform(),
+                "scanner_engine", description.scannerEngine(),
+                // Unsigned, for a control plane older than decision 0031, which seals for it.
+                // A current one reads it not at all: it believes only the signed announcement
+                // that follows the hello — see announceSealingKey.
+                "sealing_public_key", keyPair.map(SealedEnvelope.KeyPair::publicKey).orElse("")));
+        // Only when known. It comes from build-info now, absent from a build without it, and
+        // `Map.of` refuses a null: a missing version must not stop an agent from starting.
+        if (description.version() != null) {
+            body.put("version", description.version());
+        }
+        // Only when probed: absent is what an older agent sends, and the control plane reads it as "unknown".
+        if (description.executors() != null) {
+            body.put("executors", description.executors().executors());
+        }
+        AgentHttp.Response response = http.call("/api/v1/agent/hello", "POST", body, Duration.ofSeconds(30));
+
+        if (response.status() == 409) {
+            throw new ContractMismatchException(response.messageOr("Incompatible contract."));
+        }
+        refuseIfUnauthorized(response);
+        refuseIfFailed(response, "Announcement refused");
+
+        Identity identity = read(response.body(), Identity.class);
+        agentId = parseId(identity.id());
+        return identity;
+    }
+
+    /**
+     * Announces this process's sealing key, signed with the result-signing key an administrator
+     * pinned for this agent — the only sealing key a control plane of this version believes.
+     *
+     * <p><b>After the hello, not inside it</b>, because the signature covers this agent's id and the
+     * hello's answer is where the agent learns it. Never an exception for an answer the control plane
+     * gives on purpose: every outcome leaves the agent running — its image scans need no credential —
+     * and the caller logs what the operator has to do.
+     *
+     * <p><b>A 404 is an older control plane</b>, which has no such route and seals for the key the
+     * hello carried; nothing is lost by carrying on.
+     *
+     * @throws UnauthorizedException when the API key itself is refused
+     */
+    public SealingKeyOutcome announceSealingKey() {
+        UUID id = agentId;
+        if (keyPair.isEmpty() || signingKey.isEmpty() || id == null) {
+            sealing = SealingKeyOutcome.UNSIGNABLE;
+            return sealing;
+        }
+        String publicKey = keyPair.get().publicKey();
+        Map<String, Object> body = Map.of(
+                "public_key", publicKey,
+                "generation", keyPairGeneration,
+                "signature", SealingKeyAttestation.sign(signingKey, id, keyPairGeneration, publicKey));
+
+        AgentHttp.Response response = http.call("/api/v1/agent/sealing-key", "POST", body, Duration.ofSeconds(30));
+        sealing = switch (response.status()) {
+            case 200, 204 -> SealingKeyOutcome.ACCEPTED;
+            case 404 -> SealingKeyOutcome.NOT_SUPPORTED;
+            case 412 -> SealingKeyOutcome.NOT_PINNED;
+            case 403 -> SealingKeyOutcome.REFUSED;
+            case 409 -> SealingKeyOutcome.STALE;
+            default -> {
+                if (response.status() == 401) {
+                    throw new UnauthorizedException(response.messageOr("API key refused."));
+                }
+                refuseIfFailed(response, "Sealing key announcement refused");
+                // A 2xx this protocol does not use: taken as accepted, like the 204 it stands for.
+                yield SealingKeyOutcome.ACCEPTED;
+            }
+        };
+        return sealing;
+    }
+
+    /**
+     * Says what this agent's executors can run now, when that changed since the hello or the last report.
+     *
+     * <p><b>A route of its own and not a field of the claim</b>, for the sealing key's reason: a control plane
+     * older than it answers 404, which reads as "not supported" and costs nothing — it hands this agent work as
+     * it always did. Never an exception for an answer but a refused key: the claim that follows works either
+     * way, and a report that did not arrive is sent again.
+     *
+     * @throws UnauthorizedException when the API key itself is refused
+     */
+    public ExecutorReport reportExecutors(WorkerExecutors executors) {
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/executors", "PUT", Map.of("executors", executors.executors()), Duration.ofSeconds(30));
+        return switch (response.status()) {
+            case 200, 204 -> ExecutorReport.ACCEPTED;
+            case 404 -> ExecutorReport.NOT_SUPPORTED;
+            default -> {
+                refuseIfUnauthorized(response);
+                yield ExecutorReport.FAILED;
+            }
+        };
+    }
+
+    /**
+     * Claims a task, or none — and reads the agent's current limit off the answer either way.
+     *
+     * <p>204 rather than an empty object: "is there work?" is read from the status code. The long
+     * wait is the server's, so the agent does not poll in a tight loop.
+     */
+    public Claim claim(Duration wait) {
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/jobs?wait=" + wait.toSeconds(),
+                "GET",
+                null,
+                // Longer than the wait we asked for: the server bounds it, and cutting flush
+                // would time out every poll just before its answer.
+                wait.plusSeconds(30));
+
+        OptionalInt limit = AgentConcurrency.parse(response.header(AgentConcurrency.HEADER).orElse(null));
+        if (response.status() == 204) {
+            return new Claim(Optional.empty(), limit);
+        }
+        refuseIfUnauthorized(response);
+        if (response.status() == 412) {
+            // A delegated credential withheld: the control plane holds no sealing key it can
+            // believe for this agent. Refusing loudly is the point — scanning without the key would
+            // produce a clone failure that looks like a network problem — and the message says
+            // what to fix. (An older control plane answered 412 for an unencrypted link.)
+            //
+            // After an accepted announcement it means the key was forgotten since — an
+            // administrator's reset, or a signing key pinned anew — so the agent announces once
+            // more, and the next claim takes the scan, which went back to the queue. Only after an
+            // acceptance: a refused key announced on every claim would fill the audit log.
+            if (sealing == SealingKeyOutcome.ACCEPTED) {
+                try {
+                    announceSealingKey();
+                } catch (UnauthorizedException refused) {
+                    throw refused;
+                } catch (RuntimeException unreachable) {
+                    // Left as it was, so the next withheld credential tries again; the control
+                    // plane's own message is the one worth reporting.
+                }
+            }
+            throw new IllegalStateException(response.messageOr(
+                    "A delegated credential was withheld: the control plane holds no verified sealing key for "
+                            + "this agent."));
+        }
+        refuseIfFailed(response, "Claim refused");
+
+        AssignedTask received = read(response.body(), AssignedTask.class);
+        try {
+            return new Claim(Optional.of(unseal(received)), limit);
+        } catch (IllegalStateException unusable) {
+            // The control plane counted the claim; the scan is this agent's until it says otherwise.
+            throw new UnusableTaskException(received, unusable.getMessage());
+        }
+    }
+
+    /**
+     * Opens a task's deployment key, when it arrived sealed.
+     *
+     * <p><b>Throws rather than handing the task over as it stands.</b> An envelope nobody opens
+     * is a string that looks like a key: it would be written to a file, handed to git, and the
+     * failure would look like a repository or a permission problem. Failing here names the cause.
+     */
+    private AssignedTask unseal(AssignedTask assigned) {
+        if (!(assigned.task().target() instanceof ScanTask.Target.Repository repository)) {
+            return assigned;
+        }
+        String key = open(repository.privateKey(), "deployment key", SealedEnvelope.Context.deploymentKey());
+        // Opened under the host and user name it arrived with, which are the ones the clone binds
+        // it to: a proxy that rewrote either gets an envelope that no longer opens, not a token
+        // sent to its server.
+        ScanTask.Target.HttpsCredential https = repository.https() == null
+                ? null
+                : new ScanTask.Target.HttpsCredential(
+                        repository.https().host(),
+                        repository.https().username(),
+                        open(repository.https().token(), "HTTPS token", SealedEnvelope.Context.httpsToken(
+                                repository.https().host(), repository.https().username())));
+        if (java.util.Objects.equals(key, repository.privateKey()) && https == repository.https()) {
+            return assigned;
+        }
+        // Through the task's own `with…`, never a copy made here: this one named the fields it
+        // copied and left the plugins out, so a credentialed repository ran none of them.
+        return new AssignedTask(
+                assigned.scanId(),
+                assigned.attempt(),
+                assigned.task().withTarget(repository.withPrivateKey(key).withHttps(https)));
+    }
+
+    /**
+     * Opens one credential of a task — a deployment key or an HTTPS token — if it arrived sealed.
+     *
+     * <p><b>A clear credential after announcing a sealing key is a downgrade, not a choice.</b> The
+     * control plane seals for any agent that announced a key; a clear one means the announcement did
+     * not arrive — which is what a TLS-terminating proxy stripping {@code sealing_public_key} from
+     * the hello looks like from here. Accepting it handed the credential to the proxy the sealing
+     * exists to exclude.
+     *
+     * <p><b>An envelope nobody opens is refused too</b>: it is a string that looks like a secret, and
+     * the failure would surface as a repository or permission problem.
+     */
+    private String open(String value, String what, SealedEnvelope.Context context) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        if (SealedEnvelope.isPreviousFormat(value)) {
+            throw new IllegalStateException(
+                    "A " + what + " arrived sealed in the format of a control plane older than this agent, "
+                            + "which does not bind it to its destination. Refusing it: update the control plane.");
+        }
+        if (!SealedEnvelope.isSealed(value)) {
+            if (keyPair.isPresent()) {
+                throw new IllegalStateException(
+                        "A " + what + " arrived unsealed although this agent announced a sealing key: the "
+                                + "announcement was removed on the way. Refusing it rather than using it.");
+            }
+            return value;
+        }
+        if (keyPair.isEmpty()) {
+            throw new IllegalStateException(
+                    "A sealed " + what + " arrived although this agent announced none: the control plane sealed for "
+                            + "somebody else.");
+        }
+        return envelopes.open(keyPair.get(), value, context)
+                .orElseThrow(() -> new IllegalStateException(
+                        "The sealed " + what + " could not be opened: it is not addressed to this process, or it "
+                                + "or what it is bound to was altered on the way."));
+    }
+
+    /**
+     * A Semgrep rule set's content, cached by hash.
+     *
+     * <p><b>The cache needs no invalidation</b>, and that is the whole point of fetching by hash
+     * rather than "the active set": a hash names a content, never a state. What the agent
+     * downloaded once stays correct for ever, and a change of set simply produces a hash it does
+     * not have.
+     *
+     * <p>In memory and not on disk: a restarted agent re-downloads a few megabytes once, which
+     * is cheaper than a disk cache to purge, to lock between concurrent scans, and to protect
+     * against a partial write.
+     */
+    public List<StoredFile> ruleSet(String contentHash) {
+        return ruleSetCache.computeIfAbsent(contentHash, hash -> {
+            AgentHttp.Response response =
+                    http.call("/api/v1/agent/rules/" + hash, "GET", null, Duration.ofMinutes(2));
+            // No fallback to the bundled rules: the caller places this inside the SAST step,
+            // whose failure leaves the artifact absent. Scanning with fewer rules would hand back
+            // a shorter list, which reads as "analyzed, those issues are gone".
+            refuseIfFailed(response, "Rule set " + hash + " refused");
+
+            JsonNode files = response.body().path("files");
+            return json.convertValue(files, json.getTypeFactory()
+                    .constructCollectionType(List.class, StoredFile.class));
+        });
+    }
+
+    /**
+     * A plugin's manifest, by the id and digest the task named, cached by both.
+     *
+     * <p>The rule set's reasoning again: a reference names a content, never a state, so what was
+     * fetched once stays correct and a new version is simply a digest not yet held. The runner checks
+     * that what comes back hashes to the digest before running it; only a manifest that does is kept,
+     * so a bad answer is not cached. A 404 is thrown, which leaves the plugin absent — never replaced by
+     * something else.
+     */
+    public PluginManifest plugin(PluginRef reference) {
+        PluginManifest cached = pluginCache.get(reference);
+        if (cached != null) {
+            return cached;
+        }
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/plugins/" + reference.id() + "/" + reference.digest(), "GET", null, Duration.ofSeconds(30));
+        refuseIfFailed(response, "Plugin " + reference.id() + " refused");
+        PluginManifest manifest = json.convertValue(response.body(), PluginManifest.class);
+        if (manifest != null && reference.digest().equals(manifest.digest())) {
+            pluginCache.put(reference, manifest);
+        }
+        return manifest;
+    }
+
+    /**
+     * The sign of life of an agent still working.
+     *
+     * <p>False when the lease was taken over: the agent must then <b>give up</b>, or its result
+     * would overwrite its successor's.
+     */
+    public boolean heartbeat(long scanId) {
+        AgentHttp.Response response =
+                http.call("/api/v1/agent/jobs/" + scanId + "/heartbeat", "POST", null, Duration.ofSeconds(15));
+        if (response.status() == 409) {
+            return false;
+        }
+        refuseIfFailed(response, "Heartbeat refused");
+        return true;
+    }
+
+    /**
+     * Hands back the result. False when the lease was taken over in the meantime.
+     *
+     * <p><b>Serialized here so that the signature covers what is sent.</b> The body is written
+     * once, signed, and handed to the transport as bytes; letting the transport serialize a second
+     * time would sign a document the control plane never receives.
+     *
+     * <p>An agent with no configured signing key sends no header, and a control plane with no
+     * pinned key for it accepts that — which is the upgrade path in both directions.
+     */
+    public boolean submit(long scanId, ScanArtifacts artifacts) {
+        String body = write(artifacts);
+        Map<String, String> headers = signingKey.isEmpty()
+                ? Map.of()
+                : Map.of(
+                        ResultAttestation.HEADER,
+                        ResultAttestation.sign(signingKey, scanId, body.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/jobs/" + scanId + "/result",
+                "POST",
+                new AgentHttp.RawJson(body),
+                // A SBOM weighs several megabytes: the timeout has to cover the upload, not only
+                // the answer.
+                Duration.ofMinutes(2),
+                headers);
+
+        if (response.status() == 403) {
+            // Distinct from a generic failure because the fix is distinct, and neither retrying
+            // nor rescanning is it: the key this agent signs with is not the key pinned for it.
+            throw new UnauthorizedException(response.messageOr(
+                    "The control plane refused this result's attestation. The key in "
+                            + "vectispire.agent.signing-key does not match the one pinned for this agent."));
+        }
+
+        if (response.status() == 409) {
+            return false;
+        }
+        refuseIfFailed(response, "Result refused");
+        return true;
+    }
+
+    /**
+     * Tells the control plane this agent could not run a scan it claimed, and why.
+     *
+     * <p><b>Instead of silence.</b> The agent used to drop the scan: its lease lapsed twenty minutes
+     * later, the reclaim spent an attempt on it, and the reason stayed in this process's log. The
+     * report spends the same attempt at once and leaves the reason on the scan. <b>Signed as a result
+     * is</b>, over the exact bytes, under a context of its own ({@code ResultAttestation.signFailure}).
+     *
+     * <p><b>An outcome, not an exception, for every answer about the scan</b>: whatever it says,
+     * nothing more is to be done with this scan here, and the caller logs which it was. A refused
+     * attestation is the exception, as for a result, since its fix is this agent's configuration.
+     *
+     * <p><b>With the failure's kind</b>, decided here from the exception, where it is known — see
+     * {@link FailureKind#of}. A control plane older than the field reads past it and applies the lapse's
+     * rule, as it always did.
+     *
+     * @param reason already scrubbed — see {@code FailureReason}
+     * @param kind whether another attempt could pass: permanent fails the scan at once
+     * @throws UnauthorizedException when the report's attestation, or the API key, is refused
+     */
+    public FailureReported reportFailure(AssignedTask assigned, String reason, FailureKind kind) {
+        if (assigned.attempt() == null) {
+            // A claim without an attempt comes from a control plane without the route.
+            return FailureReported.NOT_SUPPORTED;
+        }
+        String body = write(Map.of(
+                "attempt", assigned.attempt(),
+                "reason", reason == null ? "" : reason,
+                "kind", (kind == null ? FailureKind.TRANSIENT : kind).wireName()));
+        Map<String, String> headers = signingKey.isEmpty()
+                ? Map.of()
+                : Map.of(
+                        ResultAttestation.HEADER,
+                        ResultAttestation.signFailure(
+                                signingKey, assigned.scanId(), body.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/jobs/" + assigned.scanId() + "/failure",
+                "POST",
+                new AgentHttp.RawJson(body),
+                Duration.ofSeconds(30),
+                headers);
+
+        return switch (response.status()) {
+            case 404 -> FailureReported.NOT_SUPPORTED;
+            case 409 -> FailureReported.NOT_YOURS;
+            case 403 -> throw new UnauthorizedException(response.messageOr(
+                    "The control plane refused this report's attestation. The key in "
+                            + "vectispire.agent.signing-key does not match the one pinned for this agent."));
+            default -> {
+                refuseIfUnauthorized(response);
+                refuseIfFailed(response, "Failure report refused");
+                yield response.body().path("retried").asBoolean(false) ? FailureReported.RETRIED : FailureReported.FAILED;
+            }
+        };
+    }
+
+    /** Null when unreadable: an agent that cannot sign its key still runs what needs no credential. */
+    private static UUID parseId(String id) {
+        try {
+            return id == null ? null : UUID.fromString(id.trim());
+        } catch (IllegalArgumentException notAnId) {
+            return null;
+        }
+    }
+
+    private <T> T read(JsonNode body, Class<T> type) {
+        return json.convertValue(body, type);
+    }
+
+    private String write(Object body) {
+        try {
+            return json.writeValueAsString(body);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException impossible) {
+            throw new IllegalStateException("The result could not be serialized", impossible);
+        }
+    }
+
+    private static void refuseIfUnauthorized(AgentHttp.Response response) {
+        if (response.status() == 401 || response.status() == 403) {
+            throw new UnauthorizedException(response.messageOr("API key refused."));
+        }
+    }
+
+    private static void refuseIfFailed(AgentHttp.Response response, String what) {
+        if (response.status() >= 400) {
+            throw new IllegalStateException(response.messageOr(what + " (HTTP " + response.status() + ")."));
+        }
+    }
+}

@@ -1,0 +1,52 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.executor "kubernetes") }}
+{{- $fullname := include "vectispire.fullname" . -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullname }}-agent
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+---
+# **The agent's whole reach into the API** (decision 0045 §3), in the scans' namespace only — nothing
+# cluster-wide, no secret, no other resource. `pods/exec` is a strong verb: written wider by an operator, it
+# would reach other workloads, which is why it is rendered here and the Kubernetes executor's tests run
+# under these very rules (they read them from this file). Both verbs on `pods/exec`: an exec over WebSocket
+# opens with a GET, authorized as `get` until Kubernetes 1.35 checks `create` as well — measured on 1.34.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}-agent
+  namespace: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [create, get, list, watch, delete, deletecollection]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create, get]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}-agent
+  namespace: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+subjects:
+  - kind: ServiceAccount
+    name: {{ $fullname }}-agent
+    namespace: {{ include "vectispire.agentNamespace" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}-agent
+{{- end }}

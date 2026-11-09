@@ -1,0 +1,191 @@
+@let item = project();
+<div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+        <h3 class="text-lg font-medium m-0 flex items-center gap-2">
+            <i class="pi pi-folder text-muted-color" aria-hidden="true"></i>
+            <a [routerLink]="['/projects', item.id]" data-testid="project-link">{{ item.name }}</a>
+        </h3>
+        @if (item.description) {
+            <p class="text-muted-color text-sm mt-1 mb-0">{{ item.description }}</p>
+        }
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+            <p-tag
+                severity="secondary"
+                [value]="'solutions.repository_count' | translate: { count: item.repositoryCount }"
+            />
+            <p-tag
+                severity="secondary"
+                data-testid="container-count"
+                [value]="'solutions.container_count' | translate: { count: item.containerCount }"
+            />
+            @if (item.partial) {
+                <p-tag
+                    severity="warn"
+                    icon="pi pi-eye-slash"
+                    data-testid="partial"
+                    [value]="
+                        'solutions.partial'
+                            | translate
+                                : {
+                                      count: item.repositoryCount,
+                                      images: item.containerCount
+                                  }
+                    "
+                />
+            }
+            <!-- The union only, and only when there is one: "not yet known" on every
+                 project of a fresh install would be the loudest thing on the page.
+                 The plugins dialog says what is unknown. -->
+            @if (languages().length > 0) {
+                <span data-testid="project-languages">
+                    <app-detected-languages [languages]="languages()" />
+                </span>
+            }
+            <app-open-issue-badges [issues]="item.openIssues" [scope]="{ project_id: item.id }" [name]="path()" />
+        </div>
+    </div>
+    <!-- The server says whether the checklist would open for this reader: a
+         hidden repository closes it (it would give away, in one line, the state
+         of repositories hidden from them, decision 0032 §8), a hidden image does
+         not. `partial` covers both, so it would hide a link that works. No link,
+         rather than one to a refusal. -->
+    @if (item.checklistsVisible) {
+        <a
+            [routerLink]="['/projects', item.id, 'checklist']"
+            class="inline-flex items-center gap-2 text-sm px-2 py-1"
+            [attr.aria-label]="'solutions.aria_checklist' | translate: { name: item.name }"
+            data-testid="project-checklist"
+        >
+            <i class="pi pi-list-check" aria-hidden="true"></i>
+            {{ 'solutions.checklist_btn' | translate }}
+        </a>
+    }
+    @if (page.readsGovernance()) {
+        <p-button
+            icon="pi pi-th-large"
+            [text]="true"
+            size="small"
+            [label]="'solutions.plugins_btn' | translate"
+            [ariaLabel]="'solutions.aria_plugins' | translate: { name: item.name }"
+            data-testid="project-plugins"
+            (onClick)="page.openPlugins(solution(), project())"
+        />
+    }
+    @if (page.isAdmin()) {
+        <div class="whitespace-nowrap">
+            <!-- Disabled rather than hidden with a single solution: the
+                 action exists, there is only nowhere to go yet. -->
+            <p-button
+                icon="pi pi-arrow-right-arrow-left"
+                [text]="true"
+                size="small"
+                [label]="'solutions.move_project_btn' | translate"
+                [ariaLabel]="'solutions.aria_move_project' | translate: { name: item.name }"
+                [disabled]="page.solutions().length < 2"
+                data-testid="move-project"
+                (onClick)="page.openMoveProject(solution(), project())"
+            />
+            <p-button
+                icon="pi pi-pencil"
+                [text]="true"
+                [rounded]="true"
+                [ariaLabel]="'solutions.aria_edit' | translate: { name: item.name }"
+                (onClick)="page.editProject(solution(), project())"
+            />
+            <p-button
+                icon="pi pi-trash"
+                severity="danger"
+                [text]="true"
+                [rounded]="true"
+                [ariaLabel]="'solutions.aria_delete' | translate: { name: item.name }"
+                (onClick)="page.askDeleteProject(solution(), project())"
+            />
+        </div>
+    }
+</div>
+
+@if ((item.repositories ?? []).length === 0 && (item.containers ?? []).length === 0) {
+    <p class="text-muted-color text-sm mt-2 mb-0">
+        {{ 'solutions.no_repositories' | translate }}
+    </p>
+}
+<ul class="list-none p-0 m-0 mt-2">
+    @for (repository of item.repositories ?? []; track repository.id) {
+        <li class="flex items-center justify-between gap-2 py-1">
+            <a
+                [routerLink]="['/issues']"
+                [queryParams]="{ repository_id: repository.id }"
+                class="flex items-center gap-2"
+            >
+                <i class="pi pi-sitemap text-muted-color" aria-hidden="true"></i>
+                {{ repository.name }}
+            </a>
+            @if (page.isAdmin()) {
+                <span class="whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-arrow-right-arrow-left"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'solutions.aria_move' | translate: { name: repository.name }"
+                        (onClick)="
+                            page.openFile(
+                                { kind: 'repository', ref: repository },
+                                { solution: solution(), project: item }
+                            )
+                        "
+                    />
+                    <p-button
+                        icon="pi pi-times"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'solutions.aria_unfile' | translate: { name: repository.name }"
+                        (onClick)="page.askUnfile({ kind: 'repository', ref: repository }, solution(), item)"
+                    />
+                </span>
+            }
+        </li>
+    }
+    <!-- Images after the repositories, told apart by their icon (the one the
+         menu gives the image list) and opening the backlog by container_id. -->
+    @for (container of item.containers ?? []; track container.id) {
+        <li class="flex items-center justify-between gap-2 py-1" data-testid="project-image">
+            <a
+                [routerLink]="['/issues']"
+                [queryParams]="{ container_id: container.id }"
+                class="flex items-center gap-2"
+            >
+                <i class="pi pi-box text-muted-color" aria-hidden="true"></i>
+                {{ container.name }}
+            </a>
+            @if (page.isAdmin()) {
+                <span class="whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-arrow-right-arrow-left"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'solutions.aria_move' | translate: { name: container.name }"
+                        (onClick)="
+                            page.openFile(
+                                { kind: 'container', ref: container },
+                                { solution: solution(), project: item }
+                            )
+                        "
+                    />
+                    <p-button
+                        icon="pi pi-times"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'solutions.aria_unfile' | translate: { name: container.name }"
+                        (onClick)="page.askUnfile({ kind: 'container', ref: container }, solution(), item)"
+                    />
+                </span>
+            }
+        </li>
+    }
+</ul>

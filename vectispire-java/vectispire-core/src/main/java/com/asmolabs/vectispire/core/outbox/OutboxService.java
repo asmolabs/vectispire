@@ -1,0 +1,325 @@
+package com.asmolabs.vectispire.core.outbox;
+
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Limit;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * The relay that drains the outbox: scan notifications, and SIEM events.
+ *
+ * <p>Apart from {@code NotificationService} on purpose: that one owns <b>what to say</b>, this
+ * one owns <b>when a message gets another chance</b>. The same holds for the SIEM export: {@code
+ * SiemEvents} decides what is queued and {@code SiemDelivery} how it is sent; the claim, the
+ * backoff and the abandonment are this class's, once, for every message type.
+ *
+ * <p><b>{@link #enqueue} opens no transaction of its own, and that is the whole point</b>: the
+ * message has to become durable at the same instant as the state it describes, or the crash it
+ * exists to survive simply moves down one line.
+ */
+@Service
+public class OutboxService {
+
+    private static final Logger log = LoggerFactory.getLogger(OutboxService.class);
+
+    /** Every message this service writes describes what one scan changed. */
+    public static final String TYPE_SCAN_DELTA = "scan_delta";
+
+    private static final String STATUS_PENDING = "pending";
+    private static final String STATUS_SENT = "sent";
+    private static final String STATUS_FAILED = "failed";
+
+    private final OutboxMessageRepository messages;
+    /** Every destination this deployment can reach, injected rather than enumerated here. */
+    private final List<NotificationChannel> channels;
+
+    /** The message types that are not scan notifications — the SIEM export. See {@link OutboxHandler}. */
+    private final List<OutboxHandler> handlers;
+
+    private final ObjectMapper json;
+    private final Clock clock;
+
+    /**
+     * Opened explicitly, for the reason spelt out in {@code ScanDispatcher}: {@code
+     * @Transactional} on a method this class calls itself is bypassed by the proxy and protects
+     * nothing while reading as a guarantee.
+     */
+    private final TransactionTemplate transactions;
+
+    public OutboxService(
+            OutboxMessageRepository messages,
+            List<NotificationChannel> channels,
+            List<OutboxHandler> handlers,
+            ObjectMapper json,
+            Clock clock,
+            TransactionTemplate transactions) {
+        this.messages = messages;
+        this.channels = channels;
+        this.handlers = handlers;
+        this.json = json;
+        this.clock = clock;
+        this.transactions = transactions;
+    }
+
+    /**
+     * @param sent delivered this pass
+     * @param failed will be retried
+     * @param abandoned out of attempts, or its destination gone
+     * @param held kept pending, no attempt counted, because its destination may not be reached for now
+     */
+    public record RelayResult(int sent, int failed, int abandoned, int held) {}
+
+    /**
+     * Adds a message to the transaction <b>the caller already opened</b>.
+     *
+     * <p>{@code MANDATORY}, not {@code REQUIRED}: a caller with no transaction would get one of
+     * its own here, and the message would commit independently of the scan it describes —
+     * announcing issues a rollback then removed.
+     *
+     * <p>A message identifier is stamped into the payload because delivery is at-least-once —
+     * the POST can succeed and the transaction marking it sent can fail — and the receiver is
+     * the only place that ambiguity can be resolved.
+     *
+     * @return the message identifier stamped into the payload. <b>Not the stored row</b>, which it
+     *     used to be: no caller outside this module read it, and it put the relay's entity in the
+     *     signature every enqueuing module compiles against — {@code siem} and {@code notifications}
+     *     depended on {@code outbox}'s persistence through a return type no dependency rule counts
+     *     (decision 0029)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public UUID enqueue(Object payload, String messageType) {
+        return enqueue(payload, messageType, null);
+    }
+
+    /**
+     * @param teamId whose channel this copy is for, or {@code null} for the global webhook. One
+     *     message per destination rather than one message with a list: a channel that is
+     *     unreachable must be retried on its own, and a single row would make one broken Slack
+     *     workspace hold back every other team's notification — or mark the lot delivered because
+     *     the first POST succeeded
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public UUID enqueue(Object payload, String messageType, Long teamId) {
+        UUID id = UUID.randomUUID();
+        ObjectNode body = json.valueToTree(payload);
+        body.put("message_id", id.toString());
+
+        OutboxMessageEntity message = new OutboxMessageEntity();
+        message.setId(id);
+        message.setMessageType(messageType);
+        message.setTeamId(teamId);
+        message.setPayload(body.toString());
+        message.setStatus(STATUS_PENDING);
+        message.setAttempts(0);
+        message.setNextAttemptAt(null);
+        message.setLastError(null);
+        message.setCreatedAt(clock.instant());
+        message.setSentAt(null);
+        messages.save(message);
+        return id;
+    }
+
+    /**
+     * Tries each due message once. Returns what happened.
+     *
+     * <p><b>Never throws</b>: this runs on the maintenance tick beside the other jobs, and an
+     * unreachable webhook must not stop the rest.
+     *
+     * <p>Each message is settled in <b>its own transaction</b>, and not one for the pass: the
+     * twelfth message failing must not undo the eleven deliveries already recorded, which would
+     * send them all again on the next tick.
+     */
+    public RelayResult relay(int limit) {
+        Instant at = clock.instant();
+        List<OutboxMessageEntity> due = messages.findDue(STATUS_PENDING, at, Limit.of(limit));
+
+        int sent = 0;
+        int failed = 0;
+        int abandoned = 0;
+        int held = 0;
+        Set<String> holdReasons = new LinkedHashSet<>();
+
+        for (OutboxMessageEntity message : due) {
+            // **Claimed before it is sent.** Every instance runs this pass and reads the same due
+            // rows; without the claim each of them delivered each message, so N instances sent
+            // every webhook, card and mail N times.
+            if (messages.claim(message.getId(), STATUS_PENDING, at, at.plus(OutboxRetry.CLAIM_WINDOW)) == 0) {
+                continue;
+            }
+            int attempts = message.getAttempts() + 1;
+            try {
+                deliver(message);
+            } catch (HeldDeliveryException hold) {
+                // **Kept, not counted.** Settled through the failure path it would have spent the
+                // eight attempts in four hours and been abandoned — the security events a disabled
+                // transport was meant to keep, lost to a switch that may be turned back in a minute.
+                transactions.executeWithoutResult(status -> keep(message, at, hold));
+                holdReasons.add(hold.getMessage());
+                held++;
+                continue;
+            } catch (GoneDestinationException gone) {
+                // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
+                // back a team somebody deleted, and twelve attempts would fill the log with an
+                // error nobody can act on — the log an operator has to read to notice the ones
+                // they can.
+                transactions.executeWithoutResult(status -> abandon(message, attempts, at, gone));
+                abandoned++;
+                continue;
+            } catch (JsonProcessingException | RuntimeException error) {
+                if (Boolean.TRUE.equals(
+                        transactions.execute(status -> settleFailure(message, attempts, at, error)))) {
+                    abandoned++;
+                } else {
+                    failed++;
+                }
+                continue;
+            }
+            transactions.executeWithoutResult(status -> markSent(message.getId(), attempts, at));
+            sent++;
+        }
+
+        if (sent > 0) {
+            log.info("Outbox: {} message(s) delivered.", sent);
+        }
+        if (held > 0) {
+            // One line a pass rather than one a message: the reason is the same for every event the
+            // switch holds, and a log that repeats it twenty times every few minutes is read by nobody.
+            log.warn("Outbox: {} message(s) held, not sent and kept pending: {}", held, String.join("; ", holdReasons));
+        }
+        return new RelayResult(sent, failed, abandoned, held);
+    }
+
+    /** Deletes messages delivered long enough ago. The table is written on every scan. */
+    @Transactional
+    public int pruneSent() {
+        return messages.deleteSentBefore(STATUS_SENT, clock.instant().minus(OutboxRetry.SENT_RETENTION));
+    }
+
+    /** The counts per status — abandonments included, which the screen has to show. */
+    @Transactional(readOnly = true)
+    public Map<String, Long> counts() {
+        Map<String, Long> counts = new HashMap<>();
+        for (Object[] row : messages.countByStatus()) {
+            counts.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    /**
+     * A message whose destination no longer exists.
+     *
+     * <p>Its own path rather than {@code settleFailure} with a short attempt budget: the reason is
+     * different in kind, and the row's {@code last_error} is what an operator reads to tell "your
+     * Slack is down" from "this notification was for a team that no longer exists".
+     */
+    private void abandon(OutboxMessageEntity message, int attempts, Instant at, RuntimeException reason) {
+        messages.recordAttempt(message.getId(), attempts, reason.getMessage(), STATUS_FAILED, null);
+        log.error("Outbox message {} abandoned: {}", message.getId(), reason.getMessage());
+    }
+
+    /**
+     * A message whose destination may not be reached for now: pending still, its attempts as they were —
+     * so a hold however long never brings it nearer abandonment — and the reason in {@code last_error},
+     * where the screen and an operator read why it has not left.
+     */
+    private void keep(OutboxMessageEntity message, Instant at, RuntimeException reason) {
+        messages.recordAttempt(message.getId(), message.getAttempts(), reason.getMessage(),
+                STATUS_PENDING, at.plus(OutboxRetry.HOLD_INTERVAL));
+    }
+
+    /** @return whether the message was abandoned for good */
+    private boolean settleFailure(OutboxMessageEntity message, int attempts, Instant at, Throwable error) {
+        boolean abandonedNow = OutboxRetry.isAbandoned(attempts);
+        Optional<Instant> next = OutboxRetry.nextAttemptAt(attempts, at);
+        String reason = OutboxRetry.recordableError(error);
+
+        messages.recordAttempt(
+                message.getId(), attempts, reason, abandonedNow ? STATUS_FAILED : STATUS_PENDING, next.orElse(null));
+
+        if (abandonedNow) {
+            log.error("Outbox message {} abandoned after {} attempts: {}", message.getId(), attempts, reason);
+        } else {
+            log.warn(
+                    "Outbox message {} failed (attempt {}/{}), retrying at {}.",
+                    message.getId(),
+                    attempts,
+                    OutboxRetry.MAX_ATTEMPTS,
+                    next.map(Instant::toString).orElse("never"));
+        }
+        return abandonedNow;
+    }
+
+    /**
+     * Hands a row to whoever delivers its type: a handler for the SIEM export, a channel for a scan
+     * notification. A type neither knows is an error, retried and eventually abandoned with its
+     * reason — never a silent skip.
+     */
+    private void deliver(OutboxMessageEntity message) throws JsonProcessingException {
+        Optional<OutboxHandler> handler = handlers.stream()
+                .filter(candidate -> candidate.type().equals(message.getMessageType()))
+                .findFirst();
+        if (handler.isPresent()) {
+            handler.get().deliver(message.getId(), message.getPayload());
+            return;
+        }
+        channelFor(message).deliver(payloadOf(message), message.getTeamId());
+    }
+
+    private void markSent(UUID id, int attempts, Instant at) {
+        messages.markSent(id, attempts, STATUS_SENT, at);
+    }
+
+    /**
+     * Reads a stored message back into the record that was queued.
+     *
+     * <p><b>The type is checked, not assumed.</b> The column holds text and the table is generic
+     * by {@code message_type}; parsing whatever is there as a scan delta would, for any second
+     * message type, produce a payload of zeroes rather than an error — the mapper is configured
+     * not to fail on unknown properties, precisely so a rolling upgrade survives, and that
+     * tolerance is what would make the mistake silent.
+     */
+    private NotificationPayload payloadOf(OutboxMessageEntity message) throws JsonProcessingException {
+        if (channels.stream().noneMatch(channel -> channel.type().equals(message.getMessageType()))) {
+            throw new IllegalStateException(
+                    "Outbox message " + message.getId() + " has unknown type " + message.getMessageType());
+        }
+        return json.readValue(message.getPayload(), NotificationPayload.class);
+    }
+
+    /**
+     * The destination a row is for.
+     *
+     * <p><b>The notification types share one payload shape and differ only in where they go.</b>
+     * That conflates "what this message is" with "where it is bound", and the alternative — a second
+     * column — meant recreating the table on the SQLite fixture of the time, for a distinction the
+     * routing column already carries. The next message shape did have to choose again: the SIEM event is not a
+     * notification, and it arrives through {@link OutboxHandler}, which reads its own payload,
+     * rather than by bending this one.
+     */
+    private NotificationChannel channelFor(OutboxMessageEntity message) {
+        return channels.stream()
+                .filter(channel -> channel.type().equals(message.getMessageType()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No channel handles outbox type " + message.getMessageType()));
+    }
+}

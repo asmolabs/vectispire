@@ -1,0 +1,318 @@
+package com.asmolabs.vectispire.core.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.util.List;
+import java.util.Map;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+
+/**
+ * Integration API keys over HTTP (decision 0024): a key acts for its account, narrowed by its
+ * target, on the routes that accept a key and for the scopes it holds — and nowhere else.
+ */
+@DisplayName("integration API keys")
+class ApiKeyIntegrationRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private com.asmolabs.vectispire.core.settings.SettingsService settings;
+
+    @Autowired
+    private GitRepositoryRepository repositories;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private ContainerRepository containers;
+
+    @Autowired
+    private AuditLogRepository auditLog;
+
+    private long repository(String name) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl("https://example.invalid/" + name + "-" + System.nanoTime() + ".git");
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
+    private String issue(String ownerToken, Map<String, Object> body) throws Exception {
+        String response = mvc.perform(authenticated(post("/api/v1/api-keys"), ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(body)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(response).get("secret").asText();
+    }
+
+    @Test
+    @DisplayName("reads with its account's authority, narrowed to the target it was restricted to")
+    void aRestrictedReadKeySeesItsTargetOnly() throws Exception {
+        long mine = repository("mine");
+        long other = repository("other");
+        String key = issue(asAdmin(), Map.of("name", "ci", "scopes", List.of("read"),
+                "target_kind", "repository", "target_id", mine));
+
+        String listed = mvc.perform(authenticated(get("/api/v1/repositories"), key))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(json.readTree(listed).findValues("id").stream().map(node -> node.asLong()).toList())
+                .contains(mine)
+                .doesNotContain(other);
+    }
+
+    @Test
+    @DisplayName("is refused on a route that does not accept keys, and for a scope it does not hold")
+    void onlyTheRoutesAndScopesItWasGiven() throws Exception {
+        long target = repository("scoped");
+        String readOnly = issue(asAdmin(), Map.of("name", "reader", "scopes", List.of("read")));
+
+        // An administrative route: the key's account is an administrator, and that is exactly why
+        // the confinement cannot be left to the role markers.
+        mvc.perform(authenticated(get("/api/v1/users"), readOnly))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("does not accept an API key")));
+        mvc.perform(authenticated(post("/api/v1/repositories/" + target + "/scan"), readOnly))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("lacks the scan scope")));
+
+        String scanner = issue(asAdmin(), Map.of("name", "scanner", "scopes", List.of("scan")));
+        mvc.perform(authenticated(post("/api/v1/repositories/" + target + "/scan"), scanner))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a restricted scan key triggers its own target only, and another answers as absent")
+    void aRestrictedScanKeyTriggersItsTargetOnly() throws Exception {
+        long mine = repository("scan-mine");
+        long other = repository("scan-other");
+        String key = issue(asAdmin(), Map.of("name", "gate", "scopes", List.of("scan"),
+                "target_kind", "repository", "target_id", mine));
+
+        mvc.perform(authenticated(post("/api/v1/repositories/" + mine + "/scan"), key)).andExpect(status().isOk());
+        mvc.perform(authenticated(post("/api/v1/repositories/" + other + "/scan"), key)).andExpect(status().isNotFound());
+        ContainerEntity image = new ContainerEntity();
+        image.setImageName("team/scan-other");
+        image.setTag("latest");
+        long otherImage = containers.save(image).getId();
+        mvc.perform(authenticated(post("/api/v1/containers/" + otherImage + "/scan"), key)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("a pipeline's key records a gate verdict with its owner's role, and the governor's records none")
+    void theGateIsAWriteForTheKeysOwner() throws Exception {
+        long target = repository("gate-owner");
+        String body = write(Map.of("repository_id", target));
+
+        String pipeline = issue(asAdmin(), Map.of("name", "pipeline", "scopes", List.of("scan")));
+        mvc.perform(authenticated(post("/api/v1/gate"), pipeline)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        // The verdict joins the register: a key acts for its account, and the governor's account
+        // acts under no rule — so neither does a key it issued for itself.
+        String governors = issue(tokenFor("governor-" + System.nanoTime(), Role.SUPERUSER, false),
+                Map.of("name", "governor-pipeline", "scopes", List.of("scan")));
+        mvc.perform(authenticated(post("/api/v1/gate"), governors)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleting its target revokes a restricted key — never widens it — and the log names the key")
+    void aDeletedTargetTakesItsKeysWithIt() throws Exception {
+        long doomed = repository("doomed");
+        long other = repository("still-here");
+        String response = mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "doomed-pipeline", "scopes", List.of("read"),
+                                "target_kind", "repository", "target_id", doomed))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String restricted = json.readTree(response).get("secret").asText();
+        String keyId = json.readTree(response).path("key").path("id").asText();
+        String unrestricted = issue(asAdmin(), Map.of("name", "whole-estate", "scopes", List.of("read")));
+
+        mvc.perform(authenticated(delete("/api/v1/repositories/" + doomed), asAdmin()))
+                .andExpect(status().isNoContent());
+
+        // The wrong answer would be a 200 listing `other`: a key whose restriction went and whose
+        // account sees everything.
+        mvc.perform(authenticated(get("/api/v1/repositories"), restricted)).andExpect(status().isUnauthorized());
+        String listed = mvc.perform(authenticated(get("/api/v1/repositories"), unrestricted))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(listed).findValues("id").stream().map(node -> node.asLong()).toList())
+                .as("a key restricted to nothing that went keeps working")
+                .contains(other);
+
+        assertThat(auditLog.findAll())
+                .filteredOn(entry -> keyId.equals(entry.getResourceId())
+                        && AuditOperation.API_KEY_DELETED.wireName().equals(entry.getOperationType()))
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.getDescription())
+                            .contains("doomed-pipeline")
+                            .contains("repository " + doomed);
+                });
+        assertThat(auditLog.findAll())
+                .filteredOn(entry -> entry.getDescription().startsWith("Repository deleted:")
+                        && String.valueOf(doomed).equals(entry.getResourceId()))
+                .singleElement()
+                .satisfies(entry -> assertThat(entry.getDescription()).contains("1 API key(s) revoked"));
+    }
+
+    @Test
+    @DisplayName("an administrator's password reset revokes the account's keys, and nobody else's")
+    void aResetTakesTheKeysWithIt() throws Exception {
+        // The incident-response gesture: the sessions closed, and a key minted with the stolen
+        // credentials used to keep working for its account.
+        // An administrator's reset, applied at once: four-eyes off, as under it the reset of an account
+        // that approves waits for a second administrator (`AccountRequestsRoutesTest`).
+        settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+        String ownerName = "compromised-" + System.nanoTime();
+        String owned = issue(tokenFor(ownerName, Role.ADMIN, false), Map.of("name", "minted", "scopes", List.of("read")));
+        String bystander = issue(asAdmin(), Map.of("name", "unrelated", "scopes", List.of("read")));
+        mvc.perform(authenticated(get("/api/v1/issues"), owned)).andExpect(status().isOk());
+        long ownerId = users.findByUsername(ownerName).orElseThrow().getId();
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .patch("/api/v1/users/" + ownerId), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("password", "a reset passphrase nobody knows"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(authenticated(get("/api/v1/issues"), owned)).andExpect(status().isUnauthorized());
+        mvc.perform(authenticated(get("/api/v1/issues"), bystander)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a reset records each key it revokes under the key's id, as a revocation by hand is recorded")
+    void aResetNamesEveryKeyItRevokes() throws Exception {
+        // The account's entry said "2 API keys revoked" and nothing else: no entry under either key,
+        // so neither whoever looked for the key that stopped working nor the SIEM heard of it.
+        // An administrator's reset, applied at once: four-eyes off, as under it the reset of an account
+        // that approves waits for a second administrator (`AccountRequestsRoutesTest`).
+        settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+        String ownerName = "reset-keys-" + System.nanoTime();
+        String ownerToken = tokenFor(ownerName, Role.ADMIN, false);
+        List<String> ids = List.of(keyId(ownerToken, "reset-first"), keyId(ownerToken, "reset-second"));
+        String bystander = keyId(asAdmin(), "reset-bystander");
+        long ownerId = users.findByUsername(ownerName).orElseThrow().getId();
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .patch("/api/v1/users/" + ownerId), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("password", "another reset passphrase nobody knows"))))
+                .andExpect(status().isOk());
+
+        List<AuditLogEntity> revocations = auditLog.findAll().stream()
+                .filter(entry -> AuditOperation.API_KEY_DELETED.wireName().equals(entry.getOperationType()))
+                .toList();
+        assertThat(revocations)
+                .filteredOn(entry -> ids.contains(entry.getResourceId()))
+                .extracting(entry -> entry.getResourceId() + " " + entry.getDescription())
+                .containsExactlyInAnyOrder(
+                        ids.get(0) + " API key revoked with its account's password reset: reset-first (account "
+                                + ownerName + ")",
+                        ids.get(1) + " API key revoked with its account's password reset: reset-second (account "
+                                + ownerName + ")");
+        assertThat(revocations).noneMatch(entry -> bystander.equals(entry.getResourceId()));
+        assertThat(SecurityEventType.signalledBy(AuditOperation.API_KEY_DELETED))
+                .as("what the SIEM hears")
+                .contains(SecurityEventType.API_KEY_REVOKED);
+    }
+
+    private String keyId(String ownerToken, String name) throws Exception {
+        String response = mvc.perform(authenticated(post("/api/v1/api-keys"), ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name, "scopes", List.of("read")))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(response).path("key").path("id").asText();
+    }
+
+    @Test
+    @DisplayName("is also read from X-API-Key, where a session token is not")
+    void theAliasHeaderCarriesKeysOnly() throws Exception {
+        String session = asAdmin();
+        String key = issue(session, Map.of("name", "alias", "scopes", List.of("read")));
+
+        mvc.perform(get("/api/v1/issues").header("X-API-Key", key)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/issues").header("X-API-Key", session)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("stops working with its account")
+    void aDeactivatedAccountTakesItsKeysWithIt() throws Exception {
+        String ownerName = "key-owner-" + System.nanoTime();
+        String key = issue(tokenFor(ownerName, Role.ADMIN, false), Map.of("name", "owned", "scopes", List.of("read")));
+        mvc.perform(authenticated(get("/api/v1/issues"), key)).andExpect(status().isOk());
+
+        UserEntity owner = users.findByUsername(ownerName).orElseThrow();
+        owner.setIsActive(false);
+        users.save(owner);
+
+        mvc.perform(authenticated(get("/api/v1/issues"), key)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("a restriction to a target that does not exist is refused, as is an oversized name")
+    void issuanceValidatesItsInput() throws Exception {
+        mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "ghost", "target_kind", "repository", "target_id", Long.MAX_VALUE))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "x".repeat(101)))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("the agent scope is not issued from the keys screen")
+    void theAgentScopeIsRefused() throws Exception {
+        mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "sneaky", "scopes", List.of("agent")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("an agent's key is kept on the agent routes")
+    void anAgentKeyIsConfined() throws Exception {
+        // It passed @RequiresAccount — authenticated is all that marker checks — and reached the
+        // account routes with an empty visibility.
+        String created = mvc.perform(authenticated(post("/api/v1/admin/agents"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "confined-" + System.nanoTime()))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String agentKey = json.readTree(created).get("secret").asText();
+
+        mvc.perform(authenticated(get("/api/v1/repositories"), agentKey))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("does not accept an agent key")));
+    }
+}

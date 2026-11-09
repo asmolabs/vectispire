@@ -1,0 +1,91 @@
+@if (history(); as read) {
+    <h5 class="text-sm font-semibold mt-0 mb-1">
+        {{ 'project_checklist.history_answers' | translate }}
+    </h5>
+    @if (read.answers.length === 0 && read.evidence.length === 0) {
+        <p class="text-muted-color m-0">
+            {{ 'project_checklist.history_empty' | translate }}
+        </p>
+    }
+    <ol class="m-0 pl-5">
+        @for (row of answers(); track row.id) {
+            <li [attr.data-testid]="'history-row-' + row.id">
+                @if (row.withdrawn) {
+                    <strong data-testid="history-withdrawn">{{
+                        'project_checklist.history_withdrawn' | translate
+                    }}</strong>
+                } @else {
+                    <strong>{{ row.text }}</strong>
+                    @if (row.automatic) {
+                        ·
+                        <span data-testid="history-automatic">{{
+                            'project_checklist.history_automatic' | translate
+                        }}</span>
+                    }
+                }
+                —
+                {{
+                    'project_checklist.by_at'
+                        | translate
+                            : {
+                                  who: row.author,
+                                  at: (row.answeredAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                              }
+                }}
+                @if (row.carriedBy) {
+                    ·
+                    {{
+                        'project_checklist.carried_by'
+                            | translate
+                                : {
+                                      who: row.carriedBy,
+                                      at: (row.carriedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                  }
+                    }}
+                } @else if (row.carriedFromId) {
+                    ·
+                    {{ 'project_checklist.history_confirmation' | translate }}
+                }
+                @if (row.comment) {
+                    <div class="whitespace-pre-line text-muted-color">
+                        {{ row.comment }}
+                    </div>
+                }
+            </li>
+        }
+    </ol>
+    @if (read.evidence.length > 0) {
+        <h5 class="text-sm font-semibold mt-2 mb-1">
+            {{ 'project_checklist.history_evidence' | translate }}
+        </h5>
+        <ol class="m-0 pl-5">
+            @for (proof of read.evidence; track proof.id) {
+                <li>
+                    {{ proof.kind === 'link' ? proof.link : proof.fileName }}
+                    —
+                    {{
+                        'project_checklist.evidence_added'
+                            | translate
+                                : {
+                                      who: proof.addedBy,
+                                      at: (proof.addedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                  }
+                    }}
+                    @if (proof.withdrawnAt) {
+                        ·
+                        {{
+                            'project_checklist.evidence_withdrawn'
+                                | translate
+                                    : {
+                                          who: proof.withdrawnBy ?? '—',
+                                          at: (proof.withdrawnAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    }
+                </li>
+            }
+        </ol>
+    }
+} @else {
+    <p class="text-muted-color m-0">{{ 'common.loading' | translate }}</p>
+}

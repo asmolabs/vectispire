@@ -1,0 +1,421 @@
+package com.asmolabs.vectispire.common.scanning;
+
+import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
+import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.IacScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.SastScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Running a scan: clone, launch the scanners, return the raw output.
+ *
+ * <p><b>No database, no entity, no encryption key, no setting.</b> It takes a task and returns
+ * artifacts. That is not tidiness but the constraint that makes agents possible: a remote agent
+ * has a Docker socket and a temporary directory, not access to the control plane. The only code
+ * it can run is code of this shape — and this is exactly the code that will run there, in the
+ * same order.
+ *
+ * <p><b>Each step is independent of the others.</b> One scanner failing does not sink the scan:
+ * its artifact stays absent, which ingestion reads as "not looked at" rather than "found
+ * nothing". Only the clone is blocking — with no tree there is nothing to analyse — and the removal
+ * of the scanners' configuration files from it, without which every scanner reads the target's.
+ */
+public final class ScanRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(ScanRunner.class);
+
+    private final ContainerExecutor containers;
+    private final DependencyScanner dependencies;
+    private final SecretsScanner secrets;
+    private final IacScanner iac;
+    private final SastScanner sast;
+    private final RulePlacement rules;
+    private final RulePlacement.RuleSetProvider ruleSets;
+    private final PluginSteps plugins;
+    private final GitClone.HostKeyPolicy hostKeys;
+
+    /**
+     * What to do for a repository that carries no deployment key.
+     *
+     * <p>Injected rather than decided here, for the same reason the rule provider is: this class
+     * runs on both sides and the two sides answer differently. A remote agent in
+     * {@code CredentialsMode.LOCAL} is supposed to use its own git access — that is the whole
+     * meaning of the mode — while the built-in worker runs inside the control plane, where
+     * borrowing the host's identity would let any target added to Vectispire be cloned with it.
+     */
+    private final GitClone.WithoutKey withoutKey;
+    private final Clock clock;
+
+    /**
+     * @param ruleSets how this executor obtains an uploaded rule set. Injected rather than
+     *     constructed: the built-in worker reads it from the database, a remote agent fetches it
+     *     over HTTP. This layer can know neither — the architecture suite forbids it from
+     *     reaching persistence, and that prohibition is what lets the same runner serve both
+     *     sides
+     */
+    public ScanRunner(
+            ContainerExecutor containers,
+            ScannerImages images,
+            Path bundledRules,
+            RulePlacement.RuleSetProvider ruleSets,
+            GitClone.HostKeyPolicy hostKeys,
+            GitClone.WithoutKey withoutKey,
+            Clock clock) {
+        this(containers, images, bundledRules, ruleSets, PluginProvider.NONE, null, hostKeys, withoutKey, clock,
+                VulnerabilityDatabase.defaultRoot());
+    }
+
+    /**
+     * @param plugins how this executor obtains a plugin's manifest — the database on the built-in
+     *     worker, the protocol on an agent, as for {@code ruleSets}
+     * @param pluginSettings the internal registry plugin images are pulled from, and whether this
+     *     executor runs a plugin whose manifest declares no signer — the executor's own decisions
+     * @param vulnerabilityDatabase the host directory the matcher's database is kept in, shared by
+     *     every scan of this executor — see {@link VulnerabilityDatabase}
+     */
+    public ScanRunner(
+            ContainerExecutor containers,
+            ScannerImages images,
+            Path bundledRules,
+            RulePlacement.RuleSetProvider ruleSets,
+            PluginProvider plugins,
+            PluginScanner.Settings pluginSettings,
+            GitClone.HostKeyPolicy hostKeys,
+            GitClone.WithoutKey withoutKey,
+            Clock clock,
+            Path vulnerabilityDatabase) {
+        this.plugins = new PluginSteps(new PluginScanner(containers, pluginSettings), plugins);
+        this.containers = containers;
+        this.dependencies = new DependencyScanner(
+                containers, images, new VulnerabilityDatabase(containers, images.grype(), vulnerabilityDatabase));
+        this.secrets = new SecretsScanner(containers, images.gitleaks());
+        this.iac = new IacScanner(containers, images.checkov());
+        this.sast = new SastScanner(containers, images.semgrep());
+        this.rules = new RulePlacement(bundledRules);
+        this.ruleSets = ruleSets;
+        this.hostKeys = hostKeys;
+        this.withoutKey = withoutKey;
+        this.clock = clock;
+    }
+
+    /**
+     * What the executor says when asked whether it can run anything now: empty when it can — see {@link
+     * ContainerExecutor#whyUnavailable}. The built-in worker asks before each round's claim.
+     */
+    public Optional<String> executorUnavailable() {
+        return containers.whyUnavailable();
+    }
+
+    /** Whether the executor can scan a container image at all — see {@link ContainerExecutor#exportsImages}. */
+    public boolean executorExportsImages() {
+        return containers.exportsImages();
+    }
+
+    public ScanArtifacts run(ScanTask task) {
+        Instant started = clock.instant();
+
+        return switch (task.target()) {
+            case ScanTask.Target.Image image -> runImage(task, image, started);
+            case ScanTask.Target.Repository repository -> runRepository(task, repository, started);
+        };
+    }
+
+    private ScanArtifacts runRepository(ScanTask task, ScanTask.Target.Repository repository, Instant started) {
+        return Workspace.withWorkspace(workspace -> {
+            // Blocking: with no tree there is nothing to analyse, and carrying on would produce
+            // empty lists that resolve the whole backlog.
+            GitClone.clone(new GitClone.Request(
+                    repository.url(), repository.branch(), workspace.source(),
+                    repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey, repository.https()));
+
+            return analyse(task, repository, workspace, started);
+        });
+    }
+
+    /**
+     * Everything after the clone, on the tree in {@code workspace.source()}. Package-private so what
+     * the scanners find there is exercised without a clone.
+     */
+    ScanArtifacts analyse(ScanTask task, ScanTask.Target.Repository repository, Workspace workspace, Instant started) {
+        ScanArtifacts.Builder artifacts = ScanArtifacts.builder();
+
+        // **Before anything reads the tree.** checkov, gitleaks and semgrep each read a file of their
+        // own from the tree they analyse, and that file is the target's: it silenced the findings it
+        // chose, and the clean report resolved them — see ScannerConfigurationFiles. Outside any step,
+        // like the clone: a tree that cannot be cleared is not scanned at all, since every scanner
+        // would read it.
+        List<String> removed = ScannerConfigurationFiles.removeFrom(workspace.source());
+        if (!removed.isEmpty()) {
+            // A signal, not a finding: a finding of a new type would enter the backlog and the gate on
+            // a file that, once removed, changes nothing — and a type nobody triages yet.
+            log.info("The tree of {} carried scanner configuration files; removed before any scanner ran: {}",
+                    repository.url(), removed);
+        }
+
+        String subPath = normalizedSubPath(repository.subPath());
+        Path scanRoot = scanRoot(workspace.source(), subPath, repository.branch());
+
+        // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
+        // analysis: it produces no finding, resolves no backlog, and its absence is an
+        // ordinary property of a repository rather than a scanner that failed. Wrapping it
+        // would put "no pom.xml" in the same list as "Semgrep timed out".
+        ProjectManifest.read(scanRoot).ifPresent(artifacts::project);
+
+        // Not a step either, for the same reason: counting file names is no analysis. Taken whole
+        // — no language "wanted", so the walk does not stop at the plugins' — because what it
+        // finds is kept on the scan for the screens (which languages a project is written in, face
+        // to a plugin's), and the plugins below are decided on the same census.
+        LanguageCensus.Census census = census(scanRoot, artifacts);
+
+        // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
+        //
+        // **A step like the others, no longer a swallowed exception.** A failure here was
+        // caught and ignored — and the scanner itself returned empty lists when it could not
+        // walk the tree, which the inventory reads as "this repository has no contracts" and
+        // records by replacing the ones it had (decision 0007). Absent now means absent.
+        step(artifacts, "api discovery", () -> {
+            var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(scanRoot);
+            artifacts.apiEndpoints(apiDiscovery.endpoints());
+            artifacts.apiContracts(apiDiscovery.contracts());
+        });
+
+        if (task.runs(ScanTask.Step.DEPENDENCIES)) {
+            step(artifacts, "dependencies", () -> {
+                JsonNode sbom = ran(
+                        dependencies.sbomOfDirectory(workspace, subPath),
+                        "the inventory of the tree's dependencies could not be taken.");
+                artifacts.sbom(sbom);
+                artifacts.dependencies(ran(
+                        dependencies.matchSbom(workspace, sbom.toString()),
+                        "the inventory was taken but could not be matched against known vulnerabilities."));
+            });
+        }
+
+        // **Placed before the scanners, not inside the SAST step.** The secrets scanner
+        // needs them too: its configuration has to come from here rather than from the
+        // analysed tree, and copying it only for the source analyser left the first one
+        // reading the target's own.
+        rules.placeBundled(workspace);
+
+        if (task.runs(ScanTask.Step.SECRETS)) {
+            step(artifacts, "secrets", () -> {
+                // **Both, or neither — and never one presented as both.** The second scanner
+                // used to run inside a `catch (Exception ignored)`, so its failure produced
+                // the first scanner's results alone: a non-null list, which decision 0007
+                // defines as "the step ran and found nothing" and which therefore *resolves*
+                // this type's open issues. A leaked credential that only the second engine
+                // detects was closed, silently, with no error recorded anywhere — in the one
+                // finding type where a false resolution costs the most.
+                //
+                // `ran(…)` restores the rule the rest of this method already follows: an
+                // analysis that did not happen leaves the artifact absent and the backlog
+                // untouched, and the step carries the reason.
+                // One engine, and decision 0015 explains why there is not a second: the
+                // seam that existed accepted only gitleaks-compatible images, which the
+                // primary image override already covers.
+                artifacts.secrets(ran(
+                        secrets.scan(workspace, subPath),
+                        "the search for hardcoded secrets did not complete."));
+            });
+        }
+        if (task.runs(ScanTask.Step.IAC)) {
+            step(artifacts, "IaC", () -> artifacts.iac(ran(
+                    iac.scan(workspace, subPath),
+                    "the infrastructure manifest check did not complete.")));
+        }
+        if (task.runs(ScanTask.Step.SAST)) {
+            step(artifacts, "SAST", () -> {
+                // **Inside the step, and before the scan.** A rule set that cannot be
+                // obtained, or a configured directory that cannot be read, must fail SAST
+                // alone — not the SBOM, not the secrets — and must leave its result absent
+                // rather than let the analyser run with the bundled rules and report a
+                // clean, shorter list.
+                rules.placeRuleSet(
+                        workspace, task.rulesHash(), ruleSets, RulePlacement.environmentDirectory().orElse(null));
+                artifacts.sast(ran(
+                        sast.scan(workspace, subPath),
+                        "the source analysis did not run, or covered too few files to be worth reading."));
+            });
+        }
+
+        // Last, and each on its own: see runPlugins.
+        runPlugins(task, workspace, scanRoot, census, artifacts);
+
+        return artifacts.build(Duration.between(started, clock.instant()));
+    }
+
+    /**
+     * Scanning a container image.
+     *
+     * <p><b>One step only.</b> There is no tree to clone. Secrets, IaC and source analysis do
+     * not apply — they look inside source code, not image layers — and declaring them scanned
+     * would silently resolve their whole history for this target. They stay absent: "we did not
+     * look", which is the truth.
+     *
+     * <p>End of life and licences, on the other hand, are read from the SBOM produced here —
+     * and an image is precisely where the first has most value, since it sees the base
+     * distribution no package-level lookup would find.
+     */
+    private ScanArtifacts runImage(ScanTask task, ScanTask.Target.Image image, Instant started) {
+        ScanArtifacts.Builder artifacts = ScanArtifacts.builder();
+
+        // **A workspace, now.** None was needed while the cataloguer read the image from the
+        // registry with the Docker socket mounted; that mount was precisely the problem. The
+        // image is exported into this workspace by Vectispire, and the cataloguer sees one
+        // read-only file.
+        Workspace.withWorkspace(workspace -> {
+            step(artifacts, "dependencies", () -> {
+                JsonNode sbom = ran(
+                        dependencies.sbomOfImage(workspace, image.reference().format(), image.platform()),
+                        "the image could not be fetched, or its dependencies could not be inventoried.");
+                artifacts.sbom(sbom);
+                artifacts.dependencies(ran(
+                        dependencies.matchStandaloneSbom(sbom.toString()),
+                        "the inventory was taken but could not be matched against known vulnerabilities."));
+            });
+            return null;
+        });
+
+        return artifacts.build(Duration.between(started, clock.instant()));
+    }
+
+    /**
+     * The task's plugins, after every scanner.
+     *
+     * <p><b>Each on its own.</b> A plugin's failure is its own step's: it is recorded as a failure of
+     * the scan, under the plugin's name, and leaves that plugin's issues alone; no scanner above is
+     * touched. A plugin the executor refused to start is a failure too, under the same name. A plugin
+     * whose languages the tree does not contain is not run and <em>not</em> a failure — see {@link PluginStep} for why that third state exists. Package-private so the
+     * wiring is exercised without a clone.
+     */
+    void runPlugins(
+            ScanTask task, Workspace workspace, Path scanRoot, LanguageCensus.Census census, ScanArtifacts.Builder artifacts) {
+        if (task.plugins().isEmpty()) {
+            return;
+        }
+        for (PluginStep step : plugins.run(task.plugins(), workspace, scanRoot, census)) {
+            artifacts.plugin(step);
+            switch (step) {
+                case PluginStep.Absent absent -> artifacts.failed("plugin " + absent.pluginId(), absent.reason());
+                // Refused is a failure of the scan too — nothing was examined, and somebody has to act:
+                // sign the image, or have the governor waive the requirement in writing.
+                case PluginStep.Refused refused -> artifacts.failed("plugin " + refused.pluginId(), refused.reason());
+                case PluginStep.Produced produced -> { }
+                case PluginStep.NotApplicable skipped -> { }
+            }
+        }
+    }
+
+    /**
+     * The languages of the tree, taken once for the scan: kept in the artifacts when the census is
+     * complete, left absent when it is not.
+     *
+     * <p><b>An incomplete census records nothing</b>, not what it saw so far: a walk stopped at its
+     * bound has not seen the rest of the tree, and a screen comparing the partial set with a plugin's
+     * languages would tell an operator that a Java repository holds no Java. Absent reads as unknown
+     * (decision 0007), which is the truth. The plugins are still decided on it — an incomplete census
+     * runs every one of them ({@link LanguageCensus.Census#applies}). Package-private so the rule is
+     * exercised without a clone.
+     */
+    static LanguageCensus.Census census(Path scanRoot, ScanArtifacts.Builder artifacts) {
+        LanguageCensus.Census census = LanguageCensus.of(scanRoot, java.util.Set.of());
+        if (census.complete()) {
+            artifacts.languages(census.found());
+        }
+        return census;
+    }
+
+    /** The sub-path as the scanners are handed it, or the scan's refusal — see {@link #scanRoot}. */
+    static String normalizedSubPath(String subPath) {
+        try {
+            return RepositorySubPath.normalize(subPath);
+        } catch (IllegalArgumentException refused) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH,
+                    "The repository's sub-path is refused: " + refused.getMessage(), "");
+        }
+    }
+
+    /**
+     * The directory the scan examines, proven to lie inside the clone and to be there.
+     *
+     * <p><b>Checked against the clone, not only as text.</b> The raw value used to go straight into
+     * Path.resolve — "/" or "../.." walked the host or the other scans' clones — and a directory of
+     * the repository may itself be a link out of it. A sub-path refused here fails the scan: nothing
+     * was examined, and saying so beats scanning something else.
+     *
+     * <p><b>An absent one fails it too, for good.</b> It used to be handed on, for the analysers to
+     * report — each as a failed step, or as an empty result over a directory that is not there — and
+     * the scan ended as one that ran. It is a scan that could not run: the branch holds no such
+     * directory, and no later attempt on the same commit will find one. A permanent failure, with the
+     * sub-path and the branch named so the operator knows which of the two to correct.
+     */
+    static Path scanRoot(Path source, String subPath, String branch) {
+        Path root;
+        try {
+            root = SourceFiles.within(source, subPath);
+        } catch (IllegalArgumentException outside) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH, outside.getMessage(), "");
+        } catch (java.io.IOException unresolvable) {
+            throw new java.io.UncheckedIOException("The clone could not be resolved.", unresolvable);
+        }
+        if (!java.nio.file.Files.isDirectory(root)) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH,
+                    "The sub-path \"" + subPath + "\" is not a directory of branch \"" + branch + "\".", "");
+        }
+        return root;
+    }
+
+    /**
+     * Runs a step, and remembers its failure without interrupting the scan.
+     *
+     * <p>The artifact stays absent: that is what tells "not looked at" from "found nothing", and
+     * what stops one scanner's failure from resolving the whole backlog of its type.
+     */
+    private static void step(ScanArtifacts.Builder artifacts, String name, Runnable body) {
+        try {
+            body.run();
+        } catch (RuntimeException failure) {
+            artifacts.failed(name, failure.getMessage() == null ? failure.toString() : failure.getMessage());
+        }
+    }
+
+    /**
+     * The result of a scanner that reports its own failure by returning nothing.
+     *
+     * <p><b>An absent result used to be dropped here in silence.</b> Every scanner below returns
+     * {@code Optional.empty()} rather than an empty list when its analysis did not happen —
+     * timeout, non-zero exit, a report covering no file — and the call sites consumed that with
+     * {@code ifPresent}. The artifact then stayed absent, which is correct and is what protects
+     * the backlog, but {@code failures} stayed empty too: the scan was recorded {@code
+     * completed}, with no error to show, and an operator reading an empty SAST list saw a clean
+     * repository instead of a step that never ran. {@link ScanArtifacts#observedNothing()} does
+     * not catch it either — it asks whether <em>every</em> step is absent, and the other three
+     * had produced findings.
+     *
+     * <p>Raised as an exception so the failure travels through {@link #step} rather than through
+     * a second mechanism: one place decides what a failed step does, and the artifact is left
+     * absent by the same path.
+     */
+    private static <T> T ran(Optional<T> result, String reason) {
+        return result.orElseThrow(() -> new StepDidNotRun(reason));
+    }
+
+    /** Carries the reason to {@link #step}; never leaves this class. */
+    private static final class StepDidNotRun extends RuntimeException {
+        StepDidNotRun(String reason) {
+            super(reason);
+        }
+    }
+}

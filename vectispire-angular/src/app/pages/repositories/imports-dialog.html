@@ -1,0 +1,14 @@
+<!-- A repository's imports — coverage, tests, SARIF: read-only, the uploads come from CI with a declared key. -->
+<p-dialog
+    [visible]="page.sarifVisible()"
+    (visibleChange)="page.sarifVisible.set($event)"
+    [header]="'repositories.header_imports' | translate: { name: page.sarifRepo()?.displayName || '' }"
+    [modal]="true"
+    [style]="{ width: '960px', maxWidth: '95vw' }"
+>
+    @if (page.sarifVisible() && page.sarifRepo(); as repo) {
+        <app-report-imports [repositoryId]="repo.id" />
+        <h3 class="text-base font-semibold mt-6 mb-2">{{ 'repositories.sarif_imports_title' | translate }}</h3>
+        <app-sarif-imports [repositoryId]="repo.id" />
+    }
+</p-dialog>

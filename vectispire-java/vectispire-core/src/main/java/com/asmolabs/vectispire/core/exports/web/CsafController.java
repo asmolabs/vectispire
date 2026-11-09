@@ -1,0 +1,66 @@
+package com.asmolabs.vectispire.core.exports.web;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.exports.CsafGeneratorService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+/**
+ * REST controller exposing standardized OASIS CSAF 2.0 VEX security advisory documents.
+ */
+@RestController
+@RequestMapping("/api/v1/csaf")
+@RequiresAccount
+public class CsafController {
+
+    private final CsafGeneratorService csafService;
+    private final VisibilityService visibility;
+
+    public CsafController(CsafGeneratorService csafService, VisibilityService visibility) {
+        this.csafService = csafService;
+        this.visibility = visibility;
+    }
+
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
+    @GetMapping(value = "/scans/{scanId}/csaf.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CsafDocument> getScanCsaf(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @PathVariable("scanId") Long scanId) {
+        // Refused by the service, beside the read, for a scan the caller may not see.
+        CsafDocument doc = csafService.generateForScan(scanId, allowanceOf(principal))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + scanId + "-csaf.json\"")
+                .body(doc);
+    }
+
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
+    @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CsafDocument> getAggregateCsaf(
+            @AuthenticationPrincipal VectispirePrincipal principal) {
+        CsafDocument doc = csafService.generateAggregate(allowanceOf(principal));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-csaf.json\"")
+                .body(doc);
+    }
+
+    private Visibility allowanceOf(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+    }
+
+}

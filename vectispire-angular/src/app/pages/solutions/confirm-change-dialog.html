@@ -1,0 +1,12 @@
+<p-dialog [header]="confirmHeader()" [(visible)]="page.confirmVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <p class="m-0" data-testid="confirm-text">{{ confirmText() }}</p>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.confirmVisible.set(false)" />
+        <p-button
+            [label]="'common.confirm' | translate"
+            severity="danger"
+            [loading]="page.saving()"
+            (onClick)="confirm()"
+        />
+    </ng-template>
+</p-dialog>

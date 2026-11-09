@@ -1,0 +1,303 @@
+{{- if .Values.agents.enabled }}
+{{- include "vectispire.validate" . -}}
+{{- $fullname := include "vectispire.fullname" . -}}
+{{- $work := .Values.agents.workDir.path -}}
+{{- $socketDir := "/var/lib/vectispire/dind" -}}
+{{- $rootless := eq .Values.agents.dind.variant "rootless" -}}
+{{- $pods := eq .Values.agents.executor "kubernetes" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-agent
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  # **One pod per agent identity.** Two processes polling with one key would be one agent to the control
+  # plane, holding leases neither knows the other has. More scans at once is the agent's concurrency, set
+  # on its row; more agents are more releases, each with its own key. Recreate, so that an upgrade never
+  # runs the old and the new pod side by side.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "vectispire.agentSelector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vectispire.agentSelector" . | nindent 8 }}
+        {{- if $pods }}
+        vectispire.dev/executor: kubernetes
+        {{- else }}
+        vectispire.dev/dind: {{ .Values.agents.dind.variant }}
+        {{- end }}
+    spec:
+      {{- if $pods }}
+      # The token of the Role in the scans' namespace (decision 0045): the one thing this pod reaches of the
+      # API. The scan pods it starts mount none.
+      serviceAccountName: {{ $fullname }}-agent
+      automountServiceAccountToken: true
+      {{- else }}
+      automountServiceAccountToken: false
+      {{- end }}
+      enableServiceLinks: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if .Values.agents.knownHosts }}
+      # **Copied, not mounted, into the home.** A mount there would have the kubelet create the home and
+      # its `.ssh` as root, and JGit, writing its own configuration under the home, failed on exactly that
+      # once ("Creating directories for /.config/jgit failed"). Copied by the agent's own user, mode 0444:
+      # a read-only known_hosts is only matched against, so a changed host key is refused, never recorded.
+      initContainers:
+        - name: known-hosts
+          image: {{ include "vectispire.image" .Values.agents.image }}
+          imagePullPolicy: {{ .Values.agents.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - mkdir -p {{ $work }}/home/.ssh && chmod 0700 {{ $work }}/home/.ssh && cp /known-hosts/known_hosts {{ $work }}/home/.ssh/known_hosts && chmod 0444 {{ $work }}/home/.ssh/known_hosts
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: {{ $work }}
+            - name: known-hosts
+              mountPath: /known-hosts
+              readOnly: true
+      {{- end }}
+      containers:
+        - name: agent
+          image: {{ include "vectispire.image" .Values.agents.image }}
+          imagePullPolicy: {{ .Values.agents.image.pullPolicy }}
+          env:
+            - name: VECTISPIRE_URL
+              value: {{ .Values.agents.controlPlaneUrl | quote }}
+            {{- if $pods }}
+            # A pod per scanner run, in the scans' namespace (decision 0045).
+            - name: VECTISPIRE_AGENT_EXECUTOR
+              value: kubernetes
+            - name: VECTISPIRE_SCANS_NAMESPACE
+              value: {{ include "vectispire.scansNamespace" . | quote }}
+            # Stable across restarts, unlike the pod's name: what the agent sweeps at start.
+            - name: VECTISPIRE_AGENT_NAME
+              value: {{ printf "%s-agent" $fullname | quote }}
+            - name: VECTISPIRE_KUBERNETES_START_TIMEOUT
+              value: {{ .Values.agents.kubernetes.startTimeout | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS
+              value: {{ .Values.agents.kubernetes.scanCpuMillis | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB
+              value: {{ .Values.agents.kubernetes.scanMemoryMiB | quote }}
+            # The agent refuses to start unless a probe pod proves scan pods are cut off (decision 0045 §5) —
+            # except where the operator turned the policy off and acknowledged it: there is nothing to prove.
+            - name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION
+              value: {{ .Values.agents.networkPolicy.enabled | quote }}
+            {{- if .Values.agents.kubernetes.matcherCache.enabled }}
+            # The matcher's database, served to scan pods from a claim in their namespace, on this agent's node.
+            - name: VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM
+              value: {{ printf "%s-matcher-cache" $fullname | quote }}
+            - name: VECTISPIRE_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- end }}
+            # The scan pods go where the agents go: the pool of their own the chart requires.
+            - name: VECTISPIRE_KUBERNETES_PLACEMENT
+              value: {{ include "vectispire.scanPlacement" . | quote }}
+            {{- if .Values.agents.kubernetes.registryCredentials.secretName }}
+            # The pull secret whose entry cosign is handed to read a plugin's private registry.
+            - name: VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS
+              value: /etc/vectispire/registry
+            {{- end }}
+            {{- else }}
+            # The daemon beside it, on a socket file both containers mount — never TCP: the dind
+            # image's entrypoint would open 2375 to the whole cluster, without TLS or authentication.
+            - name: DOCKER_HOST
+              value: unix://{{ $socketDir }}/docker.sock
+            {{- end }}
+            # The token and the signing key as files, read through a config tree, rather than as variables
+            # any reader of the pod sees. **Not under /run/secrets**: /var/run is /run in the agent's image,
+            # and a read-only volume there leaves the kubelet no place for the service account's token
+            # (/var/run/secrets/kubernetes.io/serviceaccount) — the Kubernetes executor's agent never
+            # started, "mkdirat …/run/secrets/kubernetes.io: read-only file system" (measured, k3s 1.34).
+            - name: SPRING_CONFIG_IMPORT
+              value: optional:configtree:/etc/vectispire/secrets/
+            # The work directory is where scans live, at the path the daemon sees too; the home under it,
+            # where a keyed clone records the forges' host keys.
+            - name: JDK_JAVA_OPTIONS
+              value: >-
+                -Djava.io.tmpdir={{ $work }}
+                -Duser.home={{ $work }}/home
+                {{- if .Values.agents.trustStore.secretName }}
+                -Djavax.net.ssl.trustStore=/etc/vectispire/trust/{{ .Values.agents.trustStore.key }}
+                -Djavax.net.ssl.trustStoreType=PKCS12
+                {{- end }}
+            - name: VECTISPIRE_PLUGIN_REGISTRY
+              value: {{ .Values.agents.pluginRegistry | quote }}
+            - name: VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED
+              value: {{ .Values.agents.pluginSignatureRequired | quote }}
+            {{- with .Values.agents.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.agents.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: {{ $work }}
+            {{- if not $pods }}
+            - name: dind-socket
+              mountPath: {{ $socketDir }}
+            {{- end }}
+            - name: secrets
+              mountPath: /etc/vectispire/secrets
+              readOnly: true
+            {{- if .Values.agents.trustStore.secretName }}
+            - name: trust
+              mountPath: /etc/vectispire/trust
+              readOnly: true
+            {{- end }}
+            {{- if and $pods .Values.agents.kubernetes.registryCredentials.secretName }}
+            - name: registry-credentials
+              mountPath: /etc/vectispire/registry
+              readOnly: true
+            {{- end }}
+            # The JVM's temporary directory is the work directory; this is for whatever writes to /tmp by
+            # name rather than through java.io.tmpdir.
+            - name: tmp
+              mountPath: /tmp
+        {{- if not $pods }}
+        - name: dind
+          {{- if $rootless }}
+          image: {{ .Values.agents.dind.rootless.image }}
+          {{- else }}
+          image: {{ .Values.agents.dind.privileged.image }}
+          {{- end }}
+          # `dockerd` named first: the entrypoint then adds none of its default listeners — measured, it
+          # otherwise listens on tcp 2375 with no TLS (decision 0038).
+          args:
+            - dockerd
+            - --host=unix://{{ $socketDir }}/docker.sock
+            {{- if not $rootless }}
+            # The socket's group: the agent runs as 1000 and holds no other.
+            - --group=1000
+            {{- end }}
+          {{- if $rootless }}
+          securityContext:
+            {{- toYaml .Values.agents.dind.rootless.securityContext | nindent 12 }}
+          {{- else }}
+          # **Root on the node.** What a privileged container is; why these pods have nodes and a
+          # namespace of their own.
+          securityContext:
+            privileged: true
+          {{- end }}
+          resources:
+            {{- toYaml .Values.agents.dind.resources | nindent 12 }}
+          volumeMounts:
+            # The same path as in the agent: a scanner's bind is resolved here.
+            - name: work
+              mountPath: {{ $work }}
+            - name: dind-socket
+              mountPath: {{ $socketDir }}
+            - name: docker-data
+              {{- if $rootless }}
+              mountPath: /home/rootless/.local/share/docker
+              {{- else }}
+              mountPath: /var/lib/docker
+              {{- end }}
+        {{- end }}
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: {{ .Values.agents.workDir.sizeLimit }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        {{- if not $pods }}
+        - name: dind-socket
+          emptyDir:
+            sizeLimit: 1Mi
+        - name: docker-data
+          {{- if .Values.agents.dind.imageCache.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-agent-images
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ .Values.agents.dind.dataSizeLimit }}
+          {{- end }}
+        {{- end }}
+        - name: secrets
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: {{ .Values.agents.token.secretName }}
+                  items:
+                    - key: {{ .Values.agents.token.key }}
+                      path: VECTISPIRE_AGENT_TOKEN
+              {{- with .Values.agents.signingKey }}
+              {{- if .secretName }}
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: VECTISPIRE_AGENT_SIGNING_KEY
+              {{- end }}
+              {{- end }}
+        {{- if .Values.agents.trustStore.secretName }}
+        - name: trust
+          secret:
+            secretName: {{ .Values.agents.trustStore.secretName }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.agents.trustStore.key }}
+                path: {{ .Values.agents.trustStore.key }}
+        {{- end }}
+        {{- if and $pods .Values.agents.kubernetes.registryCredentials.secretName }}
+        # A kubernetes.io/dockerconfigjson Secret, in the agents' namespace: read as a Docker configuration.
+        - name: registry-credentials
+          secret:
+            secretName: {{ .Values.agents.kubernetes.registryCredentials.secretName }}
+            defaultMode: 0440
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+        {{- end }}
+        {{- if .Values.agents.knownHosts }}
+        - name: known-hosts
+          configMap:
+            name: {{ $fullname }}-agent-known-hosts
+        {{- end }}
+      {{- with .Values.agents.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agents.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agents.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

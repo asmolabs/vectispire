@@ -1,0 +1,294 @@
+package com.asmolabs.vectispire.core.agents.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+/**
+ * A registered scan executor.
+ *
+ * <p>{@code sealingPublicKey} is what lets a deployment key travel to it end to end: the
+ * control plane seals the key for this agent alone, so an agent that claims a scan it is not
+ * entitled to cannot open it.
+ *
+ * <p><b>Two public keys, and one vouches for the other.</b> {@code signingPublicKey} is written by
+ * an administrator and by nothing else: a signature verified against a key the signer announced
+ * proves only what the API key already proved. See {@code ResultAttestation}. {@code
+ * sealingPublicKey} is ephemeral — a restarted agent is a new recipient — and is accepted only
+ * signed with the pinned key, newer than the one it replaces ({@code SealingKeyAttestation},
+ * decision 0031).
+ */
+@Entity
+@Table(name = "t_agent")
+public class AgentEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "id", nullable = false)
+    private UUID id;
+
+    @Column(name = "name", length = 255, nullable = false)
+    private String name;
+
+    @Column(name = "description", length = 500)
+    private String description;
+
+    @Column(name = "kind", length = 20, nullable = false)
+    private String kind;
+
+    @Column(name = "labels", length = 255)
+    private String labels;
+
+    @Column(name = "credentials_mode", length = 20, nullable = false)
+    private String credentialsMode;
+
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled;
+
+    @Column(name = "max_concurrent")
+    private Integer maxConcurrent;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "api_key_id")
+    private UUID apiKeyId;
+
+    @Column(name = "hostname", length = 255)
+    private String hostname;
+
+    @Column(name = "platform", length = 255)
+    private String platform;
+
+    @Column(name = "version", length = 50)
+    private String version;
+
+    @Column(name = "scanner_engine", length = 50)
+    private String scannerEngine;
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "capabilities")
+    private String capabilities;
+
+    @Column(name = "contract_version", length = 20)
+    private String contractVersion;
+
+    /**
+     * What the agent's executors can run, as it last said — {@code WorkerExecutors}' stored form; null when it
+     * never said, which is "unknown", never "nothing". Written by {@code AgentRepository.recordHeartbeat} and
+     * {@code recordExecutors} alone, for the sealing key's reason: an administrator's change saved after a report
+     * would put back the state the agent had just replaced.
+     */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "executors", updatable = false)
+    private String executors;
+
+    @Column(name = "executors_reported_at", updatable = false)
+    private Instant executorsReportedAt;
+
+    /**
+     * Written by {@code AgentRepository.acceptSealingKey} and {@code forgetSealingKey} alone, never
+     * by saving the row: an administrator's change to the labels, read before the agent's
+     * announcement and saved after it, would otherwise put back the key the agent just replaced —
+     * one whose private half died with the process that made it.
+     */
+    @Column(name = "sealing_public_key", length = 255, updatable = false)
+    private String sealingPublicKey;
+
+    /** When the agent made its accepted sealing pair, in epoch milliseconds. Null with the key. */
+    @Column(name = "sealing_key_generation", updatable = false)
+    private Long sealingKeyGeneration;
+
+    /** Base64 Ed25519, pinned by an operator. Null means this agent's results are not attested. */
+    @Column(name = "signing_public_key", length = 255)
+    private String signingPublicKey;
+
+    @Column(name = "last_seen_at")
+    private Instant lastSeenAt;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public void setKind(String kind) {
+        this.kind = kind;
+    }
+
+    public String getLabels() {
+        return labels;
+    }
+
+    public void setLabels(String labels) {
+        this.labels = labels;
+    }
+
+    public String getCredentialsMode() {
+        return credentialsMode;
+    }
+
+    public void setCredentialsMode(String credentialsMode) {
+        this.credentialsMode = credentialsMode;
+    }
+
+    public boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public Integer getMaxConcurrent() {
+        return maxConcurrent;
+    }
+
+    public void setMaxConcurrent(Integer maxConcurrent) {
+        this.maxConcurrent = maxConcurrent;
+    }
+
+    public UUID getApiKeyId() {
+        return apiKeyId;
+    }
+
+    public void setApiKeyId(UUID apiKeyId) {
+        this.apiKeyId = apiKeyId;
+    }
+
+    public String getHostname() {
+        return hostname;
+    }
+
+    public void setHostname(String hostname) {
+        this.hostname = hostname;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public String getScannerEngine() {
+        return scannerEngine;
+    }
+
+    public void setScannerEngine(String scannerEngine) {
+        this.scannerEngine = scannerEngine;
+    }
+
+    public String getCapabilities() {
+        return capabilities;
+    }
+
+    public void setCapabilities(String capabilities) {
+        this.capabilities = capabilities;
+    }
+
+    public String getExecutors() {
+        return executors;
+    }
+
+    public Instant getExecutorsReportedAt() {
+        return executorsReportedAt;
+    }
+
+    /** Read by a save only when the row is inserted: see the field. */
+    public void setExecutors(String executors) {
+        this.executors = executors;
+    }
+
+    public void setExecutorsReportedAt(Instant executorsReportedAt) {
+        this.executorsReportedAt = executorsReportedAt;
+    }
+
+    public String getContractVersion() {
+        return contractVersion;
+    }
+
+    public void setContractVersion(String contractVersion) {
+        this.contractVersion = contractVersion;
+    }
+
+    public String getSealingPublicKey() {
+        return sealingPublicKey;
+    }
+
+    public void setSealingPublicKey(String sealingPublicKey) {
+        this.sealingPublicKey = sealingPublicKey;
+    }
+
+    public Long getSealingKeyGeneration() {
+        return sealingKeyGeneration;
+    }
+
+    public void setSealingKeyGeneration(Long sealingKeyGeneration) {
+        this.sealingKeyGeneration = sealingKeyGeneration;
+    }
+
+    public String getSigningPublicKey() {
+        return signingPublicKey;
+    }
+
+    public void setSigningPublicKey(String signingPublicKey) {
+        this.signingPublicKey = signingPublicKey;
+    }
+
+    public Instant getLastSeenAt() {
+        return lastSeenAt;
+    }
+
+    public void setLastSeenAt(Instant lastSeenAt) {
+        this.lastSeenAt = lastSeenAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+}

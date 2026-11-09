@@ -1,0 +1,73 @@
+<!--
+  Vectispire's SIEM events as Wazuh alerts (Wazuh 4.x). Install as /var/ossec/etc/rules/vectispire_rules.xml,
+  beside vectispire_decoders.xml.
+
+  The level follows the CEF severity Vectispire states, band by band, so a new event type is alerted at
+  its own weight without a rule of its own. A few signatures are raised or grouped on top: the audit log
+  failing its integrity check, the credential throttles, the connection test. Signatures are a contract
+  (docs-site/integrations/siem.md, "Event catalogue"): write correlation on vectispire.signature, never on
+  the name.
+
+  IDs 120100–120199. Move the block if your installation already uses them.
+-->
+<group name="vectispire,">
+
+  <rule id="120100" level="0">
+    <decoded_as>vectispire</decoded_as>
+    <description>Vectispire event</description>
+  </rule>
+
+  <!-- By CEF severity. -->
+  <rule id="120101" level="3">
+    <if_sid>120100</if_sid>
+    <field name="vectispire.severity" type="pcre2">^[0-2]$</field>
+    <description>Vectispire: $(vectispire.name)</description>
+  </rule>
+  <rule id="120102" level="5">
+    <if_sid>120100</if_sid>
+    <field name="vectispire.severity" type="pcre2">^[34]$</field>
+    <description>Vectispire: $(vectispire.name)</description>
+  </rule>
+  <rule id="120103" level="7">
+    <if_sid>120100</if_sid>
+    <field name="vectispire.severity" type="pcre2">^[56]$</field>
+    <description>Vectispire: $(vectispire.name)</description>
+  </rule>
+  <rule id="120104" level="10">
+    <if_sid>120100</if_sid>
+    <field name="vectispire.severity" type="pcre2">^[78]$</field>
+    <description>Vectispire: $(vectispire.name)</description>
+  </rule>
+  <rule id="120105" level="12">
+    <if_sid>120100</if_sid>
+    <field name="vectispire.severity" type="pcre2">^(9|10)$</field>
+    <description>Vectispire: $(vectispire.name)</description>
+  </rule>
+
+  <!-- Raised or grouped. -->
+  <rule id="120110" level="15">
+    <if_sid>120105</if_sid>
+    <field name="vectispire.signature" type="pcre2">^VECTI-SEC-018$</field>
+    <description>Vectispire: audit log integrity verification failed — entries changed or missing</description>
+    <group>integrity,pci_dss_10.5,gdpr_II_5.1.f,</group>
+  </rule>
+  <rule id="120111" level="10">
+    <if_sid>120104</if_sid>
+    <field name="vectispire.signature" type="pcre2">^VECTI-SEC-00[789]$</field>
+    <description>Vectispire: $(vectispire.name) for $(dstuser) from $(srcip)</description>
+    <mitre><id>T1110</id></mitre>
+    <group>authentication_failures,pci_dss_10.2.4,gdpr_IV_35.7.d,</group>
+  </rule>
+  <rule id="120112" level="12">
+    <if_sid>120105</if_sid>
+    <field name="vectispire.signature" type="pcre2">^VECTI-SEC-002$</field>
+    <description>Vectispire: actively exploited vulnerability (CISA KEV) detected</description>
+    <group>vulnerability-detector,</group>
+  </rule>
+  <rule id="120113" level="3">
+    <if_sid>120101</if_sid>
+    <field name="vectispire.signature" type="pcre2">^VECTI-SEC-999$</field>
+    <description>Vectispire: SIEM connector health check</description>
+  </rule>
+
+</group>

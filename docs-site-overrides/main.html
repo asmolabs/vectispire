@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{#
+  Dire au lecteur qu'il regarde une page non traduite.
+
+  `fallback_to_default` sert la page anglaise sous l'URL française plutôt que de répondre 404 —
+  un 404 sur une page que le sélecteur de langue vient de proposer est pire. Mais servir de
+  l'anglais sous une navigation française sans le dire laisse croire à une traduction ratée
+  plutôt qu'à une traduction absente, et un lecteur qui doute du reste de la page s'arrête.
+
+  `page.file.locale` est la langue du *fichier* retenu ; `i18n_page_locale` celle du site en
+  cours de construction. Quand elles diffèrent, le repli a joué.
+#}
+{% block content %}
+  {% if page and page.file and page.file.locale is defined and i18n_page_locale is defined
+        and page.file.locale != i18n_page_locale %}
+    <div class="admonition warning i18n-fallback">
+      <p class="admonition-title">
+        {%- if i18n_page_locale == 'fr' -%}Page non traduite{%- else -%}Untranslated page{%- endif -%}
+      </p>
+      <p>
+        {%- if i18n_page_locale == 'fr' -%}
+          Cette page n'existe pas encore en français : la version anglaise est affichée à sa
+          place. La traduction est en cours, page par page.
+        {%- else -%}
+          This page is not available in the language you selected; the English version is shown
+          instead. Translation is under way, page by page.
+        {%- endif -%}
+      </p>
+    </div>
+  {% endif %}
+  {{ super() }}
+{% endblock %}

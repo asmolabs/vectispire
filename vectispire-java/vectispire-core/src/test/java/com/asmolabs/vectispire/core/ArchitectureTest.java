@@ -1,0 +1,868 @@
+package com.asmolabs.vectispire.core;
+
+import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * The layer rule, checked.
+ *
+ * <p>The module split already carries the part that matters most: {@code vectispire-agent} does
+ * not depend on {@code vectispire-core}, so a driver is not on its classpath and the violation
+ * fails to compile rather than failing review. What one module cannot express is the rule
+ * <em>inside</em> {@code vectispire-core}, and that is what this file is for.
+ *
+ * <p>It exists because an architecture rule written in a document is not a rule: it is true
+ * the day it is written and false six months later. The NestJS tree learned that, and its
+ * {@code architecture.spec.ts} is this file's direct ancestor.
+ *
+ * <h2>One packaging, one set of layers</h2>
+ *
+ * The control plane is packaged by vertical module (decisions 0028 and 0029): a domain is {@code
+ * core.<domain>}, its API at the root, its controllers in {@code web}, its implementation in {@code
+ * internal}, its entities and repositories in {@code persistence}. The layers are the same six they
+ * were when the packages were the layers — {@code core.api}, {@code core.services}, {@code
+ * core.repositories}, {@code core.persistence}, emptied by step 5 of the migration — read now as the
+ * same place in every module. Outside the modules there is {@code core.config}, the datasource and
+ * the engines' setup, which belongs to no domain.
+ *
+ * <h2>Inside a module, not between modules</h2>
+ *
+ * What crosses between modules is Spring Modulith's to verify since step 6 (decision 0030, {@code
+ * ModularityTest}): no cycle, nothing reached but a module's root or a named interface, nothing used
+ * that the module's {@code package-info} does not list. The rules that did the same here — the cycle
+ * rule, {@code modulesMeetAtTheirApi}, the {@code MAY_USE} table — were retired with it, so that one
+ * boundary has one authority. What stays is what Modulith cannot express, because it reads a module
+ * whole: the layers inside every module, the places a class may sit, what a controller, an entity or a
+ * repository may touch, and the few libraries a single class may hold.
+ *
+ * <h2>Why {@code common.domain} is pure</h2>
+ *
+ * It carries the calculations that <em>decide</em>: an issue's fingerprint, the gate verdict,
+ * the audit integrity chain, the export formats. They touch neither database nor network nor
+ * Spring. Three consequences:
+ *
+ * <ol>
+ *   <li>they are exhaustively testable, the only way to check rules whose failure raises no
+ *       exception but destroys triage instead;
+ *   <li>the same calculation serves the API, the scheduler and the UI — the verdict displayed
+ *       <em>is</em> the one the gate returns, not a second one resembling it;
+ *   <li>they survive a change of ORM or framework, which is exactly the event this code is
+ *       living through.
+ * </ol>
+ */
+@DisplayName("the layer rule")
+class ArchitectureTest {
+
+    private static final String ROOT = "com.asmolabs.vectispire";
+
+    private static final String CORE = ROOT + ".core";
+
+    /**
+     * The vertical modules — {@code core.<domain>} with {@code web}, {@code internal} and {@code
+     * persistence} beneath it (decision 0028). The foundation moved first (step 3 of the migration to
+     * Spring Modulith), then the leaf and middle domains (step 4), then the core domains and what was
+     * left of the composition roots (step 5, decision 0029): {@code shared} was emptied, {@code
+     * maintenance} is the port the periodic jobs are contributed through, and {@code platform} is the
+     * shell — the settings screen, the foundation's routes and the API-wide web configuration.
+     *
+     * <p>The one list of them: {@code ModularityTest} reads it, and fails if Modulith detects a module it
+     * lacks. A new module is a line here.
+     */
+    static final List<String> MODULES = List.of(
+            // Step 3: the foundation.
+            "settings", "outbound", "crypto", "audit", "outbox", "reporting",
+            // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
+            // through anything but the layered packages.
+            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
+            "inventory", "posture", "compliance", "access",
+            // Step 5: the core domains, bottom-up — each only once what it uses was a module — then the
+            // periodic jobs' port and the shell that composes several domains for one screen.
+            "targets", "scanning", "issues", "maintenance", "platform",
+            // After: third-party analysers and SARIF imports, over scanning, issues and targets.
+            "plugins",
+            // Security checklists (decision 0032): the organisation's templates, answered per project.
+            "checklists",
+            // Report plugins (decision 0035): a project's export, and the documents rendered from it.
+            "reportplugins",
+            // Forges (decision 0037): read-only connections to GitHub and GitLab, from which repositories are
+            // discovered and imported.
+            "forges");
+
+    /**
+     * The top-level packages that are no module's. Only {@code config} since step 5: the datasource,
+     * the per-engine setup and the migration placeholders serve every module and decide nothing any
+     * domain owns. {@code api}, {@code services}, {@code repositories} and {@code persistence} were
+     * emptied, and a class put back into one of them fails {@link #everyClassHasAPlace}.
+     */
+    static final Set<String> OUTSIDE_MODULES = Set.of("config");
+
+    private static JavaClasses classes;
+
+    @BeforeAll
+    static void importClasses() {
+        classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages(ROOT);
+    }
+
+    /** The packages each module keeps for one layer, {@code suffixes} under its root. */
+    private static String[] layer(String... suffixes) {
+        return MODULES.stream()
+                .flatMap(module -> Stream.of(suffixes).map(suffix -> CORE + "." + module + suffix))
+                .toArray(String[]::new);
+    }
+
+    @Test
+    @DisplayName("finds classes to check at all")
+    void findsSomethingToCheck() {
+        // A wrong package name would make every rule below pass without checking
+        // anything. That is the failure mode of an architecture suite, so it is asserted
+        // first — and against the domain specifically, since that is the package the rules
+        // care most about and the one a typo would silently empty.
+        org.assertj.core.api.Assertions.assertThat(classes).isNotEmpty();
+        org.assertj.core.api.Assertions
+                .assertThat(classes.stream()
+                        .anyMatch(c -> c.getPackageName().startsWith(ROOT + ".common.domain")))
+                .as("the domain package must be on the classpath and populated")
+                .isTrue();
+        // And every module listed must hold classes in each of the places the rules below read: a
+        // module whose name is misspelt here would otherwise be a module no rule applies to. Its
+        // `package-info` does not count: since step 6 every module root has one, and a root holding
+        // nothing else is a module that moved away.
+        for (String module : MODULES) {
+            org.assertj.core.api.Assertions
+                    .assertThat(classes.stream().anyMatch(c -> c.getPackageName().equals(CORE + "." + module)
+                            && !c.getSimpleName().equals("package-info")))
+                    .as("module %s has no class at its root: its name in MODULES or its package is wrong", module)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("no layer reaches a layer above it")
+    void layersOnlyReachDownwards() {
+        layeredArchitecture()
+                .consideringOnlyDependenciesInAnyPackage(ROOT + "..")
+                .layer("domain").definedBy(ROOT + ".common.domain..")
+                .layer("scanning").definedBy(ROOT + ".common.scanning..")
+                // A module keeps its entities and its repositories together in `persistence`; they
+                // form one layer here, below its services, and `entitiesReachNoRepository` keeps the
+                // order between the two that `core.persistence` and `core.repositories` showed until
+                // step 5 emptied them.
+                .layer("persistence").definedBy(layer(".persistence.."))
+                // A module's root is its API and `internal` its implementation: both are the service
+                // layer, which the layered packaging calls `services`.
+                .layer("services").definedBy(layer("", ".internal.."))
+                .layer("api").definedBy(layer(".web.."))
+
+                // Read downwards: who is allowed to see me.
+                .whereLayer("api").mayNotBeAccessedByAnyLayer()
+                .whereLayer("services").mayOnlyBeAccessedByLayers("api")
+                // Not `api`: a controller maps HTTP, a service reads, decides and writes. Thirty-three
+                // controllers reached repositories directly when a line here still allowed it; they
+                // were moved behind services on 2026-09-24, under a ratchet that shrank to nothing,
+                // and since 2026-09-26 no controller names an entity either — see
+                // apiNeverTouchesPersistence below.
+                .whereLayer("persistence").mayOnlyBeAccessedByLayers("services")
+                .whereLayer("scanning").mayOnlyBeAccessedByLayers("services", "api")
+                // No optional layers and no empty-should escape any more: every layer is
+                // populated, so an empty one is now a package that was renamed or deleted — and
+                // this rule going quiet is exactly how that would go unnoticed.
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("every package of the control plane is a module's, or config")
+    void everyClassHasAPlace() {
+        // The layer rule constrains the packages it names and nothing else: a class dropped into
+        // `core.audit.helpers`, into a new top-level `core.reports`, or back into `core.services`,
+        // would belong to no layer and be checked by nothing. So the places are closed: a module's
+        // four, or `core.config`.
+        ArchCondition<JavaClass> haveAPlace = new ArchCondition<>("sit in a module's root, web, internal or "
+                + "persistence package, or in core.config") {
+            @Override
+            public void check(JavaClass type, ConditionEvents events) {
+                String rest = type.getPackageName().substring(CORE.length() + 1);
+                String top = rest.contains(".") ? rest.substring(0, rest.indexOf('.')) : rest;
+                if (OUTSIDE_MODULES.contains(top)) {
+                    return;
+                }
+                if (MODULES.contains(top)) {
+                    String below = rest.substring(top.length());
+                    if (below.isEmpty() || Stream.of(".web", ".internal", ".persistence")
+                            .anyMatch(place -> below.equals(place) || below.startsWith(place + "."))) {
+                        return;
+                    }
+                }
+                events.add(SimpleConditionEvent.violated(type, type.getName() + " is in no module place and not "
+                        + "in config: " + type.getPackageName()));
+            }
+        };
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().resideOutsideOfPackage(CORE)
+                .should(haveAPlace)
+                .check(classes);
+    }
+
+    /*
+     * Between modules, Spring Modulith is the authority since step 6 (decision 0030): `ModularityTest`
+     * runs `ApplicationModules.verify()`, which fails the build on a cycle between modules (what
+     * `domainsFormNoCycle` and its `KNOWN_CYCLES` checked), on a reach into another module's internals —
+     * anything but its root package or a named interface (`modulesMeetAtTheirApi`) — and on a dependency
+     * the origin's `package-info` does not list in `@ApplicationModule(allowedDependencies = …)` (the
+     * `MAY_USE` table and `domainsDependOnlyWhereAllowed`). The table's reasons moved with its lines, into
+     * each module's `package-info`. What Modulith cannot say about a module is below: it reads a module
+     * whole, so the layers inside one are this file's, and so is the one line of the table that was about
+     * a layer rather than a module.
+     */
+
+    /**
+     * The modules whose service layer never used {@code access}, although their routes do — every route
+     * needs the principal and its marker, and a route naming a target resolves a {@code Visibility}. The
+     * table said so with a clause, "any module's {@code web} may use {@code access}", which a module's
+     * list of allowed dependencies cannot: it is one list for the whole module. So a module whose routes
+     * call {@code VisibilityService} lists {@code access}, and this set keeps its services, its
+     * implementation and its entities off it. {@code gate} is here on purpose: its register was purged
+     * through a port {@code access} declared until step 5, and that coupling is what this line keeps
+     * gone.
+     */
+    private static final Set<String> ACCESS_FOR_ROUTES_ONLY =
+            Set.of("siem", "rules", "inventory", "threatintel", "gate", "exports", "forges");
+
+    @Test
+    @DisplayName("a module that uses access for its routes uses it nowhere else")
+    void accessForRoutesOnly() {
+        // `access` uses nothing above the foundation, so no line of this set could close a cycle; what it
+        // keeps is the direction the domains were given. A service deciding on who the caller is, or what
+        // they may see, is a service of a module that lists `access` for it, in the review that needs it.
+        for (String module : ACCESS_FOR_ROUTES_ONLY) {
+            ArchRuleDefinition.noClasses()
+                    .that().resideInAnyPackage(CORE + "." + module, CORE + "." + module + ".internal..",
+                            CORE + "." + module + ".persistence..")
+                    .should().dependOnClassesThat().resideInAPackage(CORE + ".access..")
+                    .because(module + "'s services do not use access; only its routes do")
+                    .check(classes);
+        }
+    }
+
+    @Test
+    @DisplayName("a module's controllers call its API, not its internals")
+    void controllersCallTheirModuleApi() {
+        // `internal` is what the API is built from. A controller reaching into it makes the class it
+        // reaches part of the module's surface without saying so; if a route needs it, it belongs at
+        // the root. Persistence is `apiNeverTouchesPersistence`'s.
+        for (String module : MODULES) {
+            ArchRuleDefinition.noClasses()
+                    .that().resideInAPackage(CORE + "." + module + ".web..")
+                    .should().dependOnClassesThat().resideInAPackage(CORE + "." + module + ".internal..")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+    }
+
+    @Test
+    @DisplayName("an entity reaches no repository")
+    void entitiesReachNoRepository() {
+        // The order `core.persistence` → `core.repositories` gave for free, kept inside a module's
+        // single `persistence` package: an entity describes a table, a repository reads it.
+        ArchRuleDefinition.noClasses()
+                .that().areAnnotatedWith("jakarta.persistence.Entity")
+                .or().areAnnotatedWith("jakarta.persistence.Embeddable")
+                .should().dependOnClassesThat().areAssignableTo("org.springframework.data.repository.Repository")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("nothing of the persistence layer reaches the api layer, not even for one call")
+    void apiNeverTouchesPersistence() {
+        // `SchemaNameCollisionTest` keeps entities out of responses; this keeps them out of `api`
+        // altogether. Twenty-five classes of `api` named a persistence type when this was added,
+        // the principal among them: it carried the account's password hash and TOTP secret to every route, and a
+        // controller could hand a row back to a service that saved whatever had been done to it.
+        // Services answer with records named `…View` now. No exception list and no freeze: a
+        // controller that needs a row needs a service method instead. Every module's `web` is held
+        // to it, against every module's `persistence`, its own included — and against the
+        // repositories a module keeps beside its entities, and the query records it publishes as a
+        // named interface, which the layer rule alone would let a controller name as a type.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().dependOnClassesThat().resideInAnyPackage(CORE + ".*.persistence..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a call between modules carries no persistence type in the signature it calls")
+    void callsBetweenModulesCarryNoPersistenceType() {
+        // The blind spot of both tools: a caller that ignores a return value depends, in the class file,
+        // on the method's owner alone — the entity sits in the called method's descriptor, not among the
+        // caller's dependencies, so neither Modulith's `verify()` nor a `dependOnClassesThat` rule sees it.
+        // `OutboxService.enqueue` returned the relay's `OutboxMessageEntity` to siem and notifications that
+        // way until be48b7ad; the next caller to read the value would have been coupled to the outbox's
+        // table with no message anywhere. So the signature itself is read: what another module's method
+        // takes or answers, generics included, holds nothing of a `persistence` package but the `queries`
+        // a module publishes as a named interface.
+        ArchCondition<JavaClass> callCleanSignatures = new ArchCondition<>(
+                "call no method of another module whose signature names a persistence type") {
+            @Override
+            public void check(JavaClass origin, ConditionEvents events) {
+                String from = moduleOf(origin.getPackageName());
+                for (com.tngtech.archunit.core.domain.JavaAccess<?> access : origin.getAccessesFromSelf()) {
+                    String owner = access.getTargetOwner().getPackageName();
+                    if (!owner.startsWith(CORE + ".") || moduleOf(owner).equals(from)) {
+                        continue;
+                    }
+                    access.getTarget().resolveMember().ifPresent(member -> {
+                        Set<JavaClass> involved = new java.util.HashSet<>();
+                        if (member instanceof com.tngtech.archunit.core.domain.JavaCodeUnit unit) {
+                            involved.addAll(unit.getReturnType().getAllInvolvedRawTypes());
+                            unit.getParameterTypes().forEach(type -> involved.addAll(type.getAllInvolvedRawTypes()));
+                        } else if (member instanceof com.tngtech.archunit.core.domain.JavaField field) {
+                            involved.addAll(field.getType().getAllInvolvedRawTypes());
+                        }
+                        involved.stream()
+                                .filter(type -> type.getPackageName().matches(
+                                        java.util.regex.Pattern.quote(CORE) + "\\.[a-z]+\\.persistence(\\..*)?")
+                                        && !type.getPackageName().matches(".*\\.persistence\\.queries(\\..*)?"))
+                                .forEach(type -> events.add(SimpleConditionEvent.violated(origin,
+                                        access.getDescription() + " — the signature names " + type.getName())));
+                    });
+                }
+            }
+        };
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().resideOutsideOfPackage(CORE)
+                .should(callCleanSignatures)
+                .check(classes);
+    }
+
+    /** The module a package of {@code core} belongs to: its first segment below {@code core}. */
+    private static String moduleOf(String packageName) {
+        String rest = packageName.substring(CORE.length() + 1);
+        int dot = rest.indexOf('.');
+        return dot < 0 ? rest : rest.substring(0, dot);
+    }
+
+    @Test
+    @DisplayName("the api layer opens no transaction: a transaction is a decision, and decisions are the services'")
+    void apiOpensNoTransaction() {
+        // The layering above keeps `api` out of the repositories; this keeps it out of the
+        // transaction boundary, which is the other half of "a controller maps HTTP". Three
+        // controllers held a `TransactionTemplate` or `@Transactional` before the move.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName("org.springframework.transaction.support.TransactionTemplate")
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName("org.springframework.transaction.annotation.Transactional")
+                .check(classes);
+    }
+
+    /** Where the filter chain lives: {@code access} took it with it from {@code core.api.security} (decision 0028). */
+    private static final String SECURITY_WEB = CORE + ".access.web.security..";
+
+    @Test
+    @DisplayName("no controller writes the audit log: the service that performs an action records it")
+    void controllersWriteNoAuditEntry() {
+        // An entry written by the route is an entry the next caller of the same service does not
+        // write — a second route, a scheduled job — and whether it is written before or after the
+        // commit becomes each controller's own guess. Ten controllers still held `AuditLogService`
+        // when this was added. The security web layer is left out on purpose: the filter chain
+        // audits what happens before any controller runs — a refused bearer token, a denied route, a
+        // single-sign-on callback — events that belong to no service method the entry could move to.
+        // Named by class literal, not by string: the class moved package once, and a string naming
+        // where it used to be would have left this rule checking nothing.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .and().resideOutsideOfPackage(SECURITY_WEB)
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName(AuditLogService.class.getName())
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName(AuditLogService.Record.class.getName())
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("no controller decides what a caller sees: it resolves a Visibility and hands it on")
+    void controllersDecideNoVisibility() {
+        // A route resolves the allowance (`VisibilityService.of`) and hands it on; what the allowance
+        // lets through of a read is the service's, and so is the refusal of a target it names, but
+        // where the module's services may not use `access` (`routesLeaveTheRefusalToTheirServices`
+        // below). The licence routes narrowed the inventory row by row and refused the
+        // estate's summary with an `instanceof Visibility.Everything` of their own, beside a service
+        // that already held the same filter for the evidence bundle — two copies of one decision,
+        // and the next route over the same service would have had neither. Asking the allowance
+        // anything (`permits`, `asFilter`, `isEmpty`, `and`) or testing which kind it is, is that
+        // decision. The security web layer is left out: the filter chain builds the allowance.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .and().resideOutsideOfPackage(SECURITY_WEB)
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "a question to a Visibility",
+                        call -> call.getTargetOwner().isAssignableTo(
+                                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                                && Set.of("permits", "asFilter", "isEmpty", "and").contains(call.getName())))
+                .orShould().dependOnClassesThat().areAssignableTo(
+                        com.asmolabs.vectispire.common.domain.access.Visibility.Everything.class)
+                .orShould().dependOnClassesThat().areAssignableTo(
+                        com.asmolabs.vectispire.common.domain.access.Visibility.Only.class)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a route leaves the refusal of a target to the service it calls, where that service may refuse")
+    void routesLeaveTheRefusalToTheirServices() {
+        // Twenty routes refused a target (`Visibilities.requireVisible`) or a scan (`ScanDocumentService
+        // .requireVisible`) and then called a service by the bare id, so the service trusted whoever
+        // called it: the attack-path graph reached the API inventory that way, and the evidence bundle
+        // the attestation, each depending on a check it could not see. A module whose services may use
+        // `access` refuses in them, beside the read. Where they may not (`accessForRoutesOnly`), the
+        // route refuses and the service takes the proof, `VisibleTarget` — never a scan, whose refusal
+        // is `scanning`'s and reachable from any service.
+        String[] refusingModules = MODULES.stream()
+                .filter(module -> !ACCESS_FOR_ROUTES_ONLY.contains(module))
+                .map(module -> CORE + "." + module + ".web..")
+                .toArray(String[]::new);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(refusingModules)
+                .and().resideOutsideOfPackage(SECURITY_WEB)
+                .should().callMethod(
+                        com.asmolabs.vectispire.core.access.web.security.Visibilities.class,
+                        "requireVisible",
+                        com.asmolabs.vectispire.common.domain.targets.ScanTarget.class,
+                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                .because("this module's services may refuse the target themselves, and the next caller "
+                        + "of the same method would otherwise skip the check")
+                .check(classes);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethod(
+                        com.asmolabs.vectispire.core.scanning.ScanDocumentService.class,
+                        "requireVisible",
+                        long.class,
+                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                .because("a scan is refused by the service that reads it, not by a route that then "
+                        + "hands the service its id")
+                .check(classes);
+        // A project's checklists speak for all of it, and the whole-project guard is its services'
+        // (decision 0032 §8): a route calling it would refuse, then hand the service a bare id.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "the whole-project guard",
+                        call -> call.getTargetOwner().isEquivalentTo(com.asmolabs.vectispire.core.access.RowVisibility.class)
+                                && call.getName().equals("requireWhollyVisibleProject")))
+                .because("a project is refused by the service that serves its checklists, whoever calls it")
+                .check(classes);
+        // A project or a solution seen in part is resolved by `targets`, which reads what is filed in it:
+        // a route calling the guard would have to read the filing itself, and hand it whatever it read.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "the project and solution guards",
+                        call -> call.getTargetOwner().isEquivalentTo(com.asmolabs.vectispire.core.access.RowVisibility.class)
+                                && Set.of("requireVisibleProject", "requireVisibleSolution").contains(call.getName())))
+                .because("a project's scope is resolved by targets' SolutionQueryService, beside the read of its filing")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a VisibleTarget, a VisibleProject and a VisibleScope are minted by the guard alone")
+    void visibleTargetsAreMintedByTheGuard() {
+        // Java cannot restrict a record's constructor to another package. `VisibleTarget` is worth
+        // something only because the one way to obtain it is to have been permitted — a `new
+        // VisibleTarget<>(target)` in a service is the check skipped under a name that says it ran.
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleTarget's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleTarget.class)))
+                .check(classes);
+        // The same for a project seen whole: a checklist service takes it only from the guard that
+        // refused a partial reader (decision 0032 §8).
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleProject's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleProject.class)))
+                .check(classes);
+        // And for a project or a solution as far as the caller sees it: the aggregates over one — its
+        // read, its compliance, its consolidated inventory — are computed over the targets it carries,
+        // so one built by hand would compute them over targets nobody checked.
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleScope's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleScope.class)))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("the domain depends on no framework and no driver")
+    void domainIsPure() {
+        // A pure calculation importing Hibernate stops being testable without a database;
+        // one importing Spring stops being reusable outside the server. Both are how a
+        // domain layer quietly becomes a service layer.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".common.domain..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework..",
+                        "jakarta.persistence..",
+                        "org.hibernate..",
+                        "java.sql..",
+                        "javax.sql..",
+                        "org.flywaydb..",
+                        "liquibase..",
+                        // The scanning half of `vectispire-common` needs a Docker client; the
+                        // domain half must never. A calculation that reached the daemon would
+                        // stop being testable without one, which is the property the whole
+                        // layer exists for.
+                        "com.github.dockerjava..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("only the repositories speak SQL")
+    void onlyRepositoriesReachTheDatabase() {
+        // A module's repositories sit in its `persistence` package, which is therefore the one place
+        // of a module left out; its root, `internal` and `web` are held to the rule, as `core.services`
+        // and `core.api` were before step 5 emptied them.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(Stream.concat(
+                                Stream.of(layer("", ".internal..")),
+                                Stream.of(layer(".web..")))
+                        .toArray(String[]::new))
+                // Hibernate Validator is the Bean Validation engine, not the ORM: its constraints
+                // (`@DurationMin` on a configuration property) say nothing about SQL.
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes in java.sql, javax.sql or Hibernate ORM",
+                        (JavaClass type) -> Stream.of("java.sql", "javax.sql", "org.hibernate")
+                                        .anyMatch(root -> type.getPackageName().equals(root)
+                                                || type.getPackageName().startsWith(root + "."))
+                                && !type.getPackageName().startsWith("org.hibernate.validator")))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a service holds no query API: it hands its repository criteria, and the repository writes the query")
+    void servicesHoldNoQueryApi() {
+        // `onlyRepositoriesReachTheDatabase` closed the drivers and Hibernate; the doors beside them stayed
+        // open. A service holding an `EntityManager`, a `CriteriaBuilder` or a `JdbcTemplate` writes SQL
+        // where no query-shape rule reads it — `CrossModuleQueriesTest` scans the repositories' JPQL, the
+        // engines campaign runs the repositories' statements, and a query assembled in a service is in
+        // neither. The same is true of Spring Data JPA's own query API: `IssueCatalog` and `SlaService`
+        // drove a `Specification`'s fluent query themselves until this rule moved it into
+        // `IssueRepository.findAllAs`. What a service keeps: its module's entities (it is the layer above
+        // them, and reads and changes them), Spring Data's paging vocabulary (`org.springframework.data.
+        // domain` — `Page`, `PageRequest`, `Sort`, `Limit`), a repository's inherited methods
+        // (`assignments::save` is a reference to `CrudRepository.save`), and the exceptions Spring
+        // translates into `org.springframework.dao`. Not `jakarta.persistence` at all — not even its
+        // exceptions, which reach a service only already translated.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer("", ".internal.."))
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "jakarta.persistence..",
+                        "org.springframework.data.jpa..",
+                        "org.springframework.jdbc..",
+                        "org.springframework.orm.jpa..")
+                .check(classes);
+        // And nothing outside a module's `persistence` is a repository — a class as much as an interface:
+        // `repositoriesAreNamedAndPlacedAsRepositories` reads interfaces, and a service implementing
+        // `CrudRepository` by hand would be a second persistence layer no rule of that file sees.
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().areAssignableTo(SPRING_DATA_REPOSITORY)
+                .should().resideInAnyPackage(layer(".persistence.."))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a controller holds nothing of JPA, Spring Data or JDBC")
+    void controllersHoldNoPersistenceApi() {
+        // `apiNeverTouchesPersistence` keeps the modules' own `persistence` packages away from `web`; this
+        // keeps the libraries under them away too, which that rule cannot see: a controller injecting an
+        // `EntityManager` or a `JdbcTemplate` names no class of ours. All of Spring Data, `domain` included:
+        // a `Pageable` parameter or a `Page` in a response makes Spring Data's page shape the wire contract
+        // — its JSON is not stable across releases, Spring Data says so itself — where a route answers a
+        // record of its own and the contract test reads it.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "jakarta.persistence..",
+                        "org.springframework.data..",
+                        "org.springframework.jdbc..",
+                        "org.springframework.orm..",
+                        "org.hibernate..",
+                        "java.sql..",
+                        "javax.sql..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("core.config sits under every module: it uses none, and none uses it")
+    void configSitsUnderEveryModule() {
+        // `core.config` is the datasource, the per-engine migration placeholders, the mapper, the clock
+        // and the schedulers — what every module is built on and no domain owns. Modulith sees it as a
+        // module with no list, which to Modulith means "may use anything", and `platform`, which declares
+        // no list either, may use it: neither direction is checked anywhere else. Downwards, it may use
+        // the common domain and the frameworks: a line of `config` reaching a module is a domain decision
+        // made in the composition, the thing the package is not for, and it closes a cycle with every
+        // module that receives the beans `config` makes. `layersOnlyReachDownwards` refuses this direction
+        // too, but only as a side effect — a class in no layer counts as an outsider to every layer's
+        // "may only be accessed by" — and a change to that rule's shape would drop it without a word.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(CORE + ".config..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "belong to a module of core",
+                        (JavaClass type) -> type.getPackageName().startsWith(CORE + ".")
+                                && !type.getPackageName().startsWith(CORE + ".config")))
+                .check(classes);
+        // Upwards: a module receives what `config` makes by its type (`ObjectMapper`, `Clock`, a
+        // `DataSource`), never by a class of `config`. One that read `MigrationDialect` or a properties
+        // record of `config` would make the composition part of its API, and the next change to the
+        // engines' setup a change to that domain.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + "..")
+                .and().resideOutsideOfPackage(CORE + ".config..")
+                .should().dependOnClassesThat().resideInAPackage(CORE + ".config..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("an outbound call goes through the door that validates and pins")
+    void onlyTheOutboundDoorSpeaksHttpOutwards() {
+        // **The rule the guard cannot enforce for itself.** `OutboundUrlGuard` refuses a URL
+        // resolving to link-local or, for the model review, to anything public — and none of
+        // that happens if a seventh caller builds its own client and calls a setting straight.
+        // Nothing about such a call looks wrong: it works perfectly, right up to the redirect
+        // or the rebind. The three classes named below are the only ones allowed to hold a
+        // client, and each one validates first.
+        //
+        // `03-security.md` claimed this rule existed for as long as it did not: it described
+        // the NestJS suite, which was not carried over. Written down now, in the place that
+        // fails.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                // Matched on the full name rather than the simple one, so a nested or
+                // anonymous class counts as its owner: the resolver inside `PinnedHttpSender`
+                // is an anonymous `DnsResolver`, whose simple name is empty, and a simple-name
+                // exclusion silently failed to cover it.
+                .and().haveNameNotMatching(".*\\.(PinnedHttpSender|OutboundPost|OutboundJson)(\\$.*)?")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("java.net.http..", "org.apache.hc..")
+                .check(classes);
+        // **And no other client, not even in the door.** The rule above named the two clients the door
+        // is built on; Spring's own — `RestClient`, `RestTemplate`, `WebClient`, the request factories
+        // under them — and the JDK's `URLConnection` were open to any class, and each would reach a
+        // setting's URL with no `OutboundUrlGuard`, no pinned address and redirects followed: the SSRF the
+        // guard exists to refuse, to the Docker proxy or the database host. The door is Apache's client
+        // with its resolver pinned, so none of these is needed anywhere; `java.net.URL` stays a value
+        // (a principal's issuer is one) and is closed only where it opens a connection.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework.web.client..",
+                        "org.springframework.web.reactive.function.client..",
+                        "org.springframework.http.client..",
+                        "org.apache.http..",
+                        "okhttp3..")
+                .orShould().dependOnClassesThat().areAssignableTo(java.net.URLConnection.class)
+                .orShould().callMethodWhere(DescribedPredicate.describe(
+                        "URL.openConnection or URL.openStream",
+                        call -> call.getTargetOwner().isEquivalentTo(java.net.URL.class)
+                                && Set.of("openConnection", "openStream").contains(call.getName())))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a raw socket is opened by the syslog sender alone, to the address the guard pinned")
+    void onlySyslogSenderOpensSockets() {
+        // The HTTP rule above says nothing about `java.net.Socket`: a second class opening one
+        // would reach the metadata endpoint or the Docker proxy with no guard in the way, and
+        // would look like a perfectly ordinary TCP client in review.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().haveNameNotMatching(".*\\.SyslogSender(\\$.*)?")
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName("java.net.Socket")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.net.DatagramSocket")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.SocketChannel")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.DatagramChannel")
+                .check(classes);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().haveNameNotMatching(".*\\.SyslogSender(\\$.*)?")
+                .and().haveNameNotMatching(".*\\.PinnedHttpSender(\\$.*)?")
+                .should().dependOnClassesThat().resideInAPackage("javax.net..")
+                .check(classes);
+        // The HTTP door verifies a self-hosted server against a CA pinned for it (a forge connection,
+        // decision 0037): a TLS context and its trust managers, which open nothing — and nothing else of
+        // javax.net, so a socket factory reached through it is still a violation.
+        ArchRuleDefinition.noClasses()
+                .that().haveNameMatching(".*\\.PinnedHttpSender(\\$.*)?")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "javax.net classes other than a TLS context and its trust managers",
+                        (JavaClass type) -> type.getBaseComponentType().getPackageName().startsWith("javax.net")
+                                && !Set.of("javax.net.ssl.SSLContext", "javax.net.ssl.TrustManagerFactory",
+                                        "javax.net.ssl.TrustManager", "javax.net.ssl.KeyManager")
+                                        .contains(type.getBaseComponentType().getName())))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("the client's address is read through TrustedProxies alone")
+    void onlyTrustedProxiesReadsThePeerAddress() {
+        // Behind a load balancer the peer is the balancer. Eight places read it directly and wrote
+        // it into audit entries, SIEM events and session rows, while the throttles, which asked
+        // TrustedProxies, named the client. Any other reader of the peer is that defect again.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().doNotHaveFullyQualifiedName(
+                        com.asmolabs.vectispire.core.access.web.security.TrustedProxies.class.getName())
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "getRemoteAddr on a servlet request",
+                        call -> call.getName().equals("getRemoteAddr")
+                                && call.getTargetOwner().isAssignableTo(jakarta.servlet.ServletRequest.class)))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("an entity describes a table and nothing else")
+    void persistenceHasNoWebOrService() {
+        // Dependency injection is not an entity's business, and neither is HTTP.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".persistence.."))
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("org.springframework.web..", "jakarta.servlet..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("every repository write carries @Transactional")
+    void everyRepositoryWriteIsTransactional() {
+        // Written in `core.repositories`' package-info for as long as the package existed, and true
+        // of every module's repositories since; step 5 emptied the package, and the convention came
+        // here rather than into a document. Spring Data makes its derived and inherited methods
+        // transactional but not a custom modifying query, so one written without the annotation
+        // fails outright when no caller has opened a transaction — and works when one has, which is
+        // how the omission survives review and reaches production as an intermittent failure. The
+        // derived `deleteBy…` methods are held to it too: they have no annotation to prompt the
+        // question, and fail at runtime with "No EntityManager with actual transaction available"
+        // rather than at startup.
+        DescribedPredicate<com.tngtech.archunit.core.domain.JavaMethod> writes = DescribedPredicate.describe(
+                "write rows",
+                method -> method.isAnnotatedWith("org.springframework.data.jpa.repository.Modifying")
+                        || method.getName().matches("(delete|remove)(All)?By.+"));
+        ArchRuleDefinition.methods()
+                .that().areDeclaredInClassesThat().areAssignableTo("org.springframework.data.repository.Repository")
+                .and(writes)
+                .should().beAnnotatedWith("org.springframework.transaction.annotation.Transactional")
+                .orShould().beDeclaredInClassesThat()
+                .areAnnotatedWith("org.springframework.transaction.annotation.Transactional")
+                .check(classes);
+    }
+
+    /** Spring Data's root interface, by name: the rules above read it the same way. */
+    private static final String SPRING_DATA_REPOSITORY = "org.springframework.data.repository.Repository";
+
+    @Test
+    @DisplayName("a repository is named <Entity>Repository, lives in its module's persistence, and nothing else takes the name")
+    void repositoriesAreNamedAndPlacedAsRepositories() {
+        // Until 2026-09-26 the repositories were named after the table read as a collection — `Issues`,
+        // `Scans`, `Outbox`, `Settings` — beside one `ApiKeysRepository`. A plural noun reads as a domain
+        // collection or an English word ("Issues a key", "Scans holding an SBOM"), so a search for who
+        // touches the database found prose, and a reader of `settings.findById` could not tell a
+        // repository from the `settings` module's API. The name is now the entity's without its suffix,
+        // singular, then `Repository` (`SessionEntity` → `SessionRepository`), and the rule holds both
+        // directions: a Spring Data interface named otherwise, or sitting outside a module's
+        // `persistence` where `onlyRepositoriesReachTheDatabase` and `apiNeverTouchesPersistence` expect
+        // it, fails; and so does a service or a helper named `…Repository`, which would pass for a
+        // repository in review and in every search. The bare noun is left out on purpose: a nested
+        // `Repository` record (`TriageHistory.Repository`) is a git repository, the target kind.
+        ArchRuleDefinition.classes()
+                .that().areInterfaces()
+                .and().resideInAPackage(CORE + "..")
+                .and().areAssignableTo(SPRING_DATA_REPOSITORY)
+                .should().resideInAnyPackage(layer(".persistence.."))
+                .andShould().haveSimpleNameEndingWith("Repository")
+                .check(classes);
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().haveNameMatching(".*[.$][A-Za-z0-9_]+Repository")
+                .should().beInterfaces()
+                .andShould().beAssignableTo(SPRING_DATA_REPOSITORY)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("case is folded without the host's locale")
+    void caseIsFoldedWithoutTheHostLocale() {
+        // `toUpperCase()` folds with the JVM's default locale. On a host set to Turkish, "i" becomes
+        // "İ": a severity, a scope, an HTTP method or a framework name stops matching the constant
+        // it was compared with, and a path lower-cased into a fingerprint changes with the machine
+        // that scanned it. Forty-seven calls did it; `Locale.ROOT` is the only spelling allowed.
+        ArchRuleDefinition.noClasses()
+                .should().callMethod(String.class, "toUpperCase")
+                .orShould().callMethod(String.class, "toLowerCase")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("every configuration properties type is validated")
+    void configurationPropertiesAreValidated() {
+        // A constraint on a properties type Spring does not validate is read by nobody: `@Positive` on
+        // an unvalidated record binds a zero as happily as a two, and the annotation reads as a
+        // guarantee in review. None of the twelve carried `@Validated` until 2026-10-13, so the one
+        // bound that existed was a silent coercion in a constructor instead.
+        ArchRuleDefinition.classes()
+                .that().areAnnotatedWith(org.springframework.boot.context.properties.ConfigurationProperties.class)
+                .should().beAnnotatedWith(org.springframework.validation.annotation.Validated.class)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("the time is read from a Clock, never from the wall clock")
+    void timeIsReadFromAClock() {
+        // The control plane's clock is `CoreConfiguration.clock`, injected: it ticks in microseconds,
+        // the precision both engines keep, and a test can pin it. Twenty-odd calls read the wall clock
+        // instead — the signed CSAF, OpenVEX and CycloneDX documents among them, dated at a precision
+        // the rest of the record did not have and by a time no test could fix. `now(clock)` is the
+        // spelling allowed; the domain takes its moment as a parameter. No exception is listed: the one
+        // reader of the system clock is the bean that wraps it, through `Clock.systemUTC()`, which this
+        // rule does not name.
+        ArchRuleDefinition.noClasses()
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "now() on a java.time type without a Clock, or System.currentTimeMillis()",
+                        call -> (call.getName().equals("now")
+                                        && call.getTargetOwner().getPackageName().equals("java.time")
+                                        && call.getTarget().getRawParameterTypes().stream()
+                                                .noneMatch(type -> type.isEquivalentTo(java.time.Clock.class)))
+                                || (call.getName().equals("currentTimeMillis")
+                                        && call.getTargetOwner().isEquivalentTo(System.class))))
+                .check(classes);
+    }
+}

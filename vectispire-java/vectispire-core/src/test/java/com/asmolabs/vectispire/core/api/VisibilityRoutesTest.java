@@ -1,0 +1,878 @@
+package com.asmolabs.vectispire.core.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+
+/**
+ * What a restricted account can and cannot reach.
+ *
+ * <p>Every case here is one somebody would probe by changing a number in a URL. The listing
+ * routes are the easy half — a filter either applies or it does not. The interesting half is the
+ * routes that take an identifier, because a reader who cannot see a target in a list can still
+ * ask for its export, its verdict or its scan by guessing.
+ */
+@DisplayName("what a restricted account may see")
+class VisibilityRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private GitRepositoryRepository repositories;
+
+    @Autowired
+    private IssueRepository issues;
+
+    @Autowired
+    private SettingsService settings;
+
+    @Autowired
+    private FindingRepository findings;
+
+    @Autowired
+    private ScanRepository scans;
+
+    @Test
+    @DisplayName("open by default: an account with no assignment still sees everything")
+    void everyoneModeChangesNothing() throws Exception {
+        long mine = repository("https://example.invalid/mine.git");
+        issue(mine, "CVE-2026-1");
+
+        // The default the catalog ships. A deployment that updates must not lose its screens.
+        mvc.perform(authenticated(get("/api/v1/issues"), asReader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+    }
+
+    @Test
+    @DisplayName("restricted and unassigned: nothing, not everything")
+    void anUnassignedReaderSeesNothing() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        issue(mine, "CVE-2026-1");
+
+        // The inversion this whole design guards against: "no assignment" read as "no
+        // restriction" would hand a brand-new account the entire backlog.
+        mvc.perform(authenticated(get("/api/v1/issues"), asReader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(authenticated(get("/api/v1/repositories"), asReader()))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("restricted and assigned: its own targets and no others")
+    void anAssignedReaderSeesOnlyItsOwn() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-MINE");
+        issue(theirs, "CVE-THEIRS");
+
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/issues"), reader))
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].identifier").value("CVE-MINE"));
+        mvc.perform(authenticated(get("/api/v1/repositories"), reader))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("an export of somebody else's target is 404, never 403")
+    void anExportOfAnotherTargetIsNotFound() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        // 403 would answer the question the probe is asking — whether that repository exists.
+        // A refusal has to be indistinguishable from an absence.
+        mvc.perform(authenticated(get("/api/v1/targets/repository/" + theirs + "/issues.csv"), reader))
+                .andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/targets/repository/" + theirs + "/issues.sarif"), reader))
+                .andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/targets/repository/" + theirs + "/vex"), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(get("/api/v1/targets/repository/" + mine + "/issues.csv"), reader))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a gate verdict on somebody else's target is 404")
+    void aVerdictOnAnotherTargetIsNotFound() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        // A verdict summarizes a backlog: counts, severities, the identifiers that violate.
+        // Answering one hands over most of what the backlog would have said.
+        mvc.perform(authenticated(post("/api/v1/gate"), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("repository_id", theirs))))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(post("/api/v1/gate"), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("repository_id", mine))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("triaging somebody else's issue is 404, and writes nothing")
+    void triagingAnInvisibleIssueIsRefused() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long hidden = issue(theirs, "CVE-THEIRS");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(post("/api/v1/issues/" + hidden + "/triage"), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("status", "not_affected", "justification", "component_not_present"))))
+                .andExpect(status().isNotFound());
+
+        // The write is what matters: a refusal that dismissed the finding anyway would be worse
+        // than no refusal, because the dashboard would look better afterwards.
+        org.assertj.core.api.Assertions
+                .assertThat(issues.findById(hidden).orElseThrow().getTriageStatus())
+                .isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+    }
+
+    @Test
+    @DisplayName("the exceptions register shows a restricted reader only their own acceptances")
+    void theExceptionsRegisterIsNarrowed() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-MINE");
+        issue(theirs, "CVE-THEIRS");
+
+        String reader = assignedReader(mine);
+
+        // An acceptance names what somebody decided not to fix. Handed to the wrong reader it
+        // says that target exists, what it carries, and who waved it through — which is more
+        // than the backlog itself would have told them.
+        acceptEverything();
+
+        mvc.perform(authenticated(get("/api/v1/exceptions"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(2));
+
+        mvc.perform(authenticated(get("/api/v1/exceptions"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.entries[0].target_id").value(mine));
+    }
+
+    /** Accepts every issue in the estate, as an administrator, so the register has rows. */
+    private void acceptEverything() throws Exception {
+        com.fasterxml.jackson.databind.JsonNode listing = json.readTree(
+                mvc.perform(authenticated(get("/api/v1/issues"), asAdmin()))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString());
+
+        for (com.fasterxml.jackson.databind.JsonNode issue : listing.get("items")) {
+            mvc.perform(authenticated(
+                            post("/api/v1/issues/" + issue.get("id").asLong() + "/triage")
+                                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                    .content("{\"status\":\"not_affected\","
+                                            + "\"justification\":\"component_not_present\","
+                                            + "\"comment\":\"accepted for the test\"}"),
+                            asAdmin()))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    @DisplayName("the gate register shows a restricted reader only their own verdicts")
+    void theGateRegisterIsNarrowed() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+
+        String reader = assignedReader(mine);
+
+        // Two verdicts asked for by an administrator, one per target. The register is a record of
+        // *decisions*, so it carries the same risk every other list does: a row names a target,
+        // and a row handed to the wrong reader says that target exists and how it scored.
+        askTheGate(mine, asAdmin());
+        askTheGate(theirs, asAdmin());
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(2));
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(1))
+                .andExpect(jsonPath("$.verdicts[0].target_id").value(mine));
+    }
+
+    @Test
+    @DisplayName("the register's cursor never names a verdict the reader cannot see (the audit of 10 October 2026)")
+    void theRegisterCursorStaysWithinTheReader() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine-" + System.nanoTime() + ".git");
+        long theirs = repository("https://example.invalid/theirs-" + System.nanoTime() + ".git");
+        String reader = assignedReader(mine);
+
+        // Theirs is the newest. Read unfiltered, a page of one held their verdict: shown nothing, the
+        // reader was handed a cursor carrying its instant and id, page after empty page.
+        askTheGate(mine, asAdmin());
+        askTheGate(theirs, asAdmin());
+
+        String first = mvc.perform(authenticated(get("/api/v1/gate/verdicts").param("limit", "1"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(1))
+                .andExpect(jsonPath("$.verdicts[0].target_id").value(mine))
+                .andReturn().getResponse().getContentAsString();
+        String cursor = json.readTree(first).path("next_cursor").asText();
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts").param("limit", "1").param("cursor", cursor), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(0))
+                .andExpect(jsonPath("$.next_cursor").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("the exceptions register's cursor never names an acceptance the reader cannot see")
+    void theExceptionsCursorStaysWithinTheReader() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine-" + System.nanoTime() + ".git");
+        long theirs = repository("https://example.invalid/theirs-" + System.nanoTime() + ".git");
+        String reader = assignedReader(mine);
+        accepted(mine, "CVE-MINE-" + System.nanoTime(), Instant.now().minusSeconds(60));
+        // Theirs is the newest in the register. Read unfiltered, a page of one held it: shown nothing,
+        // the reader was handed a cursor carrying its instant and its issue id, page after empty page —
+        // every risk acceptance of the estate, counted and dated.
+        long hidden = accepted(theirs, "CVE-THEIRS-" + System.nanoTime(), Instant.now().plusSeconds(3_600));
+        // And one older than the reader's, which the page after the reader's own must not read either.
+        accepted(theirs, "CVE-THEIRS-OLD-" + System.nanoTime(), Instant.now().minusSeconds(3_600));
+
+        String first = mvc.perform(authenticated(get("/api/v1/exceptions").param("limit", "1"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.entries[0].target_id").value(mine))
+                .andReturn().getResponse().getContentAsString();
+        String cursor = json.readTree(first).path("next_cursor").asText();
+        assertThat(com.asmolabs.vectispire.common.domain.paging.RegisterCursor.parse(cursor))
+                .hasValueSatisfying(at -> assertThat(at.id()).isNotEqualTo(String.valueOf(hidden)));
+
+        mvc.perform(authenticated(get("/api/v1/exceptions").param("limit", "1").param("cursor", cursor), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(0))
+                .andExpect(jsonPath("$.next_cursor").doesNotExist());
+    }
+
+    /** An issue carrying an accepted exception, decided at {@code at}. */
+    private long accepted(long repoId, String identifier, Instant at) {
+        IssueEntity issue = issues.findById(issue(repoId, identifier)).orElseThrow();
+        issue.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        issue.setTriagedAt(at);
+        issue.setTriagedBy("admin");
+        return issues.save(issue).getId();
+    }
+
+    private void askTheGate(long repositoryId, String token) throws Exception {
+        mvc.perform(authenticated(
+                        post("/api/v1/gate")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content("{\"repository_id\":" + repositoryId + "}"),
+                        token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an administrator sees everything, restricted mode or not")
+    void administratorsAreNeverRestricted() throws Exception {
+        restrict();
+        long one = repository("https://example.invalid/one.git");
+        issue(one, "CVE-1");
+
+        // Somebody has to be able to make the assignments, and an administrator who cannot see a
+        // target cannot assign it.
+        mvc.perform(authenticated(get("/api/v1/issues"), asAdmin())).andExpect(jsonPath("$.total").value(1));
+    }
+
+    @Test
+    @DisplayName("the dashboard counts only what the caller may see")
+    void theDashboardIsNarrowedToo() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        // The neighbour's quality issue and scan: the quality total and the recent scans were
+        // the deployment's, whoever asked.
+        IssueEntity theirQuality = issues.findById(issue(theirs, "python.lang.long-function")).orElseThrow();
+        theirQuality.setType(FindingType.QUALITY.wireName());
+        issues.save(theirQuality);
+        long theirScan = scan(theirs);
+        long myScan = scan(mine);
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/dashboard"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posture.totalCount").value(1))
+                .andExpect(jsonPath("$.qualityTotal").value(0))
+                .andExpect(jsonPath("$.recentScans.length()").value(1))
+                .andExpect(jsonPath("$.recentScans[0].id").value(myScan));
+        org.assertj.core.api.Assertions.assertThat(theirScan).isNotEqualTo(myScan);
+    }
+
+    @Test
+    @DisplayName("the blast radius shows a restricted reader only their own targets")
+    void theBlastRadiusIsScoped() throws Exception {
+        // **The hole `Visibility` exists to prevent, found on the one screen nobody had checked.**
+        // Its own documentation says authorization spread across controllers is one chance per
+        // controller to forget one, and the forgotten one is the hole. This was it: the endpoint
+        // read every finding in the deployment and answered with target names, package names and
+        // CVE identifiers, to any authenticated account.
+        //
+        // The leak is not abstract. A blast-radius answer names the repository, the package and
+        // the version — an inventory of somebody else's estate, handed to a contractor assigned
+        // one repository.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        finding(mine, "log4j-core", "CVE-2021-44228");
+        finding(theirs, "spring-beans", "CVE-2022-22965");
+
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targets.length()").value(1))
+                .andExpect(jsonPath("$.targets[0].packageName").value("log4j-core"));
+
+        // The graph is the same data in another shape, and a scoping that stopped at the summary
+        // would leak it here instead.
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), reader))
+                .andExpect(jsonPath("$.graph.nodes[?(@.label == 'CVE-2022-22965')]").isEmpty());
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/top-impact"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].packageName").value("log4j-core"));
+    }
+
+    @Test
+    @DisplayName("an administrator still sees the whole estate's blast radius")
+    void theBlastRadiusIsWholeForAnAdministrator() throws Exception {
+        // Scoping must not become a ceiling on the people who assign the scopes.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        finding(mine, "log4j-core", "CVE-2021-44228");
+        finding(theirs, "spring-beans", "CVE-2022-22965");
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), asAdmin()))
+                .andExpect(jsonPath("$.targets.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("a scan the reader may not see is absent from every export, not just from the SBOM")
+    void everyPerScanExportIsGuarded() throws Exception {
+        // **`ScansController` has always guarded `/scans/{id}/sbom` with `requireVisible`.** Four
+        // other routes hand back the same scan under a different format and none of them did, so
+        // the protection depended on which document a caller asked for. A reader who cannot open
+        // the SBOM could read the CSAF advisory built from the same scan.
+        //
+        // 404 rather than 403 throughout, for the reason `RowVisibility` gives: a refusal that is
+        // distinguishable from an absence answers the question the caller was probing with.
+        //
+        // **Every path here is spelled out because two of them were once wrong.** The attestation
+        // route is `/attestations` and the scorecard route `/scorecards`, both plural; asserting
+        // the singular gave a 404 that meant "no such route" and a test that could not fail. A
+        // route-name sweep found them, not a re-reading.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirScan = scan(theirs);
+        String reader = assignedReader(mine);
+
+        for (String route : List.of(
+                "/api/v1/scans/" + theirScan + "/sbom",
+                "/api/v1/csaf/scans/" + theirScan + "/csaf.json",
+                "/api/v1/cyclonedx/scans/" + theirScan + "/cyclonedx-vex.json",
+                "/api/v1/vex/scans/" + theirScan + "/openvex.json",
+                "/api/v1/attestations/scans/" + theirScan)) {
+            mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    @DisplayName("a target the reader may not see has no scorecard and no API inventory")
+    void everyPerTargetReadIsGuarded() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        for (String route : List.of(
+                "/api/v1/scorecards/repositories/" + theirs,
+                "/api/v1/repositories/" + theirs + "/apis",
+                "/api/v1/repositories/" + theirs + "/apis/export/openapi")) {
+            mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isNotFound());
+        }
+
+        // **The guard must not narrow what the reader was given**, and this is the assertion
+        // that says so without asserting a fixture detail: on their own repository the reader
+        // gets whatever an administrator gets. Written this way after a first version asserted
+        // 200 and failed — an administrator gets 404 too, because a repository with no scan has
+        // no scorecard. That is the product's behaviour and not this guard's doing.
+        // **This asserted against `/api/v1/scorecard`, which does not exist — the base path is
+        // plural.** It passed on a 404 that meant "no such route" rather than "not yours", which
+        // is an assertion that could not fail. Found by writing a second test against the same
+        // wrong path and watching it 404 for an administrator too.
+        mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + mine), reader))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an issue the reader may not see cannot be explained to them either")
+    void theAiExplanationIsGuarded() throws Exception {
+        // The route already took the principal and already ignored it. An explanation names the
+        // package, the file and the fix — it is the finding itself, in prose.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-9");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + theirIssue), reader))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("an absent issue and a hidden one are refused in the same words")
+    void theAiExplanationDoesNotNameTheId() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-9");
+        String reader = assignedReader(mine);
+
+        String hidden = mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + theirIssue), reader))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        String absent = mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + (theirIssue + 1000)), reader))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(json.readTree(absent).path("detail").asText())
+                .isEqualTo(json.readTree(hidden).path("detail").asText());
+    }
+
+    @Test
+    @DisplayName("every route named by a scan or a repository refuses a hidden id and an absent one in the same words")
+    void absentAndHiddenReadAlike() throws Exception {
+        // Nine routes refused an absent row in their own words — "Scan not found.", "Repository
+        // not found." — and a hidden one in the guard's, "Target not found.". Ids are sequential,
+        // so the wording alone enumerated what a restricted reader was never given.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirScan = scan(theirs);
+        long absentScan = theirScan + 1000;
+        long absentRepository = theirs + 1000;
+        long myScan = scan(mine);
+        String reader = assignedReader(mine);
+
+        Map<String, String[]> routes = new java.util.LinkedHashMap<>();
+        routes.put("scan detail", new String[] {"/api/v1/scans/%d"});
+        routes.put("scan SBOM", new String[] {"/api/v1/scans/%d/sbom"});
+        routes.put("CSAF", new String[] {"/api/v1/csaf/scans/%d/csaf.json"});
+        routes.put("OpenVEX", new String[] {"/api/v1/vex/scans/%d/openvex.json"});
+        routes.put("CycloneDX", new String[] {"/api/v1/cyclonedx/scans/%d/cyclonedx-vex.json"});
+        routes.put("attestation", new String[] {"/api/v1/attestations/scans/%d"});
+        routes.put("SBOM diff", new String[] {"/api/v1/sbom/diff?fromScanId=" + myScan + "&toScanId=%d"});
+        routes.put("OWASP review", new String[] {"/api/v1/repositories/%d/owasp-review", "repository"});
+        routes.put("history", new String[] {"/api/v1/history/repositories/%d", "repository"});
+        routes.put("history CSV", new String[] {"/api/v1/history/repositories/%d/export.csv", "repository"});
+
+        for (var route : routes.entrySet()) {
+            boolean byRepository = route.getValue().length > 1;
+            String template = route.getValue()[0];
+            String hidden = refusal(template.formatted(byRepository ? theirs : theirScan), reader);
+            String absent = refusal(template.formatted(byRepository ? absentRepository : absentScan), reader);
+            assertThat(absent).as(route.getKey()).isEqualTo(hidden);
+        }
+    }
+
+    private String refusal(String route, String token) throws Exception {
+        String body = mvc.perform(authenticated(get(route), token))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(body).path("detail").asText();
+    }
+
+    @Test
+    @DisplayName("a CVE found only in someone else's target is explained as if it were found nowhere")
+    void theCveExplanationIsScoped() throws Exception {
+        // **The lookup by CVE is a search across every target**, and it took the first match from
+        // anywhere: the neighbour's package, version and fix, in prose. Asserting that the
+        // package name is absent is not enough — the answer also has to be the one a CVE present
+        // nowhere gets, or its shape alone says the CVE exists somewhere in the estate.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        IssueEntity theirIssue = issues.findById(issue(theirs, "CVE-2026-9")).orElseThrow();
+        theirIssue.setPackageName("neighbour-private-lib");
+        theirIssue.setPackageVersion("4.2.0");
+        // The saved copy, carrying the revision the save gave it: deleting the stale one is refused (V89).
+        theirIssue = issues.save(theirIssue);
+        String reader = assignedReader(mine);
+        String route = "/api/v1/ai-advisor/explain/cve/CVE-2026-9";
+
+        String whileTheirsExists = mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(whileTheirsExists).doesNotContain("neighbour-private-lib").doesNotContain("4.2.0");
+
+        issues.delete(theirIssue);
+        String whenNothingExists = mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(whileTheirsExists)).isEqualTo(json.readTree(whenNothingExists));
+
+        // And the filter is a narrowing, not a switch: the reader's own issue is still explained.
+        IssueEntity own = issues.findById(issue(mine, "CVE-2026-9")).orElseThrow();
+        own.setPackageName("my-own-lib");
+        issues.save(own);
+        mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("my-own-lib")));
+    }
+
+    @Test
+    @DisplayName("no aggregate answers with the estate: eight routes, one allowance")
+    void everyAggregateIsScoped() throws Exception {
+        // **The remainder of the authorization sweep, asserted in one place.** Each of these
+        // summarises the whole deployment by design, which is exactly why each had to be told
+        // whose deployment to summarise. A guard per route could not close them: the allowance
+        // has to reach the query that builds the document.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-2026-1");
+        issue(theirs, "CVE-2026-2");
+        finding(theirs, "spring-beans", "CVE-2026-2");
+        String reader = assignedReader(mine);
+
+        // The three exports name the CVE they are about, so the neighbour's must be absent.
+        for (String route : List.of(
+                "/api/v1/csaf/aggregate.json",
+                "/api/v1/cyclonedx/aggregate.json",
+                "/api/v1/vex/aggregate.json")) {
+            String body = mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            org.assertj.core.api.Assertions.assertThat(body)
+                    .as("%s must not carry the neighbour's identifier", route)
+                    .contains("CVE-2026-1")
+                    .doesNotContain("CVE-2026-2");
+        }
+
+        // The EPSS ranking and the portfolio scorecard count what they can see.
+        mvc.perform(authenticated(get("/api/v1/epss/priorities"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVulnerabilities").value(1));
+
+        // The attack surface is a map of exposed paths; an empty one here is the right answer
+        // because the reader's repository has no discovered endpoint, and the neighbour's
+        // absence is the assertion.
+        mvc.perform(authenticated(get("/api/v1/attack-surface"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEndpoints").value(0));
+
+        mvc.perform(authenticated(get("/api/v1/quality/overview"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openCount").value(0));
+    }
+
+    @Test
+    @DisplayName("the portfolio scorecard counts only what the reader may see, licences included")
+    void thePortfolioIsScoped() throws Exception {
+        // The issues were narrowed in SQL when the aggregates were fixed; the licence inventory
+        // was not, because it takes a target rather than an allowance. Asserted here because a
+        // score built from somebody else's licences is a leak wearing a number.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-2026-1");
+        issue(theirs, "CVE-2026-2");
+        issue(theirs, "CVE-2026-3");
+        String reader = assignedReader(mine);
+
+        // A completed scan on the neighbour's repository and none on the reader's: what is observed
+        // goes through the same target filter the licence entries do, and is the half of it a
+        // fixture without SBOM payloads can actually observe — and the weakest target named must
+        // never be one the reader was not given.
+        scan(theirs);
+
+        mvc.perform(authenticated(get("/api/v1/scorecards/global"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openHighCount").value(1))
+                .andExpect(jsonPath("$.totalTargets").value(1))
+                .andExpect(jsonPath("$.observedTargets").value(0))
+                .andExpect(jsonPath("$.weakestTarget").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.riskPoints").value(4.0));
+
+        mvc.perform(authenticated(get("/api/v1/scorecards/global"), asAdmin()))
+                .andExpect(jsonPath("$.openHighCount").value(3))
+                .andExpect(jsonPath("$.observedTargets").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.weakestTarget.targetId").value(theirs));
+    }
+
+    @Test
+    @DisplayName("an attack path is not shown for a target the reader was not given")
+    void theAttackPathIsScoped() throws Exception {
+        // **The twenty-first hole, and it arrived hours after the twenty were closed.** An attack
+        // path is "Ingress → API endpoint → Vulnerability → Secret/DB" with an exploitable flag on
+        // each hop — a route map for compromising a target. Both of its routes carried
+        // `@RequiresAccount` and resolved no allowance, which is the same shape as the scorecard
+        // and the API inventory before them.
+        //
+        // This case exists as much for the next feature as for this one: the seventh audit
+        // recommended a test that fails when a new controller serving target-scoped data resolves
+        // no `Visibility`, and the reason was that nothing stopped the twenty-first.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/attack-paths/repositories/" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        // The overview names every repository it can reach, so it is the same leak in list form.
+        mvc.perform(authenticated(get("/api/v1/attack-paths/overview"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        mvc.perform(authenticated(get("/api/v1/attack-paths/overview"), asAdmin()))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("the licence inventory shows a restricted reader only their own targets")
+    void theLicenceInventoryIsScoped() throws Exception {
+        // **The twenty-second, and a correction to the seventh audit, which claimed the licence
+        // service sat behind a security-lead guard.** Only `PUT /policy` does; the reader routes
+        // carried `@RequiresAccount` alone, so any account could pull the estate's component
+        // inventory — names, versions, targets — either whole or by naming any repo_id.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        licenseFinding(theirs, "gpl-lib");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isEmpty());
+
+        // Naming the neighbour outright must read as absence, not as data.
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/summary?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory?repo_id=" + theirs), asAdmin()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("the licence summary and conflicts refuse a restricted reader the estate's, and answer their own target")
+    void theLicenceAggregatesAreScoped() throws Exception {
+        // A summary is counts and a conflict names its target without an id: neither can be narrowed
+        // row by row, so a restricted reader asking for the estate's is refused rather than handed it.
+        // The refusal sat in the controller until it moved into LicenseGovernanceService.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        licenseFinding(mine, "my-gpl-lib");
+        licenseFinding(theirs, "gpl-lib");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary"), reader)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts"), reader)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary?repo_id=" + mine), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDependencies").value(1));
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts?repo_id=" + mine), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'my-gpl-lib')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isEmpty());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDependencies").value(2));
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("an issue the reader may not see has no visible tickets")
+    void theTicketListIsScoped() throws Exception {
+        // The twenty-third: ticket keys, URLs and statuses of somebody else's backlog, listed by
+        // guessing an issue id.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-77");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/issues/" + theirIssue + "/tickets"), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/" + theirIssue + "/tickets"), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("provider", "jira", "ticketKey", "SEC-1",
+                                "ticketUrl", "https://jira.example.invalid/SEC-1"))))
+                .andExpect(status().isNotFound());
+    }
+
+    private void restrict() {
+        settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+    }
+
+    /** A reader with one repository assigned, through the administration route it really uses. */
+    private String assignedReader(long repositoryId) throws Exception {
+        String reader = asReader();
+        long readerId = mvc.perform(authenticated(get("/api/v1/users"), asAdmin()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString()
+                .transform(body -> readerIdFrom(body));
+
+        mvc.perform(authenticated(put("/api/v1/users/" + readerId + "/targets"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(List.of(Map.of("kind", "repository", "id", repositoryId)))))
+                .andExpect(status().isOk());
+        return reader;
+    }
+
+    private long readerIdFrom(String body) {
+        try {
+            for (var node : json.readTree(body).path("users")) {
+                if (node.path("username").asText("").startsWith("reader-")) {
+                    return node.path("id").asLong();
+                }
+            }
+        } catch (Exception impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        throw new IllegalStateException("no reader account in the listing");
+    }
+
+    private long repository(String url) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl(url);
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
+    /** One licence finding on a completed scan, which is what the inventory is built from. */
+    private void licenseFinding(long repoId, String packageName) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        long scanId = scans.save(scan).getId();
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scanId);
+        finding.setType("license");
+        finding.setIdentifier("GPL-3.0");
+        finding.setSeverity(Severity.HIGH.wireName());
+        finding.setPackageName(packageName);
+        finding.setPackageVersion("1.0.0");
+        finding.setIsDirectDependency(true);
+        finding.setSource("trivy-license");
+        finding.setCreatedAt(Instant.now());
+        findings.save(finding);
+    }
+
+    /** A completed scan of one repository, with nothing in it. */
+    private long scan(long repoId) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        return scans.save(scan).getId();
+    }
+
+    /** A completed scan of one repository, carrying one vulnerable package. */
+    private void finding(long repoId, String packageName, String identifier) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        long scanId = scans.save(scan).getId();
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scanId);
+        finding.setType(FindingType.VULNERABILITY.wireName());
+        finding.setIdentifier(identifier);
+        finding.setSeverity(Severity.HIGH.wireName());
+        finding.setPackageName(packageName);
+        finding.setPackageVersion("1.0.0");
+        finding.setIsDirectDependency(true);
+        finding.setSource("grype");
+        finding.setCreatedAt(Instant.now());
+        findings.save(finding);
+    }
+
+    private long issue(long repoId, String identifier) {
+        IssueEntity issue = new IssueEntity();
+        issue.setRepoId(repoId);
+        issue.setFingerprint(identifier + "-" + repoId);
+        issue.setType(FindingType.VULNERABILITY.wireName());
+        issue.setIdentifier(identifier);
+        issue.setSeverity(Severity.HIGH.wireName());
+        issue.setState(IssueState.OPEN.wireName());
+        issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        return issues.save(issue).getId();
+    }
+}

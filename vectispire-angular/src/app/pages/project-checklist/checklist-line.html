@@ -1,0 +1,318 @@
+@let item = line();
+<div
+    class="border rounded-md p-3"
+    [style.border-color]="
+        refused() || conflict() ? 'var(--p-red-500)' : awaiting() ? 'var(--p-orange-400)' : 'var(--surface-border)'
+    "
+    [class.border-2]="awaiting() || !!refused() || !!conflict()"
+    [attr.data-testid]="'line-' + item.position"
+>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <div class="text-sm text-muted-color">
+                {{ 'project_checklist.line_position' | translate: { position: item.position } }}
+            </div>
+            <div class="font-medium" data-testid="control">{{ item.control }}</div>
+            @if (item.kpi) {
+                <div class="text-sm mt-1">
+                    <span class="font-medium">{{ 'project_checklist.label_kpi' | translate }}</span>
+                    {{ item.kpi }}
+                </div>
+            }
+            @if (item.contact) {
+                <div class="text-sm mt-1">
+                    <span class="font-medium">{{ 'project_checklist.label_contact' | translate }}</span>
+                    {{ item.contact }}
+                </div>
+            }
+            @if (item.evidenceKind !== 'none') {
+                <div class="text-sm text-muted-color mt-1">
+                    {{ evidenceKindText() }}
+                    @if (item.evidenceValidityMonths) {
+                        ·
+                        {{ 'project_checklist.validity' | translate: { months: item.evidenceValidityMonths } }}
+                    }
+                </div>
+            }
+        </div>
+        <div class="flex flex-wrap gap-1 justify-end" data-testid="problems">
+            @for (problem of problems(); track problem.problem) {
+                <p-tag
+                    [severity]="problem.problem === 'awaiting_confirmation' ? 'warn' : 'danger'"
+                    [value]="problem.text"
+                />
+            } @empty {
+                <p-tag severity="success" [value]="'project_checklist.ready_tag' | translate" />
+            }
+        </div>
+    </div>
+
+    <!-- What the server refused a submission or a sign-off for, on this line. -->
+    @if (refusedProblems(); as refused) {
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-sm" [attr.data-testid]="'incomplete-' + item.position">
+            <span class="font-medium">{{ 'project_checklist.incomplete_line' | translate }}</span>
+            @for (problem of refused; track problem.problem) {
+                <p-tag severity="danger" [value]="problem.text" />
+            }
+        </div>
+    }
+
+    <!-- What the measurement refused a submission, a sign-off or an answer for, on this line. -->
+    @if (conflictWords(); as conflicted) {
+        <div
+            class="mt-2 flex flex-wrap items-center gap-2 text-sm"
+            [attr.data-testid]="'measured-conflict-' + item.position"
+        >
+            <p-tag severity="danger" [value]="'project_checklist.measured_conflict_tag' | translate" />
+            <span>
+                {{
+                    'project_checklist.measured_conflict_line'
+                        | translate: { answer: conflicted.answer, outcome: conflicted.outcome }
+                }}
+                @if (conflicted.was; as was) {
+                    ·
+                    {{ 'project_checklist.measured_conflict_was' | translate: { outcome: was } }}
+                }
+            </span>
+        </div>
+    }
+
+    <!-- The line's measurement, beside the answer (decision 0032 §6). -->
+    @if (item.rule; as rule) {
+        <app-line-measurement
+            [rule]="rule"
+            [position]="item.position"
+            [measured]="measured()"
+            [lineProblems]="item.problems"
+            [live]="!!page.measurements()?.live"
+            [answerable]="page.editable()"
+            [busy]="page.busy()"
+            (answerAsMeasured)="page.answerAsMeasured(item)"
+        />
+    }
+
+    <!-- The answer as it stands. -->
+    <div class="mt-3 text-sm" data-testid="answer">
+        <span class="font-medium">{{ 'project_checklist.label_answer' | translate }}</span>
+        @if (item.answer; as given) {
+            <strong data-testid="answer-value">{{ answerText() }}</strong>
+            @if (automatic()) {
+                <p-tag
+                    styleClass="ml-2"
+                    severity="info"
+                    icon="pi pi-cog"
+                    [value]="'project_checklist.automatic_tag' | translate"
+                    data-testid="answer-automatic"
+                />
+            }
+            <span class="text-muted-color" data-testid="answer-author">
+                ·
+                {{
+                    'project_checklist.answered_by'
+                        | translate
+                            : {
+                                  who: author(),
+                                  at: (given.answeredAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                              }
+                }}
+                @if (given.carriedBy) {
+                    ·
+                    {{
+                        'project_checklist.carried_by'
+                            | translate
+                                : {
+                                      who: given.carriedBy,
+                                      at: (given.carriedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                  }
+                    }}
+                }
+            </span>
+            @if (given.comment) {
+                <div class="mt-1 whitespace-pre-line" data-testid="answer-comment">
+                    <span class="font-medium">{{ 'project_checklist.label_comment' | translate }}</span>
+                    {{ given.comment }}
+                </div>
+            }
+        } @else {
+            <span class="text-muted-color">{{ 'project_checklist.unanswered_value' | translate }}</span>
+        }
+    </div>
+
+    @if (awaiting()) {
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm" [attr.data-testid]="'awaiting-' + item.position">
+            <p-tag severity="warn" [value]="'project_checklist.awaiting_tag' | translate" />
+            <span>{{ 'project_checklist.awaiting_explain' | translate }}</span>
+            @if (page.editable()) {
+                <p-button
+                    [id]="'confirm-' + item.itemId"
+                    icon="pi pi-check"
+                    size="small"
+                    [label]="'project_checklist.confirm_btn' | translate"
+                    [ariaLabel]="'project_checklist.aria_confirm' | translate: { position: item.position }"
+                    [disabled]="page.busy()"
+                    (onClick)="confirmAnswer()"
+                />
+            }
+        </div>
+    }
+
+    <!-- The proofs: links open elsewhere, files are only ever downloaded. -->
+    <div class="mt-3 text-sm" data-testid="evidence">
+        <span class="font-medium">{{ 'project_checklist.label_evidence' | translate }}</span>
+        @if (item.evidence.length === 0) {
+            <span class="text-muted-color">{{ 'project_checklist.evidence_none' | translate }}</span>
+        }
+        <ul class="list-none p-0 m-0 mt-1 flex flex-col gap-1">
+            @for (proof of item.evidence; track proof.id) {
+                <li
+                    class="flex flex-wrap items-center gap-2"
+                    [class.line-through]="!!proof.withdrawnAt"
+                    [attr.data-testid]="'proof-' + proof.id"
+                >
+                    @if (proof.kind === 'link') {
+                        <i class="pi pi-link text-muted-color" aria-hidden="true"></i>
+                        <a [href]="proof.link" target="_blank" rel="noopener noreferrer">{{ proof.link }}</a>
+                    } @else {
+                        <i class="pi pi-file text-muted-color" aria-hidden="true"></i>
+                        <span>{{ proof.fileName }}</span>
+                        <p-button
+                            icon="pi pi-download"
+                            size="small"
+                            [text]="true"
+                            [label]="'common.download' | translate"
+                            [ariaLabel]="'project_checklist.aria_download' | translate: { name: proof.fileName ?? '' }"
+                            (onClick)="download(proof)"
+                        />
+                    }
+                    <span class="text-muted-color">
+                        {{
+                            'project_checklist.evidence_performed'
+                                | translate
+                                    : {
+                                          day: (proof.performedOn | date: 'dd/MM/yyyy') ?? proof.performedOn
+                                      }
+                        }}
+                        @if (proof.validUntil) {
+                            ·
+                            {{
+                                'project_checklist.evidence_valid_until'
+                                    | translate
+                                        : {
+                                              day: (proof.validUntil | date: 'dd/MM/yyyy') ?? proof.validUntil
+                                          }
+                            }}
+                        }
+                        ·
+                        {{
+                            'project_checklist.evidence_added'
+                                | translate
+                                    : {
+                                          who: proof.addedBy,
+                                          at: (proof.addedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    </span>
+                    @if (proof.carriedFromId) {
+                        <p-tag severity="secondary" [value]="'project_checklist.evidence_carried' | translate" />
+                    }
+                    @if (proof.withdrawnAt) {
+                        <span class="text-muted-color" data-testid="withdrawn">
+                            {{
+                                'project_checklist.evidence_withdrawn'
+                                    | translate
+                                        : {
+                                              who: proof.withdrawnBy ?? '—',
+                                              at: (proof.withdrawnAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                          }
+                            }}
+                        </span>
+                    } @else {
+                        @if (!proof.inDate) {
+                            <p-tag severity="danger" [value]="'project_checklist.evidence_out_of_date' | translate" />
+                        }
+                        @if (page.editable()) {
+                            <p-button
+                                icon="pi pi-times"
+                                size="small"
+                                severity="danger"
+                                [text]="true"
+                                [label]="'project_checklist.withdraw_btn' | translate"
+                                [ariaLabel]="
+                                    'project_checklist.aria_withdraw'
+                                        | translate
+                                            : {
+                                                  name: proof.fileName ?? proof.link ?? ''
+                                              }
+                                "
+                                [disabled]="page.busy()"
+                                (onClick)="withdraw(proof)"
+                            />
+                        }
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+
+    @if (lineRefusal(); as refused) {
+        <div class="mt-3">
+            <app-checklist-refusal [refusal]="refused" />
+        </div>
+    }
+
+    <!-- The line's acts, for those who write, on the newest draft. -->
+    <div class="mt-3 flex flex-wrap gap-2">
+        @if (page.editable()) {
+            <p-button
+                [id]="'answer-' + item.itemId"
+                icon="pi pi-pencil"
+                size="small"
+                [outlined]="true"
+                [label]="
+                    item.answer
+                        ? ('project_checklist.change_answer_btn' | translate)
+                        : ('project_checklist.answer_btn' | translate)
+                "
+                [ariaLabel]="'project_checklist.aria_answer' | translate: { position: item.position }"
+                (onClick)="page.startAnswer(item)"
+            />
+            <p-button
+                [id]="'add-evidence-' + item.itemId"
+                icon="pi pi-paperclip"
+                size="small"
+                [outlined]="true"
+                [label]="'project_checklist.add_evidence_btn' | translate"
+                [ariaLabel]="'project_checklist.aria_add_evidence' | translate: { position: item.position }"
+                (onClick)="startEvidence()"
+            />
+        }
+        <p-button
+            [id]="'history-' + item.itemId"
+            icon="pi pi-history"
+            size="small"
+            [text]="true"
+            [label]="
+                historyOpen()
+                    ? ('project_checklist.hide_history_btn' | translate)
+                    : ('project_checklist.history_btn' | translate)
+            "
+            [ariaLabel]="'project_checklist.aria_history' | translate: { position: item.position }"
+            (onClick)="toggleHistory()"
+        />
+    </div>
+
+    @if (answeringHere()) {
+        <app-line-answer-form [line]="item" />
+    }
+
+    @if (provingHere()) {
+        <app-line-proof-form [line]="item" />
+    }
+
+    <!-- The history: every answer and proof, never edited, oldest first. -->
+    @if (historyOpen()) {
+        <div class="mt-3 text-sm" [attr.data-testid]="'history-' + item.position">
+            <app-line-history [history]="history()" />
+        </div>
+    }
+</div>

@@ -1,0 +1,285 @@
+import { AssetTier } from '@/app/core/api.models';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { DialogModule } from '@openng/optimus-ui/dialog';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { DataViewModule } from '@openng/optimus-ui/dataview';
+import { messageOf } from '../../core/api-error';
+import { LatestRequest } from '@/app/core/latest-request';
+import { PAGE_SIZE, pageHolding } from '@/app/shared/list-paging';
+import { ScansApi } from '../../core/api/scans.api';
+import { TargetsApi } from '../../core/api/targets.api';
+import type { MonitoredContainer } from '../../core/api.models';
+import { SessionStore } from '../../core/session.store';
+import { LastScanTag } from '../../shared/last-scan';
+import { SettingsApi } from '../../core/api/settings.api';
+import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
+
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
+
+@Component({
+    selector: 'app-containers',
+    imports: [
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        DataViewModule,
+        LastScanTag,
+        ScheduleFields,
+        TranslatePipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './containers.html'
+})
+export class Containers {
+    private readonly scansApi = inject(ScansApi);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly settingsApi = inject(SettingsApi);
+    private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
+
+    readonly containers = signal<MonitoredContainer[]>([]);
+    readonly loading = signal(true);
+    readonly saving = signal(false);
+    readonly error = signal<string | null>(null);
+    /** La ligne dont le scan est en cours de mise en file. */
+    readonly busy = signal<number | null>(null);
+    readonly notice = signal<string | null>(null);
+    readonly formError = signal<string | null>(null);
+    readonly formVisible = signal(false);
+    readonly deleteVisible = signal(false);
+    readonly pendingDelete = signal<MonitoredContainer | null>(null);
+    readonly isAdmin = this.session.isAdmin;
+    /** The installation's default interval, in minutes, for the dialog to name; null until known. */
+    readonly defaultScanMinutes = signal<number | null>(null);
+
+    form = {
+        registry: '',
+        imageName: '',
+        tag: 'latest',
+        requiredAgentLabel: '',
+        scanIntervalMinutes: null as number | null,
+        scanCron: '',
+        scanManualOnly: false,
+        tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
+    };
+
+    /**
+     * Each image with what its card shows worked out once — per list or language, not per binding on
+     * every pass. The list says what each image's schedule is, because a target nobody rescans looks
+     * monitored until somebody reads the date of its last scan; `t` reads the bundle's signal, so a
+     * switch of language recomputes the words.
+     */
+    readonly rows = computed(() =>
+        this.containers().map((container) => ({
+            ...container,
+            shortReference: shorten(container.reference),
+            shortTag: shorten(container.tag),
+            scheduleText: scheduleLabel(container, this.i18n)
+        }))
+    );
+
+    /** The row being edited, or null when the dialog is adding one. */
+    readonly editing = signal<MonitoredContainer | null>(null);
+
+    /**
+     * **A scan that has been launched must be seen to progress.** This screen announced "queued"
+     * and then stopped moving: the button looked to have no effect, when the work was waiting for a
+     * worker. The timer runs only while a scan in this list is unsettled, and stops by itself when
+     * the last one has finished — an idle estate costs nothing.
+     */
+    private readonly scanInFlight = computed(() => anyScanRunning(this.containers().map((row) => row.lastScan)));
+
+    /**
+     * The list's request, latest wins: a poll tick and the reload after a save can be in flight
+     * together, and the older answer landing last put rows back that the newer one had changed.
+     */
+    private readonly listRequest = new LatestRequest();
+    /** The list's own failure, told apart from an action's: a poll that recovers clears only its own. */
+    private listError: string | null = null;
+
+    /** Client-side pages, and the one the reader is on, kept across the refreshes (see repositories). */
+    readonly pageSize = PAGE_SIZE;
+    readonly first = signal(0);
+
+    constructor() {
+        // In the background: no overlay. Raised every five seconds while a scan ran, it flashed
+        // over the whole list and swallowed the clicks of whoever was reading it.
+        pollWhile(this.scanInFlight, () => this.reload(true));
+        this.reload();
+        // Only the dialog reads it, and only an administrator opens the dialog. A failure leaves the
+        // dialog naming the setting instead of a number.
+        if (this.isAdmin()) {
+            this.settingsApi
+                .defaultScanIntervalMinutes()
+                .subscribe({ next: (minutes) => this.defaultScanMinutes.set(minutes) });
+        }
+    }
+
+    /**
+     * Queues a scan. **It does not run it**: a worker will claim it.
+     *
+     * The screen says so, because the wait that follows is not an ordinary button's — without
+     * that sentence, the absence of an immediate change reads as a failure. For an image it is
+     * longer still: an agent with no cached layer pulls the whole image before it starts.
+     */
+    triggerScan(container: MonitoredContainer): void {
+        this.busy.set(container.id);
+        this.notice.set(null);
+        this.error.set(null);
+        this.scansApi.triggerContainerScan(container.id).subscribe({
+            next: () => {
+                this.busy.set(null);
+                this.notice.set(this.i18n.t('containers.scan_queued', { reference: container.reference }));
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                this.error.set(messageOf(response, this.i18n.t('containers.scan_queue_failed')));
+            }
+        });
+    }
+
+    reload(background = false): void {
+        if (!background) this.loading.set(true);
+        this.listRequest.run(this.targetsApi.containers(), {
+            next: (containers) => {
+                this.containers.set(containers);
+                this.first.set(pageHolding(this.first(), containers.length));
+                // A refresh nobody asked for leaves an action's error in place; it clears its own.
+                if (!background || this.error() === this.listError) this.error.set(null);
+                this.listError = null;
+                this.loading.set(false);
+            },
+            error: (response: unknown) => {
+                this.listError = messageOf(response, this.i18n.t('containers.load_failed'));
+                this.error.set(this.listError);
+                this.loading.set(false);
+            }
+        });
+    }
+
+    openForm(container?: MonitoredContainer): void {
+        this.editing.set(container ?? null);
+        this.form = container
+            ? {
+                  registry: container.registry ?? '',
+                  imageName: container.imageName,
+                  tag: container.tag,
+                  requiredAgentLabel: container.requiredAgentLabel ?? '',
+                  scanIntervalMinutes: container.scanIntervalMinutes,
+                  scanCron: container.scanCron ?? '',
+                  scanManualOnly: container.scanManualOnly ?? false,
+                  tier: container.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
+              }
+            : {
+                  registry: '',
+                  imageName: '',
+                  tag: 'latest',
+                  requiredAgentLabel: '',
+                  scanIntervalMinutes: null,
+                  scanCron: '',
+                  scanManualOnly: false,
+                  tier: 'TIER_2_BUSINESS_OPERATIONAL'
+              };
+        this.formError.set(null);
+        this.formVisible.set(true);
+    }
+
+    submit(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
+        const editing = this.editing();
+        // **Empty string and not `undefined` when editing.** On the create path an absent field
+        // means "no value"; on the update path the server reads absent as "leave alone", so a
+        // field the operator cleared has to be sent as empty or the clearing is silently
+        // dropped — the form would show it gone and the next scan would disagree.
+        const blank = editing ? '' : undefined;
+        const body = {
+            registry: this.form.registry.trim() || blank,
+            image_name: this.form.imageName.trim(),
+            tag: this.form.tag.trim() || 'latest',
+            required_agent_label: this.form.requiredAgentLabel.trim() || blank,
+            tier: this.form.tier as AssetTier,
+            // **Zero, not `undefined`, when the field was cleared on the update path.** The server
+            // reads absent as "leave alone", so `undefined` would keep the old interval while the
+            // form showed nothing — the image would carry on being pulled at the old pace. Zero
+            // returns it to the installation's default; switching rescans off is `scanManualOnly`.
+            // `scanCron` needs no such trick: the empty string is distinguishable from absent, so it
+            // clears the expression on its own.
+            scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
+            // Always sent, empty included: the empty string is the only value the update path
+            // distinguishes from "leave alone", so it is the only way to remove an expression.
+            scanCron: this.form.scanCron.trim(),
+            // Always sent: the dialog shows the switch, so what it shows is what is saved.
+            scanManualOnly: this.form.scanManualOnly
+        };
+
+        this.saving.set(true);
+        const call = editing
+            ? this.targetsApi.updateContainer(editing.id, body)
+            : this.targetsApi.createContainer(body);
+        call.subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.formVisible.set(false);
+                this.editing.set(null);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                // The server's message is the one that knows *why* — upper case refused,
+                // malformed digest, a cron field it could not read. Replacing it with a generic
+                // "error" would send somebody back to guessing.
+                this.formError.set(
+                    messageOf(response, this.i18n.t(editing ? 'containers.save_failed' : 'containers.add_failed'))
+                );
+            }
+        });
+    }
+
+    askDelete(container: MonitoredContainer): void {
+        this.pendingDelete.set(container);
+        this.deleteVisible.set(true);
+    }
+
+    confirmDelete(): void {
+        const container = this.pendingDelete();
+        if (!container) return;
+        this.saving.set(true);
+        this.targetsApi.deleteContainer(container.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.deleteVisible.set(false);
+                this.reload();
+            },
+            error: () => {
+                this.saving.set(false);
+                this.deleteVisible.set(false);
+                this.error.set(this.i18n.t('containers.delete_failed'));
+            }
+        });
+    }
+}
+
+/**
+ * Shortens a digest for display, the whole value staying in the tooltip.
+ *
+ * Without this the 64 hexadecimal characters widen their column until they crush every
+ * other one — the table becomes unreadable for *all* containers as soon as a single one is
+ * pinned by digest. It only shows on screen.
+ */
+function shorten(value: string): string {
+    const match = /sha256:([a-f0-9]{64})/.exec(value);
+    return match ? value.replace(match[1], match[1].slice(0, 12) + '…') : value;
+}

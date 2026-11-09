@@ -1,0 +1,823 @@
+package com.asmolabs.vectispire.common.domain.settings;
+
+import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
+import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
+import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
+import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * The settings the application exposes, and <b>only those a service actually reads</b>.
+ *
+ * <p>That is the rule governing this file. A form that accepts a value and does nothing with
+ * it is worse than a form that does not offer it: the operator believes they have configured
+ * something, the behaviour does not change, and they conclude the tool is broken — or worse,
+ * never notice.
+ *
+ * <p><b>The rule is checked when the reading service is wired, not here.</b> During the port
+ * nothing reads anything yet, so applying it literally would leave the catalog empty. Every
+ * key below has its rule ported into {@code vectispire-common}; what remains is to confirm, as
+ * each service lands, that it genuinely consults the key it claims to.
+ *
+ * <p>An enum rather than a list of records, for the same reason as {@code PolicyFlag}: the
+ * definition travels with the key, so "this setting is not exposed" stops being an absent
+ * lookup a caller has to remember to handle.
+ */
+public enum Setting {
+
+    ENRICHMENT_ENABLED("enrichment_enabled", SettingType.BOOLEAN, Section.ENRICHMENT,
+            "Apply the EPSS scores and the KEV catalog",
+            "Scans read the copies the control plane synchronises; nothing about a scan leaves the machine. "
+                    + "Switched off, the \"actively exploited\" counter stays at zero, which then means \"we did "
+                    + "not ask\" and not \"there are none\".",
+            "true"),
+
+    EOL_ENABLED("eol_detection_enabled", SettingType.BOOLEAN, Section.END_OF_LIFE,
+            "Detect platforms past their support window",
+            "A class of risk with no CVE attached: an expired environment will receive no fix for the next "
+                    + "vulnerability, whatever it turns out to be. Switching this off leaves existing findings "
+                    + "open rather than resolving them — \"we stopped looking\" is not \"it is fixed\".",
+            "true"),
+
+    EOL_WARN_DAYS("eol_warn_days", SettingType.INTEGER, Section.END_OF_LIFE,
+            "Warning window (days)",
+            "A cycle whose end falls inside this window is reported at medium severity. Beyond it, nothing: "
+                    + "everything reaches end of life one day, and flagging a version supported for another three "
+                    + "years would teach people to filter this type out.",
+            String.valueOf(LifeCycle.DEFAULT_WARNING_WINDOW.toDays())),
+
+    SAST_ENABLED("sast_enabled", SettingType.BOOLEAN, Section.SOURCE_CODE,
+            "Analyze the code with Semgrep",
+            "Off by default, and that is an operational decision: the first scan of an ordinary repository takes "
+                    + "its backlog from a few dozen vulnerabilities to a few thousand findings. Quality findings "
+                    + "never fail a build and never trigger a notification. Switching this off leaves existing "
+                    + "findings open rather than resolving them.",
+            "false"),
+
+    SCAN_DEFAULT_INTERVAL_DAYS("scan_default_interval_days", SettingType.INTEGER, Section.SCHEDULING,
+            "Default rescan interval (days)",
+            "How often a repository or an image is rescanned when it has neither an interval nor a cron "
+                    + "expression of its own — which is every target added without touching the schedule. A "
+                    + "target's own interval or expression always wins, and a target set to \"manual only\" is "
+                    + "never rescanned. Each target has its own moment in the interval, so an estate is spread "
+                    + "over the week rather than scanned all at once. Zero means no default: a target with no "
+                    + "schedule of its own is then not rescanned, as before 0.11.0.",
+            String.valueOf(Schedules.DEFAULT_INTERVAL.toDays())),
+
+    RETENTION_KEEP_PER_TARGET("retention_keep_per_target", SettingType.INTEGER, Section.RETENTION,
+            "Raw payloads kept per target",
+            "The SBOMs and scanner output of each target's last N scans are kept whatever their age. Zero means "
+                    + "\"no limit on this axis\". Findings, issues and summaries are never purged.",
+            String.valueOf(RetentionPolicy.DEFAULT.keepPerTarget())),
+
+    RETENTION_MAX_AGE_DAYS("retention_max_age_days", SettingType.INTEGER, Section.RETENTION,
+            "Maximum age of raw payloads (days)",
+            "The two rules combine: a payload is purged only if it is both outside the window above and "
+                    + "older than this age. Both at zero disables purging.",
+            String.valueOf(RetentionPolicy.DEFAULT.maxAge().toDays())),
+
+    EVIDENCE_RETENTION_DAYS("evidence_retention_days", SettingType.INTEGER, Section.RETENTION,
+            "Evidence kept for (days)",
+            "Gate verdicts — every pass and every refusal the barrier returned — the monthly compliance captures "
+                    + "and the weekly OWASP record. This is the only record that a "
+                    + "control executed, and unlike a payload it cannot be regenerated. A week of the OWASP record "
+                    + "is kept while any of it is inside the window. Set it to the period an "
+                    + "assessor asks you to cover, plus the delay before they read it; the default is twelve months "
+                    + "and five weeks. Zero keeps them for ever. Kept deliberately apart from the payload window "
+                    + "above: bounding disk growth and surviving an audit are different questions. Set by a "
+                    + "platform governor only: the roles whose controls this record proves do not decide how "
+                    + "long it survives.",
+            String.valueOf(EvidenceRetention.DEFAULT.toDays())),
+
+    WEBHOOK_URL("notification_webhook_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Webhook URL",
+            "A generic JSON POST, which reaches Slack, Teams, Discord, Mattermost or a script. Empty disables "
+                    + "notifications. The URL is validated on every send: a private destination is refused unless "
+                    + "explicitly allowed.",
+            "", Sensitivity.SECRET),
+
+    TEAMS_ENABLED("notification_teams_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Enable Microsoft Teams notifications",
+            "Master toggle to enable or disable Microsoft Teams webhook notifications across the application.",
+            "true"),
+
+    TEAMS_WEBHOOK_URL("notification_teams_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Microsoft Teams webhook URL",
+            "The URL of a Teams workflow — \"when a Teams webhook request is received\" in Power Automate. "
+                    + "The old Office 365 connector was retired, and a workflow is what replaces it. Vectispire posts "
+                    + "an Adaptive Card, so nothing has to be mapped in the designer. Empty disables it; it can run "
+                    + "beside the generic webhook and the e-mail rather than instead of them.",
+            "", Sensitivity.SECRET),
+
+    SLACK_WEBHOOK_URL("notification_slack_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Slack webhook URL",
+            "Incoming webhook URL for posting interactive Slack Block Kit cards. Empty disables it.",
+            "", Sensitivity.SECRET),
+
+    DISCORD_WEBHOOK_URL("notification_discord_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Discord webhook URL",
+            "Webhook URL for posting Discord Rich Embed cards. Empty disables it.",
+            "", Sensitivity.SECRET),
+
+    WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Webhook signing secret",
+            "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
+                    + "Vectispire sent from one sent by whoever learned the URL. An `X-Vectispire-Signature` header "
+                    + "carries HMAC-SHA256 over the timestamp and the exact body. Worth it for a script, a bus "
+                    + "or your own gateway, which can check it; Slack, Teams and Discord accept whatever "
+                    + "arrives and will ignore it. Empty means unsigned, which is what every existing "
+                    + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route — "
+                    + "only by `PUT /api/v1/settings/webhook-secret`.",
+            "", Sensitivity.ENCRYPTED),
+
+    MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
+            "E-mail recipients",
+            "Comma-separated. Empty disables e-mail. The server itself is configured with `VECTISPIRE_MAIL_HOST` and "
+                    + "its companions: a mail relay is deployment infrastructure, not something to retype on a "
+                    + "settings screen, and its password has no business in a table this application can export.",
+            ""),
+
+    DIGEST_ENABLED("notification_digest_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Send a weekly posture report",
+            "Every other notification fires when something appears, which is right for an alert and wrong "
+                    + "for a report: on a quiet week nobody is told anything — and a quiet week is also the week a "
+                    + "target has silently not been scanned for twenty days. This says how much there is, which way "
+                    + "it is moving, and what was never examined, once a week, to the global webhook and the "
+                    + "e-mail recipients. Off by default: switching it on for an existing deployment would be a "
+                    + "silent change to what its channels receive.",
+            "false"),
+
+    /**
+     * Whether the weekly reminder of the checklist lines still to fill in is sent (decision 0044). Off by
+     * default, like the posture report: an upgraded deployment does not start writing to its people. Filed
+     * with the notifications rather than the checklists' rules: it decides who is told, not who may answer,
+     * so it is the security lead's like the posture report, not the platform governor's.
+     */
+    CHECKLIST_REMINDERS_ENABLED("checklist_reminders_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Remind checklist contacts weekly",
+            "Once a week, every account a project linked to a profile of its checklist's contact column (PO, BA, "
+                    + "Arch…) receives by e-mail the lines of that profile still unanswered, or waiting for "
+                    + "confirmation, in the project's draft. A profile with such lines and nobody to remind — no "
+                    + "account linked, or one deactivated, without an address or no longer able to fill the "
+                    + "checklist in — is listed to the CISOs instead. Needs the mail relay (`VECTISPIRE_MAIL_HOST`); "
+                    + "the recipients are the accounts' own addresses, not the e-mail recipients above. Off by default.",
+            "false"),
+
+    NOTIFICATION_MIN_SEVERITY("notification_min_severity", SettingType.SEVERITY, Section.NOTIFICATIONS,
+            "Minimum severity notified",
+            "Nothing new above this threshold, no message. One notification per scan teaches people to filter "
+                    + "the channel.",
+            NotificationSelection.DEFAULT_MIN_SEVERITY.wireName()),
+
+    NOTIFY_ON_KEV("notification_always_on_kev", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Notify any actively exploited vulnerability",
+            "Whatever its severity: the threshold alone would discard a \"medium\" being exploited today.",
+            "true"),
+
+    NOTIFICATION_ALLOW_PRIVATE_URL("notification_allow_private_url", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Allow a private webhook URL",
+            "For an internal bus. Off by default, and set by an administrator only: a webhook URL resolving to "
+                    + "a private address is far more often a server-side request forgery attempt than an intranet "
+                    + "endpoint, and the channels are configured and tested by a security lead. The instance "
+                    + "metadata endpoint stays refused in every case.",
+            "false"),
+
+    /**
+     * The SIEM export's own switch for a collector on the internal network.
+     *
+     * <p>It borrowed {@link #NOTIFICATION_ALLOW_PRIVATE_URL}, which a security lead may set, for a
+     * channel a security lead configures and tests: between the two, a role that is not an
+     * administrator could point the export at any internal host and port and read, from the test
+     * button, whether something answered there. Its own key, administrator-only (see
+     * {@link #administratorOnly()}), and off by default — an installation whose collector is private
+     * has an administrator switch it on after the upgrade, which the release notes say.
+     */
+    SIEM_ALLOW_PRIVATE_DESTINATION("siem_allow_private_destination", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Allow a private SIEM destination",
+            "For a collector on the internal network. Off by default, and set by an administrator only: the SIEM "
+                    + "export is configured by a security lead, and a private destination opens the internal "
+                    + "network to it. Vectispire's own database and Docker daemon and the instance metadata "
+                    + "endpoint stay refused in every case.",
+            "false"),
+
+    LICENSE_BLOCKLIST("license_blocklist", SettingType.TEXT, Section.LICENSES,
+            "Forbidden licenses",
+            "Comma-separated SPDX identifiers, for example \"GPL-3.0-only,AGPL-3.0-only\". Empty, nothing is "
+                    + "reported: which licenses are forbidden is an organizational decision, not a technical one. "
+                    + "Read from the SBOM already produced — no extra tool is needed.",
+            ""),
+
+    TARGET_VISIBILITY("target_visibility", SettingType.TEXT, Section.ACCESS,
+            "What a non-administrator sees",
+            "\"everyone\" means every signed-in account sees every target — the behaviour of a deployment "
+                    + "that has never thought about it, and the value an upgrade keeps so that nothing "
+                    + "blanks overnight. \"assigned\" means an account sees only the targets an administrator "
+                    + "has assigned to it, and an account with no assignment sees nothing. Administrators "
+                    + "always see everything: somebody has to be able to make the assignments. A new "
+                    + "installation is created with \"assigned\" — the safe value is written into the table "
+                    + "when the database is empty, which is the one moment it cannot break anything.",
+            "everyone"),
+
+    TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,
+            "Provider",
+            "\"gitlab\", \"github\", \"jira\", \"servicenow\", or \"none\" to disable. A ticket is opened for "
+                    + "any issue that would fail a build under the gate policy — there is no second threshold, so "
+                    + "that one single place defines \"serious enough to act on\".",
+            TicketProvider.NONE.wireName()),
+
+    TICKET_BASE_URL("ticket_base_url", SettingType.TEXT, Section.TICKETS,
+            "Tracker URL",
+            "An internal destination is accepted here, unlike the webhook: a self-hosted GitLab or Jira commonly "
+                    + "lives on an internal network. The instance metadata endpoint stays refused.",
+            // Not a secret in the webhook's sense, but a map of the internal network that an
+            // unprivileged account has no reason to read.
+            "", Sensitivity.SECRET),
+
+    TICKET_PROJECT("ticket_project", SettingType.TEXT, Section.TICKETS,
+            "Project",
+            "The GitLab path (\"group/project\"), the GitHub repository (\"owner/repository\") or the Jira "
+                    + "project key (\"SEC\"). Set by an administrator only: the tracker token goes wherever "
+                    + "this points, on the tracker's host.",
+            ""),
+
+    TICKET_TOKEN("ticket_token", SettingType.TEXT, Section.TICKETS,
+            "Access token",
+            "Grants write access to the tracker, which is a different class of secret from a webhook URL: it is "
+                    + "therefore encrypted at rest like an SSH key, not stored in the clear alongside the other "
+                    + "settings. Written only by `PUT /api/v1/settings/ticket-token`.",
+            "", Sensitivity.ENCRYPTED),
+
+    TICKET_WEBHOOK_SECRET("ticket_webhook_secret", SettingType.TEXT, Section.TICKETS,
+            "Inbound webhook secret",
+            "Authenticates the tracker calling us, which is the opposite direction from the access token "
+                    + "above. The webhook route is anonymous by necessity — Jira holds no session — and it moves "
+                    + "a triage decision, so without this an anonymous caller who guesses a ticket reference can "
+                    + "close a finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends "
+                    + "`X-Hub-Signature-256` as HMAC-SHA256 over the raw body; Jira and ServiceNow have no "
+                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. While it is "
+                    + "empty the route refuses every call with a 403 telling the tracker the webhook is not "
+                    + "configured: set it, then set the same value in the tracker. Encrypted at rest and written only by "
+                    + "`PUT /api/v1/settings/ticket-webhook-secret`.",
+            "", Sensitivity.ENCRYPTED),
+
+    /**
+     * When the tracker token stops working, for a tracker that does not say: Jira and ServiceNow have no
+     * reliable way to read a token's expiry, GitLab and GitHub report theirs and this date is used only when
+     * they report none. Announced fourteen days ahead, as a forge connection's reported expiry is.
+     */
+    TICKET_TOKEN_EXPIRES_ON("ticket_token_expires_on", SettingType.TEXT, Section.TICKETS,
+            "Token expiry date",
+            "The date the access token stops working, as YYYY-MM-DD, for a tracker that does not report it — Jira "
+                    + "and ServiceNow. GitLab and GitHub report their tokens' expiry, read when the token is saved and "
+                    + "daily after; this date applies to them only when they report none. The settings screen "
+                    + "announces it fourteen days ahead; empty, the expiry is shown as unknown. Set by an "
+                    + "administrator only, like the token it describes.",
+            ""),
+
+    TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
+            "Jira account",
+            "The account address, required by Jira alongside the token for basic authentication. ServiceNow "
+                    + "uses it the same way when it is set, and the token alone otherwise; GitLab and GitHub do not "
+                    + "use it. Set by an administrator only, like the token it travels with.",
+            ""),
+
+    TICKET_ISSUE_TYPE("ticket_issue_type", SettingType.TEXT, Section.TICKETS,
+            "Jira issue type",
+            "The type name in the target Jira project. The other trackers do not use it.",
+            Tickets.DEFAULT_JIRA_ISSUE_TYPE),
+
+    TICKET_LABELS("ticket_labels", SettingType.TEXT, Section.TICKETS,
+            "Labels",
+            "Comma-separated, applied to every ticket opened on GitLab, GitHub or Jira. ServiceNow incidents "
+                    + "carry no labels.",
+            String.join(",", Tickets.DEFAULT_LABELS)),
+
+    TICKET_ALLOW_PRIVATE_URL("ticket_allow_private_url", SettingType.BOOLEAN, Section.TICKETS,
+            "Allow an internal URL",
+            "On by default. Clear it for a deployment that only uses a hosted tracker.",
+            "true"),
+
+    /**
+     * The CA a self-hosted tracker's certificate must chain to, in place of the runtime's trust store.
+     *
+     * <p>A GitLab, Jira Data Center or ServiceNow on an internal network carries a certificate from the
+     * organisation's own CA, which the JVM's store does not hold: every call failed the handshake, no
+     * ticket was ever opened, and the hourly sweep retried in silence. Pinned here, the CA is trusted for
+     * the tracker alone and the public CAs are not — {@code PinnedCa}'s rule, as for a forge connection.
+     * It decides whom the tracker token is presented to, so it is an administrator's
+     * ({@link #directsCredential()}); hidden from other roles like the URL, being a map of the internal
+     * PKI rather than a secret.
+     */
+    TICKET_CA("ticket_ca_pem", SettingType.TEXT, Section.TICKETS,
+            "Tracker CA (PEM)",
+            "For a tracker whose certificate comes from your organisation's own CA: paste that CA's certificate in "
+                    + "PEM form (-----BEGIN CERTIFICATE-----), a root and its intermediates if need be. Used for the "
+                    + "tracker only, and in place of the server's trust store — the public CAs are then not "
+                    + "trusted for it; the tracker's name is still verified. Empty, the server's trust store applies. "
+                    + "Set by an administrator only: it decides whom the tracker token is presented to.",
+            "", Sensitivity.SECRET),
+
+    // **What the switch does today, and only that.** It was labelled "Review the code with a local model",
+    // with a help describing the findings such a review would produce; nothing calls the code review
+    // (`AiReviewService.reviewCode`), so an operator turning it on believed every scan had a second
+    // reader. What it turns on is the report below, and the label says so.
+    AI_REVIEW_ENABLED("ai_review_enabled", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Let a model write the OWASP report",
+            "Today this switch turns on one thing: the OWASP report written by the model configured below, asked "
+                    + "from the OWASP page or, with the next setting, after each repository scan. The model is sent the "
+                    + "repository's open findings — identifiers, components, paths, descriptions — not its source, "
+                    + "though a description can quote a line of it. The report is a document: nothing in it becomes "
+                    + "an issue, and nothing in it reaches a gate. No scan reviews the code with a model: that "
+                    + "review is not wired, and a scan examines exactly the same with this on as with it off.",
+            "false"),
+
+    // **Off by default, and inert while model review is.** A report per completed scan costs minutes of
+    // a GPU each, and nobody reads most of them; an operator who wants the latest report waiting for them
+    // turns this on knowing that.
+    AI_REVIEW_OWASP_AFTER_SCAN("ai_review_owasp_after_scan", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Write the OWASP report after each repository scan",
+            "When a repository's scan completes, Vectispire asks the model for that repository's OWASP report, "
+                    + "as the button on its page does — what is sent is the same: the open findings, never the "
+                    + "source. Only while model review is on; never for a failed scan or a container image. One "
+                    + "report at a time, beside the scans and never holding them up: a repository whose report is "
+                    + "still being written is not asked again, and scans arriving while one waits are folded into "
+                    + "it. A failure is recorded on the report, as for a report asked by hand, and the scan stays "
+                    + "completed.",
+            "false"),
+
+    AI_REVIEW_PROVIDER("ai_review_provider", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Provider",
+            "`ollama` keeps what is sent on a machine you run. `openai` sends it to OpenAI. That is the "
+                    + "whole difference, and it is not a performance one: with `openai`, the open findings of every "
+                    + "repository whose report is written — identifiers, components, file paths and descriptions, of "
+                    + "private repositories too, a description able to quote a committed line — leave your estate in "
+                    + "the body of an HTTPS request to a third party, who applies their own retention and their own "
+                    + "jurisdiction to it; the day the code review is wired, the source of every scanned repository "
+                    + "will, and whatever secrets are still committed in it. Check what your contract with them says "
+                    + "about training and retention before turning this on, and check whether what you scan is yours "
+                    + "to send. Requires an API key, and the acknowledgement below.",
+            AiProvider.OLLAMA.wireName()),
+
+    AI_REVIEW_OLLAMA_URL("ai_review_ollama_url", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Ollama service URL",
+            "This endpoint receives the open findings of every repository whose report is written — "
+                    + "identifiers, components, paths, descriptions — and will receive its source code the day the "
+                    + "code review is wired. The risk is therefore not that it points inward, but outward: a well-formed public URL is exactly what an exfiltration "
+                    + "channel looks like. A public destination is refused unless explicitly acknowledged below.",
+            AiReview.DEFAULT_OLLAMA_URL, Sensitivity.SECRET),
+
+    AI_REVIEW_OPENAI_URL("ai_review_openai_url", SettingType.TEXT, Section.MODEL_REVIEW,
+            "OpenAI-compatible API URL",
+            "The API root, without `/chat/completions` — it is appended. Public and local are both allowed, "
+                    + "and the same rule decides which: this URL goes through the outbound guard exactly like "
+                    + "the Ollama one, so a public destination is refused until the acknowledgement below is on. "
+                    + "Left at OpenAI's own address, what is sent goes to OpenAI. Pointed at vLLM, LM Studio, "
+                    + "llama.cpp or an internal gateway — anything speaking the same wire protocol — it never "
+                    + "leaves, and no acknowledgement is needed.",
+            AiReview.DEFAULT_OPENAI_URL),
+
+    AI_REVIEW_OPENAI_KEY("ai_review_openai_key", SettingType.TEXT, Section.MODEL_REVIEW,
+            "OpenAI API key",
+            "Sent as `Authorization: Bearer`. Stored encrypted, like a tracker token, and never returned by any "
+                    + "route — a screen shows whether one is configured, never the key. A local endpoint that "
+                    + "authenticates nobody can be left without one.",
+            "", Sensitivity.ENCRYPTED),
+
+    AI_REVIEW_MODEL("ai_review_model", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Model",
+            "The name as the provider knows it — an Ollama tag, or a model your OpenAI account may call. It does "
+                    + "not have to exist yet to be saved here; the connection test is what says whether it does.",
+            AiReview.DEFAULT_MODEL),
+
+    AI_REVIEW_TIMEOUT_SECONDS("ai_review_timeout_seconds", SettingType.INTEGER, Section.MODEL_REVIEW,
+            "How long to wait for the model (seconds)",
+            "A local model writing a report takes minutes on ordinary hardware, and the ten seconds that suit a "
+                    + "webhook turn every run into \"request timed out\" — which reads as a broken Ollama rather "
+                    + "than as a limit set here. The right value depends on the machine and the model, which is "
+                    + "why it is a setting and not a constant.",
+            String.valueOf(AiReview.DEFAULT_TIMEOUT_SECONDS)),
+
+    AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Allow a public model endpoint",
+            "Off by default, and it is the most consequential setting on this screen: turning it on allows "
+                    + "the findings of every scanned repository — and, once the code review is wired, its source "
+                    + "code — to be sent to a host outside your estate — "
+                    + "OpenAI's API, or any other public address entered above. Leave it off and both providers "
+                    + "are held to a destination on your own network. It governs the URL, not the provider: a "
+                    + "local OpenAI-compatible endpoint needs nothing acknowledged.",
+            "false"),
+
+    // **Who accepted the risk, and when.** Written by the server when the switch above is turned
+    // on, never by a client: an acknowledgement a caller can assert is not an acknowledgement, and
+    // the question an auditor asks is not "was the box ticked" but "by whom, and on what date".
+    // Cleared when the switch goes back off, so the record always describes the state as it is
+    // rather than a decision somebody has since reversed.
+    AI_REVIEW_RISK_ACKNOWLEDGED_BY("ai_review_risk_acknowledged_by", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Data-leak risk accepted by",
+            "The account that turned on the public endpoint, recorded by the server at that moment. Empty means "
+                    + "nobody has — which is also what it says after somebody turned it back off.",
+            ""),
+
+    AI_REVIEW_RISK_ACKNOWLEDGED_AT("ai_review_risk_acknowledged_at", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Data-leak risk accepted on",
+            "When that acceptance was recorded, in UTC. The audit log holds the same event and is never purged; "
+                    + "this row is what the screen can show without a query.",
+            ""),
+
+    // **The four windows, and the reason each is a setting rather than a constant.** A
+    // remediation policy is written by an organisation, not by a tool: the numbers below are the
+    // shape most published ones have, and every deployment has its own. What they must not be is
+    // absent — an SLA nobody set is an SLA nobody is measured against.
+    //
+    // Zero disables a severity. The help text says so on every one of them, because the other
+    // reading — zero as "due immediately" — turns clearing a field into a backlog entirely in
+    // breach, from a gesture that looked like switching something off.
+    COMPLIANCE_FRESHNESS_DAYS("compliance_freshness_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Compliance: an observation counts as current for",
+            "A target never observed has no known vulnerability, and on a naive dashboard it is green "
+                    + "— the one green that should raise an alarm. Past this number of days a scan stops "
+                    + "counting as a current observation, and a control assessed on incomplete coverage can "
+                    + "no longer be reported compliant: it is \"not assessed\", which is a different sentence "
+                    + "in front of an auditor. Zero disables the ceiling and gives the assessment back its "
+                    + "earlier behaviour.",
+            "30"),
+
+    ISMS_SCOPE_STATEMENT("isms_scope_statement", SettingType.TEXT, Section.RETENTION,
+            "Certified scope",
+            "What the management system's certified scope covers, in the words of the document that defines "
+                    + "it. Copied here so an evidence bundle carries the scope it describes — an archive whose "
+                    + "reader has to be told separately what it was about is half an archive.",
+            ""),
+
+    ISMS_SCOPE_ASSETS("isms_scope_assets", SettingType.INTEGER, Section.RETENTION,
+            "Assets the certified scope covers",
+            "A tool measuring its own coverage always reports full coverage. Vectispire knows the targets "
+                    + "somebody registered in it; an asset inside the certified scope that was never registered "
+                    + "has no row here to be missing from, so an estate made of half the certified assets reports "
+                    + "as entirely scanned. Taken from the scope document, this number is what makes the "
+                    + "difference visible. Zero means nobody has said — which is reported as undeclared, never "
+                    + "as complete.",
+            "0"),
+
+    SLA_CRITICAL_DAYS("sla_critical_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Critical: days to remediate",
+            "Counted from when the issue was first seen, never from the last scan — otherwise a target "
+                    + "scanned nightly would reset every deadline every night and nothing would ever be late. "
+                    + "Zero disables the deadline for this severity. No window blocks a gate: being late is "
+                    + "reported to people, not used to stop a deployment that might carry the fix.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.CRITICAL).orElseThrow().toDays())),
+
+    SLA_HIGH_DAYS("sla_high_days", SettingType.INTEGER, Section.REMEDIATION,
+            "High: days to remediate",
+            "As above: from the first sighting, zero to disable, and it blocks nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.HIGH).orElseThrow().toDays())),
+
+    SLA_MEDIUM_DAYS("sla_medium_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Medium: days to remediate",
+            "As above: from the first sighting, zero to disable, and it blocks nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.MEDIUM).orElseThrow().toDays())),
+
+    SLA_LOW_DAYS("sla_low_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Low: days to remediate",
+            "As above. Negligible and unknown severities carry no window at all and are not settable: neither "
+                    + "describes work anybody schedules, and a deadline on either would fill the report with "
+                    + "lateness that means nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.LOW).orElseThrow().toDays())),
+
+    FOUR_EYES_APPROVAL_REQUIRED("triage_four_eyes_required", SettingType.BOOLEAN, Section.TRIAGE,
+            "Require double validation (Four-Eyes approval) for VEX triage",
+            "When enabled, marking an issue as NOT_AFFECTED, WILL_NOT_FIX or FIXED by a user without CISO/Admin approval privileges creates a PENDING_APPROVAL request. When disabled, any authorized user can directly settle triage decisions.",
+            "true"),
+
+    /**
+     * How long, under four-eyes, an administrator's gesture on an account keeps that account from approving
+     * the administrator's requests (#126, option 1). In the triage section, so the platform governor's to
+     * change: a window an administrator could shorten to nothing would be a check that administrator lifts.
+     */
+    FOUR_EYES_INDEPENDENCE_DAYS("four_eyes_independence_days", SettingType.INTEGER, Section.TRIAGE,
+            "Approver independence window (days)",
+            "With four-eyes on, an approval is refused when the person who asked for it created the approver's "
+                    + "account, reset its password or changed its role within this many days: the second pair of "
+                    + "eyes would otherwise be an account the first one made, or whose password it typed. Applies "
+                    + "to triage approvals and to account changes waiting for a second administrator. Zero "
+                    + "switches the check off; at most " + Setting.MAX_INDEPENDENCE_DAYS + ".",
+            "30"),
+
+    /**
+     * Whether Vectispire answers the measured lines of a draft checklist itself (decision 0032, amendment
+     * "the scans answer the lines they measure"). A rule, not a parameter — who may write an answer in a
+     * document a person signs — so it sits in a governance section, the platform governor's to change,
+     * and is forwarded to the SOC when it moves.
+     */
+    CHECKLIST_AUTO_ANSWER("checklist_auto_answer", SettingType.BOOLEAN, Section.CHECKLISTS,
+            "Answer measured checklist lines automatically",
+            "When a scan or an import completes, and when a checklist is opened or moved to another version, "
+                    + "Vectispire answers every line bound to a rule in a draft checklist: yes when it passes, no "
+                    + "with the measurement as its comment when it fails, nothing when there is no data. The "
+                    + "answers are marked as Vectispire's, never replace a person's, and a person still submits "
+                    + "and signs off. Switched off, existing answers stay and nothing new is written "
+                    + "automatically; answering as measured in one click remains.",
+            "true");
+
+    /** The group the screen files a setting under. */
+    public enum Section {
+
+        ACCESS("Access"),
+        TRIAGE("VEX Triage & Approval"),
+        ENRICHMENT("Enrichment"),
+        END_OF_LIFE("End of life"),
+        SOURCE_CODE("Source code analysis"),
+        SCHEDULING("Scheduling"),
+        REMEDIATION("Remediation deadlines"),
+        RETENTION("Retention"),
+        NOTIFICATIONS("Notifications"),
+        LICENSES("Licenses"),
+        CHECKLISTS("Security checklists"),
+        TICKETS("Ticket tracker"),
+        MODEL_REVIEW("OWASP review");
+
+        private final String label;
+
+        Section(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /**
+     * How much protection a value needs, which is <b>two questions and not one</b>.
+     *
+     * <p>They were the same value once, and the conflation cost exactly what conflations cost. A
+     * webhook URL and a tracker token were both {@code SECRET}; that marker was read in one place,
+     * the catalog's <em>read</em> side, and meant "do not show this to a non-administrator". No
+     * branch anywhere in the write path consulted it. So the settings with a dedicated encrypting
+     * route also stayed writable through the generic one, which stored what it was handed —
+     * in the clear, 200 OK — and then returned it verbatim to every administrative role. The doc
+     * comment on those settings said "encrypted at rest, never returned by any route"; both halves
+     * were false through that door.
+     *
+     * <p>Splitting them is what makes the guarantee checkable rather than remembered.
+     */
+    public enum Sensitivity {
+
+        /** Ordinary configuration. Readable by any signed-in account. */
+        PLAIN,
+
+        /**
+         * Stored as written, hidden from non-administrators.
+         *
+         * <p>For a value that is a capability rather than a credential: a webhook URL is enough to
+         * post in the channel where a team awaits Vectispire's alerts, and an internal model
+         * endpoint describes the estate's topology. Both are still edited as ordinary fields.
+         */
+        SECRET,
+
+        /**
+         * A credential: encrypted at rest, written only by its own route, never returned.
+         *
+         * <p>The generic write path refuses these outright, so there is no second door to forget,
+         * and the catalog omits the value for everybody — an administrator has no more use for a
+         * ciphertext than anybody else, and returning it puts the stored blob in a browser tab.
+         */
+        ENCRYPTED
+    }
+
+    /** Ten years: longer than any account's independence is worth waiting for. */
+    public static final int MAX_INDEPENDENCE_DAYS = 3650;
+
+    private final String key;
+    private final SettingType type;
+    private final Section section;
+    private final String label;
+    private final String help;
+    private final String defaultValue;
+    private final Sensitivity sensitivity;
+
+    Setting(String key, SettingType type, Section section, String label, String help, String defaultValue) {
+        this(key, type, section, label, help, defaultValue, Sensitivity.PLAIN);
+    }
+
+    Setting(String key, SettingType type, Section section, String label, String help, String defaultValue,
+            Sensitivity sensitivity) {
+        this.key = key;
+        this.type = type;
+        this.section = section;
+        this.label = label;
+        this.help = help;
+        this.defaultValue = defaultValue;
+        this.sensitivity = sensitivity;
+    }
+
+    public String key() {
+        return key;
+    }
+
+    public SettingType type() {
+        return type;
+    }
+
+    public Section section() {
+        return section;
+    }
+
+    public String label() {
+        return label;
+    }
+
+    /** What this setting changes, and above all what it does not. */
+    public String help() {
+        return help;
+    }
+
+    public String defaultValue() {
+        return defaultValue;
+    }
+
+    /**
+     * Whether the value must be withheld from a non-administrator.
+     *
+     * <p>True for both protected kinds. An encrypted credential is withheld from everybody — see
+     * the caller — but it is a secret in this sense too, and a reader that only asked
+     * {@code == SECRET} would have started serving credentials to ordinary accounts the moment one
+     * was reclassified.
+     */
+    public boolean isSecret() {
+        return sensitivity == Sensitivity.SECRET || sensitivity == Sensitivity.ENCRYPTED;
+    }
+
+    /**
+     * The credential this setting decides the destination of, if it decides one.
+     *
+     * <p><b>Whoever may point a credential somewhere must be allowed to hold it.</b> The tracker
+     * token and the OpenAI key are set only by an administrator; the URLs they are sent to, and the
+     * switches that let them leave for a private or a remote host, were ordinary settings a CISO
+     * could write. Changing {@code ticket_base_url} to one's own host made the next ticket carry
+     * {@code Authorization: Bearer <the administrator's token>} there — a credential its role could
+     * neither set nor read, collected by redirecting it.
+     *
+     * <p><b>The host is not the whole destination.</b> The project and the Jira account stayed a
+     * CISO's after the base URL became an administrator's, and the token reaches every project of
+     * its host that its owner can reach: choosing the project chose where the administrator's token
+     * opened and closed issues, and a GitHub project was pasted into the path as typed, so
+     * {@code owner/repo/issues/12/comments#} turned "open a ticket" into a comment on an issue of
+     * the writer's choosing.
+     */
+    public Optional<Setting> directsCredential() {
+        return switch (this) {
+            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL, TICKET_PROJECT, TICKET_USER, TICKET_CA ->
+                    Optional.of(TICKET_TOKEN);
+            case AI_REVIEW_OPENAI_URL, AI_REVIEW_ALLOW_REMOTE -> Optional.of(AI_REVIEW_OPENAI_KEY);
+            default -> Optional.empty();
+        };
+    }
+
+    /**
+     * Whether only an administrator may change this setting.
+     *
+     * <p>A setting that decides where a credential is sent ({@link #directsCredential()}), and the
+     * switches that open the internal network to the SIEM export and to the notification channels —
+     * channels a security lead configures and tests, and which therefore must not also decide how far
+     * they may reach. The notifications' switch was a security lead's until the SIEM's was split from
+     * it, and left behind: with the test button answering the sender's error, it let that role read
+     * which internal hosts and ports answered. And the tracker token's declared expiry, which describes a
+     * credential only an administrator sets and sees the life of.
+     *
+     * <p><b>And the Ollama endpoint, although no credential is sent to it.</b> It receives the open
+     * findings of every reported repository, and its policy admits private addresses by design, so
+     * whoever chooses it chooses an internal host the server will call on every report and on the
+     * test button. The OpenAI address was already an administrator's because of its key; the
+     * Ollama one, the same kind of destination without a key, had been left a security lead's.
+     */
+    public boolean administratorOnly() {
+        return directsCredential().isPresent()
+                || this == AI_REVIEW_OLLAMA_URL
+                || this == TICKET_TOKEN_EXPIRES_ON
+                || this == SIEM_ALLOW_PRIVATE_DESTINATION
+                || this == NOTIFICATION_ALLOW_PRIVATE_URL;
+    }
+
+    /**
+     * Whether only the platform governor may change this setting: it decides a rule, not a parameter.
+     *
+     * <p>Every setting of the access, triage and checklist sections — who sees what, whether a
+     * dismissal takes two people, whether Vectispire writes answers in a document people sign — and
+     * the evidence window. That one was a retention period like the payloads', and a CISO or an
+     * administrator could set it to a day: the next tick purged every gate verdict, compliance capture
+     * and OWASP week, the only record that the controls those roles run were run. The roles the
+     * evidence judges do not decide how long it lives. A floor was the other way to close it, and it
+     * was not taken: any number of days written here would be somebody's regulation and not another's,
+     * while the governor, who operates nothing, has no record of their own to shorten.
+     */
+    public boolean governorOnly() {
+        return switch (section) {
+            case ACCESS, TRIAGE, CHECKLISTS -> true;
+            default -> this == EVIDENCE_RETENTION_DAYS;
+        };
+    }
+
+    /**
+     * Whether changing this setting changes what the deployment protects, and so is forwarded to the
+     * SOC as a security-relevant change.
+     *
+     * <p>Who sees what, whether a dismissal needs a second person, where a credential may be sent,
+     * whether a private or remote host may be reached, how long the evidence that controls ran is
+     * kept, and the credentials themselves. Not the payload retention, the SLA windows or the
+     * enrichment switches: they change what is measured, and a SOC flooded with them would learn to
+     * ignore the channel.
+     *
+     * <p><b>A switch with no default</b>, so a setting added to this enum does not compile until
+     * whoever adds it has answered the question — a default would answer "no" for them, silently.
+     */
+    public boolean governsSecurity() {
+        return switch (this) {
+            case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, FOUR_EYES_INDEPENDENCE_DAYS,
+                    NOTIFICATION_ALLOW_PRIVATE_URL,
+                    SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_PROJECT, TICKET_USER,
+                    TICKET_CA, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
+                    WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
+                    AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER, EVIDENCE_RETENTION_DAYS -> true;
+            case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,
+                    RETENTION_MAX_AGE_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
+                    SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED, CHECKLIST_REMINDERS_ENABLED,
+                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_TOKEN_EXPIRES_ON,
+                    TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
+                    AI_REVIEW_PROVIDER,
+                    AI_REVIEW_MODEL, AI_REVIEW_TIMEOUT_SECONDS, AI_REVIEW_RISK_ACKNOWLEDGED_BY,
+                    AI_REVIEW_RISK_ACKNOWLEDGED_AT, COMPLIANCE_FRESHNESS_DAYS, ISMS_SCOPE_STATEMENT,
+                    ISMS_SCOPE_ASSETS, SLA_CRITICAL_DAYS, SLA_HIGH_DAYS, SLA_MEDIUM_DAYS, SLA_LOW_DAYS -> false;
+        };
+    }
+
+    /** Whether this is a credential: encrypted at rest, written by its own route, never returned. */
+    public boolean isEncrypted() {
+        return sensitivity == Sensitivity.ENCRYPTED;
+    }
+
+    /** Empty when the value is acceptable, otherwise the message to show. */
+    public Optional<String> validate(String value) {
+        // Bounded above as well: a window of two billion days reaches past the first instant there is, and
+        // the approval reading it would fail with a 500 rather than refuse anything in words.
+        if (this == FOUR_EYES_INDEPENDENCE_DAYS && type.validate(value).isEmpty()
+                && Integer.parseInt(value.trim()) > MAX_INDEPENDENCE_DAYS) {
+            return Optional.of("at most " + MAX_INDEPENDENCE_DAYS + " days.");
+        }
+        // **The tracker's address carries no credential**, as a forge connection's does not (`ForgeAddress`): a
+        // user name or a token typed into it is a second, unencrypted copy of the token, stored in a column the
+        // token's own route never reaches, and shown back on the settings screen.
+        if (this == TICKET_BASE_URL && value != null && carriesUserInfo(value)) {
+            return Optional.of("the address carries a user name or a token: type the address alone, the token has "
+                    + "a field of its own.");
+        }
+        // **A model endpoint is an API root, and a path is appended to it.** A query or a fragment
+        // in the root would take that path into itself, and the call would not reach the API path
+        // it names.
+        if ((this == AI_REVIEW_OLLAMA_URL || this == AI_REVIEW_OPENAI_URL) && value != null
+                && !AiReview.isApiRoot(value)) {
+            return Optional.of("the API root carries a query or a fragment (\"?\" or \"#\"): type the address "
+                    + "alone, the path of each call is appended to it.");
+        }
+        return type.validate(value);
+    }
+
+    private static boolean carriesUserInfo(String value) {
+        if (RepositoryUrl.carriesCredential(value)) {
+            return true;
+        }
+        try {
+            return new URI(value.trim()).getRawUserInfo() != null;
+        } catch (URISyntaxException unreadable) {
+            // Not a URL at all: the outbound guard refuses it at the send, in its own words.
+            return false;
+        }
+    }
+
+    /** A key's definition, or empty when it is not exposed. */
+    public static Optional<Setting> byKey(String key) {
+        return Arrays.stream(values()).filter(setting -> setting.key.equals(key)).findFirst();
+    }
+
+    /** The defaults, so the screen knows what an absent key is worth. */
+    public static Map<String, String> defaults() {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        for (Setting setting : values()) {
+            defaults.put(setting.key, setting.defaultValue);
+        }
+        return Map.copyOf(defaults);
+    }
+}

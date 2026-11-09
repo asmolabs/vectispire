@@ -1,0 +1,110 @@
+<!--
+    The scope a link from the tree applies, and the one identifier a link from a CVE applies, shown
+    and removable. A list narrowed to one project with nothing on screen saying so reads as a
+    backlog that lost most of its rows.
+-->
+@if (page.projectLabel() !== null || page.solutionLabel() !== null || page.identifier() !== null) {
+    <div class="flex flex-wrap items-center gap-2 mb-4" data-testid="issue-scope">
+        @if (page.solutionLabel(); as name) {
+            <span
+                class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                style="border-color: var(--surface-border)"
+                data-testid="scope-solution"
+            >
+                <i class="pi pi-objects-column text-muted-color" aria-hidden="true"></i>
+                {{ 'issues.chip_solution' | translate: { name } }}
+                <p-button
+                    icon="pi pi-times"
+                    [text]="true"
+                    [rounded]="true"
+                    size="small"
+                    [ariaLabel]="'issues.aria_remove_solution' | translate: { name }"
+                    data-testid="remove-solution"
+                    (onClick)="page.removeSolution()"
+                />
+            </span>
+        }
+        @if (page.projectLabel(); as name) {
+            <span
+                class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                style="border-color: var(--surface-border)"
+                data-testid="scope-project"
+            >
+                <i class="pi pi-folder text-muted-color" aria-hidden="true"></i>
+                {{ 'issues.chip_project' | translate: { name } }}
+                <p-button
+                    icon="pi pi-times"
+                    [text]="true"
+                    [rounded]="true"
+                    size="small"
+                    [ariaLabel]="'issues.aria_remove_project' | translate: { name }"
+                    data-testid="remove-project"
+                    (onClick)="page.removeProject()"
+                />
+            </span>
+        }
+        @if (page.identifier(); as identifier) {
+            <span
+                class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                style="border-color: var(--surface-border)"
+                data-testid="scope-identifier"
+            >
+                <i class="pi pi-tag text-muted-color" aria-hidden="true"></i>
+                {{ 'issues.chip_identifier' | translate: { identifier } }}
+                <p-button
+                    icon="pi pi-times"
+                    [text]="true"
+                    [rounded]="true"
+                    size="small"
+                    [ariaLabel]="'issues.aria_remove_identifier' | translate: { identifier }"
+                    data-testid="remove-identifier"
+                    (onClick)="page.removeIdentifier()"
+                />
+            </span>
+        }
+    </div>
+}
+
+<!--
+    The weekly OWASP view's drill-down, said in words: no control on this screen shows a category
+    or a date, and a list narrowed by them with nothing saying so reads as a backlog that lost
+    rows. Taken off in one click, and with the way back to the column it came from.
+-->
+@if (page.weeklyBanner(); as banner) {
+    <div
+        class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4 p-3 rounded-md border border-primary bg-primary-50 dark:bg-surface-800"
+        role="status"
+        data-testid="weekly-banner"
+    >
+        <i class="pi pi-calendar text-primary" aria-hidden="true"></i>
+        <div class="flex-1">
+            <div class="font-medium" data-testid="weekly-banner-text">
+                {{ banner }} —
+                {{ page.fromGrid() ? ('issues.weekly.origin_grid' | translate) : ('issues.weekly.origin' | translate) }}
+            </div>
+            <div class="text-sm text-muted-color">
+                {{ page.pageLabel() }}
+                @if (page.openAt() !== null && page.unsettled()) {
+                    · {{ 'issues.weekly.triage_today' | translate }}
+                }
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a
+                routerLink="/owasp"
+                [queryParams]="page.weeklyBack()"
+                class="p-button p-button-sm p-button-text no-underline"
+                data-testid="weekly-back"
+                >{{ page.fromGrid() ? ('issues.weekly.back_grid' | translate) : ('issues.weekly.back' | translate) }}</a
+            >
+            <p-button
+                [label]="'issues.weekly.clear' | translate"
+                icon="pi pi-times"
+                size="small"
+                severity="secondary"
+                data-testid="weekly-clear"
+                (onClick)="page.clearWeekly()"
+            />
+        </div>
+    </div>
+}

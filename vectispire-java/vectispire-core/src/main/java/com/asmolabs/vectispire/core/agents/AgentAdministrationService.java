@@ -1,0 +1,644 @@
+package com.asmolabs.vectispire.core.agents;
+
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.common.domain.agents.AgentKind;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.AgentKeys;
+import com.asmolabs.vectispire.core.access.AgentView;
+import com.asmolabs.vectispire.core.agents.internal.AgentViews;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
+import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Declaring, changing and removing agents, and reading what the queue looks like to them.
+ *
+ * <p><b>Boundaries are opened with a {@link TransactionTemplate}, not {@code @Transactional}.</b>
+ * Declaring and deleting an agent each write two rows that must commit together, and each is
+ * then audited — outside that transaction, because the audit entry uses {@code REQUIRES_NEW}, and
+ * nested it would describe a write that may still roll back, on a second connection held while the
+ * first keeps its locks. (On the SQLite fixture of the time it deadlocked against its own parent,
+ * the lock being the file.) An
+ * annotated method would have to either hold the audit inside its boundary or be split across
+ * two beans to escape the proxy; the template states the boundary where it is.
+ */
+@Service
+public class AgentAdministrationService {
+
+    /** Past this without a word, an agent counts as offline. */
+    private static final Duration ONLINE_TTL = Duration.ofSeconds(120);
+
+    /** What the agent's key is called, in front of the agent's name, in a column of 255. */
+    private static final String KEY_NAME_PREFIX = "Agent ";
+
+    /** The key's column, not the agent's, is the narrower: see {@link #declare}. */
+    private static final int MAX_NAME_LENGTH = 255 - KEY_NAME_PREFIX.length();
+
+    private static final int MAX_DESCRIPTION_LENGTH = 500;
+
+    private static final int MAX_LABELS_LENGTH = 255;
+
+    private static final String SEALING_KEY_FORGOTTEN =
+            " Its sealing key is forgotten until it announces one signed with the key now pinned.";
+
+    private final AgentRepository agents;
+    private final AgentKeys keys;
+    private final ScanCatalog scans;
+    private final TargetCatalog targets;
+    private final AuditLogService audit;
+    private final BuiltInWorker worker;
+    private final TransactionTemplate transactions;
+    private final Clock clock;
+
+    AgentAdministrationService(
+            AgentRepository agents,
+            AgentKeys keys,
+            ScanCatalog scans,
+            TargetCatalog targets,
+            AuditLogService audit,
+            BuiltInWorker worker,
+            TransactionTemplate transactions,
+            Clock clock) {
+        this.agents = agents;
+        this.keys = keys;
+        this.scans = scans;
+        this.targets = targets;
+        this.audit = audit;
+        this.worker = worker;
+        this.transactions = transactions;
+        this.clock = clock;
+    }
+
+    /**
+     * @param online seen recently, not "enabled" — see {@link #isOnline}
+     * @param runningScans the scans this agent holds a lease on right now
+     * @param maxConcurrent the limit the queue applies — the column clamped to its bound, so the
+     *     screen shows what the claim enforces rather than what an old row happens to hold
+     */
+    public record Listed(AgentView agent, boolean online, long runningScans, int maxConcurrent) {}
+
+    public record Declaration(
+            String name, String description, String credentialsMode, String labels, Integer maxConcurrent) {}
+
+    /** @param secret the only occurrence of the plaintext key */
+    public record Declared(AgentView agent, String secret) {}
+
+    /** Each field null when the caller left it as it was. */
+    public record Change(Boolean enabled, String labels, Integer maxConcurrent) {}
+
+    public record Changed(UUID id, boolean enabled, String labels) {}
+
+    /** @param privateKey present only when the pair was generated here */
+    public record PinnedKey(UUID id, boolean signsResults, String privateKey) {}
+
+    public record Unroutable(String label, long queued) {}
+
+    public record RunningScan(
+            Long scanId,
+            String targetType,
+            Long targetId,
+            String targetName,
+            String branch,
+            String agentId,
+            String agentName,
+            Instant claimedAt,
+            long durationSeconds,
+            String requiredLabel) {}
+
+    public record PendingScan(
+            Long scanId,
+            String targetType,
+            Long targetId,
+            String targetName,
+            String branch,
+            String requiredLabel,
+            Instant queuedAt,
+            long waitDurationSeconds,
+            boolean routable,
+            int positionInQueue,
+            boolean executorAvailable) {}
+
+    /**
+     * The built-in worker as the agents screen shows it — it is not a row of the table.
+     *
+     * @param runsScans switched on <em>and</em> able to run a scan here: the one case in which it claims anything
+     * @param executors what its executor said at its last round; empty before the first, and when it has none
+     * @param checkedAt when that was; null with no answer yet
+     */
+    public record BuiltInWorkerState(
+            boolean enabled, boolean runsScans, List<WorkerExecutors.Executor> executors, Instant checkedAt) {}
+
+    public record QueueFigures(
+            int totalAgents,
+            int onlineAgents,
+            int busyAgents,
+            int idleAgents,
+            long runningScansCount,
+            long pendingScansCount,
+            long scansCompleted24h,
+            long avgScanDurationSeconds) {}
+
+    public record Activity(List<RunningScan> running, List<PendingScan> pending, QueueFigures figures) {}
+
+    public Activity activity() {
+        Instant asOf = clock.instant();
+        Instant last24h = asOf.minus(Duration.ofHours(24));
+
+        List<AgentEntity> allAgents = agents.findAllByOrderByNameAsc();
+        Map<String, String> agentNames = new HashMap<>();
+        Set<String> activeAgentLabels = new HashSet<>();
+        int onlineCount = 0;
+
+        // Every worker that could take a scan now — online and enabled, or the built-in one when it runs — with the
+        // labels it serves and the kinds of target its executors run: a pending scan none of them can run waits
+        // for an executor, which is the reason the screen has to give.
+        List<Taker> takers = new ArrayList<>();
+        for (AgentEntity a : allAgents) {
+            agentNames.put(a.getId().toString(), a.getName());
+            if (isOnline(a, asOf)) {
+                onlineCount++;
+                if (Boolean.TRUE.equals(a.getEnabled())) {
+                    activeAgentLabels.addAll(AgentLabels.parse(a.getLabels()));
+                    takers.add(new Taker(
+                            Set.copyOf(AgentLabels.parse(a.getLabels())),
+                            WorkerExecutors.claimable(WorkerExecutors.read(a.getExecutors()).orElse(null))));
+                }
+            }
+        }
+        activeAgentLabels.addAll(worker.labels());
+        if (worker.runs()) {
+            takers.add(new Taker(worker.labels(), worker.claimable()));
+        }
+
+        Map<Long, String> repoNames = new HashMap<>();
+        targets.repositories().forEach(r -> {
+            String name = r.name() != null && !r.name().isBlank() ? r.name() : RepositoryUrl.redact(r.url());
+            repoNames.put(r.id(), name != null ? name : "Repo #" + r.id());
+        });
+
+        Map<Long, String> containerNames = new HashMap<>();
+        targets.containers().forEach(c -> {
+            String name = c.imageName() + (c.tag() != null && !c.tag().isBlank() ? ":" + c.tag() : "");
+            containerNames.put(c.id(), name);
+        });
+
+        List<ScanView> activeScans = scans.withStatusOldestFirst(
+                List.of(ScanStatus.SCANNING.wireName(), ScanStatus.PENDING.wireName()));
+
+        List<RunningScan> runningItems = new ArrayList<>();
+        List<PendingScan> pendingItems = new ArrayList<>();
+        Set<String> busyAgentIds = new HashSet<>();
+        int pendingPos = 1;
+
+        for (ScanView scan : activeScans) {
+            String targetType = scan.repoId() != null ? "repository" : "container";
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
+            String targetName = scan.repoId() != null
+                    ? repoNames.getOrDefault(scan.repoId(), "Repository #" + scan.repoId())
+                    : containerNames.getOrDefault(scan.containerId(), "Container #" + scan.containerId());
+
+            if (ScanStatus.SCANNING.wireName().equals(scan.status())) {
+                String agentId = scan.claimedBy();
+                String agentName = agentId != null
+                        ? agentNames.getOrDefault(agentId, agentId.equalsIgnoreCase("worker") || agentId.equalsIgnoreCase("built-in") ? "Built-in Worker" : "Agent " + agentId)
+                        : "Unknown Worker";
+                if (agentId != null) {
+                    busyAgentIds.add(agentId);
+                }
+                long durationSec = scan.claimedAt() != null
+                        ? Math.max(0, Duration.between(scan.claimedAt(), asOf).toSeconds())
+                        : 0;
+
+                runningItems.add(new RunningScan(
+                        scan.id(),
+                        targetType,
+                        targetId,
+                        targetName,
+                        scan.branch(),
+                        agentId,
+                        agentName,
+                        scan.claimedAt() != null ? scan.claimedAt() : scan.createdAt(),
+                        durationSec,
+                        scan.requiredAgentLabel()));
+            } else if (ScanStatus.PENDING.wireName().equals(scan.status())) {
+                boolean isRoutable = scan.requiredAgentLabel() == null
+                        || scan.requiredAgentLabel().isBlank()
+                        || activeAgentLabels.contains(scan.requiredAgentLabel());
+
+                long waitSec = scan.createdAt() != null
+                        ? Math.max(0, Duration.between(scan.createdAt(), asOf).toSeconds())
+                        : 0;
+
+                WorkerExecutors.Target target = scan.repoId() != null
+                        ? WorkerExecutors.Target.REPOSITORY
+                        : WorkerExecutors.Target.CONTAINER;
+                boolean executorAvailable = takers.stream()
+                        .anyMatch(taker -> taker.serves(scan.requiredAgentLabel()) && taker.targets().contains(target));
+
+                pendingItems.add(new PendingScan(
+                        scan.id(),
+                        targetType,
+                        targetId,
+                        targetName,
+                        scan.branch(),
+                        scan.requiredAgentLabel(),
+                        scan.createdAt(),
+                        waitSec,
+                        isRoutable,
+                        pendingPos++,
+                        executorAvailable));
+            }
+        }
+
+        int busyCount = 0;
+        for (AgentEntity a : allAgents) {
+            if (busyAgentIds.contains(a.getId().toString()) && isOnline(a, asOf)) {
+                busyCount++;
+            }
+        }
+        int idleCount = Math.max(0, onlineCount - busyCount);
+
+        long completed24h = scans.countWithStatusSince(ScanStatus.COMPLETED.wireName(), last24h);
+        Double avgDurationMs = scans.averageDurationMsSince(ScanStatus.COMPLETED.wireName(), last24h);
+        long avgDurationSec = avgDurationMs != null ? Math.round(avgDurationMs / 1000.0) : 0;
+
+        QueueFigures figures = new QueueFigures(
+                allAgents.size(),
+                onlineCount,
+                busyCount,
+                idleCount,
+                runningItems.size(),
+                pendingItems.size(),
+                completed24h,
+                avgDurationSec);
+
+        return new Activity(runningItems, pendingItems, figures);
+    }
+
+    /** A worker that could take a scan: the labels it serves, and the kinds of target its executors run now. */
+    private record Taker(Set<String> labels, Set<WorkerExecutors.Target> targets) {
+
+        /** A scan that requires no label goes to anyone; one that does, to a worker carrying it. */
+        boolean serves(String requiredLabel) {
+            return requiredLabel == null || requiredLabel.isBlank() || labels.contains(requiredLabel);
+        }
+    }
+
+    /** The built-in worker's state, for the agents screen — see {@link BuiltInWorkerState}. */
+    public BuiltInWorkerState builtInWorker() {
+        Optional<ScanDispatcher.ExecutorCheck> check = worker.executors();
+        return new BuiltInWorkerState(
+                worker.enabled(),
+                worker.runs(),
+                check.map(c -> c.executors().executors()).orElse(List.of()),
+                check.map(ScanDispatcher.ExecutorCheck::checkedAt).orElse(null));
+    }
+
+    public List<Listed> list() {
+        return list(null, null);
+    }
+
+    /**
+     * The fleet by name, all of it or one page.
+     *
+     * @param limit rows per page, or null for the whole fleet ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        Instant asOf = clock.instant();
+        Map<String, Long> running = runningByAgent();
+        List<AgentEntity> fleet = agents.findAllByOrderByNameAscIdAsc();
+        return window.map(page -> page.of(fleet)).orElse(fleet).stream()
+                .map(agent -> new Listed(
+                        AgentViews.of(agent),
+                        isOnline(agent, asOf),
+                        running.getOrDefault(agent.getId().toString(), 0L),
+                        AgentConcurrency.effective(agent.getMaxConcurrent())))
+                .toList();
+    }
+
+    /**
+     * Declares an agent <b>and issues its key</b>, returned once.
+     *
+     * <p>Both together because an agent with no key can do nothing: separating them would leave
+     * an inert row the operator would believe was working.
+     */
+    public Declared declare(Declaration declaration, RequestActor actor) {
+        String name = declaration.name() == null ? "" : declaration.name().trim();
+        if (name.isEmpty()) {
+            throw new InvalidInputException("The agent's name is required.");
+        }
+        // Checked against the narrower of its two columns: the agent's own is 255, but its key is
+        // named "Agent " + name in another 255, and past that the key's insert failed — a 500, and
+        // the whole declaration rolled back with it.
+        BoundedText.within(name, MAX_NAME_LENGTH, "The agent's name");
+        String description = BoundedText.optional(declaration.description(), MAX_DESCRIPTION_LENGTH, "The description");
+        String labels = joinedLabels(declaration.labels());
+        int maxConcurrent = declaration.maxConcurrent() == null
+                ? AgentConcurrency.DEFAULT
+                : bounded(declaration.maxConcurrent());
+
+        CredentialsMode mode = declaration.credentialsMode() == null || declaration.credentialsMode().isBlank()
+                ? CredentialsMode.LOCAL
+                : CredentialsMode.byWireName(declaration.credentialsMode().trim())
+                        .orElseThrow(() -> new InvalidInputException(
+                                "Unknown credentials mode: \"" + declaration.credentialsMode() + "\"."));
+
+        ApiKeys.IssuedKey issued = ApiKeys.generate();
+        Instant at = clock.instant();
+
+        // The key and the agent commit together — an agent pointing at a key that was rolled
+        // back is a row that can never authenticate — but the audit entry is written outside,
+        // for the reason given on the class.
+        AgentEntity saved = transactions.execute(status -> {
+            // Saved before the agent, because the agent points at it: the identifier is generated
+            // by the insert, so reading it any earlier reads null.
+            java.util.UUID savedKey = keys.issue(KEY_NAME_PREFIX + name, issued, at);
+
+            AgentEntity agent = new AgentEntity();
+            agent.setName(name);
+            agent.setDescription(description);
+            agent.setKind(AgentKind.REMOTE.wireName());
+            agent.setCredentialsMode(mode.wireName());
+            // Normalized on save, like the requirement a target carries: the two are compared, and
+            // two divergent normalizations would leave a scan waiting for an agent that is present.
+            agent.setLabels(labels);
+            agent.setEnabled(true);
+            agent.setMaxConcurrent(maxConcurrent);
+            agent.setApiKeyId(savedKey);
+            agent.setCreatedAt(at);
+
+            return agents.save(agent);
+        });
+
+        record(actor, saved.getId(), "Agent declared: " + name + " (" + mode.wireName() + ")");
+        return new Declared(AgentViews.of(saved), issued.fullKey());
+    }
+
+    /**
+     * Enables or disables, relabels, resizes. A disabled agent claims nothing, without losing its
+     * history; a lowered limit stops new claims and lets the running scans finish.
+     */
+    public Changed change(UUID id, Change change, RequestActor actor) {
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
+
+        boolean enabled = change.enabled() == null ? agent.getEnabled() : change.enabled();
+        String labels = change.labels() == null ? agent.getLabels() : joinedLabels(change.labels());
+        Integer maxConcurrent = change.maxConcurrent() == null
+                ? agent.getMaxConcurrent()
+                : Integer.valueOf(bounded(change.maxConcurrent()));
+
+        if (!Objects.equals(labels, agent.getLabels())) {
+            // **Recorded, because it is an authorization decision.** Widening an agent's labels
+            // opens targets it had no access to — the same class of change as a role, and by the
+            // same quiet gesture.
+            record(actor, id, "Agent " + agent.getName() + " labels: "
+                    + (labels == null ? "none" : labels) + " (previously "
+                    + (agent.getLabels() == null ? "none" : agent.getLabels()) + ")");
+        }
+        if (enabled != agent.getEnabled()) {
+            record(actor, id, "Agent " + agent.getName() + (enabled ? " re-enabled" : " disabled"));
+        }
+        if (!Objects.equals(maxConcurrent, agent.getMaxConcurrent())) {
+            // Recorded because it moves load onto somebody's machine: an agent raised from 2 to 16
+            // runs eight times the containers on a host whose owner may not have been asked.
+            record(actor, id, "Agent " + agent.getName() + " max concurrent scans: " + maxConcurrent
+                    + " (previously " + AgentConcurrency.effective(agent.getMaxConcurrent()) + ")");
+        }
+
+        agent.setEnabled(enabled);
+        agent.setLabels(labels);
+        agent.setMaxConcurrent(maxConcurrent);
+        agents.save(agent);
+
+        return new Changed(id, enabled, labels);
+    }
+
+    /**
+     * The limit an administrator asked for, or a 400 naming the bound.
+     *
+     * <p>Checked here and not only on the screen: the queue clamps what it reads, so a value of
+     * 50 written through the API would have been stored, shown back as 50, and applied as 16 — a
+     * setting that says one thing and does another.
+     */
+    private static int bounded(int requested) {
+        AgentConcurrency.refusal(requested).ifPresent(reason -> {
+            throw new InvalidInputException(reason);
+        });
+        return requested;
+    }
+
+    /**
+     * Pins the key an agent's results must be signed with — or removes it.
+     *
+     * <p><b>The signing key arrives here, over an administrator's session, and never over the
+     * agent protocol</b>: a key the agent announced would prove nothing its API key had not
+     * already proved. See {@link ResultAttestation}.
+     *
+     * <p>Removing a pinned key takes the agent back to being trusted on its bearer token alone for
+     * its results, and stops every delegated credential to it (decision 0031). Audited as loudly as
+     * pinning one, because it is the half somebody would do quietly. Either way the sealing key the
+     * previous key vouched for is forgotten.
+     *
+     * @param publicKey base64 Ed25519, {@code "generate"} to have a pair made here, or null/blank
+     *     to stop requiring signed results
+     */
+    public PinnedKey pinSigningKey(UUID id, String publicKey, RequestActor actor) {
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
+        String supplied = publicKey == null ? "" : publicKey.trim();
+
+        if (supplied.isEmpty()) {
+            pin(agent, null);
+            recordSigningKey(actor, id,
+                    "Result-signing key removed for agent " + agent.getName()
+                            + ": its results are accepted on its API key alone, and it is handed no delegated "
+                            + "credential until a key is pinned again." + SEALING_KEY_FORGOTTEN);
+            return new PinnedKey(id, false, null);
+        }
+
+        // **Generated only when asked for by name.** A malformed key would otherwise be silently
+        // replaced by a working one nobody's agent holds, and every result would be refused with
+        // a message pointing at the agent.
+        if ("generate".equals(supplied)) {
+            ResultAttestation.KeyPair pair = ResultAttestation.generate();
+            pin(agent, pair.publicKey());
+            recordSigningKey(actor, id,
+                    "Result-signing key generated and pinned for agent " + agent.getName() + "." + SEALING_KEY_FORGOTTEN);
+            return new PinnedKey(id, true, pair.privateKey());
+        }
+
+        if (!ResultAttestation.isUsablePublicKey(supplied)) {
+            // Refused on the way in rather than at the first result: the failure would otherwise
+            // surface on the agent, hours later, as a scan that cannot be handed back.
+            throw new InvalidInputException(
+                    "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" "
+                            + "to have one made here instead.");
+        }
+
+        pin(agent, supplied);
+        recordSigningKey(actor, id,
+                "Result-signing key pinned for agent " + agent.getName() + "." + SEALING_KEY_FORGOTTEN);
+        return new PinnedKey(id, true, null);
+    }
+
+    /**
+     * Makes the control plane forget an agent's sealing key, deliberately.
+     *
+     * <p>The key only ever moves forwards on its own: a newer generation, signed with the pinned key
+     * (decision 0031). This is the way back, for what forwards cannot fix — an agent host whose clock
+     * was put back and whose new keys all read as older, or one suspected of having leaked its key.
+     * The agent is handed no delegated credential until it proves a new key, which it does at its
+     * next start, or at its next claim once it has seen a credential withheld.
+     *
+     * <p>Audited like a pinned key, because it is the same kind of act: a change to what the control
+     * plane believes about the agent.
+     */
+    public void resetSealingKey(UUID id, RequestActor actor) {
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
+        agents.forgetSealingKey(id);
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_SEALING_KEY_RESET,
+                id.toString(),
+                "Sealing key reset for agent " + agent.getName()
+                        + ": no delegated credential is handed to it until it announces a new key signed with its "
+                        + "pinned signing key.",
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    /**
+     * Writes the signing key and forgets the sealing key, together.
+     *
+     * <p><b>The sealing key goes with the signing key that vouched for it.</b> A key signed by a key
+     * the operator has just replaced — lost, leaked, or simply rotated — is no longer vouched for by
+     * anything pinned, and the credentials sealed for it would be sealed on the old key's word.
+     */
+    private void pin(AgentEntity agent, String signingPublicKey) {
+        transactions.executeWithoutResult(status -> {
+            agent.setSigningPublicKey(signingPublicKey);
+            agents.save(agent);
+            agents.forgetSealingKey(agent.getId());
+        });
+    }
+
+    public void remove(UUID id, RequestActor actor) {
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
+
+        long running = scans.countWithStatusClaimedBy(ScanStatus.SCANNING.wireName(), id.toString());
+        if (running > 0) {
+            // Deleting now would leave those scans ownerless until their lease lapses, and the
+            // operator would see them "running" without knowing nobody is running them.
+            throw new InvalidInputException(
+                    "This agent is running " + running + " scan(s). Disable it and wait for it to finish.");
+        }
+
+        transactions.executeWithoutResult(status -> {
+            agents.deleteById(id);
+            // The key goes with it: keeping it would leave an open door to the protocol with no
+            // agent behind it.
+            if (agent.getApiKeyId() != null) {
+                keys.revoke(agent.getApiKeyId());
+            }
+        });
+        record(actor, id, "Agent deleted: " + agent.getName());
+    }
+
+    /**
+     * The scans <b>nobody</b> can take, grouped by the label they require.
+     *
+     * <p>Computed on demand rather than kept up to date: agents come and go, and a memoized
+     * value would be wrong the moment one is enabled.
+     */
+    public List<Unroutable> unroutable() {
+        Set<String> served = new HashSet<>();
+        agents.findByEnabledTrue().forEach(agent -> served.addAll(AgentLabels.parse(agent.getLabels())));
+        // The built-in worker is not a row in the table: its labels come from configuration, and
+        // forgetting them here would report as blocked what is in fact running. Only when it runs,
+        // though — switched off, or without a runner, it takes nothing, and counting its labels
+        // anyway hid the scans that wait for ever behind a label only it carries.
+        served.addAll(worker.labels());
+
+        List<Unroutable> unroutable = new ArrayList<>();
+        for (Map.Entry<String, Long> row : scans.countByRequiredLabel(ScanStatus.PENDING.wireName()).entrySet()) {
+            String label = row.getKey();
+            if (!served.contains(label)) {
+                unroutable.add(new Unroutable(label, row.getValue()));
+            }
+        }
+        return unroutable;
+    }
+
+    private Map<String, Long> runningByAgent() {
+        return new HashMap<>(scans.countByClaimant(ScanStatus.SCANNING.wireName()));
+    }
+
+    /**
+     * Seen recently, not "enabled". An enabled agent that has been silent for an hour is the case
+     * that matters: the queue fills, nobody drains it, and nothing else on the screen would say so.
+     * The agents' gauge counts by this rule too, so the screen and the scrape cannot disagree.
+     */
+    static boolean isOnline(AgentEntity agent, Instant asOf) {
+        return agent.getLastSeenAt() != null
+                && Duration.between(agent.getLastSeenAt(), asOf).compareTo(ONLINE_TTL) < 0;
+    }
+
+    private void recordSigningKey(RequestActor actor, UUID id, String description) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_SIGNING_KEY_PINNED,
+                id.toString(),
+                description,
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    private void record(RequestActor actor, UUID id, String description) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_UPDATED,
+                id.toString(),
+                description,
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    /** Normalized, then bounded: the joined form is what the column holds. */
+    private static String joinedLabels(String raw) {
+        List<String> labels = AgentLabels.parse(raw);
+        return labels.isEmpty()
+                ? null
+                : BoundedText.within(String.join(",", labels), MAX_LABELS_LENGTH, "The labels");
+    }
+}

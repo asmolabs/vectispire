@@ -1,0 +1,275 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'owasp.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">
+        {{ 'owasp.subtitle' | translate }}
+    </p>
+</div>
+
+<!--
+    Two links and not a tab widget: each view is an address, so the keyboard, "open in a new tab" and
+    the back button all do what they do on a link.
+-->
+<nav
+    class="flex w-fit mb-4 rounded-md border border-surface-300 dark:border-surface-600 overflow-hidden print:hidden"
+    [attr.aria-label]="'owasp_weekly.views' | translate"
+>
+    <a
+        routerLink="."
+        [queryParams]="currentParams()"
+        class="px-4 py-2 text-sm font-medium"
+        [class.bg-primary]="!weekly()"
+        [class.text-primary-contrast]="!weekly()"
+        [class.text-color]="weekly()"
+        [attr.aria-current]="weekly() ? null : 'page'"
+        data-testid="view-current"
+        >{{ 'owasp_weekly.view_current' | translate }}</a
+    >
+    <a
+        routerLink="."
+        [queryParams]="weeklyParams()"
+        class="px-4 py-2 text-sm font-medium"
+        [class.bg-primary]="weekly()"
+        [class.text-primary-contrast]="weekly()"
+        [class.text-color]="!weekly()"
+        [attr.aria-current]="weekly() ? 'page' : null"
+        data-testid="view-weekly"
+        >{{ 'owasp_weekly.view_weekly' | translate }}</a
+    >
+</nav>
+
+@if (weekly()) {
+    <zs-owasp-weekly />
+} @else {
+    <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end mb-4 print:hidden">
+        <zs-owasp-scope-picker inputId="grid-scope" [scope]="scope()" (scopeChange)="scopeChanged($event)" />
+    </div>
+    <zs-owasp-grid [scope]="scope()" (estateAsked)="scopeChanged(null)" />
+
+    <p-card styleClass="mb-4">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
+            <div class="flex flex-col gap-1">
+                <!-- The select puts inputId on a span with role combobox, which a label's for cannot
+                     name: the combobox took its name from the placeholder or the chosen repository. -->
+                <label id="repo-label" for="repo" class="text-sm text-muted-color">{{
+                    'owasp.repo_label' | translate
+                }}</label>
+                <p-select
+                    inputId="repo"
+                    ariaLabelledBy="repo-label"
+                    [options]="repositoryOptions()"
+                    [(ngModel)]="selected"
+                    optionLabel="displayName"
+                    optionValue="id"
+                    [placeholder]="'owasp.pick_repo' | translate"
+                    (onChange)="loadLatest()"
+                    styleClass="w-full"
+                    class="w-full sm:min-w-[24rem]"
+                />
+            </div>
+            <p-button
+                [label]="'owasp.run_analysis' | translate"
+                icon="pi pi-sparkles"
+                [disabled]="selected === null"
+                [loading]="running()"
+                (onClick)="run()"
+            />
+        </div>
+        <p class="text-sm text-muted-color mt-3 mb-0">
+            {{ 'owasp.analysis_privacy_note' | translate }}
+        </p>
+    </p-card>
+
+    @if (error(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+
+    @if (running()) {
+        <p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
+            {{ 'owasp.model_writing_notice' | translate }}
+        </p-message>
+    }
+
+    @if (report(); as current) {
+        <p-card>
+            <ng-template #title>
+                {{ 'owasp.report_title' | translate }}
+                @if (current.status === 'failed') {
+                    <p-tag [value]="'owasp.failed_badge' | translate" severity="danger" />
+                }
+            </ng-template>
+            <ng-template #subtitle>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <span class="text-muted-color text-sm">
+                        {{ current.model }} · {{ 'owasp.scan_number' | translate: { id: current.scanId } }} ·
+                        {{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </span>
+                    @if (current.status === 'completed') {
+                        <p-button
+                            [label]="'owasp.export_pdf' | translate"
+                            icon="pi pi-file-pdf"
+                            severity="secondary"
+                            size="small"
+                            (onClick)="downloadPdf()"
+                        />
+                    }
+                </div>
+            </ng-template>
+
+            @if (current.status === 'failed') {
+                <p-message severity="error" [closable]="false" styleClass="w-full">
+                    {{ current.error }}
+                </p-message>
+            } @else if (current.status === 'running') {
+                <p-message severity="info" [closable]="false" styleClass="w-full">
+                    {{ 'owasp.running_notice' | translate }}
+                </p-message>
+            } @else {
+                <!--
+                What the model was shown, offered beside what it answered — and closed by default,
+                because a reader who does not ask for it is reading prose, not auditing it.
+
+                The prose below is a commentary and not a measurement: nothing it says becomes an
+                issue, reaches a gate, or moves a square of the grid above. That was already true in
+                the code and said nowhere a reader would see it. Saying it here, next to the
+                evidence the model was given, is what lets somebody weigh the two.
+            -->
+                @if (current.inputs; as shown) {
+                    <details class="mb-4 border rounded" style="border-color: var(--surface-border)">
+                        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">
+                            {{ 'owasp.inputs_title' | translate }}
+                        </summary>
+                        <p class="px-3 pt-2 pb-0 m-0 text-muted-color text-sm">
+                            {{ 'owasp.inputs_help' | translate }}
+                        </p>
+                        <pre class="px-3 pb-3 m-0 text-xs whitespace-pre-wrap font-mono">{{ shown }}</pre>
+                    </details>
+                }
+
+                <div class="owasp-report">
+                    @for (rendered of blocks(); track $index) {
+                        @switch (rendered.block.kind) {
+                            @case ('CATEGORY') {
+                                <h2
+                                    class="text-lg font-semibold mt-5 mb-2 px-3 py-2 rounded"
+                                    style="background: var(--surface-100); color: var(--primary-color)"
+                                >
+                                    {{ rendered.block.text }}
+                                </h2>
+                                <!--
+                                    The category's backlog as it stands now, beside prose written
+                                    from it then: the count is the issues list's own total, so the
+                                    link never opens a list that disagrees with it. No link to an
+                                    empty list — a zero says so instead.
+                                -->
+                                @if (rendered.findings !== null) {
+                                    @if (rendered.findings > 0) {
+                                        <a
+                                            routerLink="/issues"
+                                            [queryParams]="rendered.findingsParams"
+                                            class="inline-block mb-2 text-sm text-primary underline"
+                                            data-testid="category-findings"
+                                            >{{
+                                                'owasp.category_findings' | translate: { count: rendered.findings }
+                                            }}</a
+                                        >
+                                    } @else {
+                                        <p
+                                            class="mt-0 mb-2 text-sm text-muted-color"
+                                            data-testid="category-findings-none"
+                                        >
+                                            {{ 'owasp.category_no_finding' | translate }}
+                                        </p>
+                                    }
+                                }
+                            }
+                            @case ('HEADING') {
+                                <h3
+                                    class="font-semibold mt-5 mb-2 pb-1"
+                                    [class.text-lg]="rendered.block.level <= 2"
+                                    [style.border-bottom]="
+                                        rendered.block.level <= 2 ? '1px solid var(--surface-border)' : null
+                                    "
+                                >
+                                    {{ rendered.block.text }}
+                                </h3>
+                            }
+                            @case ('BULLET') {
+                                <div class="flex gap-2 mb-1">
+                                    <span style="color: var(--primary-color)">•</span>
+                                    <span><zs-linked-text [segments]="rendered.text" /></span>
+                                </div>
+                            }
+                            @case ('NUMBERED') {
+                                <div class="flex gap-2 mb-1">
+                                    <span class="font-semibold" style="color: var(--primary-color)">
+                                        {{ rendered.block.marker }}.
+                                    </span>
+                                    <span><zs-linked-text [segments]="rendered.text" /></span>
+                                </div>
+                            }
+                            @case ('BLOCKQUOTE') {
+                                <div
+                                    class="my-4 p-3.5 rounded-lg border-l-4 border-primary bg-surface-50 dark:bg-surface-800 text-sm text-surface-700 dark:text-surface-300 italic shadow-xs"
+                                >
+                                    <zs-linked-text [segments]="rendered.text" />
+                                </div>
+                            }
+                            @case ('TABLE') {
+                                <div
+                                    class="my-4 overflow-x-auto rounded-lg border border-surface-200 dark:border-surface-700 shadow-xs"
+                                >
+                                    <table class="w-full text-sm border-collapse bg-surface-0 dark:bg-surface-900">
+                                        @if (rendered.block.headers && rendered.block.headers.length > 0) {
+                                            <thead
+                                                class="bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                                            >
+                                                <tr>
+                                                    @for (h of rendered.block.headers; track $index) {
+                                                        <th
+                                                            class="p-3 text-left font-semibold border-b border-surface-200 dark:border-surface-700"
+                                                        >
+                                                            {{ h }}
+                                                        </th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                        }
+                                        <tbody>
+                                            @for (row of rendered.rows; track $index) {
+                                                <tr
+                                                    class="border-b border-surface-200 dark:border-surface-700 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800/50"
+                                                >
+                                                    @for (cell of row; track $index) {
+                                                        <td
+                                                            class="p-3 align-top text-surface-700 dark:text-surface-300"
+                                                            [class.font-medium]="$index === 0"
+                                                            [class.text-surface-900]="$index === 0"
+                                                            [class.dark:text-surface-0]="$index === 0"
+                                                        >
+                                                            <zs-linked-text [segments]="cell" />
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            @default {
+                                <p class="my-2 leading-relaxed"><zs-linked-text [segments]="rendered.text" /></p>
+                            }
+                        }
+                    } @empty {
+                        <p class="text-muted-color m-0">{{ 'owasp.no_findings' | translate }}</p>
+                    }
+                </div>
+            }
+        </p-card>
+    } @else if (noReport() && !running() && !error()) {
+        <p-card>
+            <p class="text-muted-color m-0" data-testid="no-report">
+                {{ 'owasp.no_report' | translate }}
+            </p>
+        </p-card>
+    }
+}

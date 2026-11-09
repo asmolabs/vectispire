@@ -1,0 +1,276 @@
+package com.asmolabs.vectispire.core.tickets;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.PolicyLookup;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.ResolvedPolicy;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.Scope;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
+import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.text.LogText;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
+import com.asmolabs.vectispire.core.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.IssueViews;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * The sweep that opens tickets.
+ *
+ * <p><b>A sweep, not an event.</b> Notifications go out after a scan; tickets do not. A pass
+ * over "actionable issues with no ticket" is idempotent by construction — the reference stored
+ * on the issue <em>is</em> the deduplication key — so a tracker under maintenance is retried on
+ * the next pass instead of silently losing the ticket. It is also why no outbox is needed here:
+ * the state to reconcile is already in the issue's row.
+ *
+ * <p><b>The gate is evaluated issue by issue, deliberately.</b> Evaluating a target's whole
+ * backlog and opening a ticket per violation would be the same query, but an issue's ticket
+ * would then depend on which <em>other</em> issues happen to be open — and "why does this one
+ * have a ticket and that one not" has to have an answer about the issue itself.
+ *
+ * <p><b>A suspended tracker is said once, not every hour</b> (decision 0040 §3). While the governor has the
+ * configured tracker's integration switched off, the pass opens nothing and closes nothing — the issues keep
+ * their references, and those resolved meanwhile are closed when it is switched back on — and the log says so
+ * when the suspension begins and when it ends, never on every pass that finds it unchanged.
+ */
+@Service
+public class TicketSweepService {
+
+    private static final Logger log = LoggerFactory.getLogger(TicketSweepService.class);
+
+    private static final String SCOPE_GLOBAL = "global";
+    private static final String SCOPE_REPOSITORY = "repository";
+    private static final String SCOPE_CONTAINER = "container";
+
+    /**
+     * This process, as the holder of the claims it takes: every instance runs the sweep (`MaintenanceTask`), and
+     * the claim is what keeps two of them from asking the tracker for the same issue (V95).
+     */
+    static final String INSTANCE = java.util.UUID.randomUUID().toString().replace("-", "");
+
+    /**
+     * How long a claim holds: far longer than a tracker call, so it is only ever waited out when its instance died
+     * between the claim and the reference — and then the issue is tried again by the next pass after it lapses.
+     */
+    static final java.time.Duration CLAIM = java.time.Duration.ofMinutes(10);
+
+    private final IssueCatalog issues;
+    private final ActiveGatePolicies policies;
+    private final TargetNaming names;
+    private final TicketService tickets;
+    private final AuditLogService audit;
+    private final java.time.Clock clock;
+
+    /** The integration the last pass found suspended, empty when none: so that only a change is logged. */
+    private final AtomicReference<String> suspension = new AtomicReference<>("");
+
+    public TicketSweepService(
+            IssueCatalog issues,
+            ActiveGatePolicies policies,
+            TargetNaming names,
+            TicketService tickets,
+            AuditLogService audit,
+            java.time.Clock clock) {
+        this.issues = issues;
+        this.policies = policies;
+        this.names = names;
+        this.tickets = tickets;
+        this.audit = audit;
+        this.clock = clock;
+    }
+
+    /** One pass. Returns how many tickets were opened. */
+    public int sweep() {
+        return sweep(Tickets.MAX_TICKETS_PER_SWEEP);
+    }
+
+    /**
+     * <b>Not one transaction for the pass</b>, for two reasons that happen to agree.
+     *
+     * <p>The first is behaviour: each issue is settled on its own, so a tracker that starts
+     * refusing at the twelfth ticket does not undo the eleven already opened — they would all be
+     * attempted again next pass, and a tracker does not deduplicate what it has already created.
+     *
+     * <p>The second is the audit entry, written {@code REQUIRES_NEW}, deliberately, so that the
+     * attempt survives a rollback: inside a transaction here, each would hold a second pooled
+     * connection while the pass held the first and its locks. On the SQLite fixture of the time,
+     * where the lock was the whole file, that second connection waited for the first and the pass
+     * deadlocked against itself — found by running it.
+     */
+    public int sweep(int limit) {
+        if (suspended()) {
+            return 0;
+        }
+        if (!tickets.isEnabled()) {
+            return 0;
+        }
+
+        int created = openActionableTickets(limit);
+        int closed = closeResolvedTickets(limit);
+        return created + closed;
+    }
+
+    private int openActionableTickets(int limit) {
+        List<IssueView> candidates = issues.actionableWithoutTicket(
+                IssueState.OPEN.wireName(),
+                // Every settled decision, an accepted risk's included: none of them is work to ticket.
+                TriageStatus.settledWireNames(),
+                limit);
+        if (candidates.isEmpty()) {
+            return 0;
+        }
+
+        Map<String, StoredPolicy> byScope = activePolicies();
+        TargetNaming.Names targetNames = names.all();
+
+        int created = 0;
+        for (IssueView issue : candidates) {
+            ResolvedPolicy resolved = PolicyResolution.resolve(
+                    new PolicyLookup(
+                            Optional.ofNullable(byScope.get(scopeOf(issue))),
+                            Optional.ofNullable(byScope.get(SCOPE_GLOBAL + ":0"))),
+                    RequestedPolicy.none(),
+                    Scope.TARGET);
+
+            if (PolicyGate.evaluate(List.of(IssueViews.forGate(issue)), resolved.policy()).passed()) {
+                // Below the bar for this target: no ticket, and **no marker either** — the policy
+                // can be tightened tomorrow, and the issue has to become a candidate again then.
+                continue;
+            }
+
+            // **Claimed before the tracker is asked.** Every instance runs this sweep, and a tracker does not
+            // deduplicate: without the claim, two passes that overlapped both opened a ticket for the issue.
+            // Lost: another instance is asking for it now, or it has a reference already.
+            java.time.Instant now = clock.instant();
+            if (!issues.claimTicket(issue.id(), INSTANCE, now, now.plus(CLAIM))) {
+                continue;
+            }
+            Optional<TicketService.Ticket> ticket;
+            try {
+                ticket = tickets.createForIssue(
+                        IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
+            } catch (RuntimeException failed) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
+                throw failed;
+            }
+            // Left without a reference on purpose, and the claim given up: the next pass will try again.
+            if (ticket.isEmpty()) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
+                continue;
+            }
+
+            created++;
+            // **Only onto an issue that still carries no reference.** One a person attached while the
+            // tracker answered is kept; the ticket just opened exists all the same, and is said to,
+            // in the log and in the audit entry, for whoever has to close it. Attaching clears the claim.
+            boolean recorded = issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url()) == 1;
+            if (!recorded) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
+                log.warn("Ticket {} was opened on the tracker for issue {}, which carries another reference attached "
+                        + "meanwhile: the new ticket is not recorded on the issue and may need closing by hand.",
+                        LogText.of(ticket.get().reference()), issue.id());
+            }
+
+            audit.record(AuditLogService.Record.of(
+                    AuditOperation.TICKET_CREATED,
+                    String.valueOf(issue.id()),
+                    "Ticket " + ticket.get().reference() + " opened for "
+                            + (issue.identifier() == null ? issue.type() : issue.identifier())
+                            + " (" + resolved.describeSource() + ")"
+                            + (recorded ? "" : "; not recorded on the issue, which carries a reference attached meanwhile"),
+                    null));
+        }
+
+        if (created > 0) {
+            log.info("{} ticket(s) opened.", created);
+        }
+        return created;
+    }
+
+    /**
+     * Automatically closes tickets on the remote tracker when an issue is marked resolved.
+     */
+    public int closeResolvedTickets(int limit) {
+        List<IssueView> resolvedIssues = issues.resolvedWithOpenTicket(limit);
+        if (resolvedIssues.isEmpty()) {
+            return 0;
+        }
+
+        int closed = 0;
+        for (IssueView issue : resolvedIssues) {
+            boolean success = tickets.closeTicket(issue.ticketRef(), "Resolved by clean security scan");
+            if (success) {
+                if (issues.markTicketClosed(issue.id(), issue.ticketRef()) == 0) {
+                    log.warn("Ticket {} was closed on the tracker, but issue {} now carries another reference: left "
+                            + "as it is.", LogText.of(issue.ticketRef()), issue.id());
+                }
+                closed++;
+
+                audit.record(AuditLogService.Record.of(
+                        AuditOperation.TICKET_CLOSED,
+                        String.valueOf(issue.id()),
+                        "Ticket " + issue.ticketRef() + " automatically closed after issue resolution",
+                        null));
+            }
+        }
+
+        if (closed > 0) {
+            log.info("{} resolved ticket(s) automatically closed on tracker.", closed);
+        }
+        return closed;
+    }
+
+    /** Whether the configured tracker is suspended, logged when that changes since the last pass. */
+    private boolean suspended() {
+        String now = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(standing -> standing.integration().key())
+                .orElse("");
+        String before = suspension.getAndSet(now);
+        if (!now.equals(before)) {
+            if (!now.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is disabled. No ticket is opened or closed, and nothing is "
+                        + "sent to the tracker; its token, its settings and the issues' tickets are kept, and the sweep "
+                        + "resumes when a platform governor re-enables it.", now);
+            } else if (!before.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is enabled again; tickets are opened and closed again.",
+                        before);
+            }
+        }
+        return !now.isEmpty();
+    }
+
+    /**
+     * An issue always belongs to a target in practice, but a row with neither must fall back to
+     * the global policy rather than resolving a {@code container:null} scope — which would look
+     * up nothing and quietly give that issue the built-in policy instead of the operator's.
+     */
+    private static String scopeOf(IssueView issue) {
+        if (issue.repoId() != null) {
+            return SCOPE_REPOSITORY + ":" + issue.repoId();
+        }
+        if (issue.containerId() != null) {
+            return SCOPE_CONTAINER + ":" + issue.containerId();
+        }
+        return SCOPE_GLOBAL + ":0";
+    }
+
+    /** Keyed as {@link #scopeOf} spells an issue's scope — {@code gate} owns the store and its reading. */
+    private Map<String, StoredPolicy> activePolicies() {
+        return policies.byScope();
+    }
+
+}

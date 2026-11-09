@@ -1,0 +1,135 @@
+# FAQ et dépannage
+
+## Installation
+
+**Permission refusée sur le socket Docker.** Avec la composition livrée, cela ne devrait pas
+arriver : aucun conteneur Vectispire ne monte le socket, un `docker-socket-proxy` s'en charge,
+et le plan de contrôle le joint via `DOCKER_HOST`. Si vous exécutez Vectispire hors compose,
+directement contre un démon, l'utilisateur doit avoir accès à `/var/run/docker.sock` — sous
+Linux, le groupe `docker`. Sans cela, chaque scan échoue au premier conteneur.
+
+**Le plan de contrôle doit-il exécuter les scans ?** Sur un hôte et pour une équipe, oui : c'est
+à cela que sert le défaut. Au-delà, non : l'accès au démon vaut root sur l'hôte, et cet hôte
+détient `ENCRYPTION_KEY`. Faites tourner un agent distant et posez
+`VECTISPIRE_EMBEDDED_WORKER=false`.
+
+**Le premier scan est très lent.** C'est attendu. Les images — `anchore/syft`,
+`anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` — sont
+téléchargées à la demande la première fois que chacune sert. Les scans suivants réutilisent le
+cache.
+
+**Puis-je utiliser SQLite ?** Non. MySQL est le moteur supporté, en 8.4 LTS — ce que livre la composition — ou en 9.x ; PostgreSQL démarre encore mais n'est plus testé, et ne fera pas partie de 1.0. SQLite a
+servi de fixture aux suites de tests jusqu'à leur passage sur MySQL ; il ne fait plus du tout
+partie de la construction, et une URL `jdbc:sqlite:` arrête le démarrage : aucun pilote n'est livré
+pour elle.
+
+**L'application refuse de démarrer : le chemin de la clé de chiffrement ne résout pas.**
+Délibéré. Démarrer sans clé reviendrait à refuser toute écriture de secret des heures plus
+tard, à un endroit sans rapport avec l'erreur réelle.
+
+## Connexion
+
+**« Identifiants incorrects ou compte inactif ».** Soit les identifiants sont faux, soit
+l'indicateur `is_active` du compte est à `false`. Vérifiez sous **Utilisateurs** avec un
+administrateur existant.
+
+**J'ai perdu le compte d'amorçage.** Les variables d'amorçage ne sont honorées que lorsque la
+table des utilisateurs est vide. Un autre SUPERUSER peut réinitialiser le mot de passe ; sinon,
+la réinitialisation est une opération en base.
+
+**L'authentification unique fonctionne mais l'utilisateur n'a aucun accès.** C'est attendu :
+aucun compte n'est créé à la connexion. Un administrateur le crée d'abord, et le rôle reste la
+décision de Vectispire. Voir [Authentification unique](../administration/sso.md).
+
+## Scan
+
+**Un scan a échoué — la cible passe-t-elle encore ?** Non. Une cible jamais analysée, ou dont le
+dernier scan a échoué, échoue à son verdict de barrière avec une violation `observation` — dans la vue
+d'ensemble Sécurité, parmi les cibles en échec du tableau de bord et depuis `POST /api/v1/gate` — parce
+que son backlog vide ou périmé ne dit rien de son code. La vue d'ensemble nomme lequel des deux cas
+c'est — voir
+[Lire les résultats](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
+
+**Rien n'est pris en charge et la file grossit.** Soit l'agent intégré est désactivé sans
+qu'aucun agent distant ne soit connecté, soit les cibles sont épinglées à un agent qui ne s'est
+jamais annoncé. Voir [Agents](../administration/agents.md).
+
+**Un dépôt privé ne se clone pas.** La clé de déploiement doit être enregistrée sous
+[Clés SSH](../administration/ssh-keys.md), sélectionnée sur le dépôt, et dotée d'un accès en
+lecture seule chez votre hébergeur.
+
+**« The clone … could not reach its host », alors que l'hôte répond depuis votre poste.** L'hôte du
+dépôt se résout en une adresse privée qu'un des réseaux de Docker couvre aussi — un réseau d'entreprise
+en `172.16.0.0/12` est le cas courant, puisque Docker attribue ses sous-réseaux bridge dans cette plage.
+Dans le démon, la route vers ce réseau l'emporte et le clone ne sort jamais de l'hôte. Comparez
+`getent hosts <hôte git>` depuis le conteneur du plan de contrôle avec
+`docker network inspect <réseau> --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` pour chaque réseau
+du démon, pas seulement ceux de Vectispire. Déplacez le réseau qui chevauche : donnez au démon des plages
+hors de vos réseaux d'entreprise (`"default-address-pools": [{"base": "10.203.0.0/16", "size": 24}]` dans
+sa configuration, puis recréez les réseaux), ou recréez ce seul réseau avec un `--subnet` explicite.
+
+**Une clé SSH s'affiche comme illisible.** Aucune clé configurée ne la déchiffre — le plus
+probable est qu'elle précède tout `ENCRYPTION_KEY`. Cet ancien défaut a été retiré et sa moitié
+privée est publique : remplacez la paire de clés chez votre hébergeur.
+
+**Semgrep ne trouve presque rien.** Vectispire n'embarque qu'une seule règle, parce que les
+jeux de règles publics ne sont pas redistribuables. Installez le vôtre — voir
+[Jeux de règles Semgrep](../administration/rule-sets.md).
+
+## Résultats
+
+**Pourquoi la même CVE n'a-t-elle pas créé une nouvelle issue après un changement de
+version ?** Par conception. L'empreinte ignore la version du paquet : une dépendance vulnérable
+sur trois correctifs successifs garde un historique et une décision.
+
+**J'ai supprimé une issue et elle est toujours ouverte.** Par conception également. `state`
+n'est écrit que par le pipeline ; le triage n'est écrit que par une personne. Les confondre
+rendrait « résolu » vide de sens.
+
+**Une issue supprimée est revenue.** Sa date de réexamen est arrivée et elle est repassée en
+*en cours d'examen*, avec sa justification et son commentaire intacts. Voir
+[Constats et triage](../guide/issues.md#review-dates).
+
+**Le MTTR est vide plutôt qu'à zéro.** Rien n'a été résolu sur cette période. Zéro se lirait
+comme « corrigé le jour de son apparition ».
+
+## CI
+
+**Ma `policy` dans la requête a été ignorée.** Une requête ne peut que **durcir** la politique
+stockée, jamais l'assouplir. Changez la politique stockée sous
+[Politiques de barrière](../administration/gate-policies.md).
+
+**Le verdict ne correspond pas à ce que je vois dans l'interface.** Lisez quelle politique le
+verdict nomme — une redéfinition par cible peut s'appliquer, ou le défaut intégré là où rien
+n'est stocké.
+
+**Les constats de qualité ne font jamais échouer ma construction.** C'est exact, et ce n'est
+pas configurable. Voir [Qualité du code](../guide/quality.md).
+
+## Notifications
+
+**Teams ne reçoit rien.** Teams est atteint par un **workflow** Power Automate ; le connecteur
+Office 365 qu'il remplace a été retiré. Recréez la destination sous forme de workflow.
+
+**Une notification est arrivée deux fois.** Chaque destination a sa propre ligne de file
+d'envoi précisément pour qu'un échec sur l'une ne duplique pas une autre. Un vrai doublon vers
+une seule destination mérite d'être signalé.
+
+**Rien ne se déclenche sur une semaine calme.** Par conception — les notifications se
+déclenchent quand quelque chose apparaît. Activez le
+[rapport de posture hebdomadaire](../integrations/notifications.md#the-weekly-posture-report),
+qui nomme aussi ce qui n'a jamais été analysé.
+
+## Revue par IA
+
+**La liste des modèles ne montre que deux suggestions.** Ollama est injoignable à l'URL
+configurée. Vérifiez qu'il tourne et rafraîchissez la liste.
+
+**La revue est lente.** C'est attendu avec Ollama dans Docker sur Apple Silicon — ni passage
+GPU ni Metal, donc l'inférence est uniquement sur processeur. Installez-le en natif, ou
+utilisez le modèle plus léger.
+
+## Signaler un problème de sécurité
+
+N'ouvrez pas de ticket public. Voir
+[SECURITY.md](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md).

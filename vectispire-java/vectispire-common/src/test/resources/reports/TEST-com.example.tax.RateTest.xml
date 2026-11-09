@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.tax.RateTest" time="0.02" tests="2" errors="0" skipped="0" failures="0">
+  <testcase name="ofPercent" classname="com.example.tax.RateTest" time="0.01"/>
+  <testcase name="refusesNegative" classname="com.example.tax.RateTest" time="0.01"/>
+</testsuite>

@@ -1,0 +1,234 @@
+# DFD-Based STRIDE Threat Model — Vectispire
+
+This document presents the formal threat model for **Vectispire** based on **Data Flow Diagram
+(DFD)** modeling and **STRIDE Risk Mapping per Individual System Entity**.
+
+---
+
+## 1. Data Flow Diagram (DFD)
+
+```mermaid
+flowchart TB
+    subgraph TB1["Trust Boundary 1: External Edge Perimeter (TB1)"]
+        E1["E1: Security Analyst / Admin"]
+        E2["E2: CI/CD Pipeline (Jenkins / GitLab / GitHub)"]
+        E3["E3: Remote Git Repo / Image Registry (Untrusted Code)"]
+    end
+
+    subgraph TB2["Trust Boundary 2: Control Plane Backend (TB2)"]
+        P1["P1: API Controllers & Authentication (/api/v1)"]
+        P2["P2: Scan Orchestrator (ScanRunner)"]
+        P3["P3: Ingestor & Reconciler (ScanIngestor / IssueSync)"]
+        P4["P4: Compliance Engine & Gate (ComplianceService / PolicyGate)"]
+
+        DS1[("DS1: SQL Database<br/>(Targets, Scans, Issues, t_audit_log, Sessions)")]
+        DS2[("DS2: Ephemeral Disk Storage<br/>(Workspace / tmp / Repositories)")]
+    end
+
+    subgraph TB3["Trust Boundary 3: Isolated Scanner Containers (TB3)"]
+        P5["P5: Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)"]
+    end
+
+    subgraph TB4["Trust Boundary 4: Remote Agent (TB4)"]
+        E4["E4: Remote Agent Worker (Vectispire Agent)"]
+    end
+
+    subgraph TB5["Trust Boundary 5: Model Review Endpoint (TB5) — a host you run, or a third party"]
+        E7["E7: Model Endpoint (Ollama / OpenAI-compatible API)"]
+    end
+
+    %% Data Flows
+    E1 -->|"F1: Authentication & VEX Triage (HTTPS)"| P1
+    E2 -->|"F2: Gate Evaluation (POST /api/v1/gate - API Key)"| P1
+    E3 -->|"F3: Code Clone / Pull Archive Image"| DS2
+
+    P1 -->|"F4: Read / Write Sessions, Users & Roles"| DS1
+    P1 -->|"F5: Scan Trigger (Queue t_scan)"| DS1
+    P1 -->|"F6: Compliance & Gate Evaluation"| P4
+    P4 -->|"F7: Query Target Posture & Issues"| DS1
+
+    P2 -->|"F8: Claim Queued Scans (Leader Lease)"| DS1
+    P2 -->|"F9: Workspace Preparation & Source Mount"| DS2
+    P2 -->|"F10: Launch Ephemeral Scanner Containers"| P5
+    DS2 -->|"F11: Read-Only Source Mount"| P5
+
+    P5 -->|"F12: Return Raw Artifacts (ScanArtifacts)"| P2
+    P2 -->|"F13: Forward Artifacts for Ingestion"| P3
+    P3 -->|"F14: Normalization, Fingerprinting & Immutable Write"| DS1
+
+    E4 -.->|"F15: Long-Polling Job Fetch (GET /api/v1/agent/jobs)"| P1
+    E4 -->|"F16: Launch Local Analysis Containers"| P5
+
+    P1 ==>|"F17: Repository Source Code for Model Review (HTTPS)"| E7
+```
+
+---
+
+## 2. STRIDE Threat Matrix per Individual Entity
+
+---
+
+### Entity E1: Security Analyst / Admin
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | User session impersonation by theft of the opaque session bearer token, or brute-force on `/api/v1/auth/login`. | Unauthorized admin dashboard access, falsification of VEX triage. | Passwords hashed with **Argon2id** (high memory cost), attempt tracking in `t_login_attempt` with rate limiting. Sessions are opaque random tokens; `t_session` keeps only their **SHA-256 hash** (`Sessions.hashOf`), so a read of the table or a dump yields nothing a caller can present. |
+| **Repudiation** | User changing a critical vulnerability triage to `NOT_AFFECTED` then denying having performed the action. | Lack of accountability in risk sign-off. | Mandatory recording of `user_id` and ISO timestamp in `t_issue_triage_event` and in `t_audit_log`, whose hash chain makes a selective modification or deletion detectable — not impossible: whoever can write the table can rewrite the whole chain, which the off-database mirror is there to expose. |
+| **Elevation of Privilege** | Restricted user attempting to access admin endpoints or credential management. | Bypassing Role-Based Access Control (RBAC). | Each route carries one of the project's own markers — `@RequiresAccount`, `@RequiresWriteAccount`, `@RequiresSecurityLead`, `@RequiresGovernanceRead`, `@RequiresPlatformGovernor`, `@RequiresAdministrator`, `@RequiresAgentKey`, `@OpenToAnonymous` — each a composed annotation over one `@PreAuthorize` expression on the account's role (`SUPERUSER`, `ADMIN`, `CISO`, `AUDITOR`, `SECURITY_CHAMPION`, `USER`). `RouteAuthorizationTest` fails the build on a handler without one, and holds the anonymous routes to a list. |
+| **Elevation of Privilege** | A signed-in account naming a repository, container or finding that belongs to another account's estate (object-level authorization, BOLA). | Another team's repositories, findings and triage read or changed. | **The main risk on this API, and the one a role marker does not cover**: `@RequiresAccount` proves the caller is signed in, not whose estate the response describes. A route naming a target resolves a `Visibility` — `VisibilityService.of(user, credentialRestriction)`, the account's grant intersected with the credential's — and passes it to the query, or refuses through `Visibilities.requireVisible(...)`, which answers **404, never 403**, so that a refusal cannot confirm the object exists. `AuthorizationCoverageTest` fails the build on a route that names a target without doing either. |
+
+---
+
+### Entity E2: CI/CD Pipeline (Jenkins / GitLab / GitHub Actions)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | Theft of a CI/CD integration API token stored in pipeline secrets. | Fraudulent Gate API queries and security posture exfiltration. | API keys stored strictly as **Argon2id hashes** (`vectispire_`), configurable expiration, and strict permission scopes. |
+| **Information Disclosure** | Leakage of confidential details in Quality Gate responses (`POST /api/v1/gate`). | Disclosing unresolved vulnerability details to unauthorized parties. | Gate response payload contains only binary verdict (`PASSED`/`FAILED`), broken policies, and issue counts—no cleartext secrets or code. |
+
+---
+
+### Entity E3: Remote Git Repository / Container Image (Untrusted Code)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Tampering** | Scanned repository embedding a malicious `.gitleaks.toml` configuration to ignore secret detection. | Concealing security flaws and bypassing audit controls. | **Server-side enforced configuration**: `SecretsScanner` passes an internal `--config` and ignore target repo configs ([ADR 0006](../../en/decisions/0006-semgrep-rules-written-here.md)). |
+| **Tampering** | Scanned repository shipping a `.checkov.yaml`/`.checkov.yml`, `.gitleaksignore` or `.semgrepignore` — files the scanners read from the analysed tree whatever their command line says — to skip checks, drop secret fingerprints or exclude source files, or to make checkov run its own Python checks. | Findings silenced, a clean report resolving the backlog and passing the gate (decision 0007); code of the target executed in the IaC scanner's container. | **Removed from the clone before any scanner runs**: `ScannerConfigurationFiles`, called by `ScanRunner` on the built-in worker and on agents, deletes them at any depth without following links, and logs what it removed. `scripts/composition-scan-check.sh` plants all three in its fixture and requires the findings regardless. |
+| **Elevation of Privilege** | Exploit attempt in scanner container parser to escape to host via Docker socket. | Complete takeover of the Vectispire host machine. | **No container mounts the Docker socket — the control plane included** ([ADR 0018](../../en/decisions/0018-the-docker-socket-is-never-mounted.md)). A `docker-socket-proxy` on an internal network allows `ping`, `version`, `info`, `containers`, `images` and `POST`, and refuses secrets, volumes, networks and swarm. An `exec` instance can be created but never started (measured, see ADR 0018). Scanners run with `cap_drop: ALL`, `no-new-privileges`, read-only root and `read-only` source mounts. **Residual, and named**: `POST /containers/create` accepts `Binds`, so code execution *in the control plane* still reaches the host. Only a remote agent separates the two. |
+
+---
+
+### Entity E4: Remote Agent Worker (Vectispire Agent)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | Unauthorized agent attempting to connect to control plane to claim scan jobs. | Source code exfiltration or scan result falsification. | Mandatory token authentication via revocable agent keys (`t_agent`) and exclusive HTTP Long-Polling protocol (`/api/v1/agent/jobs`). Refused bearer tokens are capped per address and the ceiling is audited. |
+| **Tampering** | A **stolen agent API key** used to hand back an empty result, which resolves the target's whole backlog of that type. | Every open vulnerability on a target silently disappears from the screens, the exports and the gate verdict, leaving a scan that looks like it ran. | **Result attestation** ([`ResultAttestation`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/crypto/ResultAttestation.java)): an operator pins an Ed25519 public key on the agent's row, out of band, and that agent's results must then carry a signature over the scan id and the exact body. **The key is never one the agent announces** — a signature checked against a key its signer published on the same channel proves only what the bearer token already proved. Refusals are audited (`AGENT_RESULT_REFUSED`). **Opt-in per agent**: an agent with no pinned key behaves as before, so this is not a control that is on until somebody notices it is off. |
+| **Information Disclosure** | A **TLS-terminating proxy** between agent and control plane removes the agent's sealing key from its announcement, or puts its own in its place, to receive a delegated SSH key or HTTPS token it can read. | A repository's deployment credential read by whoever administers the proxy — the one party sealing exists to exclude. | **Signed sealing key** ([`SealingKeyAttestation`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/crypto/SealingKeyAttestation.java), [ADR 0031](../../en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)): the agent signs its ephemeral X25519 key with its pinned result-signing key, over its id and the pair's generation; the control plane accepts only a key that verifies, keeps the newest, and never lets an unsigned or absent announcement replace or clear it. **No clear delivery**: a delegated credential leaves sealed for the verified key or not at all, and an agent with no pinned signing key receives none. Refusals are audited (`AGENT_SEALING_KEY_REFUSED`) and sent to the SIEM (`VECTI-SEC-020`). **Given a pinned signing key**: whoever holds the agent's configuration can still announce a key of their own, and a proxy can still deny service. |
+| **Elevation of Privilege** | Compromised remote agent attempting to execute SQL queries directly on central database. | Unauthorized reading/modification of enterprise database. | **Strict agent architectural isolation (`vectispire-agent`)**: zero JDBC drivers or DB dependencies on agent classpath. Agent does not possess `ENCRYPTION_KEY` ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |
+
+---
+
+### Entity E5: Identity Provider (OIDC sign-on, SCIM 2.0 provisioning)
+
+*Added after the first version of this model: neither federation nor provisioning existed when the
+entities above were drawn, and an entity that is not drawn is not reasoned about.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | An identity from the provider claiming a Vectispire account it was never granted, or a second subject binding to a name that already belongs to someone. | Silent takeover of an existing account, including an administrator's. | Sign-on is a **binding, not a provisioning**: an identity with no account is refused and logged (`Single sign-on refused: no account named …`), and a name already bound to another subject is refused rather than rebound. |
+| **Elevation of Privilege** | An IdP administrator raising a role through SCIM rather than through Vectispire, bypassing its own four-eyes and audit path. | Role change with no Vectispire-side accountability. | `/scim/v2/Users` is `@RequiresAdministrator`: the provisioning channel is not a way around the role checks, it sits behind the same one. |
+| **Repudiation** | A privilege granted through the provider leaving no trace on this side. | A change nobody here can account for. | Provisioning writes through the same services as the human path, so `t_audit_log` records it with its actor. |
+
+---
+
+### Entity E6: External Issue Tracker (Jira, GitLab, GitHub, ServiceNow webhooks)
+
+*Also added afterwards. This is the only inbound entry point reachable without an account, which
+is the whole reason it is worth a table of its own.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | Anyone on the network posting a forged webhook to move a triage decision. | An unpatched vulnerability marked resolved by a stranger. | `WebhookAuthenticity` verifies each provider's own convention — `X-Gitlab-Token` verbatim, GitHub's HMAC over the raw body, a shared token for the trackers that sign nothing — with `MessageDigest.isEqual` throughout, because this endpoint answers unauthenticated callers and a byte-by-byte comparison would make the secret guessable. |
+| **Spoofing** | The same, on a deployment that has not configured a secret. | The above. | **Mitigated: an unset secret closes the route.** With `ticket_webhook_secret` empty, every call is refused with a 403 saying the webhook is not configured (`TicketingWebhookController`), which the tracker shows in its own delivery log — where a broken integration is looked for. It used to leave the route open, so that an upgrade would not stop synchronisation; the cost was an anonymous door on nearly every deployment. A secret that cannot be decrypted refuses like a wrong signature rather than reopening it. And an accepted call still settles nothing: a tracker's "not affected" is queued as `pending_approval`, for a second person to approve. |
+| **Tampering** | A replayed legitimate payload re-applying a decision that has since been reversed. | A reopened issue silently re-resolved. | **Mitigated for thirty days.** `TicketingWebhookService` records the SHA-256 of each accepted body (with its provider) in `t_webhook_delivery`; the same body arriving again within `REPLAY_WINDOW` — thirty days — is answered 200 "already processed" and changes nothing. Keyed on the body because the signature covers the body, not the delivery id. **Residual**: a body captured and replayed after the window is accepted again — and, like any webhook decision, lands in the approval queue rather than settling. |
+
+---
+
+### Entity E7: Model Review Endpoint (Ollama, or an OpenAI-compatible API)
+
+*Added last, and it should have been first. This is the only flow that sends **the source code
+being analysed** out of the process, and the model had no entry for it at all — neither here nor in
+the security view — through several audits. It is listed as an external entity even when the
+operator runs it themselves, because "the destination is a machine I control" is a configuration
+value, not a property of the design.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Information Disclosure** | The endpoint is a public address, so the source of every scanned repository — private ones, and whatever secrets are still committed in them — leaves the estate in a request body, under somebody else's retention policy and jurisdiction. | Complete loss of source confidentiality, silently and repository by repository. | The outbound guard runs `INTERNAL_REQUIRED` by default: `OutboundPost.validate` **resolves the name** and refuses a public address rather than pattern-matching the string. Lifting it requires `Setting.AI_REVIEW_ALLOW_REMOTE`, whose help text says what it costs. Revalidated on **every review** (`AiReview.validatedUrl`), not only when saved, so a row written straight into the database does not bypass it. |
+| **Repudiation** | Nobody can say who decided the code could leave, or when — the switch is a boolean and a boolean has no author. | An unanswerable question at the first audit that asks it. | `AI_REVIEW_RISK_ACKNOWLEDGED_BY` / `_AT` are stamped **by the server** from the authenticated session and its own clock, refused on the wire (`SettingsController.update`), and erased when the switch goes back off. `t_audit_log` carries the same event and is never purged. |
+| **Spoofing** | A destination on the internal network that is not the model — a typo, or DNS moved under the deployment. | Source code posted to whatever answers. | Partially mitigated. The guard proves the address is internal, not that the host is the intended one. TLS pinning is available through `PinnedHttpSender` but is not required for this destination. |
+| **Tampering** | The endpoint returns findings the operator acts on; a compromised one can hide a real vulnerability or invent one. | Misdirected remediation effort, or a real issue dismissed. | The review is **advisory and additive**: `AiReview` findings never suppress a scanner's, and the gate verdict is computed without them ([ADR 0005](../../en/decisions/0005-quality-never-blocks-the-gate.md)). |
+| **Denial of Service** | A slow or unavailable endpoint holding the request path open. | Reviews pile up; the screen that asked for one waits. | `AI_REVIEW_TIMEOUT_SECONDS` bounds every call, and a failed review is `Optional.empty()` rather than an empty result ([ADR 0007](../../en/decisions/0007-none-is-not-an-empty-list.md)) — the report says the review did not run instead of showing a clean one. |
+| **Information Disclosure** | The API key for a third-party endpoint read out of the settings table or a screen. | An account somebody else can spend. | `AI_REVIEW_OPENAI_KEY` is `Sensitivity.ENCRYPTED`: written only through `PUT /settings/ai-openai-key`, which encrypts it, refused by the generic settings route, and returned by no route at all — a screen is told whether one exists. |
+
+---
+
+### Process P1: REST API Controllers & Backend Security Layer
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Denial of Service** | HTTP request flooding on login or scan trigger endpoints. | Application server thread exhaustion and platform unavailability. | Asynchronous scan queuing via `t_scan`, IP rate-limiting, and database leader leases (`t_leader_lease`). |
+| **Information Disclosure** | Sensitive information leak via exception stack traces on API errors. | Internal structural disclosure or library version leaks. | Global Spring exception handling (`@ControllerAdvice`) returning sanitized JSON error responses. |
+
+---
+
+### Process P2: Scan Orchestrator (`ScanRunner`)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Elevation of Privilege** | Orchestrator using host SSH key to clone unauthorized Git repositories. | Unauthorized cloning of confidential private repos not assigned to the target. | **Partially mitigated, and the residual risk is accepted rather than absent.** A key attached to a target wins: `t_ssh_key` holds it encrypted, and a repository with its own key never touches the host's. But `host-ssh` is **`true` by default** — an earlier version of this table said `false`, which was never true — so a repository with *no* key falls back to the host's `~/.ssh`. The shipped `docker-compose.yml` mounts none and sets the fallback to `false`: an operator's whole `~/.ssh` in the process that holds `ENCRYPTION_KEY` was the wrong thing to hand over, and the mount was never read anyway, the image's home being `/`. On a single-team install that key already reaches every target. **On a shared install, set `VECTISPIRE_HOST_SSH=false`**: with the fallback on, adding a URL is enough to have Vectispire clone it with an identity nobody attached to it. Pinned by `ScanningDefaultsTest` so the default cannot move unnoticed. |
+| **Denial of Service** | Massive repository or infinite loop in SAST rule blocking orchestrator indefinitely. | Worker thread hang and cancellation of subsequent scans. | Enforced resource caps (RAM limit, CPU quota) and execution timeouts applied per container by `ContainerRunner`. |
+
+---
+
+### Process P3: Ingestor & Reconciler (`ScanIngestor` / `IssueSyncService`)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Tampering** | Crashed scanner returning empty list `[]`, causing backlog issues to be resolved. | Silent resolution of unpatched vulnerabilities in historical tracking. | **"None is not empty" principle** ([ADR 0007](../../en/decisions/0007-none-is-not-an-empty-list.md)): Failed scan step returns `Optional.empty()` and leaves backlog intact. |
+| **Tampering** | Duplicate issue injection during scanner output processing. | Backlog clutter and loss of existing VEX qualifications. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
+
+---
+
+### Process P4: Compliance Engine & Quality Gate (`ComplianceService` / `PolicyGate`)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Tampering** | Attempting to alter Gate verdict result stored in the database. | Deploying a vulnerable component into production. The answer a pipeline receives is never read back from storage: `GateService.evaluateAndRecord` computes it on each request with `PolicyGate.evaluate`, over the target's current issues and the policy in force, so altering a stored verdict does not change what the next pipeline is told. Each verdict is then **recorded** in `t_gate_verdict` — the register behind evidence section 09. **Residual**: that register is not hash-chained; whoever can write to the database can rewrite it, as they can the issues the gate reads. |
+| **Information Disclosure** | Exposing regulatory compliance posture (NIS 2, DORA, ISO 27001) to unauthorized users. | Disclosing organizational security weaknesses. | Strict visibility filtering (`VisibilityService`) and role-restricted access to PDF compliance export reports. |
+
+---
+
+### Process P5: Isolated Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Information Disclosure** | Analyzer container attempting to transmit scanned source code or secrets to external servers. | Exfiltration of intellectual property and valid tokens. | **Total network isolation (`network: none`)** for code and secret scanner containers (Gitleaks, Checkov, Semgrep). |
+| **Elevation of Privilege** | Compromised analyzer binary attempting to write to host filesystem. | Host filesystem alteration. | Source directory mounted **read-only (`read-only`)**, unprivileged execution with `cap_drop: ALL`. |
+
+---
+
+### Data Store DS1: Relational SQL Database (`t_repository`, `t_issue`, `t_audit_log`, `t_ssh_key`)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Information Disclosure** | Theft of private SSH keys during a SQL database dump or leaked backup. | Compromise of enterprise Git access credentials. | Mandatory encryption at rest for SSH keys and integration secrets using **AES-256-GCM** via `EncryptionService`. |
+| **Information Disclosure** | Indefinite retention of raw secret scanner reports (`Gitleaks`) containing cleartext tokens. | Token leaks upon direct database read. | Automatic raw payload purging (`scan.cves`) by retention task. `Finding` and `Issue` entities store **only file path and line number**—never cleartext secret values. |
+| **Tampering** | Malicious deletion or modification of rows in `t_audit_log`. | Erasure of administrative action evidence. | **SHA-256 Hash Chain** linking each audit entry to the preceding one. `verifyIntegrity()` detects chain breaks immediately. |
+
+---
+
+### Data Store DS2: Ephemeral Disk Storage (`Workspace` / `tmp`)
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Information Disclosure** | Temporary cloning directories left on host disk after scan completion. | Local reading of source code or secrets by other system processes. | Guaranteed recursive cleanup of `Workspace` folder in `finally` block in `ScanRunner`. |
+| **Tampering** | Modifying cloned source code in temporary directory before scanner execution. | Falsification of analysis findings. | Workspace created in secure temporary folder with strict permissions (`0700`) accessible only by Vectispire process user. |
+
+---
+
+### Data Flows in Transit — the flows whose *transit* carries a threat of its own
+
+*The heading here read "Data Flows: F1 to F16" over five rows, which at a glance reads as sixteen
+flows analysed. It is not what the section is. Every flow in the diagram **is** analysed — at its
+two endpoints, in the entity, process and data-store matrices above, which is where a threat
+against `P5` or `DS2` belongs. What follows is the smaller set where the crossing itself is the
+exposure, independently of what sits at either end. The others are deliberately not repeated here.*
+
+| DFD Flow | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|---|
+| **F1, F2 (HTTP API)** | **Information Disclosure** | Interception of credentials or API tokens in transit over network. | Theft of user sessions or CI API tokens. **Vectispire does not enforce TLS.** It serves plain HTTP and is routinely reached that way on an internal address; transport encryption is the job of the reverse proxy terminating TLS in front of it, which is also the component that should send HSTS. Vectispire deliberately sends none (`SecurityConfiguration`, pinned by `SecurityHeadersTest`): a Strict-Transport-Security header seen once makes a plain-HTTP origin permanently unreachable in that browser. What it does send on every response is a Content-Security-Policy and Spring Security's default headers (`X-Content-Type-Options`, `X-Frame-Options`). **Residual**: a deployment exposed without such a proxy carries sessions and API keys in clear. |
+| **F12, F14 (Ingestion)** | **Tampering** | Injecting duplicate issues or altering findings during DB transit. | Backlog clutter and loss of VEX triage state. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
+| **F15 (Long-Polling Agent)** | **Elevation of Privilege** | Remote agent attempting SQL injection via job fetching stream. | SQL injection and direct database access. | Agent communicates exclusively via structured JSON DTOs over REST API with zero JDBC or direct SQL access ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |
+| **F17 (Model Review)** | **Information Disclosure** | The one flow that carries the *analysed source code* out of the process. Whether it crosses the estate boundary is a setting, which is exactly why the crossing is listed separately from the endpoint at E7. | Loss of source confidentiality to whoever operates the destination. | Destination resolved and refused unless internal, on every call; the exception is a recorded, server-stamped acknowledgement. See **E7**. |

@@ -1,0 +1,488 @@
+package com.asmolabs.vectispire.core.checklists;
+
+import com.asmolabs.vectispire.common.domain.access.VisibleProject;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.checklists.AnswerWords;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistAnswer;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistLayout;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRenderer;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistStatement;
+import com.asmolabs.vectispire.common.domain.checklists.DocumentZip;
+import com.asmolabs.vectispire.common.domain.checklists.Measurement;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementOutcome;
+import com.asmolabs.vectispire.common.domain.checklists.NoDataReason;
+import com.asmolabs.vectispire.common.domain.checklists.Reconciliation;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.checklists.internal.StoredForms;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
+import com.asmolabs.vectispire.core.settings.ProductVersion;
+import com.asmolabs.vectispire.core.targets.SolutionQueryService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+/**
+ * A revision's document: the organisation's workbook filled in, the same statement as {@code checklist.json},
+ * and — once signed off — their detached signatures (decision 0032 §10).
+ *
+ * <h2>Signed inside the sign-off, served as stored</h2>
+ *
+ * <p>A signed-off revision's package is rendered and signed <b>in the sign-off's own transaction</b> and
+ * stored in {@code t_checklist_document}: the route serves those bytes, so that the document an auditor
+ * receives next year is the one that was signed, whatever the product version, the renderer or the
+ * signing key has become since. Rendering it again on each download would sign today's reading of the
+ * rows with today's code, and call it the sign-off's.
+ *
+ * <p>A draft, a submitted or a superseded revision renders on request, <b>unsigned</b>, its measured lines
+ * measured for the rendering (a superseded one's the last stored), and its {@code Evidence} sheet opening
+ * with {@value ChecklistRenderer#DRAFT_BANNER}. No signature: the platform's key attests to what somebody
+ * signed off, never to a picture of work in progress. A revision signed off before documents were signed
+ * has no stored package either; it renders the same way, unsigned, and its first line says so.
+ *
+ * <h2>The whole project, or nothing</h2>
+ *
+ * <p>The export refuses the project here, like every other checklist read (§8): absent, hidden and seen in
+ * part are one "Project not found." An integration key restricted to one repository never sees a whole
+ * project, so the export route that accepts one answers it 404.
+ *
+ * <h2>And what the revision carried</h2>
+ *
+ * <p>A signed-off or a superseded revision is rendered from the measurements stored at its submission and
+ * its sign-off, which carry the evidence of every repository the project held then. Its document goes to a
+ * reader who sees each of those repositories as well as the project now ({@link CarriedRepositories}); to
+ * anybody else the revision is absent, in the words an absent one gets.
+ */
+@Service
+public class ChecklistDocumentService {
+
+    static final String WORKBOOK = "checklist.xlsx";
+    static final String STATEMENT = "checklist.json";
+    static final String SIGNATURE = ".sig";
+
+    /** Column {@code t_checklist_document.product_version}. */
+    private static final int MAX_PRODUCT_VERSION = 100;
+
+    private final ChecklistRepository checklists;
+    private final ChecklistAnswerRepository answers;
+    private final ChecklistEvidenceRepository evidence;
+    private final ChecklistItemRepository items;
+    private final ChecklistTemplateRepository templates;
+    private final ChecklistTemplateVersionRepository versions;
+    private final ChecklistMeasurementRepository measurements;
+    private final ChecklistDocumentRepository documents;
+    private final StoredForms forms;
+    private final ChecklistMeasurer measurer;
+    private final SolutionQueryService projects;
+    private final SigningKeyService signing;
+    private final ProductVersion productVersion;
+    private final ObjectMapper json;
+    private final AuditLogService audit;
+    private final Clock clock;
+
+    public ChecklistDocumentService(
+            ChecklistRepository checklists,
+            ChecklistAnswerRepository answers,
+            ChecklistEvidenceRepository evidence,
+            ChecklistItemRepository items,
+            ChecklistTemplateRepository templates,
+            ChecklistTemplateVersionRepository versions,
+            ChecklistMeasurementRepository measurements,
+            ChecklistDocumentRepository documents,
+            StoredForms forms,
+            ChecklistMeasurer measurer,
+            SolutionQueryService projects,
+            SigningKeyService signing,
+            ProductVersion productVersion,
+            ObjectMapper json,
+            AuditLogService audit,
+            Clock clock) {
+        this.checklists = checklists;
+        this.answers = answers;
+        this.evidence = evidence;
+        this.items = items;
+        this.templates = templates;
+        this.versions = versions;
+        this.measurements = measurements;
+        this.documents = documents;
+        this.forms = forms;
+        this.measurer = measurer;
+        this.projects = projects;
+        this.signing = signing;
+        this.productVersion = productVersion;
+        this.json = json;
+        this.audit = audit;
+        this.clock = clock;
+    }
+
+    // ------------------------------------------------------------------ the export
+
+    /**
+     * The revision's document: the stored, signed package of a signed-off revision, or an unsigned rendering
+     * of any other. Audited as {@code CHECKLIST_EXPORTED} once handed over, naming which and its digest.
+     */
+    public ChecklistDocumentDownload export(long projectId, int revision, VisibilityService.Allowance allowance,
+            RequestActor actor) {
+        Optional<SolutionQueryService.ProjectMembers> members = projects.members(projectId);
+        List<Long> repositoryIds = List.copyOf(
+                members.map(SolutionQueryService.ProjectMembers::repositoryIds).orElse(List.of()));
+        VisibleProject project = RowVisibility.requireWhollyVisibleProject(projectId,
+                members.map(SolutionQueryService.ProjectMembers::name), repositoryIds, allowance);
+        ChecklistEntity checklist = checklists.findByProjectIdAndRevision(project.projectId(), revision)
+                .orElseThrow(() -> absent(project, revision));
+        // A closed revision's document is its stored measurements' — the signed package was rendered from them —
+        // and they may carry a repository the project has dropped since. An open one is measured for this
+        // rendering, over the repositories the guard above compared.
+        if (!ChecklistStatus.ofStored(checklist.getStatus()).isOpen()
+                && !CarriedRepositories.seenBy(CarriedRepositories.of(storedMeasurements(checklist).values()), allowance)) {
+            throw absent(project, revision);
+        }
+
+        Optional<ChecklistDocumentEntity> stored = documents.findByChecklistId(checklist.getId());
+        byte[] content;
+        if (stored.isPresent()) {
+            content = stored.get().getContent();
+        } else {
+            Rendered rendered = render(project, repositoryIds, checklist, false, clock.instant());
+            LinkedHashMap<String, DocumentZip.Entry> parts = new LinkedHashMap<>();
+            parts.put(WORKBOOK, DocumentZip.Entry.of(rendered.workbook()));
+            parts.put(STATEMENT, DocumentZip.Entry.of(rendered.statement()));
+            content = DocumentZip.of(parts);
+        }
+        String sha256 = Digests.sha256Hex(content);
+        boolean signed = stored.isPresent();
+
+        audit.record(actor.entry(AuditOperation.CHECKLIST_EXPORTED, project.projectId() + "/" + revision,
+                "Checklist of project \"" + project.name() + "\", revision " + revision + " (" + checklist.getStatus()
+                        + ") downloaded: " + (signed ? "the package signed at its sign-off" : "rendered unsigned")
+                        + ", SHA-256 " + sha256 + "."));
+        return new ChecklistDocumentDownload("checklist-project-" + project.projectId() + "-revision-" + revision + ".zip",
+                signed, sha256, content);
+    }
+
+    // ------------------------------------------------------------------ the project export's part
+
+    /** Absent and hidden in the same words: a revision the reader may not read is one the project does not have. */
+    private static NotFoundException absent(VisibleProject project, int revision) {
+        return new NotFoundException("Project \"" + project.name() + "\" has no checklist revision " + revision + ".");
+    }
+
+    /**
+     * A revision's statement as the project export embeds it (decision 0035 §1).
+     *
+     * @param draft the project's open revision, rendered for this export, unsigned
+     * @param documentSha256 the SHA-256 of the package signed at the sign-off; null for the open revision
+     * @param statement a signed-off revision's statement as it was signed — read back from the stored
+     *     package, never rendered again; the open revision's as it stands, its measured lines measured now
+     * @param repositoryIds every repository the statement carries evidence of: the project's now for the open
+     *     revision, those its stored measurements name for a signed one — which the report run records, so
+     *     that its document is read by those who see them (decision 0042)
+     */
+    public record ExportedStatement(boolean draft, String documentSha256, ChecklistStatement statement,
+            List<Long> repositoryIds) {
+
+        public ExportedStatement {
+            repositoryIds = List.copyOf(repositoryIds);
+        }
+    }
+
+    /**
+     * What a project's export says of its checklists: for each template, the newest revision signed off
+     * with a stored package, then the open revision if there is one — oldest template first.
+     *
+     * <p><b>The caller has refused the project already</b>, through the whole-project guard: this takes the
+     * proof it returns. A revision signed off before documents were signed has no package, and is not here:
+     * its statement was never signed, and the export says only what was.
+     *
+     * <p><b>A signed statement carries the repositories of its sign-off</b>, which the project may have dropped
+     * since. A reader who does not see each of them is not given the export at all: leaving that revision
+     * out would have the export state a checklist history the project does not have — an older sign-off as
+     * the newest, or none — and the export states only what was recorded.
+     *
+     * @throws NotFoundException when a signed statement carries a repository the reader does not see
+     */
+    public List<ExportedStatement> statementsForExport(VisibleProject project, List<Long> repositoryIds,
+            VisibilityService.Allowance allowance) {
+        List<ChecklistEntity> revisions = checklists.findByProjectIdOrderByRevisionDesc(project.projectId());
+        LinkedHashMap<Long, ExportedStatement> signedByTemplate = new LinkedHashMap<>();
+        ExportedStatement open = null;
+        for (ChecklistEntity revision : revisions) {
+            ChecklistStatus status = ChecklistStatus.ofStored(revision.getStatus());
+            if (status.isOpen()) {
+                ChecklistTemplateVersionEntity version = versions.findById(revision.getTemplateVersionId())
+                        .orElseThrow(() -> new IllegalStateException("The version of checklist " + revision.getId()
+                                + " is gone."));
+                ChecklistTemplateEntity template = templates.findById(version.getTemplateId())
+                        .orElseThrow(() -> new IllegalStateException("Template " + version.getTemplateId() + " is gone."));
+                open = new ExportedStatement(true, null, statement(project, repositoryIds, revision, version, template,
+                        forms.layout(version.getLayout()), false, clock.instant()), repositoryIds);
+                continue;
+            }
+            if (revision.getSignedOffAt() == null) {
+                continue;
+            }
+            Long templateId = versions.findById(revision.getTemplateVersionId())
+                    .map(ChecklistTemplateVersionEntity::getTemplateId).orElse(null);
+            if (templateId == null || signedByTemplate.containsKey(templateId)) {
+                continue;
+            }
+            Optional<ChecklistDocumentEntity> stored = documents.findByChecklistId(revision.getId());
+            if (stored.isPresent()) {
+                Optional<Set<Long>> carried = CarriedRepositories.of(storedMeasurements(revision).values());
+                if (!CarriedRepositories.seenBy(carried, allowance)) {
+                    throw new NotFoundException("The export of project \"" + project.name() + "\" would carry checklist "
+                            + "revision " + revision.getRevision() + ", which is not available to you.");
+                }
+                // Unreadable evidence passes the check above for a reader who sees everything, but a report run
+                // records the targets its export carried, and "some, unknown" is not a list it can record.
+                List<Long> carriedIds = carried.orElseThrow(() -> new IllegalStateException("The stored measurements of "
+                        + "checklist " + revision.getId() + " do not read back: what it carried cannot be recorded."))
+                        .stream().sorted().toList();
+                signedByTemplate.put(templateId, new ExportedStatement(false, stored.get().getSha256(),
+                        signedStatement(stored.get().getContent()), carriedIds));
+            }
+        }
+        List<ExportedStatement> statements = new ArrayList<>(signedByTemplate.sequencedValues().reversed());
+        if (open != null) {
+            statements.add(open);
+        }
+        return List.copyOf(statements);
+    }
+
+    /** The {@code checklist.json} a stored package holds — the bytes that were signed, read back. */
+    private ChecklistStatement signedStatement(byte[] pack) {
+        try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(pack))) {
+            for (java.util.zip.ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                if (STATEMENT.equals(entry.getName())) {
+                    return json.readValue(zip.readAllBytes(), ChecklistStatement.class);
+                }
+            }
+        } catch (java.io.IOException unreadable) {
+            throw new IllegalStateException("A stored checklist document could not be read.", unreadable);
+        }
+        throw new IllegalStateException("A stored checklist document holds no " + STATEMENT + ".");
+    }
+
+    // ------------------------------------------------------------------ the sign-off's document
+
+    /**
+     * Loads the signing key — or creates and stores it, the first time — outside any transaction. The key's
+     * first use inserts a row of its own and reads it back; inside the sign-off's transaction a lost race on
+     * that insert would mark the whole sign-off for rollback, and the read-back inside its snapshot would not
+     * see the row the winner committed. Called before the sign-off opens one, so that {@link #produceSigned}
+     * finds it loaded.
+     */
+    void requireSigningKey() {
+        signing.getKeyId();
+    }
+
+    /**
+     * Renders, signs and stores a revision's document, <b>in the caller's transaction</b> — the sign-off's,
+     * after its row says signed off and its measurements are stored, so that the document and the sign-off
+     * commit or roll back together. Nothing leaves the process: rendering and signing are computation.
+     *
+     * @return the package's SHA-256, for the sign-off's audit entry
+     * @throws IllegalStateException outside a transaction, or when the revision is not signed off
+     */
+    String produceSigned(long checklistId, VisibleProject project, List<Long> repositoryIds) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("A checklist's signed document is produced inside its sign-off's transaction.");
+        }
+        ChecklistEntity checklist = checklists.findById(checklistId)
+                .orElseThrow(() -> new IllegalStateException("Checklist " + checklistId + " is gone."));
+        if (ChecklistStatus.ofStored(checklist.getStatus()) != ChecklistStatus.SIGNED_OFF || checklist.getSignedOffAt() == null) {
+            throw new IllegalStateException("Revision " + checklist.getRevision() + " is " + checklist.getStatus()
+                    + ": only a signed-off revision's document is signed.");
+        }
+        Rendered rendered = render(project, repositoryIds, checklist, true, checklist.getSignedOffAt());
+        String workbookSignature = signing.sign(rendered.workbook());
+        String statementSignature = signing.sign(rendered.statement());
+        LinkedHashMap<String, DocumentZip.Entry> parts = new LinkedHashMap<>();
+        parts.put(WORKBOOK, DocumentZip.Entry.of(rendered.workbook()));
+        parts.put(STATEMENT, DocumentZip.Entry.of(rendered.statement()));
+        // The detached signatures as cosign writes them — base64 text — so that `cosign verify-blob --key
+        // --signature checklist.xlsx.sig checklist.xlsx` checks them against the published public key.
+        parts.put(WORKBOOK + SIGNATURE, DocumentZip.Entry.of(workbookSignature.getBytes(StandardCharsets.US_ASCII)));
+        parts.put(STATEMENT + SIGNATURE, DocumentZip.Entry.of(statementSignature.getBytes(StandardCharsets.US_ASCII)));
+        byte[] content = DocumentZip.of(parts);
+
+        ChecklistDocumentEntity document = new ChecklistDocumentEntity();
+        document.setChecklistId(checklist.getId());
+        document.setProjectId(checklist.getProjectId());
+        document.setContent(content);
+        document.setSizeBytes((long) content.length);
+        document.setSha256(Digests.sha256Hex(content));
+        document.setWorkbookSha256(Digests.sha256Hex(rendered.workbook()));
+        document.setWorkbookSignature(workbookSignature);
+        document.setStatementSha256(Digests.sha256Hex(rendered.statement()));
+        document.setStatementSignature(statementSignature);
+        document.setSigningKeyId(signing.getKeyId());
+        document.setProductVersion(Optional.ofNullable(productVersion.get())
+                .map(version -> BoundedText.clip(version, MAX_PRODUCT_VERSION)).orElse(null));
+        document.setProducedAt(checklist.getSignedOffAt());
+        documents.save(document);
+        return document.getSha256();
+    }
+
+    // ------------------------------------------------------------------ rendering
+
+    /** The two parts of a document: the filled workbook, and the statement as {@code checklist.json}. */
+    private record Rendered(byte[] workbook, byte[] statement) {}
+
+    private Rendered render(VisibleProject project, List<Long> repositoryIds, ChecklistEntity checklist, boolean signed,
+            Instant now) {
+        ChecklistTemplateVersionEntity version = versions.findById(checklist.getTemplateVersionId())
+                .orElseThrow(() -> new IllegalStateException("The version of checklist " + checklist.getId() + " is gone."));
+        ChecklistTemplateEntity template = templates.findById(version.getTemplateId())
+                .orElseThrow(() -> new IllegalStateException("Template " + version.getTemplateId() + " is gone."));
+        ChecklistLayout layout = forms.layout(version.getLayout());
+        ChecklistStatement statement = statement(project, repositoryIds, checklist, version, template, layout, signed, now);
+        byte[] workbook = ChecklistRenderer.render(version.getSourceBytes(), layout, statement);
+        byte[] text;
+        try {
+            // The real mapper — the one every route writes with — so that the contract is what a reader
+            // receives: ISO instants, nulls written, the fields in the order the record declares.
+            text = json.writerWithDefaultPrettyPrinter().writeValueAsBytes(statement);
+        } catch (JsonProcessingException impossible) {
+            throw new IllegalStateException("A checklist statement could not be written.", impossible);
+        }
+        return new Rendered(workbook, text);
+    }
+
+    /** The statement of one revision: what the workbook receives, and {@code checklist.json}. */
+    private ChecklistStatement statement(VisibleProject project, List<Long> repositoryIds, ChecklistEntity checklist,
+            ChecklistTemplateVersionEntity version, ChecklistTemplateEntity template, ChecklistLayout layout, boolean signed,
+            Instant now) {
+        AnswerWords words = layout.answers();
+        List<ChecklistItemEntity> lines = items.findByVersionIdOrderByPositionAsc(version.getId());
+        Map<Long, List<ChecklistAnswerEntity>> given = new HashMap<>();
+        answers.findByChecklistIdOrderByIdAsc(checklist.getId())
+                .forEach(row -> given.computeIfAbsent(row.getItemId(), id -> new ArrayList<>()).add(row));
+        Map<Long, List<ChecklistEvidenceEntity>> proofs = new HashMap<>();
+        evidence.findByChecklistIdOrderByIdAsc(checklist.getId())
+                .forEach(row -> proofs.computeIfAbsent(row.getItemId(), id -> new ArrayList<>()).add(row));
+        Map<Long, ChecklistStatement.Measured> measured = measured(checklist, lines, repositoryIds, now);
+
+        List<ChecklistStatement.Line> statementLines = new ArrayList<>();
+        for (ChecklistItemEntity item : lines) {
+            List<ChecklistStatement.Answer> history = given.getOrDefault(item.getId(), List.of()).stream()
+                    .map(row -> answer(row, words)).toList();
+            ChecklistStatement.Answer current = history.isEmpty() || history.getLast().withdrawn() ? null : history.getLast();
+            ChecklistStatement.Measured measurement = measured.get(item.getId());
+            Reconciliation reconciliation = measurement == null
+                    ? Reconciliation.NOT_MEASURED_HERE
+                    : Reconciliation.of(Optional.ofNullable(current).map(answer -> ChecklistAnswer.parse(answer.value())),
+                            MeasurementOutcome.ofStored(measurement.outcome()));
+            statementLines.add(new ChecklistStatement.Line(item.getId(), item.getItemKey(), item.getPosition(),
+                    item.getSheetRow(), item.getDomain(), item.getObjective(), item.getControl(), item.getContact(),
+                    item.getKpi(), item.getContentDigest(), item.getEvidenceKind(), item.getEvidenceValidityMonths(), current,
+                    history, measurement, reconciliation.wireName(),
+                    proofs.getOrDefault(item.getId(), List.of()).stream().map(ChecklistDocumentService::proof).toList()));
+        }
+
+        // A returned revision was submitted once and is not any more: its submission is named only while it stands.
+        boolean submissionStands = checklist.getSubmittedAt() != null
+                && (checklist.getReturnedAt() == null || checklist.getSubmittedAt().isAfter(checklist.getReturnedAt()));
+        return new ChecklistStatement(ChecklistStatement.FORM, checklist.getStatus(), signed,
+                new ChecklistStatement.Project(project.projectId(), project.name()), checklist.getRevision(),
+                new ChecklistStatement.Template(template.getSlug(), template.getName(), version.getOrdinal(),
+                        version.getLabel(), version.getSourceSha256()),
+                new ChecklistStatement.Header(project.name(), checklist.getAuthor(), checklist.getSignedOffAt()),
+                new ChecklistStatement.Act(checklist.getOpenedBy(), checklist.getOpenedAt()),
+                submissionStands ? new ChecklistStatement.Act(checklist.getSubmittedBy(), checklist.getSubmittedAt()) : null,
+                checklist.getSignedOffAt() == null ? null
+                        : new ChecklistStatement.Act(checklist.getSignedOffBy(), checklist.getSignedOffAt()),
+                checklist.getSignOffFourEyes(), productVersion.get(), now, statementLines);
+    }
+
+    /**
+     * Each measured line's measurement, as {@code ProjectChecklistService.measurements} shows it: what the
+     * sign-off froze for a signed-off revision; for a draft or a submitted one what the rules find now,
+     * computed for this rendering and stored nowhere; for a superseded one the last stored, its rules not
+     * applied again to data that has moved on since.
+     */
+    private Map<Long, ChecklistStatement.Measured> measured(ChecklistEntity checklist, List<ChecklistItemEntity> lines,
+            List<Long> repositoryIds, Instant now) {
+        Map<Long, ChecklistStatement.Measured> measured = new HashMap<>();
+        ChecklistStatus status = ChecklistStatus.ofStored(checklist.getStatus());
+        if (status == ChecklistStatus.DRAFT || status == ChecklistStatus.SUBMITTED) {
+            for (ChecklistMeasurer.LineMeasurement line : measurer.measure(repositoryIds, lines, now)) {
+                Measurement found = line.measurement();
+                measured.put(line.item().getId(), new ChecklistStatement.Measured(MeasurementPurpose.READ.wireName(),
+                        line.rule().kind().wireName(), line.rule().digest(), line.rule().canonical(),
+                        found.outcome().wireName(), found.reason().map(NoDataReason::wireName).orElse(null),
+                        found.asOf().orElse(null), now, found.summary(), found.evidenceDigest(), found.evidenceJson()));
+            }
+            return measured;
+        }
+        storedMeasurements(checklist).forEach((itemId, row) -> measured.put(itemId, new ChecklistStatement.Measured(row.getPurpose(),
+                row.getRuleKind(), row.getRuleDigest(), row.getBoundRule(), row.getOutcome(), row.getReason(), row.getAsOf(),
+                row.getComputedAt(), Measurement.read(row.getEvidence()).summary(), row.getEvidenceDigest(),
+                row.getEvidence())));
+        return measured;
+    }
+
+    /**
+     * The measurement a closed revision is rendered with, per line: the newest of its submission, replaced by the
+     * sign-off's where there is one. What a signed package was rendered from, and what its readers are judged by.
+     */
+    private Map<Long, ChecklistMeasurementEntity> storedMeasurements(ChecklistEntity checklist) {
+        Map<Long, ChecklistMeasurementEntity> stored = new HashMap<>();
+        measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklist.getId(), MeasurementPurpose.SUBMISSION.wireName())
+                .forEach(row -> stored.put(row.getItemId(), row));
+        measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklist.getId(), MeasurementPurpose.SIGN_OFF.wireName())
+                .forEach(row -> stored.put(row.getItemId(), row));
+        return stored;
+    }
+
+    private static ChecklistStatement.Answer answer(ChecklistAnswerEntity row, AnswerWords words) {
+        return new ChecklistStatement.Answer(row.getId(), row.getValue(), words.written(ChecklistAnswer.parse(row.getValue())),
+                row.getComment(), row.getAnsweredBy(), row.getAnsweredByKind(), row.getAnsweredAt(), row.getCarriedFromId(),
+                row.getCarriedBy(), row.getCarriedAt(), row.isNeedsConfirmation(), row.isWithdrawn());
+    }
+
+    private static ChecklistStatement.Proof proof(ChecklistEvidenceEntity row) {
+        return new ChecklistStatement.Proof(row.getId(), row.getKind(), row.getLink(), row.getFileName(), row.getMediaType(),
+                row.getFileSize(), row.getFileSha256(), dayOf(row.getPerformedOn()),
+                row.getValidUntil() == null ? null : dayOf(row.getValidUntil()), row.getAddedBy(), row.getAddedAt(),
+                row.getWithdrawnBy(), row.getWithdrawnAt());
+    }
+
+    private static LocalDate dayOf(Instant instant) {
+        return LocalDate.ofInstant(instant, ZoneOffset.UTC);
+    }
+}

@@ -1,0 +1,277 @@
+package com.asmolabs.vectispire.core.notifications;
+
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.access.TeamChannels;
+import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
+import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
+import com.asmolabs.vectispire.core.notifications.internal.ChannelGate;
+import com.asmolabs.vectispire.core.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
+import com.asmolabs.vectispire.core.outbox.NotificationChannel;
+import com.asmolabs.vectispire.core.outbox.OutboxService;
+import com.asmolabs.vectispire.core.settings.Integrations;
+import com.asmolabs.vectispire.core.settings.SettingsService;
+import java.time.Clock;
+import java.util.List;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * Sending what a scan changed.
+ *
+ * <p>This service owns <b>what to say and how to say it</b>; the outbox relay owns <b>when a
+ * message gets another chance</b>. Keeping them apart is what makes the retry policy testable
+ * with no webhook, and the payload testable with no clock.
+ */
+@Service
+public class NotificationService implements NotificationChannel, AlertChannel, SealedStore {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+
+    /** The associated data binding the signing secret's ciphertext to its own setting row. */
+    private static final String SIGNING_SECRET_CONTEXT = "setting:notification_webhook_secret";
+
+    private final SettingsService settings;
+    private final OutboundPost post;
+    private final TeamChannels teamWebhooks;
+    private final EncryptionService encryption;
+    private final Integrations integrations;
+    private final Clock clock;
+
+    public NotificationService(
+            SettingsService settings,
+            OutboundPost post,
+            TeamChannels teamWebhooks,
+            EncryptionService encryption,
+            Integrations integrations,
+            Clock clock) {
+        this.settings = settings;
+        this.post = post;
+        this.teamWebhooks = teamWebhooks;
+        this.encryption = encryption;
+        this.integrations = integrations;
+        this.clock = clock;
+    }
+
+    /**
+     * The decrypted signing secret, or an empty string when none is configured.
+     *
+     * <p><b>Throws when a configured secret cannot be decrypted</b>, which is the opposite of what
+     * {@code TicketService} does with its token — and the difference is the point. An undecryptable
+     * tracker token disables ticket creation: fail-closed, nothing is claimed. An undecryptable
+     * signing secret, treated the same way, would send the message <em>unsigned</em>: the alert
+     * still arrives, the receiver that verifies rejects it, and the one that does not accepts a
+     * message Vectispire can no longer prove it sent. That is a security control switching itself off
+     * after an encryption-key rotation, silently, on a deployment that configured it deliberately.
+     *
+     * <p>So the delivery fails instead. The relay retries it, abandons it with a reason after the
+     * backoff, and the operator finds the sentence below — rather than finding nothing.
+     */
+    public String signingSecret() {
+        String stored = settings.get(Setting.WEBHOOK_SIGNING_SECRET).trim();
+        if (stored.isEmpty()) {
+            return stored;
+        }
+
+        SecretCipher.Decrypted secret = encryption.inspect(stored, SIGNING_SECRET_CONTEXT);
+        if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
+            throw new IllegalStateException(
+                    "A webhook signing secret is configured but cannot be decrypted by any configured key. "
+                            + "Refusing to send unsigned: a receiver that checks the signature would reject the "
+                            + "message and one that does not would accept an unprovable one. Restore the previous "
+                            + "encryption key, or clear the signing secret to send unsigned deliberately.");
+        }
+        return secret.plainText();
+    }
+
+    /** Stores the secret encrypted, bound to its own setting key. */
+    public void setSigningSecret(String rawSecret) {
+        String value = rawSecret == null ? "" : rawSecret.trim();
+        settings.set(
+                Setting.WEBHOOK_SIGNING_SECRET,
+                value.isEmpty() ? "" : encryption.encrypt(value, SIGNING_SECRET_CONTEXT));
+    }
+
+    /** Whether messages are signed, for a screen that must not show the secret itself. */
+    public boolean isSigning() {
+        return !settings.get(Setting.WEBHOOK_SIGNING_SECRET).trim().isEmpty();
+    }
+
+    public String webhookUrl() {
+        return settings.get(Setting.WEBHOOK_URL).trim();
+    }
+
+    /**
+     * Whether the webhook channel may be sent to: its integration on (decision 0040, lot I6). What the routing of a
+     * scan's delta asks before it queues the global copy and the teams' — a team's own webhook is this channel.
+     */
+    public boolean isSwitchedOn() {
+        return ChannelGate.isOn(integrations, NotificationChannelKind.WEBHOOK);
+    }
+
+    public Severity minSeverity() {
+        Severity configured = Severity.of(settings.get(Setting.NOTIFICATION_MIN_SEVERITY));
+        // `of` falls back to UNKNOWN, which ranks last and would let everything through. A
+        // misspelled setting must not silently turn the threshold off.
+        return configured == Severity.UNKNOWN ? NotificationSelection.DEFAULT_MIN_SEVERITY : configured;
+    }
+
+    /**
+     * Builds a scan delta's payload, or nothing when there is nothing to say.
+     *
+     * <p>Separate from sending because the two happen at different moments: the message is built
+     * and queued <b>inside the transaction that commits the scan's results</b>, and delivered
+     * later by the relay.
+     *
+     * <p><b>Whether anybody listens is the router's question, not this one's</b> ({@code ScanDeltaNotifier},
+     * which knows every channel). This asked it, and answered with the webhook alone — the global URL or a
+     * team's: a deployment that announced to Teams, Slack, Discord or by mail and set no webhook built no
+     * delta, and its channels, configured and shown as such, were never sent one.
+     */
+    public Optional<NotificationPayload> buildScanDelta(
+            String targetName,
+            long scanId,
+            List<NotifiableIssue> newIssues,
+            List<NotifiableIssue> reopenedIssues,
+            int resolvedCount) {
+
+        NotificationSelection.Options options =
+                new NotificationSelection.Options(minSeverity(), settings.isEnabled(Setting.NOTIFY_ON_KEV));
+        List<NotifiableIssue> notableNew = NotificationSelection.notable(newIssues, options);
+        List<NotifiableIssue> notableReopened = NotificationSelection.notable(reopenedIssues, options);
+        if (notableNew.isEmpty() && notableReopened.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(NotificationPayload.of(new NotificationPayload.Delta(
+                targetName, scanId, notableNew, notableReopened, resolvedCount, options.minSeverity())));
+    }
+
+    /**
+     * Posts a payload. <b>Throws on failure</b>, so the relay can retry it.
+     *
+     * <p>The opposite contract from the rest of this class, deliberately: a swallowed failure is
+     * a failure never retried, which is the whole reason the outbox exists. It is the relay that
+     * turns the exception back into "not fatal".
+     *
+     * <p><b>The URL is re-read and validated here</b>, not captured at queue time: an operator
+     * fixing a typo must not have to re-run a scan to flush the pending notifications, and a
+     * setting written straight into the database must not become an unchecked destination.
+     */
+    @Override
+    public String type() {
+        return OutboxService.TYPE_SCAN_DELTA;
+    }
+
+    /**
+     * <b>The generic webhook is a channel like the other two</b>, and keeps the legacy type: rows
+     * queued before Teams and mail existed still carry {@code scan_delta}, and they must keep
+     * routing here rather than becoming messages of an unknown kind.
+     */
+    @Override
+    public boolean isConfigured() {
+        return !webhookUrl().isBlank();
+    }
+
+    @Override
+    public void deliver(NotificationPayload payload) {
+        deliver(payload, null);
+    }
+
+    @Override
+    public void deliver(NotificationPayload payload, Long teamId) {
+        // Before the destination is read: nothing of a disabled channel runs, a team's copy included.
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.WEBHOOK);
+        OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
+
+        String destination = destinationFor(teamId);
+        String label = teamId == null ? "webhook URL" : "team webhook URL";
+
+        // Signed with one secret for the global channel and every team's, which is the accepted
+        // limit of this first form: a team's receiver holding the secret could forge a message to
+        // another team's channel — if it also learned that URL, which no route returns. A secret
+        // per destination would close it and needs a column on `t_team_webhook`.
+        String secret = signingSecret();
+
+        post.postSignedJson(destination, payload, policy, label, secret, clock.instant());
+        log.info(
+                "Webhook notified for scan {} ({} new, {} reopened), message {}, destination {}, {}.",
+                payload.scanId(),
+                payload.newCount(),
+                payload.reopenedCount(),
+                payload.messageId(),
+                teamId == null ? "global" : "team " + teamId,
+                // Logged per delivery rather than at startup: the secret is a runtime setting, and
+                // "is this deployment signing" is the question somebody asks while reading this line.
+                secret.isEmpty() ? "unsigned" : "signed");
+    }
+
+    @Override
+    public String alertKey() {
+        return "webhook";
+    }
+
+    /**
+     * A token's change of state, to the global webhook alone, signed as a scan delta is and under the same
+     * private-address rule. A team's channel is not told: the token is the installation's.
+     */
+    @Override
+    public void deliverAlert(TokenAlert alert, String messageId) {
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.WEBHOOK);
+        OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
+        String secret = signingSecret();
+        post.postSignedJson(destinationFor(null), TokenAlertMessages.webhook(alert, messageId), policy, "webhook URL",
+                secret, clock.instant());
+        log.info("Webhook notified of a token's change ({}), message {}, {}.", alert.notice().wireName(), messageId,
+                secret.isEmpty() ? "unsigned" : "signed");
+    }
+
+    /**
+     * The URL this message is for, read now rather than when it was queued.
+     *
+     * <p><b>A destination that has disappeared is a permanent failure, not a transient one.</b> A
+     * team deleted, or its channel cleared, while one of its notifications waited in the queue:
+     * retrying that for twelve attempts would fill the log with an error nobody can fix, and
+     * marking it sent would claim a delivery that never happened. {@link GoneDestinationException}
+     * says which it is, and the relay abandons it with a reason an operator can read.
+     */
+    private String destinationFor(Long teamId) {
+        if (teamId == null) {
+            String global = webhookUrl();
+            if (global.isEmpty()) {
+                throw new GoneDestinationException("the global webhook URL has been cleared");
+            }
+            return global;
+        }
+        return teamWebhooks
+                .webhookUrl(teamId)
+                .filter(url -> !url.isBlank())
+                .orElseThrow(() -> new GoneDestinationException(
+                        "team " + teamId + " no longer has a webhook — deleted, or its channel was cleared"));
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        return List.of(new StoreCensus.Counter("Notification webhook signing secret",
+                        "set the secret again on the notification settings, and in the receiver")
+                .add(encryption.sealOf(settings.get(Setting.WEBHOOK_SIGNING_SECRET), SIGNING_SECRET_CONTEXT))
+                .done());
+    }
+}

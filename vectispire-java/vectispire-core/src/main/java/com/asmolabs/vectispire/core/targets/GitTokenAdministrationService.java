@@ -1,0 +1,191 @@
+package com.asmolabs.vectispire.core.targets;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+
+/**
+ * HTTPS clone tokens: stored encrypted, bound to a host, never read back out (decision 0022).
+ *
+ * <p>The counterpart of {@link SshKeyAdministrationService}, and deliberately shaped like it — an
+ * operator who knows one screen knows the other, and the two refuse the same things for the same
+ * reasons.
+ */
+@Service
+public class GitTokenAdministrationService implements SealedStore {
+
+    private static final int NAME_LENGTH = 255;
+
+    /** Encrypted, this still fits MySQL's 65,535-byte {@code text}: see {@link #add}. */
+    private static final int MAX_TOKEN_LENGTH = 8_192;
+
+    private final GitTokenRepository tokens;
+    private final GitRepositoryRepository repositories;
+    private final EncryptionService encryption;
+    private final AuditLogService audit;
+    private final Clock clock;
+
+    public GitTokenAdministrationService(
+            GitTokenRepository tokens,
+            GitRepositoryRepository repositories,
+            EncryptionService encryption,
+            AuditLogService audit,
+            Clock clock) {
+        this.tokens = tokens;
+        this.repositories = repositories;
+        this.encryption = encryption;
+        this.audit = audit;
+        this.clock = clock;
+    }
+
+    /**
+     * @param encryptionState as for SSH keys: a token no configured key reads fails the next clone
+     *     that needs it, hours later in a worker thread, so the screen says it first
+     */
+    public record TokenView(
+            UUID id,
+            String name,
+            String host,
+            String username,
+            Instant createdAt,
+            String encryptionState,
+            long usedByRepositories) {}
+
+    public List<TokenView> list() {
+        return list(null, null);
+    }
+
+    /**
+     * The tokens, newest first and by id among those created in the same instant, so that the pages are the list
+     * cut — all of them or one page, the page's rows alone decrypted to say their state.
+     *
+     * @param limit rows per page, or null for every token ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<TokenView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        Map<UUID, Long> usage = new HashMap<>();
+        for (Object[] row : repositories.countByHttpsToken()) {
+            usage.put((UUID) row[0], ((Number) row[1]).longValue());
+        }
+        List<GitTokenEntity> every = tokens.findAllByOrderByCreatedAtDescIdDesc();
+        return window.map(page -> page.of(every)).orElse(every).stream()
+                .map(token -> new TokenView(
+                        token.getId(),
+                        token.getName(),
+                        token.getHost(),
+                        token.getUsername(),
+                        token.getCreatedAt(),
+                        encryption
+                                .inspect(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()))
+                                .state()
+                                .name()
+                                .toLowerCase(Locale.ROOT),
+                        usage.getOrDefault(token.getId(), 0L)))
+                .toList();
+    }
+
+    /**
+     * @param rawHost the only host the token will ever be presented to — see decision 0022 for what
+     *     an unbound token would let a repository URL do with it
+     */
+    public TokenView add(String rawName, String rawHost, String rawUsername, String rawToken, RequestActor actor) {
+        String name = trim(rawName);
+        String token = trim(rawToken);
+        String username = trim(rawUsername);
+        if (name.isEmpty()) {
+            throw new InvalidInputException("A name is required.");
+        }
+        if (token.isEmpty()) {
+            throw new InvalidInputException("The token is required.");
+        }
+        // The name and the username go into varchar(255) columns, and past them the database
+        // refused the row at the write, as a 500. The token goes into `text` encrypted: a third
+        // longer, and bounded so that the ciphertext always fits MySQL's 64 KB. No forge issues a
+        // token within two orders of magnitude of the ceiling.
+        BoundedText.within(name, NAME_LENGTH, "The name");
+        BoundedText.within(username, NAME_LENGTH, "The username");
+        BoundedText.within(token, MAX_TOKEN_LENGTH, "The token");
+        if (token.chars().anyMatch(Character::isWhitespace)) {
+            // A pasted line break or a "Bearer " prefix: the forge would refuse it at the first clone,
+            // far from here, as an authentication failure.
+            throw new InvalidInputException("The token contains spaces or line breaks: paste the token alone.");
+        }
+        String host = RepositoryUrl.normalizeHost(rawHost);
+
+        UUID id = UUID.randomUUID();
+        GitTokenEntity entity = new GitTokenEntity();
+        entity.setId(id);
+        entity.setName(name);
+        entity.setHost(host);
+        entity.setUsername(username.isEmpty() ? null : username);
+        entity.setToken(encryption.encrypt(token, SecretCipher.gitTokenContext(id.toString())));
+        entity.setCreatedAt(clock.instant());
+
+        GitTokenEntity saved = tokens.save(entity);
+        record(actor, id.toString(), "HTTPS token added: " + name + " (" + host + ")");
+        return new TokenView(
+                saved.getId(),
+                saved.getName(),
+                saved.getHost(),
+                saved.getUsername(),
+                saved.getCreatedAt(),
+                SecretCipher.SecretState.CURRENT.name().toLowerCase(Locale.ROOT),
+                0);
+    }
+
+    public void remove(UUID id, RequestActor actor) {
+        GitTokenEntity token = tokens.findById(id).orElseThrow(() -> new NotFoundException("Token not found."));
+        long inUse = repositories.countByHttpsTokenId(id);
+        if (inUse > 0) {
+            throw new InvalidInputException(
+                    "This token is used by " + inUse + " repository(ies). Detach it from them first.");
+        }
+        tokens.deleteById(id);
+        record(actor, id.toString(), "HTTPS token deleted: " + token.getName());
+    }
+
+    private void record(RequestActor actor, String resourceId, String description) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                resourceId,
+                description,
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("HTTPS clone tokens",
+                "add the token again, move the repositories to it, and delete the old row");
+        tokens.findAllByOrderByCreatedAtDescIdDesc().forEach(token -> counter.add(
+                encryption.sealOf(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()))));
+        return List.of(counter.done());
+    }
+}

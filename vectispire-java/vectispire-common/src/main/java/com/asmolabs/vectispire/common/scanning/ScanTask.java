@@ -1,0 +1,143 @@
+package com.asmolabs.vectispire.common.scanning;
+
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * What a scan has to do. Decided by the control plane, executed by the runner.
+ *
+ * <p><b>A target is a repository or an image, never both.</b> The original carried an optional
+ * image reference beside a URL and switched on whichever was set — with a comment saying they
+ * are mutually exclusive. A sealed interface says it instead, and the switch that dispatches on
+ * it has to handle both cases or fail to compile.
+ */
+public record ScanTask(Target target, String rulesHash, Set<Step> steps, List<PluginRef> plugins) {
+
+    /** A task that runs no plugin — an image scan, a repository in no project, or none activated. */
+    public ScanTask(Target target, String rulesHash, Set<Step> steps) {
+        this(target, rulesHash, steps, List.of());
+    }
+
+    /** What a scan can run. Each is optional: an operator may want only some of them. */
+    public enum Step {
+        DEPENDENCIES,
+        SECRETS,
+        IAC,
+        SAST
+    }
+
+    /**
+     * <b>Carries a discriminator on the wire.</b> A sealed interface tells the compiler which
+     * shapes exist; it tells a JSON parser nothing, so a task handed to a remote agent
+     * deserialized into an exception — one an agent could only read as "the control plane sent
+     * something broken". The name is part of the agent contract now, which is why it is spelled
+     * out here rather than derived from the class name.
+     */
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(value = Target.Repository.class, name = "repository"),
+        @JsonSubTypes.Type(value = Target.Image.class, name = "image")
+    })
+    public sealed interface Target {
+
+        /**
+         * @param privateKey the decrypted key, or {@code null} for a public repository
+         * @param https the HTTPS token, or {@code null}; never set together with {@code privateKey}.
+         *     Optional on the wire: an agent that predates it ignores it and clones without
+         *     credentials, which fails visibly rather than doing something else (decision 0022)
+         */
+        record Repository(String url, String branch, String subPath, String privateKey, HttpsCredential https)
+                implements Target {
+
+            public Repository(String url, String branch, String subPath, String privateKey) {
+                this(url, branch, subPath, privateKey, null);
+            }
+
+            /** This repository with {@code privateKey} in place of its own — sealed, or opened. */
+            public Repository withPrivateKey(String privateKey) {
+                return new Repository(url, branch, subPath, privateKey, https);
+            }
+
+            /** This repository with {@code https} in place of its own — sealed, or opened. */
+            public Repository withHttps(HttpsCredential https) {
+                return new Repository(url, branch, subPath, privateKey, https);
+            }
+        }
+
+        /**
+         * A token for one host (decision 0022).
+         *
+         * <p>The host travels with the token so that the executor enforces the binding itself: the
+         * clone presents the token to that host and to no other, whatever the URL or a redirect
+         * names.
+         *
+         * @param username what the forge expects beside the token; blank sends a fixed placeholder
+         * @param token the token in the clear, or its sealed envelope on the way to an agent
+         */
+        record HttpsCredential(String host, String username, String token) {}
+
+        /**
+         * @param platform the variant to pull. The image scanned must be the one that runs: the
+         *     daemon otherwise returns the host's architecture, and an arm64 development machine
+         *     would audit a variant nobody deploys
+         */
+        record Image(ImageReference reference, String platform) implements Target {}
+    }
+
+    /**
+     * @param rulesHash the uploaded rule set that must be used, or {@code null} for the bundled
+     *     rules and the operator's directory alone.
+     *     <p>Carried by the task rather than read by the executor, and that is what makes every
+     *     executor identical. An agent reading "the active set" for itself would scan with
+     *     whatever it found at the moment it asked, and two agents could diverge — resolving
+     *     and recreating the SAST backlog as they take turns.
+     * @param plugins the plugins this scan runs, each by id and manifest digest — decided by the
+     *     control plane from the repository's project, for the same reason as {@code rulesHash}.
+     *     Optional on the wire: an agent older than plugins ignores it and reports no plugin step,
+     *     which ingestion reads as absent. Not a break of the contract (see {@code AgentContract}):
+     *     ignoring it changes nothing an older agent did before
+     */
+    public ScanTask {
+        // **In the enum's order, not `Set.copyOf`'s**, whose iteration order is salted per JVM run: a task's steps
+        // went out on the wire in a different order from one start to the next — the same set to an agent, but the
+        // recordings the Rust control plane is replayed against drew a new order at every recording, and failed or
+        // passed with it (the reference set's test sorted them for that reason, AgentWireReferenceSetTest).
+        steps = steps == null || steps.isEmpty()
+                ? Set.of()
+                : Collections.unmodifiableSet(EnumSet.copyOf(steps));
+        plugins = plugins == null ? List.of() : List.copyOf(plugins);
+    }
+
+    public boolean runs(Step step) {
+        return steps.contains(step);
+    }
+
+    /**
+     * This task aimed at {@code target}, everything else kept — how a credential is sealed on the
+     * way to an agent and opened on arrival.
+     *
+     * <p><b>The one place a task is rebuilt from another.</b> The agent opened its envelopes into a
+     * task built field by field through the three-argument constructor, which exists for tasks that
+     * run no plugin: every credentialed repository a remote agent scanned ran none of its plugins,
+     * and each read as absent — a failure — on a scan that never tried it. The compiler does not
+     * catch that copy: a field arrives with a constructor of the old arity, as {@code plugins} did,
+     * and every copy through it keeps compiling. So there is one copy, here beside the components,
+     * and a component added to the record is added to this line.
+     */
+    public ScanTask withTarget(Target target) {
+        return new ScanTask(target, rulesHash, steps, plugins);
+    }
+
+    public Optional<String> subPath() {
+        return target instanceof Target.Repository repository
+                ? Optional.ofNullable(repository.subPath())
+                : Optional.empty();
+    }
+}

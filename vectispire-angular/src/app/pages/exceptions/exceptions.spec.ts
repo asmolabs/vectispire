@@ -1,0 +1,300 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { Exceptions } from './exceptions';
+import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+import type { Schema } from '@/app/core/api.models';
+
+/**
+ * The exceptions register, and the review that did not exist.
+ *
+ * **What is covered here is not the display but the one action whose effect is invisible.**
+ * Confirming an exception changes neither its decision, nor its deadline, nor its author: the only
+ * thing that moves is the evidence that somebody looked. A screen sending nothing in that case
+ * would look exactly the same, and that is precisely the defect this feature fixes on the server.
+ *
+ * The second case pins the local refusal to extend with no date. The server refuses it too; what
+ * is asserted here is that the screen does not let the request go in order to show its error — a
+ * disabled button says the same thing without noise.
+ */
+describe('le registre des exceptions', () => {
+    let fixture: ComponentFixture<Exceptions>;
+    let http: HttpTestingController;
+
+    const REGISTER = asSchema('Register', {
+        entries: [
+            {
+                issue_id: 41,
+                identifier: 'CVE-2026-0001',
+                severity: 'high',
+                target_kind: 'REPOSITORY',
+                target_id: 7,
+                target_name: 'paiement-api',
+                decision: 'not_affected',
+                requested_status: null,
+                justification: 'vulnerable_code_not_in_execute_path',
+                comment: null,
+                actor: 'c.moreau',
+                origin: 'manual',
+                decided_at: '2026-01-12T09:00:00Z',
+                expires_at: '2026-12-31T00:00:00Z',
+                lapsed: false,
+                last_reviewed_at: null,
+                last_reviewed_by: null
+            }
+        ],
+        granted: 1,
+        awaiting_approval: 0,
+        lapsed: 0,
+        never_reviewed: 1,
+        next_cursor: null
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Exceptions],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(Exceptions);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(REGISTER);
+    }, 20_000);
+
+    it('envoie une confirmation, qui ne change rien sauf la preuve', () => {
+        const component = fixture.componentInstance;
+        component.openReview(REGISTER.entries[0]);
+        component.submitReview();
+
+        const call = http.expectOne('/api/v1/exceptions/41/reviews');
+        expect((call.request.body as Schema<'ReviewRequest'>).outcome).toBe('CONFIRMED');
+        expect((call.request.body as Schema<'ReviewRequest'>).new_expiry).toBeNull();
+
+        // **The row comes back dated**, as the server would return it: the counters are derived
+        // from the rows rather than taken from the server, so a data set where the counter moves
+        // without the row moving describes nothing real any more.
+        call.flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    { ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }
+                ],
+                never_reviewed: 0
+            })
+        );
+
+        expect(component.neverReviewed()).toBe(0);
+        expect(component.reviewing()).toBeNull();
+    });
+
+    it('ne laisse pas partir une prolongation sans date', () => {
+        const component = fixture.componentInstance;
+        component.openReview(REGISTER.entries[0]);
+        component.outcome.set('EXTENDED');
+
+        expect(component.incomplete()).toBe(true);
+
+        component.submitReview();
+        http.expectNone('/api/v1/exceptions/41/reviews');
+    });
+
+    it('is a form requiring a date for an extension, and records once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openReview(REGISTER.entries[0]);
+        component.outcome.set('EXTENDED');
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#newExpiry')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#comment')!.required).toBe(false);
+
+        const form = document.querySelector('#newExpiry')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(0);
+        component.newExpiry.set('2027-03-01');
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(1);
+    });
+
+    it('offers more even when the page contained nothing visible', () => {
+        // **The client half of the same defect as on the server.** Visibility applies after the
+        // read: a whole window can belong to other people only. Hiding the button because the page
+        // is empty would make the restricted reader stop just before their own rows — and they are
+        // the one person who cannot notice it.
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                entries: [],
+                granted: 0,
+                awaiting_approval: 0,
+                lapsed: 0,
+                never_reviewed: 0,
+                next_cursor: '1757836800000:41'
+            })
+        );
+
+        expect(component.loaded()).toHaveLength(0);
+        expect(component.hasMore()).toBe(true);
+
+        component.more();
+        const next = http.expectOne((call) => call.url === '/api/v1/exceptions');
+        expect(next.request.params.get('cursor')).toBe('1757836800000:41');
+        next.flush(asSchema('Register', { ...REGISTER, next_cursor: null }));
+
+        expect(component.loaded()).toHaveLength(1);
+        expect(component.hasMore()).toBe(false);
+    });
+
+    it('accumulates the pages and recounts over what is loaded', () => {
+        const component = fixture.componentInstance;
+        expect(component.granted()).toBe(1);
+
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                next_cursor: '1757836800000:41'
+            })
+        );
+        component.more();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [{ ...REGISTER.entries[0], issue_id: 42 }],
+                next_cursor: null
+            })
+        );
+
+        // The counters come from the loaded rows rather than from the server: adding the pages up
+        // would give a total that grows as one reads, which is the total of nothing.
+        expect(component.loaded()).toHaveLength(2);
+        expect(component.granted()).toBe(2);
+    });
+
+    it('counts a risk accepted as granted, and names which of the two it is', () => {
+        // `not_affected` and `will_not_fix` are both exemptions in force, and opposite claims about
+        // the product (decision 0041): the figure counts both, the row says which one it holds.
+        useEnglish();
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    REGISTER.entries[0],
+                    { ...REGISTER.entries[0], issue_id: 43, decision: 'will_not_fix', justification: null },
+                    { ...REGISTER.entries[0], issue_id: 44, decision: 'pending_approval' }
+                ]
+            })
+        );
+        fixture.detectChanges();
+
+        expect(component.granted()).toBe(2);
+        expect(component.awaiting()).toBe(1);
+        const labels = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="exception-decision"]')
+        ].map((cell: Element) => cell.textContent?.trim());
+        expect(labels).toEqual(['Not affected', 'Will not fix — risk accepted']);
+    });
+
+    it('says what a request awaiting approval asks for, so a queued acceptance and a clearance differ', () => {
+        // The queue kept only `pending_approval`: an acceptance, a clearance and a fix awaiting the
+        // second pair of eyes read alike, and the approver chose (decision 0041).
+        useEnglish();
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    {
+                        ...REGISTER.entries[0],
+                        issue_id: 45,
+                        decision: 'pending_approval',
+                        requested_status: 'will_not_fix'
+                    },
+                    {
+                        ...REGISTER.entries[0],
+                        issue_id: 46,
+                        decision: 'pending_approval',
+                        requested_status: 'not_affected'
+                    },
+                    { ...REGISTER.entries[0], issue_id: 47, decision: 'pending_approval', requested_status: null }
+                ]
+            })
+        );
+        fixture.detectChanges();
+
+        const requested = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="exception-requested"]')
+        ].map((cell: Element) => cell.textContent?.trim());
+        expect(requested).toEqual(['asks for: Will not fix — risk accepted', 'asks for: Not affected']);
+    });
+
+    it('counts the never-reviewed as a figure apart from the lapsed', () => {
+        // Both say "nobody is dealing with it" and they are not the same sentence: a lapsed
+        // exception had a deadline that has passed, a never-reviewed one may be perfectly current
+        // and simply never have been reopened.
+        expect(fixture.componentInstance.lapsed()).toBe(0);
+        expect(fixture.componentInstance.neverReviewed()).toBe(1);
+    });
+    it('words each row in the reader language, after a switch too', () => {
+        useEnglish();
+        fixture.detectChanges();
+        const decision = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-testid="exception-decision"]')
+                ?.textContent?.trim();
+        expect(decision()).toBe('Not affected');
+        useFrench();
+        fixture.detectChanges();
+        expect(decision()).not.toBe('Not affected');
+        expect(decision()).toBeTruthy();
+    });
+
+    it('colours the lapsed figure by the rows loaded, and follows a new page', () => {
+        const page = fixture.nativeElement as HTMLElement;
+        fixture.detectChanges();
+        const lapsedFigure = () => page.querySelector('.border-l-4 .text-2xl')!;
+        expect(lapsedFigure().className).toContain('text-emerald-700');
+        expect(page.querySelector('.border-l-4')!.className).toContain('border-emerald-500');
+
+        fixture.componentInstance.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', { ...REGISTER, entries: [{ ...REGISTER.entries[0], lapsed: true }] })
+        );
+        fixture.detectChanges();
+        expect(lapsedFigure().className).toContain('text-red-700');
+        expect(page.querySelector('.border-l-4')!.className).toContain('border-red-500');
+    });
+
+    it('enables the record button once an extension has its date, as the form is filled in', async () => {
+        useEnglish();
+        fixture.componentInstance.openReview(REGISTER.entries[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const record = () =>
+            [...document.querySelectorAll('button')].find((button) =>
+                button.textContent?.includes('Record the review')
+            )!;
+        expect(record().disabled).toBe(false);
+
+        const extended = document.querySelector<HTMLInputElement>('input[type="radio"][value="EXTENDED"]')!;
+        extended.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(record().disabled).toBe(true);
+
+        const date = document.querySelector<HTMLInputElement>('#newExpiry')!;
+        date.value = '2027-03-31';
+        date.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(record().disabled).toBe(false);
+    });
+});

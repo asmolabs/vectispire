@@ -1,0 +1,352 @@
+package com.asmolabs.vectispire.core.platform.web;
+
+import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.crypto.DerivationsSaturated;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
+import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
+import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
+import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
+import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
+import com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException;
+import com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException;
+import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredException;
+import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
+import com.asmolabs.vectispire.core.checklists.ChecklistFileTooLargeException;
+import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
+import com.asmolabs.vectispire.core.exports.AttestationService;
+import com.asmolabs.vectispire.core.plugins.PluginConflictException;
+import com.asmolabs.vectispire.core.plugins.ReportImportRefusedException;
+import com.asmolabs.vectispire.core.plugins.ReportTooLargeException;
+import com.asmolabs.vectispire.core.plugins.SarifImportRefusedException;
+import com.asmolabs.vectispire.core.plugins.SarifTooLargeException;
+import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
+import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
+import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+/**
+ * How a refusal becomes an HTTP answer: an RFC 9457 problem, always with a {@code detail}.
+ *
+ * <p><b>The mapping is here and nowhere else.</b> Scattering it across the controllers is how
+ * the same refusal comes to answer 400 on one route and 500 on another — and a 500 is what an
+ * operator reports as a bug in Vectispire rather than as a mistake in their own request.
+ *
+ * <p><b>One shape for every error, the framework's included.</b> Only the exceptions listed below
+ * used to answer a problem. A {@code ResponseStatusException} — thirty-seven of them, each with a
+ * sentence written for the caller — and every refusal Spring MVC makes on its own (an unknown route,
+ * a wrong method or media type, a body that is not JSON) went to the container's error page instead:
+ * {@code {timestamp, status, error, path}}, no {@code detail}, so the interface's {@code messageOf}
+ * found nothing to show and fell back to its generic sentence. Extending {@link
+ * ResponseEntityExceptionHandler} makes Spring's own refusals problems; a {@code
+ * ResponseStatusException} is one of them, and its reason becomes the {@code detail}.
+ *
+ * <p><b>And always with a {@code code}</b> ({@link ProblemCode}): the kind of refusal for a program,
+ * beside the sentence for a person, so that a pipeline branches on a token rather than on wording.
+ * Each handler below names its own; what reaches {@link #createResponseEntity} without one is named
+ * by its status.
+ *
+ * <p>Every message below is meant to be shown as it stands. These exceptions carry text written
+ * for the person who triggered them; replacing it with a generic sentence would throw away the
+ * only part that helps.
+ */
+@RestControllerAdvice
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    /** One warning a minute while derivations are saturated: a refusal per request would flood the log. */
+    private static final long SATURATION_WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+
+    private final AtomicLong lastSaturationWarning =
+            new AtomicLong(System.nanoTime() - SATURATION_WARNING_INTERVAL_NANOS - 1);
+
+    /**
+     * A malformed request: the caller can fix it and try again.
+     *
+     * <p><b>{@link InvalidInputException}, not {@link IllegalArgumentException}.</b> The second was
+     * mapped here, so every one answered 400 with its message — the sentences written for an
+     * operator, and alongside them Spring Data's "The given id must not be null", a JDK parser's
+     * "For input string", a crypto library's complaint about a key: internals on the wire, and a
+     * programming error reported as the caller's fault. A deliberate refusal now says so by its type;
+     * anything else is {@link #unexpected}.
+     */
+    @ExceptionHandler({
+        InvalidTriageException.class,
+        InvalidRuleSetException.class,
+        InvalidApiKeyException.class,
+        InvalidCronExpressionException.class,
+        InvalidInputException.class
+    })
+    ProblemDetail badRequest(RuntimeException error) {
+        return problem(HttpStatus.BAD_REQUEST, error.getMessage(), ProblemCode.INVALID_REQUEST);
+    }
+
+    /**
+     * A destination the URL guard refused.
+     *
+     * <p>422 rather than 400: the request is well formed and the value is the operator's own
+     * setting. "Unprocessable" says the server understood and will not, which is exactly the
+     * case.
+     */
+    @ExceptionHandler(UnsafeUrlException.class)
+    ProblemDetail unsafeUrl(UnsafeUrlException error) {
+        // 422 by number: Spring deprecated the constant in favour of the WebDAV spelling
+        // `UNPROCESSABLE_CONTENT`, which is the same code under a name nobody uses in an API
+        // contract. The number is what the frontend matches on, and it is not moving.
+        return problem(HttpStatusCode.valueOf(422), error.getMessage(), ProblemCode.UNSAFE_URL);
+    }
+
+    /**
+     * The deployment is misconfigured, not broken.
+     *
+     * <p>412 for both: an operator reading "precondition failed" with the message attached goes
+     * and sets an environment variable. The same case as a 500 sends them to a stack trace and
+     * then to an issue tracker.
+     */
+    @ExceptionHandler({MissingEncryptionKeyException.class, CredentialWithheldException.class})
+    ProblemDetail preconditionFailed(RuntimeException error) {
+        return problem(HttpStatus.PRECONDITION_FAILED, error.getMessage(),
+                error instanceof MissingEncryptionKeyException
+                        ? ProblemCode.ENCRYPTION_KEY_MISSING
+                        : ProblemCode.CREDENTIAL_WITHHELD);
+    }
+
+    /**
+     * A SARIF, coverage or test-report upload refused for who sent it or what it claims — a session,
+     * an undeclared key, a kind or a tool its source is not declared for. 403: the route exists for a
+     * declared source, and saying so names no repository.
+     */
+    @ExceptionHandler({SarifImportRefusedException.class, ReportImportRefusedException.class})
+    ProblemDetail importRefused(RuntimeException error) {
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.IMPORT_REFUSED);
+    }
+
+    /** A key or an agent credential on a route that did not invite it (decision 0024). */
+    @ExceptionHandler(CredentialNotAcceptedException.class)
+    ProblemDetail credentialNotAccepted(CredentialNotAcceptedException error) {
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.CREDENTIAL_NOT_ACCEPTED);
+    }
+
+    @ExceptionHandler(ApiKeyRateLimitedException.class)
+    ResponseEntity<ProblemDetail> apiKeyRateLimited(ApiKeyRateLimitedException error) {
+        long seconds = Math.max(1, error.retryAfter().toSeconds());
+        ProblemDetail problem = problem(HttpStatus.TOO_MANY_REQUESTS, error.getMessage(), ProblemCode.RATE_LIMITED);
+        problem.setProperty("retryAfterSeconds", seconds);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem);
+    }
+
+    /**
+     * Every password derivation permit is taken ({@code DerivationGate}). 503 with {@code Retry-After},
+     * as the challenges' saturation answers: transient by construction, and nobody's mistake. The same
+     * sentence for every caller — it is decided before any password is compared, so it says nothing
+     * about the account.
+     */
+    @ExceptionHandler(DerivationsSaturated.class)
+    ResponseEntity<ProblemDetail> derivationsSaturated(DerivationsSaturated error) {
+        long seconds = Math.max(1, error.retryAfter().toSeconds());
+        long now = System.nanoTime();
+        long last = lastSaturationWarning.get();
+        if (now - last > SATURATION_WARNING_INTERVAL_NANOS && lastSaturationWarning.compareAndSet(last, now)) {
+            log.warn("Password derivations are saturated: requests that verify a password are being answered 503. "
+                    + "Many sign-ins at once — an attack spread over many addresses, or a bound "
+                    + "(vectispire.sign-in.derivations.concurrent) too small for this deployment.");
+        }
+        ProblemDetail problem = problem(HttpStatus.SERVICE_UNAVAILABLE, error.getMessage(), ProblemCode.UNAVAILABLE);
+        problem.setProperty("retryAfterSeconds", seconds);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem);
+    }
+
+    /**
+     * The caller is authenticated and owes a password change.
+     *
+     * <p>403 and not 401: the token is good and the server knows who this is. 401 would send the
+     * client back to sign in, which it has already done — and would do again, in a loop.
+     */
+    @ExceptionHandler(PasswordChangeRequiredException.class)
+    ProblemDetail passwordChangeRequired(PasswordChangeRequiredException error) {
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.PASSWORD_CHANGE_REQUIRED);
+    }
+
+    /**
+     * The request conflicts with the state the server is already in.
+     *
+     * <p>409 rather than 400: nothing about the request is malformed, and a caller that retries
+     * it unchanged in five minutes may well succeed. "Already queued" is the state's answer, not
+     * the request's fault. So is "not attestable": a scan still running may complete, and the
+     * refusal names what is missing rather than serving a statement with it invented. And so is
+     * "this solution still holds projects": deleting them first makes the same request succeed.
+     * And a {@link ConflictException}, which is how a module declares one this class cannot name:
+     * the OWASP review's refusals — switched off, never scanned, a run that produced no report —
+     * sit in {@code compliance.internal}, were mapped by nobody, and answered 500.
+     */
+    @ExceptionHandler({
+        ConflictException.class,
+        ScanTriggerService.AlreadyQueuedException.class,
+        AttestationService.NotAttestableException.class,
+        SolutionAdministrationService.SolutionNotEmptyException.class,
+        PluginConflictException.class
+    })
+    ProblemDetail conflict(RuntimeException error) {
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, error.getMessage(), switch (error) {
+            case ScanTriggerService.AlreadyQueuedException _ -> ProblemCode.ALREADY_QUEUED;
+            case AttestationService.NotAttestableException _ -> ProblemCode.NOT_ATTESTABLE;
+            case SolutionAdministrationService.SolutionNotEmptyException _ -> ProblemCode.SOLUTION_NOT_EMPTY;
+            case PluginConflictException _ -> ProblemCode.PLUGIN_CONFLICT;
+            default -> ProblemCode.CONFLICT;
+        });
+        // A route whose 409 has several causes names each, so that a client tells "read it again" from
+        // "a second person has to do it" by the type and not by a sentence that changes with its words.
+        // The cause is the code too: one token, in the two places a client may look for it.
+        if (error instanceof ConflictException conflict) {
+            conflict.conflictCause().ifPresent(cause -> {
+                problem.setType(URI.create(PROBLEM_TYPE + cause));
+                problem.setProperty(ProblemCode.MEMBER, cause);
+            });
+            // What the sentence names, as data — a checklist's incomplete lines by item — for a client
+            // that shows them in its own language.
+            conflict.members().forEach(problem::setProperty);
+        }
+        return problem;
+    }
+
+    /** What a problem's {@code type} starts with when its conflict names a cause; the cause ends it. */
+    public static final String PROBLEM_TYPE = "urn:vectispire:problem:";
+
+    /**
+     * A body past its route's ceiling, found while it was being read — by {@code access}'s
+     * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
+     * itself, before this point.
+     */
+    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class, ReportTooLargeException.class,
+        ChecklistFileTooLargeException.class})
+    ProblemDetail contentTooLarge(RuntimeException error) {
+        return problem(HttpStatus.CONTENT_TOO_LARGE, error.getMessage(), ProblemCode.CONTENT_TOO_LARGE);
+    }
+
+    /**
+     * A row that is not there, or not the caller's — in the one sentence both get.
+     *
+     * <p>{@link NotFoundException} and not {@link java.util.NoSuchElementException}, which {@code
+     * Optional.orElseThrow()} throws: a lookup that cannot fail — the row a service has just saved —
+     * answered 404 "No value present" when it did, and the defect read as the absence of what the
+     * caller had asked for.
+     */
+    @ExceptionHandler(NotFoundException.class)
+    ProblemDetail notFound(NotFoundException error) {
+        return problem(HttpStatus.NOT_FOUND, error.getMessage(), ProblemCode.NOT_FOUND);
+    }
+
+    /**
+     * Whatever nobody mapped: a 500 that quotes a reference, and the failure in the log under it.
+     *
+     * <p><b>Spring Security's own are handed back.</b> A {@code @PreAuthorize} refusal is thrown from
+     * the handler; answered here it would be a 500, and it would never reach the chain's denied
+     * handler, which is what audits it. Rethrowing the exception the resolver was given makes it
+     * pass this resolver silently, as if nothing had matched.
+     */
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ProblemDetail> unexpected(Exception error, HttpServletRequest request) throws Exception {
+        if (error instanceof AccessDeniedException || error instanceof AuthenticationException) {
+            throw error;
+        }
+        String reference = UnexpectedFailure.record(request.getMethod(), request.getRequestURI(), error);
+        ProblemDetail problem = problem(
+                HttpStatus.INTERNAL_SERVER_ERROR, UnexpectedFailure.detail(reference), ProblemCode.UNEXPECTED_FAILURE);
+        problem.setProperty(UnexpectedFailure.REFERENCE, reference);
+        return ResponseEntity.internalServerError().body(problem);
+    }
+
+    /**
+     * An unmapped path, in Vectispire's words.
+     *
+     * <p>Spring's own detail is "No static resource api/v1/…": the dispatcher looked for a file after
+     * no controller matched, and says so. True of the implementation, and misleading to a client of
+     * an API, which asked for a route.
+     */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleNoResourceFoundException(
+            NoResourceFoundException error, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        // Not `not-found`: a pipeline told "the target is gone" when its URL is wrong would delete
+        // the wrong thing from its configuration.
+        ProblemDetail problem = problem(status, "Nothing is served at this path.", ProblemCode.NO_SUCH_ROUTE);
+        return handleExceptionInternal(error, problem, headers, status, request);
+    }
+
+    /**
+     * A body that is not the JSON this route reads — or that is, and a value in it was refused.
+     *
+     * <p><b>The second case keeps its sentence.</b> A record that refuses a value in its constructor
+     * is reached through Jackson, which wraps the refusal; Spring then reports the wrapper, and its
+     * detail is "Failed to read request". Before this handler extended {@link
+     * ResponseEntityExceptionHandler}, the {@code IllegalArgumentException} mapping caught the
+     * wrapped cause and its message reached the client; this keeps it doing so for a refusal
+     * written as one, and for nothing else — Jackson's own messages quote the parser's position and
+     * the Java type it was building.
+     */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
+            org.springframework.http.converter.HttpMessageNotReadableException error,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        String detail = "The request body could not be read: it is not JSON, or not the shape this route expects.";
+        for (Throwable cause = error.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof InvalidInputException refused && refused.getMessage() != null) {
+                detail = refused.getMessage();
+                break;
+            }
+        }
+        return handleExceptionInternal(error, ProblemDetail.forStatusAndDetail(status, detail), headers, status, request);
+    }
+
+    /**
+     * Every problem this class answers carries a {@code detail}.
+     *
+     * <p>A {@code ResponseStatusException} built without a reason, or a framework refusal whose
+     * message source has nothing for it, would otherwise answer a problem with no sentence at all —
+     * which the interface renders as its generic fallback, the defect this class exists to end. The
+     * status's own phrase is a poor sentence and still a better one than nothing.
+     */
+    @Override
+    protected ResponseEntity<Object> createResponseEntity(
+            @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        if (body instanceof ProblemDetail problem && (problem.getDetail() == null || problem.getDetail().isBlank())) {
+            HttpStatus known = HttpStatus.resolve(statusCode.value());
+            problem.setDetail(known == null ? "The request was refused." : known.getReasonPhrase() + ".");
+        }
+        if (body instanceof ProblemDetail problem
+                && (problem.getProperties() == null || !problem.getProperties().containsKey(ProblemCode.MEMBER))) {
+            problem.setProperty(ProblemCode.MEMBER, ProblemCode.forStatus(statusCode.value()));
+        }
+        return super.createResponseEntity(body, headers, statusCode, request);
+    }
+
+    private static ProblemDetail problem(HttpStatusCode status, @Nullable String detail, String code) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setProperty(ProblemCode.MEMBER, code);
+        return problem;
+    }
+}

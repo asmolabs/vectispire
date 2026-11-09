@@ -1,0 +1,264 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'teams.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ 'teams.subtitle' | translate }}
+        </p>
+    </div>
+    <p-button [label]="'teams.create_team' | translate" icon="pi pi-plus" (onClick)="openCreate()" />
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="teams()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'teams.col_team' | translate }}</th>
+                <th class="text-right">{{ 'teams.col_members' | translate }}</th>
+                <th class="text-right">{{ 'teams.col_targets' | translate }}</th>
+                <th>{{ 'teams.col_notifications' | translate }}</th>
+                <th class="w-1"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-team>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ team.name }}</div>
+                    @if (team.description) {
+                        <div class="text-sm text-muted-color">{{ team.description }}</div>
+                    }
+                </td>
+                <td class="text-right">{{ team.memberCount }}</td>
+                <td class="text-right">
+                    <!--
+                        A team owning nothing grants nothing, however many people are in it. Said
+                        on the row rather than left to be inferred from a zero.
+                    -->
+                    @if (team.targetCount === 0) {
+                        <p-tag severity="warn" [value]="'teams.grants_nothing' | translate" />
+                    } @else {
+                        {{ team.targetCount }}
+                    }
+                </td>
+                <td>
+                    <!--
+                        Whether, not where. A webhook URL is a bearer capability — whoever reads it
+                        can post in the channel where this team awaits its alerts — so no route
+                        returns it and this cell cannot show it.
+                    -->
+                    @if (team.notified) {
+                        <p-tag severity="success" [value]="'teams.own_channel' | translate" />
+                    } @else {
+                        <span class="text-muted-color text-sm">{{ 'teams.global_webhook' | translate }}</span>
+                    }
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button
+                        [label]="'teams.channel' | translate"
+                        icon="pi pi-bell"
+                        severity="secondary"
+                        [text]="true"
+                        (onClick)="openWebhook(team)"
+                    />
+                    <p-button
+                        [label]="'teams.access' | translate"
+                        icon="pi pi-users"
+                        severity="secondary"
+                        [text]="true"
+                        (onClick)="openAccess(team)"
+                    />
+                    <p-button
+                        icon="pi pi-pencil"
+                        severity="secondary"
+                        [text]="true"
+                        [ariaLabel]="'teams.aria_rename' | translate: { name: team.name }"
+                        (onClick)="openRename(team)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [ariaLabel]="'teams.aria_delete' | translate: { name: team.name }"
+                        (onClick)="confirmDelete(team)"
+                    />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="5" class="text-center text-muted-color py-6">
+                    {{ 'teams.empty' | translate }}
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+    [header]="editing() ? ('teams.header_rename' | translate) : ('teams.header_create' | translate)"
+>
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <form class="flex flex-col gap-4" (ngSubmit)="save()">
+        <div class="flex flex-col gap-2">
+            <label for="team-name" class="font-medium">{{ 'common.name' | translate }}</label>
+            <input
+                pInputText
+                id="team-name"
+                required
+                name="team-name"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.name"
+                class="w-full"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="team-description" class="font-medium">{{ 'common.description' | translate }}</label>
+            <input
+                pInputText
+                id="team-description"
+                name="team-description"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.description"
+                class="w-full"
+            />
+        </div>
+    </form>
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="formVisible.set(false)"
+        />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="save()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [(visible)]="accessVisible"
+    [modal]="true"
+    [style]="{ width: '36rem' }"
+    [header]="'teams.header_access' | translate: { name: accessTeam()?.name ?? '' }"
+>
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <!--
+        Both lists are sent as they stand, not as a set of additions: removing somebody is the
+        operation that matters, and a screen that only ever added would make a revocation a click
+        that silently does nothing.
+    -->
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="team-members" class="font-medium">{{ 'teams.col_members' | translate }}</label>
+            <p-multiselect
+                inputId="team-members"
+                name="team-members"
+                [options]="accountOptions()"
+                [(ngModel)]="selectedMembers"
+                optionLabel="label"
+                optionValue="value"
+                [filter]="true"
+                [placeholder]="'teams.nobody_yet' | translate"
+                styleClass="w-full"
+            />
+            <small class="text-muted-color">
+                {{ 'teams.members_hint' | translate }}
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="team-targets" class="font-medium">{{ 'teams.col_targets' | translate }}</label>
+            <p-multiselect
+                inputId="team-targets"
+                name="team-targets"
+                [options]="targetOptions()"
+                [(ngModel)]="selectedTargets"
+                optionLabel="label"
+                optionValue="value"
+                [filter]="true"
+                [placeholder]="'teams.nothing_yet' | translate"
+                styleClass="w-full"
+            />
+            <small class="text-muted-color">
+                {{ 'teams.targets_hint' | translate }}
+            </small>
+        </div>
+    </div>
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="accessVisible.set(false)"
+        />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveAccess()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [(visible)]="webhookVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+    [header]="'teams.header_channel' | translate: { name: webhookTeam()?.name ?? '' }"
+>
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <div class="flex flex-col gap-2">
+        <label for="team-webhook" class="font-medium">{{ 'teams.webhook_url' | translate }}</label>
+        <input pInputText id="team-webhook" name="team-webhook" [(ngModel)]="webhookUrl" class="w-full" />
+        <small class="text-muted-color">
+            {{ 'teams.webhook_scope' | translate }}
+            <br />
+            {{ 'teams.webhook_write_only' | translate }}
+            <strong>{{ 'teams.webhook_empty_removes' | translate }}</strong>
+        </small>
+    </div>
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="webhookVisible.set(false)"
+        />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveWebhook()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+    [header]="'teams.delete_header' | translate"
+>
+    @if (pendingDelete(); as team) {
+        <p class="m-0">
+            <strong>{{ team.name }}</strong>
+            {{
+                'teams.delete_consequence'
+                    | translate
+                        : {
+                              count: team.memberCount,
+                              targets: ('teams.delete_consequence_targets' | translate: { count: team.targetCount })
+                          }
+            }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="deleteVisible.set(false)"
+        />
+        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="remove()" />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,58 @@
+package com.asmolabs.vectispire.core.scanning;
+
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * A purged target's findings and scans.
+ *
+ * <p><b>Findings by issue and by scan, both.</b> A finding hangs off a scan and, once synced, off an
+ * issue; the target's issues and its scans are the same target's, so each selection should find the
+ * same rows — and taking both is what makes that an assumption nobody has to hold. This listener takes
+ * them by scan; {@code IssuePurge} takes them by issue in the same phase, through {@link
+ * PurgedScans#deleteFindingsOfIssues}, since the issues are {@code issues}' to select (decision 0029).
+ * Synchronous and in the deleting transaction, like every {@link TargetPurge} listener.
+ */
+@Component
+class ScanPurge {
+
+    private static final Logger log = LoggerFactory.getLogger(ScanPurge.class);
+
+    private final PurgedScans purgedScans;
+    private final ScanRepository scans;
+    private final FindingRepository findings;
+
+    ScanPurge(PurgedScans purgedScans, ScanRepository scans, FindingRepository findings) {
+        this.purgedScans = purgedScans;
+        this.scans = scans;
+        this.findings = findings;
+    }
+
+    @EventListener
+    @Order(TargetPurge.Phase.FINDINGS)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void purgeFindings(TargetPurge purge) {
+        purgedScans.inBatches(purge, findings::deleteByScanIdIn);
+    }
+
+    @EventListener
+    @Order(TargetPurge.Phase.SCANS)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void purgeScans(TargetPurge purge) {
+        int purged = purgedScans.inBatches(purge, scans::deleteByIdIn);
+        if (purged > 0) {
+            log.info(purge instanceof OrphanedTargetRows
+                    ? "Cleaned up {} orphaned scans from deleted targets."
+                    : "Purged {} scans of a deleted target.", purged);
+        }
+    }
+}

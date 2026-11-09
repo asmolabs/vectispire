@@ -1,0 +1,15 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'issues.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'issues.subtitle' | translate }}</p>
+
+    <app-issue-filters />
+    <app-issue-scope />
+    <app-issue-table
+        (triage)="triageDialog.openTriage($event)"
+        (advise)="advisor.openAiAdvisor($event)"
+        (bulkTriage)="triageDialog.openBulkTriage()"
+    />
+</div>
+
+<app-triage-dialog #triageDialog (decided)="page.reload(page.offset())" />
+<app-ai-advisor-dialog #advisor (apply)="triageDialog.applySuggestion($event.issue, $event.advice)" />

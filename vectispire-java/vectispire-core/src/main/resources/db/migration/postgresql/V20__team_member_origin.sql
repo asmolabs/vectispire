@@ -1,0 +1,21 @@
+-- L'origine d'une appartenance d'équipe.
+--
+-- **Sans elle, déléguer les équipes à un annuaire est un choix entre deux défauts.**
+-- `ExternalIdentityService.syncGroups` lit la revendication `groups` et ajoute les équipes qu'elle
+-- nomme — sans jamais en retirer aucune. Retirer quelqu'un d'un groupe dans l'annuaire ne lui
+-- retire donc ni l'équipe ni la visibilité qui va avec, alors que la raison même de déléguer est
+-- qu'un départ de groupe révoque un accès.
+--
+-- Réconcilier naïvement — « les équipes sont exactement celles de la revendication » — remplace ce
+-- défaut par un pire : chaque connexion effacerait les équipes qu'un administrateur a attribuées à
+-- la main, en silence, et personne ne saurait pourquoi ses affectations disparaissent.
+--
+-- D'où cette colonne. Chaque canal ne réconcilie que ses propres lignes : la connexion OIDC ajoute
+-- et retire les siennes, l'attribution manuelle et le provisionnement SCIM gardent les leurs. Deux
+-- annuaires qui se disputeraient la même ligne est le troisième défaut, et il est évité en ne
+-- laissant personne toucher aux lignes d'un autre.
+--
+-- `manual` par défaut, délibérément : les lignes existantes ont été posées par quelqu'un, et
+-- l'hypothèse sûre est qu'aucune synchronisation ne doit les emporter.
+
+alter table t_team_member add column origin varchar(16) not null default 'manual';

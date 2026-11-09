@@ -1,0 +1,48 @@
+package com.asmolabs.vectispire.common.domain.integrations;
+
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import java.util.Map;
+
+/**
+ * A gesture refused because the integration it needs is switched off on this installation (decision 0040
+ * §1): 409 of type {@code urn:vectispire:problem:integration-disabled}, with the integration's key in the
+ * member {@code integration}, so that a screen names it in its own language without parsing the sentence.
+ *
+ * <p><b>The sentence names the route, not a screen.</b> It named <em>Administration → Integrations</em>, which no
+ * release has yet: a reader was sent to look for a page that does not exist. The route is what enables it today.
+ *
+ * <p>A conflict, not a 403: the caller may well be allowed to do this, and the same request succeeds
+ * unchanged once a governor enables the integration. Not a 404 either — the adapter exists, and saying so
+ * discloses nothing a caller of the registry's list does not already read.
+ */
+public class IntegrationDisabledException extends ConflictException {
+
+    /** The token the problem's {@code type} ends with; stated in the API's reference, so it does not move. */
+    public static final String CAUSE = "integration-disabled";
+
+    private final transient Integration integration;
+
+    public IntegrationDisabledException(Integration integration) {
+        this(integration, "");
+    }
+
+    /**
+     * The same refusal, opened by what the caller cannot have because of it.
+     *
+     * <p>For a feature that reads an integration rather than configures it — an AI review asked of a
+     * provider the governor switched off (0040 §3): the reader asked for a report, not for {@code
+     * ai.ollama}, and the sentence says first what they did not get and why.
+     *
+     * @param lead a sentence of its own, ending with its full stop, or empty
+     */
+    public IntegrationDisabledException(Integration integration, String lead) {
+        super((lead.isEmpty() ? "" : lead + " ") + "The integration \"" + integration.key() + "\" is disabled on "
+                + "this installation; a platform governor enables it with PUT /api/v1/integrations/"
+                + integration.key() + "/enabled.", CAUSE, Map.of("integration", integration.key()));
+        this.integration = integration;
+    }
+
+    public Integration integration() {
+        return integration;
+    }
+}

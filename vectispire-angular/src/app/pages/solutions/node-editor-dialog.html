@@ -1,0 +1,39 @@
+<p-dialog [header]="editorHeader()" [(visible)]="page.editorVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <form id="node-editor" class="flex flex-col gap-4" (ngSubmit)="saveEditor()">
+        <div class="flex flex-col gap-2">
+            <label for="node-name" class="font-medium">{{ 'solutions.name' | translate }}</label>
+            <input
+                pInputText
+                id="node-name"
+                name="node-name"
+                required
+                [maxlength]="nameMax"
+                [attr.aria-invalid]="!!page.formError()"
+                [attr.aria-describedby]="page.formError() ? 'node-error' : null"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formName"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="node-description" class="font-medium"
+                >{{ 'solutions.description' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="node-description"
+                name="node-description"
+                [maxlength]="descriptionMax"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formDescription"
+            />
+        </div>
+        @if (page.formError(); as message) {
+            <p-message severity="error" [closable]="false" id="node-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.editorVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="page.saving()" (onClick)="saveEditor()" />
+    </ng-template>
+</p-dialog>

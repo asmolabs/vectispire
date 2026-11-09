@@ -1,0 +1,249 @@
+# Dossier d'Architecture — 02. Vue Sécurité
+
+* **Projet :** Vectispire — ASPM & Control Plane de Sécurité
+* **Modèle :** `bflorat/modele-da` — Modèle de Dossier d'Architecture (Bertrand Florat)
+* **Statut :** Validé · **Version :** 1.0
+
+---
+
+## 1. Exigences Non Fonctionnelles de Sécurité (ENF)
+
+1. **Confidentialité des Données au Repos** : Chiffrement systématique des secrets d'intégration et
+   clés SSH privées.
+2. **Isolation Étanche du Code Scanné** : Aucun risque d'exfiltration de code source par les
+   conteneurs d'analyse.
+3. **Altération Détectable du Journal d'Audit** : Une modification ou une suppression sélective des
+   traces d'actions d'administration et de qualification VEX est détectée. Elle n'est pas empêchée :
+   qui peut écrire dans la table peut réécrire toute la chaîne.
+4. **Moindre Privilège des Agents Distants** : Les agents distants ne peuvent pas atteindre la base
+   SQL — imposé par le graphe de modules, la violation échoue donc à la compilation — et ne
+   détiennent jamais l'`ENCRYPTION_KEY`. Ils reçoivent *bien* des clés de déploiement de dépôt en
+   mode `DELEGATED`, scellées (X25519 → HKDF → AES-256-GCM) uniquement pour une clé que l'agent a
+   signée avec sa clé de signature des résultats épinglée, jamais en clair, et auditées à chaque
+   envoi ([décision 0031](../../fr/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) ;
+   `LOCAL`, le défaut, n'envoie rien. Énoncé en
+   entier plutôt qu'en « les agents ne détiennent aucun identifiant », qui est l'affirmation la plus
+   courte et la fausse — voir la [décision
+   0003](../../fr/decisions/0003-long-polling-for-agents.md).
+
+---
+
+## 2. Authentification, Sécurité des Sessions & RBAC
+
+### 2.1 Hachage des Mots de Passe & Protection Anti-Brute-Force
+- **Mots de passe utilisateurs** : Hachés avec l'algorithme fort **Argon2id** (protection contre les
+  attaques GPU).
+- **Rate-Limiting Dynamique en Mémoire (`Bucket4j`)** : Filtre HTTP `LoginRateLimitFilter` sur
+  **les trois points d'entrée qui présentent des identifiants** — `POST /api/v1/auth/login`,
+  `/api/v1/auth/mfa/verify` et `/api/v1/auth/session/exchange` — évaluant le quota d'IP (Bucket4j:
+  10 jetons par minute). La portée est de trois points d'entrée et non d'un seul parce qu'un
+  limiteur qui ne garde que l'étape du mot de passe laisse le second facteur ouvert à un nombre
+  illimité de tentatives, et c'est la plus intéressante des deux cibles.
+- **Confiance dans l'adresse du client** : `X-Forwarded-For` n'est honoré que depuis les adresses
+  listées dans `VECTISPIRE_TRUSTED_PROXIES`, vide par défaut. Faire confiance à l'en-tête sans
+  condition laisse un appelant choisir son propre seau — soit un limiteur qui ne limite personne.
+  Bloque les attaques
+  par déni de service et bursts d'essais bruts avec HTTP `429 Too Many Requests` et en-tête
+  `Retry-After` **sans effectuer de requête SQL ni de dérivation de hash Argon2id**.
+- **Protection Brute-Force Persistante (`t_login_attempt`)** : Suivi des échecs de connexion dans
+  la base de données via `LoginThrottle` : par compte (et par nom saisi) depuis un client — cinq
+  par quart d'heure —, par compte depuis tous les clients — cinquante — et par client tous comptes
+  confondus — vingt. Le plafond bas est celui du compte *depuis un client* : partagé par tous les
+  clients, il laissait quiconque connaissait un nom garder ce compte verrouillé, et le bon mot de
+  passe de son titulaire était refusé avec le reste. Le budget du second facteur reste par compte :
+  seul celui qui détient le mot de passe peut le dépenser.
+- **Le budget du compte tous clients confondus est souple, ce qui ferme le dernier verrouillage.** Le
+  plafond global était strict, et c'était le compromis restant : depuis dix clients ou plus, quiconque
+  connaissait un nom tenait son titulaire dehors. Au-delà désormais, une tentative depuis un client qui
+  ne s'est pas connecté au compte dans `VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION` (trente jours) reçoit
+  `429` `account-throttled` avec `Retry-After`, avant tout hachage et ses lignes reprises ; un client
+  connu continue, tenu à ses propres plafonds, de même qu'une tentative qui envoie le second facteur
+  avec le mot de passe — les deux vérifiés, et tout échec répondu par le même refus, si bien qu'un
+  devineur au-delà du budget n'apprend rien du mot de passe, pas même du temps que prend le refus :
+  chaque refus de ce chemin attend la même échéance d'une seconde. Les clients connus sont dans
+  `t_sign_in_client` (V101), indexés par un condensé du compte et du seau client : l'exemption survit à
+  un redémarrage comme les compteurs. Un nom inconnu n'a aucun client connu et est refusé comme un
+  compte existant. Chaque refus est audité `LOGIN_BLOCKED` (`VECTI-SEC-007`) et le journal avertit une
+  fois par compte et par fenêtre. Le coût résiduel : qui partage la sortie réseau du titulaire partage
+  l'exemption, et rencontre à la place les plafonds propres à ce client. Les trois plafonds sont des
+  réglages `VECTISPIRE_SIGN_IN_*`, aux valeurs par défaut inchangées.
+- **Clés API d'intégration CI/CD** : Stockées uniquement sous forme de hash Argon2id (préfixées
+  `vectispire_`) avec périmètres de droits (scopes) et date d'expiration.
+
+### 2.2 Contrôle d'Accès basé sur les Rôles (RBAC) & Double Validation
+L'autorisation a deux moitiés, et une route a besoin des deux.
+
+**Ce que le rôle de l'appelant peut faire** est une annotation composée posée sur chaque route —
+`@RequiresAdministrator`, `@RequiresSecurityLead`, `@RequiresGovernanceRead`, `@RequiresPlatformGovernor`,
+`@RequiresWriteAccount`, `@RequiresAccount` — chacune un `@PreAuthorize` de Spring Security sur une
+expression de rôles (`hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')`, etc.) qui correspond à un drapeau de
+l'énumération `Role` ; le tableau ci-dessous donne les rôles de chaque marqueur. Aucune route n'écrit
+sa propre liste de rôles.
+
+**De quel parc parle la réponse** est la seconde moitié, et le marqueur n'en dit rien :
+`@RequiresAccount` prouve que l'appelant est connecté, pas que le dépôt qu'il nomme est le sien. Une
+route qui nomme une cible résout une `Visibility` — `VisibilityService.of(user, credentialRestriction)`,
+l'accès du compte croisé avec celui de l'identifiant présenté — et la passe à la requête, ou refuse par
+`Visibilities.requireVisible(...)`, qui répond **404, jamais 403**, pour qu'un refus ne confirme pas
+que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
+
+- **Administrateurs** (SUPERUSER, ADMIN) : comptes, équipes, clés, agents, clés SSH.
+- **Double Validation Optionnelle** (`triage_four_eyes_required`) : une règle de la plateforme, donc
+  celle du seul **Super-administrateur** — `@RequiresPlatformGovernor`, et le réglage fait partie de
+  ceux que `Setting.governsSecurity()` réserve. Activée, une décision VEX qui clôt une anomalie
+  (`NOT_AFFECTED` ou `FIXED`) émise par un compte qui ne peut pas approuver passe en état
+  `PENDING_APPROVAL`. Désactivée, les utilisateurs autorisés qualifient directement.
+- **Identités Distinctes Imposées** : L'approbateur est comparé au demandeur enregistré sur
+  l'événement `PENDING_APPROVAL`, et non au seul rôle d'approbation. Un compte qui demande une
+  dérogation ne peut pas l'approuver, même après avoir obtenu le rôle — quatre yeux signifie deux
+  personnes, et une simple barrière de rôle laisse une seule personne tenir les deux moitiés.
+- **Ce que les rôles ne séparent pas : agir par un compte qu'on administre.** Le super-administrateur
+  et chaque administrateur administrent les comptes. Double validation désactivée, l'un d'eux peut
+  créer un compte doté d'un rôle qui qualifie et clôt — un RSSI, un champion sécurité — ou
+  réinitialiser le mot de passe d'un compte existant, s'y connecter avec le mot de passe temporaire,
+  et agir sous son nom ; le « n'opère rien » du super-administrateur vaut pour son propre compte, pas
+  pour ceux qu'il peut créer. C'est de la détection, pas de la prévention — chaque étape figure au
+  journal d'audit, et un compte réinitialisé doit changer son mot de passe à sa connexion suivante —
+  et double validation désactivée, cela le reste : une seule personne peut alors tout clore seule.
+- **Sous double validation, une modification de compte qui fait un approbateur exige deux
+  administrateurs** (1.0.0-rc.1, #126 option 2). Créer un compte doté d'un rôle qui approuve
+  (`Role.approves()` : ADMIN, CISO, SECURITY_CHAMPION, et SUPERUSER, qui approuve les demandes de
+  compte), élever un rôle vers l'un d'eux, et réinitialiser le mot de passe d'un compte qui en détient
+  un sont déposés dans `t_account_request` (V100) au lieu d'être appliqués : la route répond `202` avec
+  la demande, et `/api/v1/account-requests` la liste, l'approuve ou la refuse. Le demandeur ne peut pas
+  l'approuver (`409`, `own-account-request`), personne n'approuve une modification de son propre
+  compte, et la modification est vérifiée à nouveau avec l'approbateur comme acteur — un administrateur
+  ne peut pas approuver la création d'un super-administrateur. Le mot de passe temporaire n'est conservé
+  que sous forme d'empreinte jusqu'à ce que l'approbation le pose. L'activation, la désactivation, les
+  attributions de cibles et les rôles qui n'approuvent rien s'appliquent toujours aussitôt : retirer un
+  privilège doit rester facile. **Un administrateur seul n'est pas bloqué** : sans autre administrateur
+  — les comptes désactivés comptent, et aussi un compte sorti d'un rôle d'administration dans la fenêtre
+  (30 jours au moins), si bien que désactiver ou rétrograder les autres ne rend pas seul — la
+  modification s'applique aussitôt et son entrée d'audit le dit ; sinon une installation neuve, dont le
+  seul compte est le super-administrateur, ne pourrait jamais être dotée. Deux enchaînements sont
+  fermés aussi : une élévation vers un rôle qui approuve est refusée (`409`,
+  `password-known-to-administrator`) quand son demandeur ou son approbateur a créé le compte ou
+  réinitialisé son mot de passe dans la fenêtre — abaisser, réinitialiser, élever leur donnerait sinon
+  un approbateur que la demande ne révèle pas — et une demande dont le demandeur n'est plus un
+  administrateur actif ne peut pas être approuvée ; la réinitialisation du mot de passe d'un compte dont
+  une modification attend attend qu'elle soit décidée.
+- **Sous double validation, un approbateur que le demandeur a administré récemment est refusé**
+  (1.0.0-rc.1, #126 option 1). `t_account_administration` (V100) enregistre, dans la transaction de
+  chaque geste, quel administrateur a créé un compte, réinitialisé son mot de passe ou changé son rôle,
+  et quand — le journal d'audit dit la même chose en phrases, sur lesquelles un contrôle ne peut pas
+  s'appuyer. `ApproverIndependence` refuse toute approbation de double validation — une qualification,
+  une demande de compte, la validation d'une checklist, la publication ou le retrait d'une version de
+  modèle de checklist, l'approbation du manifeste d'un plugin de rapport — dont le demandeur (pour les
+  trois dernières, tout auteur de l'ouvrage, ou qui a enregistré le manifeste) a fait l'un des trois au
+  compte de l'approbateur depuis moins de
+  `four_eyes_independence_days` jours (30 par défaut ; un paramètre du seul super-administrateur, `0`
+  désactive le contrôle, 3650 au plus) : `409`, code `approver-not-independent`, avec les membres
+  `gesture` et `windowDays`. Les deux administrateurs d'une demande de compte approuvée comptent comme
+  l'ayant administré. Pour toute approbation sauf un triage, la question est posée dans les deux sens —
+  un compte que l'approbateur a créé pourrait être son propre second nom, écrivant ce que l'approbateur
+  approuve ensuite ; pour un triage, dans le sens du demandeur seulement, puisqu'un approbateur clôt
+  directement et que le refuser refuserait tout administrateur ayant doté l'équipe qu'il relit. Jusqu'à
+  1.0.0-rc.1, la validation des checklists, les versions de modèles et les plugins de rapport ne
+  comparaient que comptes et noms. Le manifeste en attente d'un plugin de rapport est contrôlé quoi que
+  dise la double validation au moment de l'approbation, sous la règle sous laquelle il a été enregistré.
+- **Ce qui reste.** La fenêtre commence à se remplir à la mise à jour : les gestes antérieurs ne
+  figurent qu'au journal d'audit. Passé la fenêtre, un compte qu'un administrateur a créé peut approuver
+  ses demandes ; un administrateur qui supprime tous les autres administrateurs agit seul, ce que
+  montrent le journal d'audit et le SIEM (`USER_DELETED`) ; deux créations d'un même nom déposées en même
+  temps attendent toutes deux, et la seconde approuvée échoue sur la clé unique du nom ; et l'annuaire (SCIM) peut encore accorder
+  SECURITY_CHAMPION, un rôle qui approuve, hors des deux contrôles. Lisez les entrées d'administration
+  des comptes (`ACCOUNT_REQUEST_*`, `USER_UPDATED`) à côté des approbations de qualification quand vous
+  examinez une dérogation.
+- **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement
+  consigné dans le journal d'audit chaîné par empreintes SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
+  (`SETTING_UPDATED`).
+- **USER / SECURITY_CHAMPION** : Consultation du posture dashboard et qualification des
+  vulnérabilités. Le référent sécurité peut approuver un triage, mais dans le seul périmètre que sa
+  visibilité lui donne — il n'a pas de portée globale.
+- **AUDITOR** (2026-09-02) : **lit la gouvernance et n'en écrit rien.** Portée globale, aucune
+  approbation, aucune écriture nulle part. Le rôle existe parce que jusqu'à cette date la lecture
+  du journal d'audit, des preuves de conformité, de la politique de barrière et de la destination
+  SIEM demandait le même marqueur que leur écriture : le seul compte capable d'inspecter la posture
+  était un compte capable de la réécrire. Qui vérifie le travail ne devrait pas pouvoir le changer
+  d'abord.
+
+  **Le rôle a menti pendant une journée, et cela vaut d'être consigné.** Il a été livré le
+  1er septembre avec cette phrase dans sa documentation, alors que six routes d'écriture ne
+  portaient que `@RequiresAccount` : un auditeur pouvait régler une anomalie, ouvrir un ticket
+  chez un client, et envoyer la liste des constats d'une cible vers un hôte de modèle. Refermé le
+  2 septembre par `@RequiresWriteAccount`, après avoir énuméré toutes les routes non-GET qu'un
+  simple compte connecté atteint — et non les seules qu'on soupçonnait.
+
+**Lire la gouvernance et l'écrire sont deux marqueurs distincts** (2026-09-02). Ils portaient le
+même nom, posé au niveau classe sur huit contrôleurs, ce qui confondait consulter et modifier.
+
+| Marqueur | Rôles | Ce qu'il ouvre |
+|---|---|---|
+| `@RequiresAdministrator` | SUPERUSER, ADMIN | Comptes, équipes, clés, agents, réglages |
+| `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Écriture** : politique de barrière, jeux de règles, destination SIEM, politique de licences |
+| `@RequiresGovernanceRead` | + AUDITOR | **Lecture** : journal d'audit, preuves de conformité, barrières, jeux de règles, config SIEM |
+| `@RequiresPlatformGovernor` | SUPERUSER seul | **Les règles** : qui voit quelles cibles (`target_visibility`), et faut-il deux personnes pour écarter une vulnérabilité (`triage_four_eyes_required`) |
+| `@RequiresWriteAccount` | tous sauf AUDITOR et SUPERUSER | **Agir** : trier une anomalie, ouvrir un ticket, lancer une revue OWASP ou une explication par modèle |
+| `@RequiresAccount` | tout compte connecté | Le reste, restreint ensuite par la visibilité |
+
+Ces trois listes de rôles ne sont pas recopiées : `RouteAuthorizationTest` vérifie que chaque
+expression correspond exactement au drapeau de `Role` qui la définit, et refuse toute route qui
+écrirait sa propre liste au lieu de porter un marqueur.
+
+Le gate (`POST /api/v1/gate`) ne demande **aucun rôle particulier** : il porte `@RequiresAccount`
+et s'appelle en pratique avec une clé API, dont les scopes sont un axe d'autorisation séparé. Ce
+document annonçait un `ROLE_CI` qui n'a jamais existé.
+
+---
+
+## 3. Protection des Données au Repos & Chiffrement
+
+### 3.1 Chiffrement AES-256-GCM (`EncryptionService`)
+Toutes les clés SSH privées de déploiement (`t_ssh_key`) et jetons d'intégration sont chiffrés avec
+**AES-256-GCM** avec authentification de données associées (AEAD). La clé maître provient de la
+variable d'environnement `ENCRYPTION_KEY`.
+
+### 3.2 Purge et Rétention des Secrets
+1. **Rapports bruts de scanners** : Les payloads bruts JSON conservés temporairement dans
+   `scan.cves` sont purgés automatiquement par le service de rétention (`RetentionService`).
+2. **Stockage minimal des constats** : Les entités `Finding` et `Issue` enregistrent **uniquement
+   l'emplacement (fichier, ligne) et le type de règle**, et ne stockent **jamais la valeur du secret
+   en clair**.
+
+---
+
+## 4. Isolation des Conteneurs d'Analyse
+
+Tous les conteneurs d'analyse exécutés par `ContainerRunner` sont durcis pour empêcher tout
+échappement ou exfiltration :
+
+| Mesure de Sécurité | Implémentation | Objectif de Confinement |
+|---|---|---|
+| **Suppression des privilèges** | `cap_drop: ALL`, `no-new-privileges` | Empêcher toute élévation de privilège root dans le conteneur. |
+| **Montage en Lecture Seule** | Volume source monté en `read-only` | Garantir que l'analyseur ne modifie jamais le code source. |
+| **Isolation Réseau** | **`network: none`** (Secrets, SAST, IaC) | Empêcher toute exfiltration de code source vers l'extérieur. |
+| **Socket Docker** | **Aucun accès au socket Docker** | Interdire la prise de contrôle du démon Docker de l'hôte. |
+
+---
+
+## 5. Altération Détectable de l'Audit Log (Chaîne d'Empreintes)
+
+La table `t_audit_log` conserve l'historique de toutes les actions d'administration et de triage
+VEX. Chaque entrée intègre une empreinte SHA-256 sans clé de ses champs et de l'empreinte de la
+ligne précédente (`AuditChain.computeEntryHash`), les champs séparés par un octet NUL :
+
+```
+Hash_N = SHA256( Hash_N-1 | Timestamp_N | Operation_N | Resource_N | User_N | IP_N | UserAgent_N | Description_N )
+```
+
+`AuditLogService.verify()` recalcule la chaîne et signale la première rupture : une modification
+ou une suppression sélective casse toutes les empreintes qui suivent. L'empreinte est sans clé, ce
+qui ne rend donc pas le journal immuable — qui peut écrire dans la table peut recalculer toute la
+chaîne ; c'est la comparaison avec le miroir hors base (`verifyAgainstMirror`) qui le révèle.
+
+---
+
+## 6. Analyse de Menaces STRIDE
+
+La modélisation complète des menaces selon la méthode **STRIDE par Entité DFD** est documentée
+séparément dans [`STRIDE_THREAT_MODEL.fr.md`](../../security/fr/STRIDE_THREAT_MODEL.fr.md).

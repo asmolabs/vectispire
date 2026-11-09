@@ -1,0 +1,376 @@
+package com.asmolabs.vectispire.core.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Every <em>route</em> that names a target resolves an allowance — not every controller.
+ *
+ * <p><b>Why a second rule, when {@code AuthorizationCoverageTest} already exists.</b> That one
+ * asks whether a <em>controller</em> mentions a {@code Visibility}, and it was written knowing it
+ * could not do better. It then let one through: {@code GET /api/v1/inventory/versions} sat in a
+ * controller that resolves an allowance for its sibling route, satisfied the rule, and returned
+ * every component version in the estate to a reader given one repository. The rule was coarser
+ * than the defect it watched, and the twenty-fourth leak walked through the gap.
+ *
+ * <p><b>Why route granularity is hard, and how this handles it.</b> Filtering usually runs through
+ * a private helper — {@code requireVisible(principal, target)}, {@code visible(principal, id)} —
+ * so a body-text scan for {@code Visibility} reports a route as unscoped when it is not. A first
+ * attempt at this produced thirty candidates of which twenty-eight were false. The answer is a
+ * naming convention, <b>checked rather than trusted</b>: a helper counts only if its own body
+ * resolves an allowance. Calling a method {@code visibleThing()} does not buy anything.
+ *
+ * <p><b>What this still cannot prove.</b> That the allowance is <em>applied</em> to the query
+ * rather than resolved and dropped. {@code VisibilityRoutesTest} answers that, per route, by
+ * asking as a restricted reader. This is a lint whose whole job is that a new route cannot be
+ * forgotten.
+ */
+@DisplayName("every route that names a target resolves an allowance")
+class RouteScopingTest {
+
+    private static final Pattern MAPPING = Pattern.compile("@(?:Get|Post|Put|Delete|Patch)Mapping");
+    // An access modifier is required, so `@ResponseStatus(HttpStatus.CREATED)` between the
+    // mapping and the method is not mistaken for the method itself — the first draft reported
+    // three routes named `ResponseStatus`.
+    private static final Pattern SIGNATURE = Pattern.compile(
+            "\\b(?:public|private|protected)\\s[^;{()]*?\\b(\\w+)\\s*\\([^;{]*\\)\\s*(?:throws [\\w., ]+)?\\{");
+    /** Any call, because which methods count is decided by reading them, not by their names. */
+    private static final Pattern CALL = Pattern.compile("\\b(\\w+)\\s*\\(");
+
+    /** The things that, in a body, mean "an allowance was resolved here". */
+    private static final Pattern RESOLVES_ALLOWANCE =
+            Pattern.compile("Visibility\\b|visibility\\.of\\(|Visibilities\\.|allowanceOf\\(|\\.permits\\(");
+
+    /**
+     * Built from {@link AuthorizationMarkers}, which is the one place the set of markers is
+     * written. It used to be spelled out here, and a marker added elsewhere left this rule
+     * reporting every route that adopted it as unguarded.
+     */
+    private static final Pattern ROLE_GUARD =
+            Pattern.compile(AuthorizationMarkers.scopeGuardPattern());
+
+    /**
+     * Routes that name no target, with the reason for each.
+     *
+     * <p>Keyed {@code Controller#method}, and every value is a claim a reader can check. A list
+     * that grew whenever the test went red would end up exempting the next leak.
+     */
+    private static final Map<String, String> NAMES_NO_TARGET = Map.ofEntries(
+            // Threat intelligence about a CVE: the same record for every reader, and knowing it
+            // says nothing about who runs the package. `EpssController#getPriorities`, which does
+            // read the estate, resolves an allowance and is not here.
+            Map.entry("EpssController#lookupCve", "a public CVE record, identical for every caller"),
+
+            // Deployment-wide configuration and a static rule table. Neither takes a parameter;
+            // the routes that *change* the policy carry `@RequiresSecurityLead`.
+            Map.entry("LicenseController#getPolicy", "the deployment's licence policy, the same for everybody"),
+            Map.entry("LicenseController#getCompatibilityMatrix", "a static compatibility table, no target read"),
+
+            // Whether the advisor answers and which model does. It used to publish Ollama's
+            // internal URL as well; that was removed rather than exempted.
+            Map.entry("AiAdvisorController#getStatus", "the advisor's availability, no target read"),
+
+            // (`AiAdvisorController#explainCve` stood here as "explains a public CVE from what the
+            // caller passes in". It looked the CVE up across every target and explained the first
+            // match — the leak this list exists to prevent, admitted by an exemption whose claim
+            // nobody re-checked. It resolves an allowance now; the stale-entry test below would
+            // have refused the entry the day that happened.)
+
+            // The plugin registry: an image digest, its arguments, the languages it reads — platform
+            // configuration, the same for every reader. Which projects a plugin reads is a separate
+            // route, `PluginsController#projects`, under a governance guard.
+            Map.entry("PluginsController#list", "the plugin registry, platform configuration naming no target"),
+            Map.entry("PluginsController#get", "one plugin's definition, platform configuration naming no target"),
+
+            // Which outside systems the installation may talk to (decision 0040): seventeen switches, the
+            // same for every reader; who flipped one is withheld from those who do not read governance.
+            Map.entry("IntegrationsController#list", "the integrations' registry, platform configuration naming no target"),
+
+            // The JSON Schema a report plugin's author writes against (decision 0035 §1): a file shipped
+            // with the build, the same for every reader. The export itself resolves an allowance.
+            Map.entry("ProjectExportController#schema", "the export's published schema, a file of the build naming no target"),
+
+            // Reached by an unguessable token that a writer who can see the repository published;
+            // anonymous by design, since a README badge is fetched by whoever reads the README.
+            Map.entry("ScorecardController#getPublishedBadge", "reached only by a published, revocable token"));
+
+    private record Route(String controller, String method, String body) {
+        String id() {
+            return controller + "#" + method;
+        }
+    }
+
+    @Test
+    @DisplayName("a route either states a role, resolves an allowance, or calls a helper that does")
+    void everyRouteIsScopedOrExempt() throws IOException {
+        List<Route> routes = new ArrayList<>();
+        List<String> unscoped = new ArrayList<>();
+        List<String> staleExemptions = new ArrayList<>();
+        int mappingsSeen = 0;
+
+        for (Path file : AuthorizationMarkers.controllerSources()) {
+            String name = file.getFileName().toString().replace(".java", "");
+            // The controller-level exemptions are the same list, not a copy of it: a
+            // controller that serves nothing target-scoped has no target-scoped routes.
+            if (AuthorizationCoverageTest.NOT_TARGET_SCOPED.contains(name)) {
+                continue;
+            }
+            String source = Files.readString(file, StandardCharsets.UTF_8);
+
+            // A class-level role guard settles every route it covers — unless a route also accepts
+            // an API key, which the guard's own role does not narrow (see `settledByRole`).
+            String head = source.substring(0, Math.max(0, source.indexOf("public class")));
+            boolean classGuarded = ROLE_GUARD.matcher(head).find();
+            boolean classAcceptsKey = head.contains(ACCEPTS_API_KEY);
+            if (classGuarded && !classAcceptsKey && !source.contains(ACCEPTS_API_KEY)) {
+                continue;
+            }
+
+            // Counted before the guards filter anything: this is what the self-check below
+            // is actually about.
+            Matcher every = MAPPING.matcher(source);
+            while (every.find()) {
+                mappingsSeen++;
+            }
+
+            Set<String> trustedHelpers = helpersThatResolveAnAllowance(source);
+
+            for (Route route : routesOf(name, source, classGuarded, classAcceptsKey)) {
+                routes.add(route);
+                boolean scoped = isScoped(route, trustedHelpers);
+                if (scoped && NAMES_NO_TARGET.containsKey(route.id())) {
+                    staleExemptions.add(route.id());
+                }
+                if (scoped || NAMES_NO_TARGET.containsKey(route.id())) {
+                    continue;
+                }
+                unscoped.add(route.id());
+            }
+        }
+
+        // **The self-check counts mappings, not survivors.** It used to assert that more than
+        // sixty *unscoped-or-checked* routes came out of the parser — but a route that gains a
+        // role guard leaves that population, so every time the project did the right thing the
+        // number fell. On 2 September six routes were marked `@RequiresWriteAccount` and it
+        // reached 59: a rule failing because the estate improved. What the check means is "the
+        // parser found the controllers and read them", and the honest measure of that is how many
+        // mapping annotations it saw at all, which only a real parsing failure drives to zero.
+        assertThat(mappingsSeen)
+                .as("no routes were parsed: the path or the parser is wrong, and a rule that "
+                        + "inspects nothing passes forever")
+                .isGreaterThan(60);
+
+        // **An exemption is a claim, and a claim goes stale.** One that names no parsed route, or a
+        // route that now resolves an allowance, no longer describes the code — and the false one
+        // that let `explainCve` through was exactly an entry nobody re-read. Refusing stale entries
+        // forces the list to be re-read whenever the code under it changes.
+        assertThat(routes.stream().map(Route::id).toList())
+                .as("exemptions naming no unguarded route")
+                .containsAll(NAMES_NO_TARGET.keySet());
+        assertThat(staleExemptions)
+                .as("exempted routes that resolve an allowance anyway: remove the exemption")
+                .isEmpty();
+
+        assertThat(unscoped)
+                .as("these routes serve data without stating who may see it. Resolve a Visibility, "
+                        + "call a helper named requireVisible…/visible…/allowanceOf… that does, or "
+                        + "carry a role guard — and if the route genuinely names no target, add it "
+                        + "to NAMES_NO_TARGET with the reason")
+                .isEmpty();
+    }
+
+    /**
+     * Methods in this controller whose own body resolves an allowance.
+     *
+     * <p><b>This is the whole rule, and it is why no naming convention is imposed.</b> A helper
+     * earns trust by what it does; a name would only have to be typed correctly. The check is
+     * one level deep on purpose — a helper that delegates to another helper is rare here, and a
+     * transitive walk would trade a false positive for a false negative, which is the worse of
+     * the two for a security lint.
+     */
+    private static Set<String> helpersThatResolveAnAllowance(String source) {
+        Set<String> trusted = new LinkedHashSet<>();
+        Matcher declaration = Pattern.compile(
+                "\\b(?:private|protected|public)\\s[^;{()=]*?\\b(\\w+)\\s*\\([^;{]*\\)\\s*(?:throws [\\w., ]+)?\\{")
+                .matcher(source);
+
+        while (declaration.find()) {
+            String body = bodyFrom(source, declaration.end() - 1);
+            if (body != null && RESOLVES_ALLOWANCE.matcher(codeOf(body)).find()) {
+                trusted.add(declaration.group(1));
+            }
+        }
+        return trusted;
+    }
+
+    private static boolean isScoped(Route route, Set<String> trustedHelpers) {
+        if (RESOLVES_ALLOWANCE.matcher(route.body()).find()) {
+            return true;
+        }
+        Matcher called = CALL.matcher(route.body());
+        while (called.find()) {
+            if (trustedHelpers.contains(called.group(1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final String ACCEPTS_API_KEY = "@AcceptsApiKey";
+
+    /**
+     * Whether a route's role settles its scope.
+     *
+     * <p><b>Not when it also accepts an API key.</b> A scope guard admits only roles that see the
+     * whole estate, which is why it stood in for an allowance — but an integration key acts for
+     * its account <em>narrowed to its target</em>, and the role says nothing about that narrowing.
+     * The evidence bundle carried a governance guard and accepted export keys, and three of its
+     * sections ignored the key's restriction while both lints counted the guard as the scope.
+     */
+    static boolean settledByRole(boolean guarded, boolean acceptsKey) {
+        return guarded && !acceptsKey;
+    }
+
+    @Test
+    @DisplayName("a scope guard on a route that accepts an API key does not settle its scope")
+    void aKeyOnAGuardedRouteNeedsAnAllowance() {
+        String source = """
+                @RestController
+                public class ProbeController {
+                    @RequiresGovernanceRead
+                    @AcceptsApiKey(ApiKeyScope.EXPORT)
+                    @GetMapping("/estate")
+                    public byte[] estate(VectispirePrincipal principal) {
+                        return service.everything();
+                    }
+
+                    @RequiresGovernanceRead
+                    @GetMapping("/sessions-only")
+                    public byte[] sessionsOnly(VectispirePrincipal principal) {
+                        return service.everything();
+                    }
+                }
+                """;
+
+        assertThat(routesOf("ProbeController", source, false, false))
+                .extracting(Route::method)
+                .containsExactly("estate");
+        assertThat(routesOf("ProbeController", source.replace("@RequiresGovernanceRead\n", ""), true, true))
+                .as("a class-level key admits a key on every route a class-level guard covers")
+                .extracting(Route::method)
+                .containsExactly("estate", "sessionsOnly");
+    }
+
+    /** Every mapped method, with its annotation block and its body. */
+    private static List<Route> routesOf(String controller, String source, boolean classGuarded, boolean classAcceptsKey) {
+        List<Route> routes = new ArrayList<>();
+        Matcher mapping = MAPPING.matcher(source);
+
+        while (mapping.find()) {
+            Matcher signature = SIGNATURE.matcher(source);
+            if (!signature.find(mapping.end())) {
+                continue;
+            }
+            // **From the end of the previous member, not from the mapping.** A guard is as often
+            // written above `@PostMapping` as below it, and reading only downwards reported five
+            // `@RequiresSecurityLead` routes as unguarded.
+            String decorations = source.substring(previousMemberEnd(source, mapping.start()), signature.start());
+            boolean guarded = classGuarded || ROLE_GUARD.matcher(decorations).find();
+            boolean acceptsKey = classAcceptsKey || decorations.contains(ACCEPTS_API_KEY);
+            if (settledByRole(guarded, acceptsKey)) {
+                continue;
+            }
+            String body = bodyFrom(source, signature.end() - 1);
+            if (body != null) {
+                // **The signature and the body, as code.** The annotation block came with them, and
+                // with it an `@Operation` description or a javadoc line that merely said "Visibility":
+                // a route was counted as scoped on the strength of its documentation.
+                routes.add(new Route(controller, signature.group(1),
+                        codeOf(source.substring(signature.start(), signature.end() - 1) + body)));
+            }
+        }
+        return routes;
+    }
+
+    /** Comments and string literals, which say things about the code without being it. */
+    private static final Pattern NOT_CODE = Pattern.compile(
+            "\"\"\"[\\s\\S]*?\"\"\"|\"(?:\\\\.|[^\"\\\\])*\"|/\\*[\\s\\S]*?\\*/|//[^\n]*");
+
+    /** The text without its comments and string literals. */
+    static String codeOf(String text) {
+        return NOT_CODE.matcher(text).replaceAll(" ");
+    }
+
+    @Test
+    @DisplayName("an allowance named only in an annotation, a comment or a string does not scope a route")
+    void documentationIsNotCode() {
+        String source = """
+                @RestController
+                public class ProbeController {
+                    @Operation(description = "Filtered by the caller's Visibility")
+                    @GetMapping("/things/{id}")
+                    public Thing thing(@PathVariable long id) {
+                        // The Visibility is resolved by the service.
+                        log.debug("Visibilities.requireVisible is not called here");
+                        return service.thing(id);
+                    }
+
+                    private Thing visibleThing(long id) {
+                        /* Visibility */
+                        return service.thing(id);
+                    }
+                }
+                """;
+
+        assertThat(routesOf("ProbeController", source, false, false))
+                .singleElement()
+                .satisfies(route -> assertThat(isScoped(route, helpersThatResolveAnAllowance(source)))
+                        .as("scoped by its documentation alone")
+                        .isFalse());
+        // And the same route resolving one in code is scoped.
+        String scoped = source.replace("return service.thing(id);\n    }\n\n",
+                "return service.thing(id, visibility.of(principal));\n    }\n\n");
+        assertThat(scoped).isNotEqualTo(source);
+        assertThat(routesOf("ProbeController", scoped, false, false))
+                .singleElement()
+                .satisfies(route -> assertThat(isScoped(route, Set.of())).isTrue());
+    }
+
+    /** Where the previous member ended, so a route's whole annotation block is in view. */
+    private static int previousMemberEnd(String source, int mappingStart) {
+        int brace = source.lastIndexOf('}', mappingStart);
+        int semicolon = source.lastIndexOf(';', mappingStart);
+        return Math.max(0, Math.max(brace, semicolon));
+    }
+
+    /** The balanced block starting at {@code open}, so a nested lambda does not end the method. */
+    private static String bodyFrom(String source, int open) {
+        int index = source.indexOf('{', open);
+        if (index < 0) {
+            return null;
+        }
+        int depth = 0;
+        for (int i = index; i < source.length(); i++) {
+            char c = source.charAt(i);
+            if (c == '{') {
+                depth++;
+            } else if (c == '}' && --depth == 0) {
+                return source.substring(index, i + 1);
+            }
+        }
+        return null;
+    }
+}

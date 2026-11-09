@@ -1,0 +1,1540 @@
+# The pipeline, on GitHub's runners.
+#
+# **A rewrite of `.gitlab-ci.yml`, not a translation of it.** The two forges differ in the one
+# place that shaped every hard decision in the GitLab file: there, the Docker daemon is a separate
+# container (`docker:dind`) and a bind mount names a path on *its* filesystem, not the job's. Here
+# the daemon is the runner's own, so `docker run -v "$PWD:…"` works — and the contortions the
+# GitLab file needed (`create` + `cp` + `start -a` for the shell-less scanners, a MySQL started
+# inside the daemon, `TESTCONTAINERS_HOST_OVERRIDE`) are not carried over. Copying them would be
+# cargo: they are correct answers to a question this runner does not ask.
+#
+# What is carried over unchanged is every *assertion*. Same digests, same thresholds, same
+# baseline. The point of a port is that the checks do not quietly get weaker.
+#
+# **Every `uses:` is pinned to a commit SHA**, with the version it was at in a trailing comment —
+# the same reasoning that pins `anchore/syft@sha256:…` below. A tag is mutable: `actions/checkout@v4`
+# is a moving target, and an action swapped under a tag runs with whatever permissions the job has.
+# The comment is for a human reading a diff; the SHA is what runs. To upgrade, resolve the new tag
+# and replace both — never widen back to a tag because a bump is inconvenient.
+
+name: verify
+
+# **`main` is not in the list, and that is a consequence of the protection rule.**
+#
+# That branch only advances by fast-forward from a commit on `develop` — `required_linear_history`
+# requires it, `non_fast_forward` forbids the rest. The commit arriving there has therefore already
+# been verified, and a GitHub rule reads *the commit's* status, not the branch's: `develop`'s twelve
+# checks satisfy `main` without being replayed.
+#
+# Replaying them cost twelve jobs on every advance, over an identical tree. Worse since concurrency
+# became keyed by commit: the two refs sharing one SHA share one group, so `main`'s run waited for
+# `develop`'s instead of running beside it — duplicate work, serialised.
+#
+# **The side effect is intended.** A commit reaching `main` without having gone through `develop`
+# would have no checks to show, and the rule would refuse it. That is exactly the flow we want, and
+# it is now held by the mechanism rather than by discipline.
+#
+# **`merge_group`: the merge queue's runs.** A pull request is tested again on top of the ones queued ahead
+# of it, and merged only if that combination is green; without the trigger the queue would wait for checks
+# that never start. The change detectors read the group's base (`merge_group.base_sha`), and a group is
+# judged as `develop` is — every fixable high in `vulnerabilities`, not only the new ones.
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  merge_group:
+
+# Least privilege by default. The release workflow raises what it needs, where it needs it.
+permissions:
+  contents: read
+
+# **A superseded push has nothing to prove — on a pull request. On a branch, it has everything.**
+#
+# This cancelled by ref, unconditionally, and that was true right up until `main` started requiring
+# these checks. A ruleset asks "does *this commit* have green checks", and a run cancelled by the
+# next push answers nothing for the commit it was verifying. Fifteen pushes to `develop` in one
+# afternoon produced fifteen cancelled runs and one survivor: `vulnerabilities` had been failing on
+# every one of them for forty runs, and nobody could see it, because a cancelled run reports no
+# verdict at all. Nothing was verified and nothing said so.
+#
+# So the behaviour now depends on what is being pushed:
+#
+#   - **Pull requests** keep the old behaviour. Only the head commit will ever be merged, so an
+#     older run is genuinely worthless and cancelling it buys minutes back.
+#   - **Branch pushes** each get a group of their own, keyed by commit. They neither cancel nor
+#     queue behind one another: every commit on `develop` gets its own verdict, which is exactly
+#     what `main` will later be asked to show for it.
+#
+# The cost is runner minutes on a burst of pushes. That is the price of the checks meaning
+# something, and it is smaller than the two days `e2e` spent red without a reader.
+concurrency:
+  group: verify-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+
+# **Every job below carries a `timeout-minutes`, and the reason is a run that hung.**
+# `nightly.yml` has bounded its four jobs since it was written; this file bounded none, and on
+# 30 August the `images` job stopped inside `docker run` and sat there. Its own loops are capped
+# — 120 one-second attempts for the database, 90 for application health, three and a half
+# minutes at worst — so the wait was outside the logic, which is exactly the case a step timeout
+# cannot cover and a job timeout can.
+#
+# **A hanging job is worse than a failing one.** GitHub's default ceiling is six hours, so the
+# run reports neither success nor failure for that whole time: the commits under it are not
+# green and not red, they are *unanswered*, and nothing downstream — no branch rule, no reviewer,
+# no audit — treats "unanswered" as a signal. A red job at minute 30 is information.
+#
+# The budgets are the measured durations with generous headroom, not round numbers: on run #17
+# `secrets` took 7s, `links` 4s, `c4-drift` 6s, `dockerfile-policy` 22s, `sbom` 23s,
+# `npm-audit` 36s, `vulnerabilities` 57s, `frontend` 61s and `jvm` 4m15. Anything approaching
+# these ceilings has stopped doing what it was measured doing.
+
+jobs:
+  secrets:
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+      options: --entrypoint=""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: the scan reads commits, not the working tree.
+          fetch-depth: 0
+      # **Scanned against pinned fingerprints, and the distinction from a wider allowlist matters.** The
+      # first run over the full history surfaced 28 hits, every one in a directory the project
+      # shed when it was rewritten, in commits that can no longer be edited. Widening
+      # `.gitleaks.toml` would have blinded the scan to those *values* wherever they appear next;
+      # `.gitleaksignore` pins each hit to its commit, file, rule and line (gitleaks reads it from the
+      # source root), so the same string in a new commit is a new finding and still fails. It replaced
+      # a JSON baseline that copied every finding's author email into the tree.
+      #
+      # **The scan had read nothing since the port, and said so in green.** In this container the
+      # checkout belongs to another user, git refuses it ("detected dubious ownership"), and gitleaks
+      # logs `0 commits scanned` and `no leaks found` and exits 0. Every push from 2026-08-25 to
+      # 2026-10-03 passed a secrets check that examined no commit. Trusting the workspace is the fix;
+      # refusing a run that scanned nothing, or logged an error, is what keeps the next silent
+      # failure from looking like a pass (AGENTS.md: never skip silently).
+      #
+      # **The history of what is checked, not of every branch.** With `fetch-depth: 0` the checkout holds
+      # every branch pushed to the repository, and gitleaks reads `--all`: on 2026-10-28 a false positive in
+      # an open pull request's reference file turned `secrets` red on three *other* pull requests, whose
+      # trees could not carry its fingerprints. `HEAD` is the whole history of the commit under test — on a
+      # pull request the merge with its base, on `develop` the branch — so nothing that can be merged
+      # escapes the scan, and a branch is judged when it is proposed.
+      - name: scan the whole history, and refuse a scan that read nothing
+        run: |
+          git config --global --add safe.directory "$PWD"
+          status=0
+          gitleaks detect --source=. --config .gitleaks.toml --log-opts=HEAD --verbose > gitleaks.log 2>&1 || status=$?
+          cat gitleaks.log
+          # The log is coloured even off a terminal: read it without the escape sequences.
+          sed "s/$(printf '\033')\[[0-9;]*m//g" gitleaks.log > gitleaks.txt
+          if grep -q ' ERR ' gitleaks.txt; then
+            echo "::error::gitleaks logged an error: the scan cannot be trusted"; exit 1
+          fi
+          if ! grep -Eq ' [1-9][0-9]* commits scanned' gitleaks.txt; then
+            echo "::error::gitleaks scanned no commit"; exit 1
+          fi
+          exit "$status"
+
+  docs-consistency:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 scripts/check-doc-links.py
+      # **A link that resolves is not a sentence that is true.** The link check and the
+      # bilingual parity count both passed for five consecutive audits while `README.md`
+      # announced "Four engines are supported" and `README.fr.md` — its own counterpart — said
+      # two engines and a test fixture, five days after ADR 0014 recorded that reversal. Parity
+      # counted files; nothing read them. This reads them, against the tree that decides the
+      # answer: the engine list Gradle iterates, the migration directories Flyway carries, the
+      # compliance catalogue's own enum.
+      #
+      # It found a live one on its first run, in the other direction: the compliance guide said
+      # "five major international regulatory frameworks" above a list of six, in both languages.
+      # Underselling costs the same as overselling — a reader who checks is the one who gets it
+      # wrong.
+      - run: python3 scripts/check-doc-facts.py
+      # **The database pins Dependabot cannot read follow the campaign.** The upgrade drill's
+      # `DB_IMAGE` defaults and the MySQL job services are pinned by patch and digest beside
+      # `Engine.java`'s Testcontainers tags, and a bump of either side left the other on its old
+      # server with nothing to say so — three suites and a drill reporting for an engine the
+      # campaign no longer checks. The rule, and what it deliberately does not compare, is in the
+      # script.
+      - run: python3 scripts/check-db-pins.py
+      # **The scripts we ship run in other people's pipelines**, where a defect is found by a
+      # stranger's red build rather than by ours. The GitLab template runs the release's gate script
+      # only at the digest it pins — edited apart, the next release ships a template that refuses to
+      # run anywhere — and both scripts are linted, since `curl -f` swallowing every refusal is the
+      # kind of thing a careful read had let through. The interface's CI/CD snippets run the
+      # release's CLI only at the digest the interface pins, under the same rule. ShellCheck is on
+      # the runner image.
+      - name: the shipped CI scripts
+        run: |
+          sh ci/gitlab/check-gate-pin.sh
+          sh ci/check-cli-pin.sh
+          shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh ci/check-cli-pin.sh \
+            scripts/vectispire-cli.sh
+      # Our own scripts, in bash: not shipped, but a quoting slip in one is a check that passes
+      # having read the wrong thing. **Every tracked `.sh` outside the shipped four**, rather than a
+      # list: the list named three, and `composition-scan-check.sh` — which the `images` job runs on
+      # every push — had never been linted. A new script is checked by being committed.
+      - name: our own scripts
+        run: |
+          git ls-files -z '*.sh' \
+            | grep -zv -e '^ci/vectispire-gate\.sh$' -e '^ci/gitlab/check-gate-pin\.sh$' \
+                -e '^ci/check-cli-pin\.sh$' -e '^scripts/vectispire-cli\.sh$' -e '^docs/analysis/attic/' \
+            | xargs -0 --verbose shellcheck
+
+  c4-drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # **The diagrams were generated from this model, or somebody edited one and forgot the
+      # other.** This checks the weaker of the two things it could, and says so: the fingerprint
+      # of `workspace.dsl` recorded when the diagrams were last generated. It catches the real
+      # failure — the model edited without regenerating — and not a hand-edited `.puml`. Somebody
+      # hand-editing a generated file has already decided to; the person who forgets is the one
+      # this protects.
+      #
+      # Regenerating and diffing would be stronger and is possible here, unlike on GitLab where
+      # the Structurizr image has no shell. Left as it is so the port changes no assertion; worth
+      # revisiting on its own, deliberately. The model itself is checked against the code elsewhere:
+      # `ModularityTest`, in the `jvm` job, fails when the component level and the Spring Modulith
+      # module model differ.
+      - name: the C4 diagrams are in step with the model
+        run: |
+          recorded="$(cat docs/architecture/c4/diagrams/.workspace.sha256)"
+          actual="$(sha256sum docs/architecture/c4/workspace.dsl | cut -d' ' -f1)"
+          if [ "$recorded" != "$actual" ]; then
+            echo "workspace.dsl has changed since the diagrams were generated."
+            echo "  recorded: $recorded"
+            echo "  actual:   $actual"
+            echo "Run ./scripts/generate-c4-diagrams.sh and commit the result."
+            exit 1
+          fi
+          echo "C4 diagrams are in step with the model."
+
+  # **The API against the last release, as a diff rather than in a browser** (decision 0043 §1).
+  # `ClientContractSpecTest`, in `jvm`, keeps `openapi.json` equal to what the application serves —
+  # and is made green again by regenerating the file, so it says that the contract moved, never
+  # whether the move breaks a client. This says that: a removed route or operation, a removed
+  # response field, a request field become required, a narrowed request enum, a changed type or
+  # operationId, against the newest `v*` tag HEAD descends from. `e2e` does not run on a backend
+  # change, and a renamed response field touches no front-end file; this is where it is caught.
+  #
+  # oasdiff runs at a digest from inside the script, which says which of its checks were re-levelled
+  # for what springdoc emits. An intentional break goes into `ci/openapi/accepted-breaks.txt`, with
+  # its reason, in the same commit; there is no flag that skips the check. The script counts the
+  # operations of both documents before the diff and refuses a run over none — a missing tag in a
+  # shallow checkout would otherwise compare nothing and say so in green.
+  api-compat:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The tags, and the history `--merged HEAD` reads to pick the one HEAD descends from.
+          fetch-depth: 0
+      - run: ci/openapi/compat.sh
+
+  dockerfile-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144
+      options: --entrypoint=""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # **A composition's image is named by digest** (`image: name:tag@sha256:<64 hex>`, the
+      # multi-architecture index's), and checkov's compose support stops at `latest`. The public
+      # `docker-compose.yml` ran `mysql:8` — whatever was pushed under that tag on the day of the
+      # pull, beside the volume holding every installation's data — and Keycloak by tag, and no
+      # check covered a compose file at all. The tag stays beside the digest: it is what a reader
+      # and Dependabot read, the digest is what is pulled.
+      #
+      # Two exceptions, each written out rather than inferred. An alias (`image: *anchor`) is the
+      # value of an anchor checked where it is defined — on an `image:` line above it in the same
+      # file, or the alias is refused: an anchor set on an `x-` key would otherwise pass unread.
+      # Vectispire's own two images keep a release tag (`ghcr.io/asmolabs/vectispire[-agent]:X.Y.Z`):
+      # the file ships inside the release that builds them, and nothing rewrites a digest into it
+      # (the comment above `control-plane` says why).
+      # An interpolated image (`${…}`) is refused: none of these files uses one, and one would
+      # hand the pin to whoever writes the `.env`.
+      #
+      # Found with `find`, not `git ls-files`: in this container git refuses the checkout as
+      # another user's (see `secrets`). No file, or no image read, fails: a policy that read
+      # nothing has checked nothing (AGENTS.md: never skip silently). A digest is checked by length
+      # rather than `{64}`, which not every awk reads: the image's is mawk.
+      - name: every compose image is pinned by digest
+        run: |
+          set -eu
+          files="$(find . \( -name 'docker-compose*.yml' -o -name 'docker-compose*.yaml' \
+              -o -name 'compose*.yml' -o -name 'compose*.yaml' \) \
+              -not -path '*/node_modules/*' -not -path './.git/*' -type f)"
+          if [ -z "$files" ]; then
+            echo "::error::no compose file found: the policy would have checked nothing"; exit 1
+          fi
+          # shellcheck disable=SC2016 # an awk program: its `$` are awk's, not the shell's
+          echo "$files" | xargs awk -v sq="'" '
+            FNR == 1 { read[FILENAME] = 1 }
+            {
+              line = $0
+              sub(/^[ \t]*(-[ \t]+)?/, "", line)
+              if (line !~ /^image:[ \t]/) next
+              image = line
+              sub(/^image:[ \t]*/, "", image)
+              sub(/[ \t]+#.*$/, "", image)
+              gsub(/"/, "", image); gsub(sq, "", image)
+              if (image ~ /^&/) {
+                anchor = image; sub(/^&/, "", anchor); sub(/[ \t].*$/, "", anchor)
+                anchors[FILENAME, anchor] = 1
+                sub(/^&[^ \t]+[ \t]*/, "", image)
+              }
+              if (image ~ /^\*/) {
+                alias = substr(image, 2)
+                if ((FILENAME, alias) in anchors) next
+                printf "%s:%d: %s: an alias of no image: anchor read above it\n", FILENAME, FNR, image
+                bad = 1; next
+              }
+              images++
+              name = image; sub(/@.*$/, "", name)
+              last = name; sub(/^.*\//, "", last)
+              digest = image; sub(/^[^@]*@sha256:/, "", digest)
+              if (image ~ /\$/) {
+                why = "an interpolated image: whoever writes the .env would choose what is pulled"
+              } else if (image ~ /^ghcr\.io\/asmolabs\/vectispire(-agent)?:[0-9]+\.[0-9]+\.[0-9]+$/) {
+                own++; next
+              } else if (image ~ /@sha256:[0-9a-f]+$/ && length(digest) == 64 && last ~ /:/) {
+                next
+              } else {
+                why = "not name:tag@sha256:<64 hex>; pin it by the multi-architecture index digest"
+              }
+              printf "%s:%d: %s: %s\n", FILENAME, FNR, image, why
+              bad = 1
+            }
+            END {
+              n = 0; for (f in read) n++
+              printf "%d compose file(s), %d image(s) read, %d of them Vectispire images by release tag\n", n, images + 0, own + 0
+              if (images == 0) { print "no image read: the policy checked nothing"; exit 1 }
+              exit (bad ? 1 : 0)
+            }'
+      # **The product's own scanner, pointed at the product**, at the digest `ScannerImages`
+      # pins — so the version auditing this repository is the version auditing its targets.
+      #
+      # `--framework` now names `github_actions` rather than `gitlab_ci`: the pipeline being
+      # scanned is this file. It found two real things on the GitLab side before it was wired
+      # (a CLI image running as root, a missing healthcheck), which is why it is blocking.
+      - run: |
+          checkov --quiet --compact \
+            --framework dockerfile,github_actions \
+            --directory . \
+            --skip-path node_modules
+      # **A base image is named by digest** (`image:tag@sha256:…`, the multi-architecture index's),
+      # which checkov does not check: its rule refuses `latest`, not a tag that moves. A `FROM` by
+      # tag alone builds whatever was pushed under that tag last. A stage named on an earlier line of
+      # the same file and `scratch` are not images. The line's own `AS` name is registered after the
+      # check, never before: registered first, `FROM node:24 AS node` read its tag as a stage of its
+      # own and passed. A digest is the whole sha256, 64 hex digits — by length rather than `{64}`,
+      # which not every awk reads. The count is printed so that a run reading no file is seen.
+      - name: every base image is pinned by digest
+        run: |
+          set -eu
+          files="$(find . -name 'Dockerfile*' -not -path '*/node_modules/*' -type f)"
+          test -n "$files"
+          echo "$files" | xargs awk '
+            FNR == 1 { delete stages; checked[FILENAME] = 1 }
+            toupper($1) == "FROM" {
+              image = $2
+              if (image ~ /^--platform=/) image = $3
+              digest = image
+              sub(/^[^@]*@sha256:/, "", digest)
+              pinned = image ~ /@sha256:[0-9a-f]+$/ && length(digest) == 64
+              if (!(image in stages || image == "scratch" || pinned)) {
+                printf "%s:%d: %s: a base image by tag alone; pin it as image:tag@sha256:<index digest>\n", FILENAME, FNR, $0
+                bad = 1
+              }
+              for (i = 1; i < NF; i++) if (toupper($i) == "AS") stages[$(i + 1)] = 1
+            }
+            END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
+
+
+  # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
+  #
+  # `images` builds with Jib, which reads none of these files: on 2026-10-04 both `Dockerfile` and
+  # `Dockerfile.agent` broke on the fourth module — their warm-up created three module directories
+  # by name — and every push pipeline stayed green; the nightly was the first to build them, after
+  # the merge into `main`. What can break one of these builds and not Jib's is what only they read:
+  # the files themselves and `.dockerignore`, the build definition the warm-up configures on empty
+  # module directories, the npm manifests `npm ci` installs on Alpine (musl binaries a lockfile can
+  # lack), the interface's output path the jar stage copies, and the script the CLI image carries.
+  # `Dockerfile.cli` was built by nothing at all, while the CI/CD guide tells people to build it.
+  #
+  # The composition's scan check through the agent stays in the nightly: thirty minutes per push is
+  # the cost that teaches people to route around CI, and an image that builds and carries its jar
+  # is what the defect above would have needed.
+  dockerfile-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          # Through the environment rather than interpolated into the script, like `migration-changes`.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          # **Undetermined means "run"**, as for the other two detections below.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — les images sont construites par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # This file is in the list so that a change to the job is a run of the job: the commit
+          # that added it touched nothing else, and would otherwise have shipped it unexercised.
+          DOCKER_PATHS='^\.github/workflows/ci\.yml$|^Dockerfile|^\.dockerignore$|^vectispire-java/(settings|build)\.gradle\.kts$|^vectispire-java/[^/]+/build\.gradle\.kts$|^vectispire-java/buildSrc/|^vectispire-java/gradle/wrapper/|^package(-lock)?\.json$|^vectispire-angular/(package|angular)\.json$|^scripts/vectispire-cli\.sh$'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$DOCKER_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "ce que lisent les Dockerfiles a changé — les images sont construites :"
+            echo "$changed"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rien de ce que lisent les Dockerfiles n'a changé — les images ne sont pas construites"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  dockerfiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [dockerfile-changes]
+    # Skipped rather than run empty, like `engines` and `e2e`.
+    if: needs.dockerfile-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The same commands and the same checks as `nightly.yml`'s `dockerfiles`, so a red here is the
+      # red the nightly would have shown a day later.
+      - run: docker build --progress=plain -f Dockerfile -t vectispire:verify .
+      - run: docker build --progress=plain -f Dockerfile.agent -t vectispire-agent:verify .
+      - run: docker build --progress=plain -f Dockerfile.cli -t vectispire-cli:verify .
+      - run: docker run --rm --entrypoint sh vectispire:verify -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      - run: docker run --rm --entrypoint sh vectispire-agent:verify -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      - run: docker run --rm --entrypoint sh vectispire:verify -c 'ls -ld /var/lib/vectispire/audit'
+      # The CLI's own help, through its entrypoint: the script is there, executable, and its
+      # interpreter and `jq` are in the image.
+      - run: docker run --rm vectispire-cli:verify --help
+
+  # **The chart renders in each of its shapes, and refuses what it says it refuses** (decision 0038):
+  # the control plane alone, agents with a privileged docker:dind sidecar, and the rootless variant
+  # acknowledged. Each rendering is then checked against the Kubernetes schemas the chart's
+  # `kubeVersion` floor allows, so a field misspelled in a template is a red job rather than an
+  # `helm install` that fails at a customer. Then the refusals: no database URL, and the rootless
+  # variant without its acknowledgement — a guard that renders is a guard nobody has.
+  #
+  # **Both tools are downloaded and checked against a sha256 written here**, read off the publisher's
+  # checksum file and compared, the day they were pinned, with the one in the release notes of the
+  # other origin (get.helm.sh against GitHub for Helm). A moved archive is a red job, never a new tool.
+  helm-chart:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HELM_VERSION: v3.22.0
+      HELM_SHA256: 1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: helm and kubeconform, at their checksums
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSLo helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "${HELM_SHA256}  helm.tar.gz" | sha256sum -c -
+          tar -xzf helm.tar.gz -C bin --strip-components=1 linux-amd64/helm
+          curl -fsSLo kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum -c -
+          tar -xzf kubeconform.tar.gz -C bin kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: lint, render and validate each shape
+        working-directory: deploy/helm/vectispire
+        run: |
+          for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml ci/dind-rootless-values.yaml \
+              ci/single-namespace-values.yaml ci/kubernetes-executor-values.yaml values.example.yaml; do
+            echo "::group::$values"
+            helm lint . --strict -f "$values"
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            # The floor the chart declares (`kubeVersion`), not the newest schema: a field that exists
+            # only in a later release must not pass here. The Kubernetes executor's shape has its own, 1.30,
+            # for its ValidatingAdmissionPolicy — the chart refuses an older cluster for it.
+            floor=1.27.0; [ "$values" = ci/kubernetes-executor-values.yaml ] && floor=1.30.0
+            kubeconform -strict -summary -kubernetes-version "$floor" rendered.yaml
+            echo "::endgroup::"
+          done
+      # **One namespace and nothing outside it.** An installation in a namespace somebody else owns
+      # holds no right to create a Namespace or anything cluster-wide, so a rendering that names one
+      # fails at `helm install`, after the review. Without agents and with agents beside the control
+      # plane, every object stays in the release's namespace.
+      - name: the single-namespace shapes stay in their namespace
+        working-directory: deploy/helm/vectispire
+        run: |
+          outside() {
+            grep -nE '^kind: (Namespace|Cluster[A-Za-z]*|PersistentVolume|StorageClass|PriorityClass)$' "$1" ||
+              grep -nE '^  namespace: ' "$1" | grep -v ':  namespace: vectispire$'
+          }
+          for values in ci/no-agents-values.yaml ci/single-namespace-values.yaml; do
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            grep -q '^kind: Deployment' rendered.yaml || { echo "::error::$values rendered no Deployment"; exit 1; }
+            if outside rendered.yaml; then
+              echo "::error::$values renders something outside the release's namespace"; exit 1
+            fi
+          done
+          # The check sees what it is for: the default in-cluster shape creates `vectispire-agents`.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml > rendered.yaml
+          outside rendered.yaml > /dev/null || { echo "::error::the check missed the agents' own Namespace"; exit 1; }
+      - name: the chart refuses what it says it refuses
+        working-directory: deploy/helm/vectispire
+        run: |
+          refused() {
+            if helm template vs . "$@" > /dev/null 2> refusal.txt; then
+              echo "::error::rendered, and should have been refused: $*"; exit 1
+            fi
+            cat refusal.txt
+          }
+          refused
+          refused -f ci/dind-rootless-values.yaml --set agents.dind.rootless.acknowledgeUnreadableWorkspaces=false
+          refused -f ci/no-agents-values.yaml --set trustedProxies=
+          refused -f ci/no-agents-values.yaml --set image.digest=
+          # The isolation decision 0038 describes, held at render time rather than left to advice: a
+          # trusted proxy range only behind a policy, an agent only with a pinned key and with the
+          # cluster's ranges excluded from what its scanners reach.
+          refused -f ci/no-agents-values.yaml --set networkPolicy.enabled=false
+          refused -f ci/dind-privileged-values.yaml --set agents.signingKey.secretName=
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.excludeCidrs=null
+          # Turning the policy off is not a way round the list: it removes the metadata exclusions too.
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.enabled=false
+          # A privileged daemon on nodes of its own, and the agent's key never over plain HTTP.
+          refused -f ci/dind-privileged-values.yaml --set agents.nodeSelector=null
+          refused -f ci/dind-privileged-values.yaml --set agents.tolerations=null
+          refused -f ci/dind-privileged-values.yaml --set agents.controlPlaneUrl=http://vectispire.example.org
+          # An agent's way back into an excluded range names its ports: without them the ingress
+          # controller's entry opened every port of every controller pod.
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports=null
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports[0].port=null
+          refused -f ci/dind-privileged-values.yaml --set-json 'agents.networkPolicy.allowTo=[{"ports":[{"port":443}]}]'
+          # A relay half set up is refused rather than rendered into sends that all fail.
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org:587 --set mail.from=vs@example.org
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org --set mail.from=vs@example.org \
+            --set mail.username=vectispire
+          refused -f ci/no-agents-values.yaml --set mail.username=vectispire
+          refused -f ci/no-agents-values.yaml --set publicUrl=vectispire.example.org
+          # The Kubernetes executor (decision 0045): a namespace of its own for its scan pods — the Role reaches
+          # every pod there — and the API server named rather than guessed, since excludeCidrs covers it.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.executor=podman
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire-agents
+          # `-n`: this helper renders in `default` otherwise, and the release's namespace would not be the one named.
+          refused -n vectispire -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.apiServer.cidrs=null
+          refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
+          # A namespace the chart did not create: its Pod Security level is unseen, so it is acknowledged (M1).
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.createNamespace=false
+          # Scan pods pinned to their pool by an admission policy (review L2): off only when acknowledged, and
+          # only on a cluster that has the API.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.admissionPolicy.enabled=false
+          refused -f ci/kubernetes-executor-values.yaml --kube-version 1.29.0
+      # **The values are checked before any template renders** (`values.schema.json`): a wrong type, a
+      # required value left empty, a misspelt key and an image without its digest, each refused by the
+      # schema itself — by `lint` and by `template`, which is what `install` and `upgrade` run. A refusal
+      # from a template instead would mean the schema let it through, and a typo it lets through is a
+      # default silently kept. The shapes above passing `lint --strict` is the other half: the schema
+      # refuses nothing the chart is meant to render.
+      - name: the values schema refuses what it says it refuses
+        working-directory: deploy/helm/vectispire
+        run: |
+          schema="values don't meet the specifications of the schema"
+          for values in ci/refused/*.yaml; do
+            echo "::group::$values"
+            if helm template vs . -n vectispire -f "$values" > /dev/null 2> refusal.txt; then
+              echo "::error::$values rendered, and the schema should have refused it"; exit 1
+            fi
+            cat refusal.txt
+            grep -q "$schema" refusal.txt || { echo "::error::$values was refused, but not by the schema"; exit 1; }
+            if helm lint . --strict -f "$values" > refusal.txt 2>&1; then
+              echo "::error::$values passed helm lint"; exit 1
+            fi
+            grep -q "$schema" refusal.txt || { echo "::error::helm lint refused $values, but not by the schema"; exit 1; }
+            echo "::endgroup::"
+          done
+          [ "$(ls ci/refused/*.yaml | wc -l)" -ge 5 ] || { echo "::error::a refusal fixture is missing"; exit 1; }
+      - name: the chart renders the isolation it does not leave to the operator
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml \
+            --set agents.networkPolicy.excludeCidrs=null \
+            --set agents.networkPolicy.acknowledgeClusterReachable=true > rendered.yaml
+          for cidr in 169.254.0.0/16 100.100.100.200/32 192.0.0.192/32 168.63.129.16/32; do
+            grep -q -- "- $cidr" rendered.yaml ||
+              { echo "::error::$cidr, a cloud metadata address, is not excluded from the agents' egress"; exit 1; }
+          done
+          # Each allowTo entry is a rule of its own, to its peer and its ports alone.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml \
+            -s templates/agents/networkpolicy.yaml > rendered.yaml
+          grep -A12 'kubernetes.io/metadata.name: ingress-nginx' rendered.yaml |
+            grep -A2 '^      ports:' | grep -q -- '- port: 443' &&
+            grep -A6 'cidr: 10.0.30.12/32' rendered.yaml | grep -A2 '^      ports:' | grep -q -- '- port: 22' ||
+            { echo "::error::an agents.networkPolicy.allowTo entry renders without the ports it names"; exit 1; }
+          # dnsTo, when set, is where port 53 goes; unset, it goes anywhere — the chart cannot know the resolver.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml -s templates/agents/networkpolicy.yaml \
+            --set-json 'agents.networkPolicy.dnsTo=[{"podSelector":{"matchLabels":{"k8s-app":"kube-dns"}}}]' > rendered.yaml
+          grep -B1 -A4 '^      to:' rendered.yaml | grep -q 'k8s-app: kube-dns' ||
+            { echo "::error::agents.networkPolicy.dnsTo does not restrict the DNS rule"; exit 1; }
+          # Kept off every agent's node, of any release in any namespace — the recommended shape, without
+          # agents of its own, included: its agents are another release's.
+          for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml; do
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            grep -A6 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/dind' &&
+              grep -A8 'podAntiAffinity' rendered.yaml | grep -q 'namespaceSelector: {}' ||
+              { echo "::error::$values: the control plane may share a node with a privileged agent"; exit 1; }
+          done
+      # **The Kubernetes executor's isolation, as rendered** (decision 0045): no privileged pod and no daemon
+      # anywhere, the scans' namespace enforcing `restricted`, the Role exactly the measured one and nothing
+      # cluster-wide, scan pods with no route unless they ask for one — and never to the API server, which
+      # the agent alone reaches — and the control plane kept off the scan pods' nodes.
+      - name: the Kubernetes executor renders the isolation decision 0045 describes
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml > rendered.yaml
+          fail() { echo "::error::$1"; exit 1; }
+          ! grep -nE 'privileged: true|name: dind$|DOCKER_HOST' rendered.yaml || fail "a privileged pod or a daemon in the Kubernetes shape"
+          ! grep -nE '^kind: Cluster' rendered.yaml || fail "something cluster-wide in the Kubernetes shape"
+          [ "$(grep -c '^kind: Role$' rendered.yaml)" = 1 ] || fail "not exactly one Role"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-role.yaml |
+            awk '/^kind: Role$/{r=1} r&&/^rules:/{p=1;next} p&&/^---/{exit} p' > rules.yaml
+          printf '%s\n' '  - apiGroups: [""]' '    resources: [pods]' \
+              '    verbs: [create, get, list, watch, delete, deletecollection]' '  - apiGroups: [""]' \
+              '    resources: [pods/exec]' '    verbs: [create, get]' '  - apiGroups: [""]' '    resources: [pods/log]' \
+              '    verbs: [get]' | diff - rules.yaml || fail "the Role's rules are not the measured ones"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-namespace.yaml |
+            grep -q 'pod-security.kubernetes.io/enforce: restricted' || fail "the scans' namespace does not enforce restricted"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-networkpolicy.yaml > scans.yaml
+          awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q 'podSelector: {}' &&
+            ! awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q '^  egress:' ||
+            fail "the scans' default is not deny-all"
+          for cidr in 169.254.0.0/16 10.0.0.10/32; do
+            awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q -- "- $cidr" ||
+              fail "$cidr is not excluded from the online scan pods' egress"
+          done
+          ! awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'port: 6443' || fail "scan pods reach the API server"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/networkpolicy.yaml |
+            grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
+          grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
+            fail "the control plane may share a node with a scan pod"
+          grep -A20 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/executor$' ||
+            fail "the control plane may share a node with the Kubernetes executor's agent"
+          # One release's online policy selects its own agent's scan pods only (review of 2026-10-26, M2).
+          awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'vectispire.dev/agent: vs-vectispire-agent' ||
+            fail "the online policy would select another release's scan pods"
+          # The agent's own secrets are not mounted at /run/secrets: /var/run is /run in its image, and the
+          # service account's token could not be mounted beside them — the agent never started (measured).
+          ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml |
+            grep -q 'mountPath: /run/secrets' || fail "the agent's secrets hide the service account token's mountpoint"
+          # The matcher's database is kept for scan pods in their own namespace (0045 §7), and the agent is told
+          # the claim and its node.
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-matcher-cache.yaml |
+            grep -q '^  namespace: vs-vectispire-scans$' || fail "the matcher's cache is not in the scans' namespace"
+          grep -q 'name: VECTISPIRE_KUBERNETES_NODE_NAME' rendered.yaml || fail "the agent is not told its node"
+          # The admission policy pins every pod of the scans' namespace to the pool's selector, refuses nodeName
+          # and a mounted token, and its binding names that namespace alone (review of 2026-10-26, L2).
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-admission-policy.yaml > vap.yaml
+          grep -q 'object.spec.nodeSelector\[\\"vectispire.dev/agents\\"\] == \\"true\\"' vap.yaml &&
+            grep -q 'object.spec.nodeName' vap.yaml && grep -q 'automountServiceAccountToken == false' vap.yaml &&
+            grep -q 'kubernetes.io/metadata.name: vs-vectispire-scans' vap.yaml &&
+            grep -q 'validationActions: \[Deny\]' vap.yaml ||
+            fail "the admission policy does not hold scan pods to their pool"
+          # The agent proves the policies are enforced before it scans, unless the operator turned them off.
+          grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
+            fail "the agent is not asked to prove its scan pods are cut off"
+      # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
+      # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
+      # No host must render no mail variable: the application builds a sender as soon as the host exists.
+      - name: the chart renders the mail relay and the public address
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml > rendered.yaml
+          if grep -qE 'VECTISPIRE_MAIL_|vectispire\.mail\.password' rendered.yaml; then
+            echo "::error::a release without mail.host renders a mail setting"; exit 1
+          fi
+          grep -A1 'name: VECTISPIRE_PUBLIC_URL' rendered.yaml | grep -q 'value: "https://vectispire.example.org"' ||
+            { echo "::error::the public address is not https://<ingress.host> by default"; exit 1; }
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml \
+            --set ingress.enabled=false --set trustedProxies= > rendered.yaml
+          if grep -q 'VECTISPIRE_PUBLIC_URL' rendered.yaml; then
+            echo "::error::without an Ingress or publicUrl the chart invents a public address"; exit 1
+          fi
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml \
+            --set publicUrl=https://vs.example.org/ --set mail.host=smtp.example.org --set mail.from=vs@example.org \
+            --set mail.username=vectispire --set secrets.mailPassword.secretName=vs-mail > rendered.yaml
+          grep -A1 'name: VECTISPIRE_PUBLIC_URL' rendered.yaml | grep -q 'value: "https://vs.example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_HOST' rendered.yaml | grep -q 'value: "smtp.example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_FROM' rendered.yaml | grep -q 'value: "vs@example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_USERNAME' rendered.yaml | grep -q 'value: "vectispire"' &&
+            grep -B4 'path: vectispire.mail.password' rendered.yaml | grep -q 'name: vs-mail' ||
+            { echo "::error::the relay, its password or the public address does not reach the pod"; exit 1; }
+          if grep -q 'VECTISPIRE_MAIL_PASSWORD' rendered.yaml; then
+            echo "::error::the relay's password is rendered as a variable"; exit 1
+          fi
+      # **The images the chart pins are the release the chart says it is.** A chart whose appVersion moved
+      # and whose digests did not deploys the previous release under the new one's name.
+      - name: the pinned images are the chart's appVersion
+        working-directory: deploy/helm/vectispire
+        run: |
+          app=$(sed -n 's/^appVersion: "\(.*\)"$/\1/p' Chart.yaml)
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml > rendered.yaml
+          for image in vectispire vectispire-agent; do
+            grep -q "image: ghcr.io/asmolabs/$image:$app@sha256:" rendered.yaml ||
+              { echo "::error::ghcr.io/asmolabs/$image is not pinned at appVersion $app"; exit 1; }
+          done
+
+  jvm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: eclipse-temurin:25-jdk@sha256:3ab7fc8d0b4ade8fef96903fb36767c1dbb4fd1535dcfad85b59c17afbbb5857
+    # **The context and HTTP suites run on MySQL (decision 0034).** A job service beside the job's
+    # container shares its network, so the suite reaches `mysql:3306` with no Docker socket and no
+    # Testcontainers; `TestDatabase` takes the server from `VECTISPIRE_TEST_DB_URL`, creates its own
+    # database on it as root, and sets the server's `max_connections` and log flushing itself — a
+    # service takes no command line, and the fixture is the one place those settings are spelled.
+    # The image is `TestDatabase.IMAGE`'s and the campaign's `Engine.MYSQL`: three copies of one pin,
+    # and a difference is a suite running on an engine the campaign does not. Here by patch and index
+    # digest, as `scripts/upgrade-drill.sh` explains — moved by hand with `Engine.java`, since
+    # Dependabot does not read `services:`, and held to it by `scripts/check-db-pins.py`.
+    services:
+      mysql:
+        image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
+        env:
+          MYSQL_ROOT_PASSWORD: vectispire-ci
+        # Healthy only once the real server listens on TCP: the image's first-start server runs with
+        # networking off, so a ping over 127.0.0.1 does not answer before the suite could connect.
+        # No credential: `mysqladmin ping` exits 0 for a server that answers, "Access denied"
+        # included, and `-p…` would put the password in the arguments `ps` shows (release notes,
+        # 0.11.0 — the composition's healthcheck).
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      VECTISPIRE_TEST_DB_URL: jdbc:mysql://mysql:3306
+      VECTISPIRE_TEST_DB_USER: root
+      VECTISPIRE_TEST_DB_PASSWORD: vectispire-ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # **Every artifact the build resolves is checked against `gradle/verification-metadata.xml`**
+      # — a signature by a trusted key, or the sha256 recorded for an unsigned one — and a missing
+      # entry fails the build. A restored cache does not skip it: Gradle checks the cached files on
+      # every run. Two one-line changes outside that file would switch it off: a
+      # `org.gradle.dependency.verification=lenient` (or `off`) in `gradle.properties`, and deleting
+      # the file, which disables verification rather than failing it. The flag overrides the first
+      # and the test refuses the second, on the check `main` requires.
+      - run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew build --dependency-verification=strict
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: jar
+          path: vectispire-java/vectispire-core/build/libs/
+          retention-days: 7
+      # The agent ships too, as its own image on hosts that hold a Docker socket. It had no SBOM and
+      # no scan: when GHSA-q4xh-88c3-wmh7 reached jackson-databind, the control plane's gate failed
+      # on 2.22.1 while the agent sat on 2.21.5, equally advised, and nothing said so.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: agent-jar
+          path: vectispire-java/vectispire-agent/build/libs/vectispire-agent.jar
+          retention-days: 7
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --prefer-offline
+      # **The contract chain's last link.** `ClientContractSpecTest` pins `openapi.json` to the
+      # routes, and the fixtures are checked against that JSON at run time — but the TypeScript
+      # types are generated from it by hand. After a backend rename both suites stayed green while
+      # the compiled types still described the old shape. Regenerating and diffing makes a stale
+      # `api.generated.ts` a red build, which is the only place it is visible.
+      - name: the generated API types are what openapi.json produces
+        run: |
+          cd vectispire-angular && npm run generate:api
+          git -c safe.directory='*' diff --exit-code -- src/app/core/api.generated.ts \
+            || { echo "api.generated.ts is stale: run 'npm run generate:api' in vectispire-angular and commit it."; exit 1; }
+      # The lint existed on paper for the whole life of the interface: a config ESLint could not
+      # load, no plugin installed, a script calling a target that did not exist, and no job running
+      # it. A rule nothing executes is not a rule.
+      - run: npm run lint -w vectispire-angular
+      # **Formatting is checked, not just configured.** The Prettier config sat unused for the life
+      # of the project, and the one time `format` ran it would have rewritten 158 files. The code
+      # was reformatted at 120 columns in dedicated commits (listed in .git-blame-ignore-revs), and
+      # this keeps it that way: a change that is not formatted fails here, and `npm run format`
+      # fixes it.
+      - run: npm run format:check -w vectispire-angular
+      - run: npm run build
+      - run: npm test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui
+          path: vectispire-angular/dist/
+          retention-days: 7
+
+  # The SBOM of what ships, and the vulnerabilities in it.
+  #
+  # **This is where the port simplifies most.** Neither tool image carries a shell, which on GitLab
+  # meant they could not be a job image and had to be driven `create` + `cp` + `start -a` because
+  # the daemon could not see the checkout. Here the daemon is the runner's, so a bind mount is
+  # both possible and obvious.
+  sbom:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [jvm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: jar
+          path: libs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: agent-jar
+          path: libs
+      - name: build the SBOMs of the jars that ship
+        run: |
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          ./scripts/pull-pinned-image.sh "$syft"
+          for jar in core:vectispire-jvm agent:vectispire-agent; do
+            docker run --rm -v "$PWD/libs:/work:ro" "$syft" \
+              scan "file:/work/vectispire-${jar%%:*}.jar" -o cyclonedx-json > "${jar#*:}.cdx.json"
+            echo "${jar#*:} components: $(grep -o '"bom-ref"' "${jar#*:}.cdx.json" | wc -l)"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: |
+            vectispire-jvm.cdx.json
+            vectispire-agent.cdx.json
+          retention-days: 30
+
+  # **The licences of what ships, refused when nobody has reviewed them.** Every runtime jar in the two
+  # jars' SBOMs, every package the interface is built from (`package-lock.json`, development tools aside),
+  # judged against `ci/licences/allowed.txt` — licences with the reason each may ship inside an Apache-2.0
+  # distribution, and the components reviewed one by one — and `NOTICE` held to the jars: a component
+  # under another licence than Apache-2.0 that it does not name fails. The images' operating-system
+  # packages are judged in `images`, where the images exist. The verdict on a new licence is a person's,
+  # written in that file; this only makes sure nobody skips the question.
+  licences:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [sbom]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: sbom
+      - run: |
+          python3 ci/licences/check.py ci/licences/allowed.txt --notice NOTICE \
+            --sbom sbom/vectispire-jvm.cdx.json --sbom sbom/vectispire-agent.cdx.json \
+            --npm-lock package-lock.json
+
+  vulnerabilities:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [sbom]
+    # `actions: read` to fetch the base branch's SBOMs from its own last run (below); nothing is written.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The one file this job runs from the tree: the pull with retries.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/pull-pinned-image.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+      # One invocation, and the log still reads report-then-verdict: grype prints the whole table
+      # and *then* exits non-zero on `--fail-on`, so an operator sees the list before the failure
+      # without the job scanning twice. The GitLab version did run it twice, because there the
+      # daemon could not see the checkout and each run was a `docker create` whose first argument
+      # was the container's name — `report` and `verdict` were those names, consumed by a `shift`.
+      # Porting to `docker run --rm` removed the name and I kept the words, which sent them to
+      # grype as positional arguments: `accepts at most 1 arg(s), received 2`. There is no `report`
+      # subcommand; the target is the only positional argument grype takes.
+      #
+      # Both SBOMs are scanned before the verdict: stopping at the first failure would hide the
+      # agent's table behind the control plane's, and the fix for one is rarely the fix for both.
+      #
+      # **A pull request answers for what it adds, `develop` for everything.** An advisory published
+      # against a dependency `develop` already ships turned this job red on every open pull request at
+      # once on 2026-10-28 (guava, GHSA-xxph-c9ww-hj94): none of them could go green until a sixth pull
+      # request fixed `develop`, and each then needed `develop` merged in and its forty minutes again. So
+      # on a pull request, a finding the base branch's last SBOMs also have is reported as a warning and
+      # does not fail; a finding they do not have fails as before. On a push to `develop` every fixable
+      # high fails, so the advisory is still red where it has to be fixed. When the base's SBOMs cannot
+      # be fetched, the pull request is judged on everything — never on less than before.
+      - name: the base branch's SBOMs, on a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          mkdir -p base
+          for run in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE" --event push \
+                         --limit 10 --json databaseId --jq '.[].databaseId'); do
+            if gh run download "$run" -R "$GITHUB_REPOSITORY" -n sbom -D base 2>/dev/null; then
+              echo "base SBOMs from run $run"; exit 0
+            fi
+          done
+          echo "::warning::no SBOM of $BASE could be fetched: every finding counts"
+      - name: report, then fail on a fixable high
+        run: |
+          grype=anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db
+          ./scripts/pull-pinned-image.sh "$grype"
+          # One line per fixable high or critical: the advisory and the package it is against.
+          highs() { jq -r '.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")
+                           | "\(.vulnerability.id) \(.artifact.name)"' "$1" | sort -u; }
+          failed=0
+          for sbom in vectispire-jvm vectispire-agent; do
+            echo "::group::$sbom"
+            docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/$sbom.cdx.json" --only-fixed -o table \
+              -o "json=/work/$sbom.grype.json" || failed=1
+            echo "::endgroup::"
+            highs "$sbom.grype.json" > "$sbom.highs"
+            if [ -f "base/$sbom.cdx.json" ]; then
+              docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/base/$sbom.cdx.json" --only-fixed -q \
+                -o "json=/work/base/$sbom.grype.json" || failed=1
+              highs "base/$sbom.grype.json" > "base/$sbom.highs"
+              comm -12 "$sbom.highs" "base/$sbom.highs" | while read -r finding; do
+                echo "::warning::$sbom: $finding is on the base branch too; fix it there"
+              done
+              comm -23 "$sbom.highs" "base/$sbom.highs" > "$sbom.new"
+            else
+              cp "$sbom.highs" "$sbom.new"
+            fi
+            while read -r finding; do echo "::error::$sbom: $finding (fixable, high or critical)"; failed=1; done < "$sbom.new"
+          done
+          exit $failed
+
+  npm-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npm ci --prefer-offline
+      - run: npm audit --omit=dev --audit-level=high
+      # The whole tree for the record, including dev dependencies that never ship. Not allowed to
+      # fail the run: a build tool's advisory is not a shipped vulnerability.
+      - run: npm audit || true
+
+  # **The images, and proof they serve.** The defect that made this job necessary was a `COPY` of
+  # a file the build never produced — green everywhere and broken on first run.
+  #
+  # MySQL is started here as a container on a network this job creates, rather than as a
+  # `services:` block. On GitLab that was forced: a service is a sibling of the job container and
+  # invisible to the daemon that runs the image under test. Here either would work, and this one
+  # is kept because it is the arrangement that has actually been executed.
+  images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [jvm, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ui
+          path: vectispire-angular/dist
+      # The demonstration report plugin's image beside the two (decision 0035 §6): the release signs and
+      # publishes all three, so all three are built from every push.
+      - name: build the three images with Jib
+        run: |
+          cd vectispire-java
+          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild \
+            :vectispire-report-demo:jibDockerBuild -x test \
+            -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
+      # **The plugin's image renders in a report plugin's closed shape, twice to the same bytes.** The shape
+      # the executor gives it (`ReportPluginRenderer`): no network, a read-only root, a `noexec` scratch, no
+      # capability, not root, the export alone and read-only, the manifest's own arguments. Same export, same
+      # image, same bytes — the property the platform's provenance relies on to let a doubter render again.
+      # Another major exits 2 and writes nothing. The full run through `ContainerRunner`, with the bounded
+      # output, is `:vectispire-common:integrationTest`'s; the signature is only made by a tag.
+      - name: the report plugin's image renders, and the same export gives the same bytes
+        run: |
+          work="$(mktemp -d)"
+          mkdir "$work/in" "$work/out1" "$work/out2" "$work/out3"
+          cp vectispire-java/vectispire-report-demo/src/test/resources/exports/sample.json "$work/in/export.json"
+          chmod 0755 "$work/in" "$work/out1" "$work/out2" "$work/out3"
+          chmod 0644 "$work/in/export.json"
+          chmod 0777 "$work/out1" "$work/out2" "$work/out3"
+          render() {
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges --user 1000:1000 --memory 2g --pids-limit 512 \
+              --tmpfs /tmp:rw,noexec,nosuid,mode=1777,size=64m \
+              -v "$work/in:/report/input:ro" -v "$work/$1:/report/output" \
+              vectispire-report-demo:latest \
+              $(jq -r '.arguments[]' vectispire-java/vectispire-report-demo/manifest.template.json \
+                | sed -e 's|{input}|/report/input/export.json|' -e 's|{output}|/report/output/summary.xlsx|')
+          }
+          render out1
+          render out2
+          cmp "$work/out1/summary.xlsx" "$work/out2/summary.xlsx"
+          python3 - "$work/out1/summary.xlsx" <<'PY'
+          import sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = z.namelist()
+              assert names[0] == "[Content_Types].xml", names
+              assert not any("vbaproject" in n.lower() for n in names), names
+              assert "spreadsheetml.sheet.main+xml" in z.read("[Content_Types].xml").decode()
+              assert all(i.date_time == (1980, 2, 1, 0, 0, 0) for i in z.infolist())
+          print("summary.xlsx:", len(names), "parts, byte-identical on two runs")
+          PY
+          jq '.schema_version = "2.0"' "$work/in/export.json" > "$work/in/next" && mv "$work/in/next" "$work/in/export.json"
+          chmod 0644 "$work/in/export.json"
+          set +e
+          render out3 2> "$work/stderr"
+          code=$?
+          set -e
+          [ "$code" = 2 ] || { echo "another major exited $code, not 2"; cat "$work/stderr"; exit 1; }
+          grep -q "reads major 1 only" "$work/stderr"
+          [ ! -e "$work/out3/summary.xlsx" ] || { echo "another major wrote a document"; exit 1; }
+          echo "another major: exit 2, its reason on stderr, nothing written"
+      # **The images' own packages, under a reviewed licence** (`ci/licences/check.py`, the `image` lines of
+      # its allowlist): busybox, the JRE, glibc and the rest of the base layers. Read from the images just
+      # built, by the Syft `sbom` pins, so a base image moved by digest is judged before it ships.
+      - name: the images' packages are under reviewed licences
+        run: |
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          ./scripts/pull-pinned-image.sh "$syft"
+          mkdir -p image-sboms
+          for image in vectispire vectispire-agent vectispire-report-demo; do
+            docker save "$image:latest" -o "image-sboms/$image.tar"
+            docker run --rm -v "$PWD/image-sboms:/work" "$syft" "docker-archive:/work/$image.tar" -q \
+              -o "cyclonedx-json=/work/$image.cdx.json"
+            rm "image-sboms/$image.tar"
+          done
+          python3 ci/licences/check.py ci/licences/allowed.txt \
+            --image image-sboms/vectispire.cdx.json --image image-sboms/vectispire-agent.cdx.json \
+            --image image-sboms/vectispire-report-demo.cdx.json
+      # The credentials are the step's environment and `-e NAME` hands them on by name: `-e
+      # NAME=value` is an argument of the docker client, which `ps` shows to the whole runner.
+      # Throwaway values, but the same rule as everywhere else, so the pattern copied is the right one.
+      - name: the control plane image starts, migrates and serves
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_PASSWORD: vectispire
+          VECTISPIRE_DB_PASSWORD: vectispire
+          ENCRYPTION_KEY: Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=
+          VECTISPIRE_BOOTSTRAP_PASSWORD: CiSmoke2026!
+        run: |
+          # **The shipped composition's MySQL, read from `docker-compose.yml`** — the pin Dependabot
+          # moves, by patch and index digest. It was `mysql:8` by tag, whatever the registry served
+          # that day. Read as `scripts/restore-drill.sh` reads it: exactly one `mysql:…@sha256:…`
+          # line, or the step stops — a fallback to a tag would smoke-test a server nobody ships.
+          mysql_image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(mysql:[^[:space:]#]*\).*$/\1/p' docker-compose.yml)
+          if [ "$(printf '%s\n' "$mysql_image" | grep -c .)" != 1 ] ||
+            ! printf '%s\n' "$mysql_image" | grep -Eq '^mysql:[0-9][0-9.]*@sha256:[0-9a-f]{64}$'; then
+            echo "::error::docker-compose.yml's MySQL image is not one mysql:<version>@sha256:<digest> line: [$mysql_image]"
+            exit 1
+          fi
+          echo "database image: $mysql_image"
+          docker network create smoke
+          docker run -d --name db --network smoke \
+            -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=vectispire \
+            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD "$mysql_image"
+          # Waited for before the application starts, not alongside it: Hikari is configured to
+          # fail fast, so a control plane that boots one second early does not retry — it exits,
+          # and the job reports a broken image when the truth is a slow database.
+          #
+          # **`exec` into the running database, not a fresh container per probe.** This loop used
+          # to be `docker run --rm mysql:8 mysqladmin ping`, up to 120 times, printing "ready
+          # after ${attempt}s" as though an attempt cost a second. An attempt costs a container
+          # create, start, run and remove; on 30 August this step took **67 minutes** for work
+          # bounded, on paper, at three and a half. It passed, which is the reason nobody looked:
+          # a slow green is invisible in a way a red is not.
+          #
+          # The bound is now wall-clock and the message reports wall-clock, so the number in the
+          # log and the number in the ceiling mean the same thing.
+          #
+          # No credential: `mysqladmin ping` exits 0 for a server that answers, "Access denied"
+          # included — whether it listens is the question — and `-p…` is an argument `ps` shows.
+          deadline=$(( $(date +%s) + 120 ))
+          until docker exec db mysqladmin ping -h 127.0.0.1 --silent > /dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "the database never became reachable in 120s — last 100 lines:"
+              docker logs --tail 100 db; exit 1
+            fi
+            sleep 1
+          done
+          echo "database ready after $(( 120 - (deadline - $(date +%s)) ))s"
+          docker run -d --name vectispire-smoke --network smoke \
+            -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
+            -e VECTISPIRE_DB_USER=vectispire \
+            -e VECTISPIRE_DB_PASSWORD \
+            -e ENCRYPTION_KEY \
+            -e VECTISPIRE_BOOTSTRAP_PASSWORD \
+            -e VECTISPIRE_EMBEDDED_WORKER=false \
+            vectispire:latest
+          # Probed from inside the container's own network namespace: the runner and the container
+          # under test do not share `localhost`.
+          #
+          # **One probe container that loops, not one container per probe.** Same defect as the
+          # database wait above, and the larger half of the 67 minutes: this spawned a fresh
+          # `curlimages/curl` for every one of up to 90 attempts. The retry now happens *inside*
+          # a single container, so the loop costs one container start and the deadline is real
+          # seconds.
+          #
+          # Exit 2 is kept distinct from exit 1 on purpose: "answers the API but not the
+          # interface" is a packaging failure — the UI never made it into the image — and reads
+          # nothing like "never came up".
+          set +e
+          docker run --rm --network container:vectispire-smoke --entrypoint sh \
+            curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93 -c '
+              deadline=$(( $(date +%s) + 180 ))
+              until curl -sf http://localhost:3180/actuator/health > /dev/null 2>&1; do
+                [ "$(date +%s)" -ge "$deadline" ] && exit 1
+                sleep 1
+              done
+              curl -sf -o /dev/null http://localhost:3180/ || exit 2
+              exit 0'
+          probe=$?
+          set -e
+          case "$probe" in
+            0) echo "the control plane image is healthy and serves the interface"; exit 0 ;;
+            2) echo "the image serves the API but not the interface — the UI is missing from it"
+               docker logs --tail 100 vectispire-smoke; exit 1 ;;
+            *) echo "the image did not become healthy in 180s — last 100 lines:"
+               docker logs --tail 100 vectispire-smoke; exit 1 ;;
+          esac
+      # **The agent image is started too, because it was not.** From 25 August to 25 September it
+      # could not start at all: a second constructor on `AgentProperties` left Spring with none to
+      # bind, and the context failed before the first line of agent code. The build was green
+      # throughout — every test constructed the record with `new` — and this job only started the
+      # control plane. What is asserted is the context coming up; the key is fake, so the
+      # announcement that follows is refused, and that refusal is not the question.
+      - name: the agent image starts
+        env:
+          VECTISPIRE_AGENT_TOKEN: smoke-not-a-real-key
+        run: |
+          docker run -d --name vectispire-agent-smoke --network smoke \
+            -e VECTISPIRE_URL=http://vectispire-smoke:3180 \
+            -e VECTISPIRE_AGENT_TOKEN \
+            vectispire-agent:latest
+          deadline=$(( $(date +%s) + 90 ))
+          while :; do
+            logs="$(docker logs vectispire-agent-smoke 2>&1)"
+            if printf '%s' "$logs" | grep -q "Started VectispireAgentApplication"; then
+              echo "the agent image starts its context"; exit 0
+            fi
+            if printf '%s' "$logs" | grep -q "Application run failed" || [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "the agent image did not start — last 60 lines:"
+              printf '%s\n' "$logs" | tail -60; exit 1
+            fi
+            sleep 1
+          done
+      # **A plain `docker run` has a home its user can write, and a `-Duser.home` still wins.** The
+      # images run as 1000 with no passwd entry, so outside the composition `user.home` was `/` and
+      # every keyed SSH clone failed ("The known-hosts file could not be prepared: /.ssh"). The home
+      # is the image's `HOME`, which the JVM falls back to only when the account names none — a flag
+      # in Jib's `jvmFlags` would have come after `JDK_JAVA_OPTIONS` and overridden the composition's.
+      - name: both images have a writable home, and the composition's flag wins
+        run: |
+          for img in vectispire:latest vectispire-agent:latest; do
+            docker run --rm --entrypoint sh "$img" -c '
+              home=$(java -XshowSettings:properties -version 2>&1 | sed -n "s/^ *user.home = //p")
+              [ "$home" = /home/vectispire ] || { echo "user.home is [$home]"; exit 1; }
+              mkdir -p "$home/.ssh" && : > "$home/.ssh/known_hosts"' \
+              || { echo "$img: no writable home"; exit 1; }
+            home=$(docker run --rm --entrypoint java -e JDK_JAVA_OPTIONS=-Duser.home=/tmp/elsewhere "$img" \
+              -XshowSettings:properties -version 2>&1 | sed -n 's/^ *user.home = //p')
+            [ "$home" = /tmp/elsewhere ] || { echo "$img: -Duser.home lost to the image, got [$home]"; exit 1; }
+          done
+          echo "both images: home /home/vectispire, overridden by JDK_JAVA_OPTIONS"
+      # **And the composition is asked to scan something, because nothing ever did.** Every job here
+      # and in the nightly started the control plane with its worker off, so for as long as
+      # `docker-compose.yml` existed its scans failed on every host and no machine noticed: the
+      # workspaces were in the container's own `/tmp`, which the daemon cannot see, and behind that
+      # four scanners ran as a root that could not read the workspace. The script starts the file as
+      # shipped (under its own project name), registers a local fixture repository and runs one scan
+      # with every scanner at the digest the product pins, SAST switched on, and fails unless each
+      # reports what the fixture planted for it: a secret, an IaC finding, the bundled SAST rule's
+      # hit, an SBOM, and the matcher's match against a one-advisory database published in the
+      # worker's cache the way a download is — not the publisher's 3 GB, and no network during the
+      # match. A scanner that runs as root again, or cannot read the 0700 workspace, fails its step
+      # and the check. Then the same repository over SSH with a deploy key registered through the
+      # API, which had never once cloned through the composition (no home for the image's user, and
+      # a host-key check that refused every first contact), and again after the fixture changes its
+      # host key, which must be refused. Last, the two fates of a scan that cannot run: a repository
+      # the fixture does not serve fails at its first attempt, and a host that does not resolve is
+      # back in the queue a minute after its failure. About two minutes with the images present; the
+      # pulls of the IaC checker, the SAST engine and the matcher add some 630 MB compressed.
+      - name: the composition scans
+        run: ./scripts/composition-scan-check.sh
+      - if: always()
+        run: docker logs --tail 200 vectispire-smoke || true
+
+  # **The previous release's agent, against this commit's control plane** (decision 0043 §2). The
+  # control plane promises to serve the agent of its own minor and of the one before, because on
+  # Kubernetes the two roll at different moments. The promise had already been broken once without
+  # anything saying so: 0.11.0 sealed credentials in an envelope no 0.10 agent opens, and both agents
+  # announced the same contract number, so the hello accepted the old one and it failed on its work.
+  # `AgentContract` now carries a range; this is what decides whether a change keeps it, rather than
+  # a reviewer's memory of which fields an old agent ignores.
+  #
+  # The agent is the newest `v*` release's, by the digest the registry serves and verified with
+  # cosign against that tag's release workflow before it is pulled — `scripts/release-image.sh`, which
+  # the nightly upgrade drill resolves its control plane with. It then runs the composition's scan
+  # check through the `with-agent` profile, as the nightly runs the agent of this commit: every
+  # scanner reports what the fixture planted, an SSH clone with a sealed deployment key, a changed
+  # host key refused. The check fails unless the agent's own log names each scan as claimed and
+  # submitted, and unless the agent's row reports the release's version: a run in which this agent
+  # claimed nothing, or in which another agent stood in for it, is a red, not a vacuous green.
+  #
+  # **On every push and pull request, without a path filter.** What an old agent misreads is not
+  # confined to a package: the task's fields, the rule sets it fetches, the envelope it opens, the
+  # result it hands back and the answers it parses live across `vectispire-common` and half the
+  # control plane's modules. A filter would be a list of where breaks are expected, and the one this
+  # job exists for came from where nobody expected it. Built with Jib like `images`, without the
+  # interface: the check never loads a page. `fetch-depth: 0` brings the tags the release is resolved
+  # from; verifying needs no `id-token`, only the network.
+  previous-agent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [jvm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: build the control plane image with Jib
+        run: cd vectispire-java && ./gradlew :vectispire-core:jibDockerBuild -x test
+      - name: the previous release's agent, by digest, verified with cosign
+        id: release
+        run: |
+          release="$(scripts/release-image.sh vectispire-agent)"
+          tag="${release%% *}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "image=${release#* }" >> "$GITHUB_OUTPUT"
+          echo "the agent of $tag: ${release#* }"
+      - name: the previous release's agent claims and finishes the scans
+        env:
+          MODE: agent
+          AGENT_IMAGE: ${{ steps.release.outputs.image }}
+          EXPECT_AGENT_VERSION: ${{ steps.release.outputs.version }}
+        run: ./scripts/composition-scan-check.sh
+
+  # **The engine campaign, on any change whose behaviour can differ between engines.**
+  #
+  # It fired on migrations alone, and the schema is only one of the ways a change reaches the
+  # database. On 24 September a concurrency fix in `ScanQueue` — a repository, no migration — went
+  # to `develop` green and to `main` green, and the nightly found it failing on SQLite: the release
+  # of lapsed leases upgraded a read to a write inside one transaction, which SQLite refuses in WAL
+  # without waiting. The same day, triage exclusions rewrote hand-written JPQL in `Issues`, and
+  # nothing on push ran it against MySQL or PostgreSQL. The paths below are where that behaviour
+  # lives; `ENGINE_PATHS` names each with the reason it is there.
+  #
+  # It lived only in `nightly.yml`, and GitHub triggers a scheduled workflow only from the default
+  # branch: a migration merged into `develop` therefore waited for `main` to catch up before any
+  # engine ran it even once. On 2 September, three migrations sat in that gap at the same time, one
+  # of them adding twenty-four foreign keys and deleting orphan rows. The nightly stays; this makes
+  # it no longer the only place the campaign exists.
+  #
+  # **It also fires on direct pushes, not only on pull requests.** The gap above was dug precisely
+  # by commits pushed straight to `develop`: filtering on pull requests alone would have let every
+  # one of them through, which is exactly the failure this job exists to prevent.
+  #
+  # No `container:` here, unlike `jvm` above: Testcontainers needs the runner's daemon, which a job
+  # container cannot reach. The same shape as `nightly.yml`'s `databases` job, deliberately.
+  migration-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          # Through the environment rather than interpolated into the script: these values come
+          # from GitHub and not from a contributor, but the rule takes no local exception.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          # **Undetermined means "run".** A range that cannot be resolved — a new branch, a force
+          # push, a truncated history — is not evidence that no migration changed. The fallback
+          # therefore goes to the campaign, not to silence.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — la campagne est exécutée par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # What can behave differently on MySQL and PostgreSQL:
+          #   db/migration/      the schema: common/ once with type placeholders, or per engine
+          #   core/<module>/persistence/  the query layer — JPQL, native queries, Specifications
+          #                      (`issues`' IssueSpecifications included), locking — and the entity
+          #                      mappings `SchemaParityIntegrationTest` checks. `ArchitectureTest` keeps
+          #                      SQL out of every other package. Since step 5 every module keeps both
+          #                      there (decisions 0028, 0029): `core/repositories/` and
+          #                      `core/persistence/` are gone, and the optional segment still matches
+          #                      the unit suite's `core/persistence/` tests of the migrations
+          #   core/config/       the datasource and per-engine setup (the migration type
+          #                      placeholders)
+          #   src/integrationTest/  the campaign itself
+          #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
+          #   verification-metadata.xml, verification-keyring.keys  what may be resolved at all:
+          #                      the campaign resolves the PostgreSQL module of Testcontainers and
+          #                      its JUnit integration, which `./gradlew build` never does, so an
+          #                      entry dropped for them fails here or not until the nightly
+          ENGINE_PATHS='src/main/resources/db/migration/|/core/([a-z]+/)?persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile|gradle/verification-metadata.xml|gradle/verification-keyring.keys'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$ENGINE_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "des fichiers sensibles au moteur ont changé — la campagne est exécutée :"
+            echo "$changed"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rien de sensible au moteur n'a changé — la campagne est ignorée"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  engines:
+    runs-on: ubuntu-24.04
+    # Two campaigns in a row since MySQL 8.4 joined 9.x (decision 0043 §3): one took about 26
+    # minutes here, so the former 40 would have cut the second one off halfway.
+    timeout-minutes: 75
+    needs: [migration-changes]
+    # Skipped rather than run empty: a job reporting green having done nothing is a signal nobody
+    # can read, and this file holds that "unexpected" is not a signal.
+    if: needs.migration-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: cd vectispire-java && ./gradlew integrationTestAll
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: engine-campaign-reports-verify
+          path: vectispire-java/vectispire-core/build/reports/tests/
+          retention-days: 7
+
+  # **The browser suite, on any change that touches the interface.**
+  #
+  # It lived only in `nightly.yml`, and a scheduled workflow starts only from the default branch:
+  # the browser journeys were therefore checked only *after* the merge into `main`, on a branch
+  # nobody is working on by the time the result lands. The same gap the `engines` job above closed
+  # for migrations, and the same answer — the nightly stays, this makes it no longer the only place
+  # the suite exists.
+  #
+  # **What this trigger does not cover, deliberately.** It watches `vectispire-angular/` and nothing
+  # else. A response field renamed on the API side breaks the interface without touching a single
+  # front-end file, and that case is not to be paid for here: thirty minutes on every backend push
+  # is precisely the cost that teaches people to route around CI. It is the OpenAPI contract that
+  # must catch it, as a diff rather than in a browser.
+  # **The Kubernetes executor against a real cluster** (decision 0045): `kubernetesCoverageVerification` runs
+  # `kubernetesTest` — the agent's client, its executor and its start-up choice against k3s in a privileged
+  # container, as the agent's service account under the chart's own Role — and holds those classes to their
+  # floor. On the runner, not in `jvm`: that job runs in a JDK container with no Docker, where k3s cannot
+  # start (the first push put it there, and it could not have run). Every push, because a client tested by
+  # nothing is the wiring nobody exercised.
+  kubernetes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: kubernetes-test-reports
+          path: vectispire-java/vectispire-agent/build/reports/tests/kubernetesTest/
+          retention-days: 7
+
+  frontend-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          # Through the environment rather than interpolated into the script, like `migration-changes`.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          # **Undetermined means "run"**, for the reason given above: a range that cannot be
+          # resolved is not evidence that the interface has not moved.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — la suite est exécutée par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BASE" HEAD | grep -qE '^(vectispire-angular/|package-lock\.json$)'; then
+            echo "l'interface a changé — la suite est exécutée"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "interface inchangée — la suite est ignorée"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
+  # the settings log, and VEX triage.
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [frontend-changes]
+    # Skipped rather than run empty, like `engines`: a green job that did nothing is a signal
+    # nobody can read.
+    if: needs.frontend-changes.outputs.touched == 'true'
+    container:
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.64.1. Playwright
+      # ships its browsers inside this image and refuses to launch one it did not build. The check
+      # step below is what makes a mismatch readable rather than fatal in the middle of the suite.
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    # **On MySQL, the production default, with the schema validated (decision 0034).** A job service
+    # beside the Playwright container shares its network, so the control plane and the suite's
+    # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
+    # below — one address for both, read by both. The image is `TestDatabase.IMAGE`'s and the
+    # campaign's `Engine.MYSQL`: one pin in several places, and a difference is a suite running on
+    # an engine the campaign does not. Here by patch and index digest, as `scripts/upgrade-drill.sh`
+    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`, and
+    # held to it by `scripts/check-db-pins.py`.
+    services:
+      mysql:
+        image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
+        env:
+          MYSQL_ROOT_PASSWORD: vectispire-ci
+          MYSQL_DATABASE: vectispire
+          MYSQL_USER: vectispire
+          MYSQL_PASSWORD: vectispire-ci
+        # Healthy only once the real server listens on TCP: the image's first-start server runs with
+        # networking off, so a ping over 127.0.0.1 does not answer before the control plane could
+        # connect — and Hikari fails fast rather than retrying. No credential: `mysqladmin ping`
+        # exits 0 for a server that answers, "Access denied" included, and `-p…` would put the
+        # password in the arguments `ps` shows (release notes, 0.11.0 — the composition's healthcheck).
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      VECTISPIRE_DB_URL: jdbc:mysql://mysql:3306/vectispire
+      VECTISPIRE_DB_USER: vectispire
+      VECTISPIRE_DB_PASSWORD: vectispire-ci
+      ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
+      VECTISPIRE_BOOTSTRAP_USERNAME: admin
+      VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!
+      VECTISPIRE_EMBEDDED_WORKER: 'false'
+      # Thirteen browser sign-ins in a minute are a burst by the only definition the server has,
+      # and every case in a run comes from one address. Raised here, on a runner destroyed at the
+      # end of the job; the shipped default of ten is untouched.
+      VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: cd vectispire-java && ./gradlew :vectispire-core:bootJar -x test
+      - run: npm ci
+      - name: start the control plane and wait for it to be able to answer
+        run: |
+          java -jar vectispire-java/vectispire-core/build/libs/vectispire-core.jar \
+            > control-plane.log 2>&1 &
+          echo $! > control-plane.pid
+          # The actuator's health endpoint, not the port: the process accepts connections before it
+          # can answer anything at all, and a suite starting in that window fails on timing rather
+          # than on behaviour.
+          for attempt in $(seq 1 90); do
+            if curl -sf http://localhost:3180/actuator/health > /dev/null; then
+              echo "control plane up after ${attempt}s"; break
+            fi
+            if [ "$attempt" = "90" ]; then
+              echo "control plane did not become healthy — last 100 lines:"
+              tail -n 100 control-plane.log
+              exit 1
+            fi
+            sleep 1
+          done
+      # Checked before the browsers are needed: the mismatch would otherwise be discovered after
+      # `npm ci` and a full Angular build, and reported against the image rather than against this.
+      - name: the Playwright image matches the installed Playwright
+        run: |
+          want="v$(node -p "require('@playwright/test/package.json').version")-noble"
+          have="v1.64.1-noble"
+          if [ "$want" != "$have" ]; then
+            echo "playwright image $have does not match the installed $want"
+            echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
+            exit 1
+          fi
+      - run: cd vectispire-angular && npx playwright test
+      - if: always()
+        run: kill "$(cat control-plane.pid)" 2>/dev/null || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: playwright-report-verify
+          path: |
+            control-plane.log
+            vectispire-angular/playwright-report/
+            vectispire-angular/test-results/
+          retention-days: 7

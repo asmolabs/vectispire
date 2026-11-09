@@ -1,0 +1,296 @@
+package com.asmolabs.vectispire.core.access;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
+import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("logging in, and being refused")
+class AuthServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
+    private static final String PASSWORD = "correct horse battery staple";
+
+    private UserRepository users;
+    private SessionRepository sessions;
+    private LoginAttemptRepository attempts;
+    private AuthService service;
+
+    private final List<LoginAttemptEntity> recorded = new ArrayList<>();
+
+    @BeforeEach
+    void wire() {
+        users = mock(UserRepository.class);
+        sessions = mock(SessionRepository.class);
+        attempts = mock(LoginAttemptRepository.class);
+        service = new AuthService(users, sessions, attempts,
+                mock(com.asmolabs.vectispire.core.access.persistence.SignInClientRepository.class), SignInLimits.DEFAULTS,
+                Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC),
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
+
+        recorded.clear();
+        when(attempts.findByCounterKeyAndOccurredAtAfter(anyString(), any())).thenReturn(List.of());
+        when(attempts.save(any())).thenAnswer(call -> {
+            recorded.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        when(sessions.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(users.findByUsername("alice")).thenReturn(Optional.of(user("alice", true)));
+    }
+
+    @Test
+    void opensASessionOnTheRightPassword() {
+        AuthService.LoginResult result = service.login(request("alice", PASSWORD));
+
+        assertThat(result.outcome()).isInstanceOfSatisfying(AuthService.Outcome.Success.class, success -> {
+            assertThat(success.issued().token()).isNotBlank();
+            // The clear token is handed out; the row keeps its hash and nothing else.
+            assertThat(success.issued().session().tokenHash())
+                    .isEqualTo(Sessions.hashOf(success.issued().token()))
+                    .isNotEqualTo(success.issued().token());
+            assertThat(success.issued().session().expiresAt())
+                    .isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
+        });
+        assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
+        // A success clears the account's and the name's counters from this client: five mistypes
+        // then the right password is not an attack on them. The global ones keep what other
+        // clients may have tried.
+        verify(attempts).deleteByCounterKey(LoginThrottle.accountKey(1L, "10.0.0.1"));
+        verify(attempts).deleteByCounterKey(LoginThrottle.userKey("alice", "10.0.0.1"));
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.accountKey(1L));
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.userKey("alice"));
+    }
+
+    /**
+     * The audit of 10 October 2026: a success erased the address's counter too, so one sign-in to
+     * one's own account every nineteen tries reset the ceiling meant to slow one password tried
+     * across many names.
+     */
+    @Test
+    @DisplayName("a success keeps the address's failures, and takes back only its own attempt")
+    void aSuccessKeepsTheAddressCounter() {
+        // Rows with ids, as the database writes them: the success takes back exactly those.
+        when(attempts.save(any())).thenAnswer(call -> {
+            LoginAttemptEntity row = call.getArgument(0);
+            row.setId(java.util.UUID.randomUUID());
+            recorded.add(row);
+            return row;
+        });
+
+        service.login(request("alice", PASSWORD));
+
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.clientKey("10.0.0.1"));
+        // Its own rows go: a success is not a failure, and must not spend the address's budget.
+        verify(attempts).deleteByIdIn(org.mockito.ArgumentMatchers.anyCollection());
+    }
+
+    @Test
+    @DisplayName("a wrong password, an unknown account and a disabled one are one outcome")
+    void allThreeFailuresLookAlike() {
+        when(users.findByUsername("bob")).thenReturn(Optional.of(user("bob", false)));
+
+        assertThat(service.login(request("alice", "wrong")).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
+        assertThat(service.login(request("nobody", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
+        assertThat(service.login(request("bob", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
+    }
+
+    @Test
+    @DisplayName("a failure counts against the account and against the caller's address")
+    void bothCountersAdvance() {
+        service.login(request("alice", "wrong"));
+        service.login(request("nobody", "wrong"));
+
+        // An account that exists is counted by its id and by the name typed, each from this client
+        // and from everywhere; a name that opens nothing, by the name alone — the counters the two
+        // share are what makes them alike.
+        assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
+                .containsExactlyInAnyOrder(
+                        LoginThrottle.accountKey(1L, "10.0.0.1"), LoginThrottle.accountKey(1L),
+                        LoginThrottle.userKey("alice", "10.0.0.1"), LoginThrottle.userKey("alice"),
+                        LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.userKey("nobody", "10.0.0.1"), LoginThrottle.userKey("nobody"),
+                        LoginThrottle.clientKey("10.0.0.1"));
+    }
+
+    @Test
+    @DisplayName("a spelling the database would resolve to an account opens nothing, and meets the name's folded counter")
+    void theCollationDecidesTheCounter() {
+        // MySQL's collation opens "alice" for "ÀLICE", and the spelling had a budget of its own. No account
+        // can be named so: it is not looked up — the right password is refused under it — and its failures
+        // meet the account's on the folded name, whichever of the two exists.
+        when(users.findByUsername("ÀLICE")).thenReturn(Optional.of(user("alice", true)));
+
+        assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
+        verify(users, never()).findByUsername("ÀLICE");
+
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice", "10.0.0.1")), any()))
+                .thenReturn(fiveRecentAttempts());
+        assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+    }
+
+    @Test
+    @DisplayName("a character the collation ignores opens no account, so the lockout tells nothing")
+    void anIgnoredCharacterIsNoOracle() {
+        // utf8mb4_0900_ai_ci reads past a soft hyphen: "ali\u00ADce" opened "alice" and met its account
+        // counter, while its own folded key was a counter apart. After five failures as "alice", the sixth
+        // as "ali\u00ADce" answered 429 when the account existed and 401 when it did not.
+        String typed = "ali\u00ADce";
+        when(users.findByUsername(typed)).thenReturn(Optional.of(user("alice", true)));
+        when(attempts.findByCounterKeyAndOccurredAtAfter(eqUserKey(), any())).thenReturn(fiveRecentAttempts());
+
+        assertThat(service.login(request(typed, PASSWORD)).outcome())
+                .as("answered as an unknown name, the account's full counter notwithstanding")
+                .isInstanceOf(AuthService.Outcome.Invalid.class);
+        verify(users, never()).findByUsername(typed);
+        assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
+                .doesNotContain(LoginThrottle.accountKey(1L), LoginThrottle.accountKey(1L, "10.0.0.1"))
+                .contains(LoginThrottle.userKey(typed), LoginThrottle.userKey(typed, "10.0.0.1"));
+    }
+
+    @Test
+    @DisplayName("an unknown name meets the same folded counter as an account, so the lockout tells nothing")
+    void theLockoutIsNoExistenceOracle() {
+        // "Àlice" opens no account here — on PostgreSQL, or wherever the collation keeps the accent.
+        // Five failures against "alice" used to leave "Àlice" its own budget when the account did
+        // not exist and none when it did: the lockout answered what the uniform 401 refuses to.
+        when(users.findByUsername("Àlice")).thenReturn(Optional.empty());
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice", "10.0.0.1")), any()))
+                .thenReturn(fiveRecentAttempts());
+
+        assertThat(LoginThrottle.userKey("Àlice")).isEqualTo(LoginThrottle.userKey("alice"));
+        assertThat(service.login(request("Àlice", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+        // And for the account that exists, the same counter decides too.
+        assertThat(service.login(request("alice", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+    }
+
+    @Test
+    @DisplayName("a throttled attempt costs no password verification at all")
+    void theThrottleComesFirst() {
+        when(attempts.findByCounterKeyAndOccurredAtAfter(eqUserKey(), any()))
+                .thenReturn(fiveRecentAttempts());
+
+        AuthService.LoginResult result = service.login(request("alice", PASSWORD));
+
+        assertThat(result.outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+        assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_BLOCKED);
+        // The account is looked up — a query, to know which counter is its own — but its hash is
+        // never compared: otherwise each refused attempt would burn more CPU than it saves, and
+        // the throttle would become the denial-of-service lever. No session, no rehash.
+        verify(sessions, never()).save(any());
+        verify(users, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("an unknown name costs the same key derivation as a known one")
+    void anUnknownNameIsNotFaster() {
+        // It answered in microseconds, a known name after Argon2: which names exist could be read
+        // off the clock, whatever the uniform message said.
+        service.login(request("alice", "warm-up"));
+        long known = Long.MAX_VALUE;
+        long unknown = Long.MAX_VALUE;
+        for (int run = 0; run < 3; run++) {
+            long started = System.nanoTime();
+            service.login(request("alice", "wrong"));
+            known = Math.min(known, System.nanoTime() - started);
+            started = System.nanoTime();
+            service.login(request("nobody-" + run, "wrong"));
+            unknown = Math.min(unknown, System.nanoTime() - started);
+        }
+        assertThat(unknown).as("nanoseconds for an unknown name, against %d for a known one", known)
+                .isGreaterThan(known / 3);
+    }
+
+    @Test
+    @DisplayName("an account that owes a code gets no session from its password")
+    void noSessionBeforeTheSecondFactor() {
+        UserEntity carol = user("carol", true);
+        carol.setMfaEnabled(true);
+        when(users.findByUsername("carol")).thenReturn(Optional.of(carol));
+
+        assertThat(service.login(request("carol", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.SecondFactorRequired.class);
+        verify(sessions, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("an idle session is deleted, not merely refused")
+    void anExpiredSessionIsRemoved() {
+        SessionEntity session = new SessionEntity();
+        session.setTokenHash(Sessions.hashOf("t"));
+        session.setCreatedAt(NOW.minus(Sessions.Policy.DEFAULT.absoluteLifetime()).minusSeconds(1));
+        session.setLastSeenAt(NOW);
+        // Stubbed on the hash, which is what the lookup asks for: a stub on the clear token
+        // would answer nothing and the test would pass for the wrong reason.
+        when(sessions.findById(Sessions.hashOf("t"))).thenReturn(Optional.of(session));
+
+        assertThat(service.resolve("Bearer t")).isEmpty();
+        verify(sessions).deleteById(Sessions.hashOf("t"));
+    }
+
+    @Test
+    void refreshesTheActivityOfALiveSession() {
+        SessionEntity session = new SessionEntity();
+        session.setTokenHash(Sessions.hashOf("t"));
+        session.setCreatedAt(NOW.minusSeconds(60));
+        session.setLastSeenAt(NOW.minusSeconds(60));
+        when(sessions.findById(Sessions.hashOf("t"))).thenReturn(Optional.of(session));
+
+        assertThat(service.resolve("Bearer t")).get().returns(NOW, SessionView::lastSeenAt);
+    }
+
+    @Test
+    void ignoresAMissingOrMalformedHeader() {
+        assertThat(service.resolve(null)).isEmpty();
+        assertThat(service.resolve("Basic dXNlcjpwYXNz")).isEmpty();
+    }
+
+    private static String eqUserKey() {
+        return org.mockito.ArgumentMatchers.eq(LoginThrottle.accountKey(1L, "10.0.0.1"));
+    }
+
+    private static List<LoginAttemptEntity> fiveRecentAttempts() {
+        List<LoginAttemptEntity> failures = new ArrayList<>();
+        for (int i = 0; i < LoginThrottle.MAX_ATTEMPTS_PER_USER; i++) {
+            LoginAttemptEntity attempt = new LoginAttemptEntity();
+            attempt.setOccurredAt(NOW.minusSeconds(10));
+            failures.add(attempt);
+        }
+        return failures;
+    }
+
+    private static AuthService.LoginRequest request(String username, String password) {
+        return new AuthService.LoginRequest(username, password, "curl/8", "10.0.0.1");
+    }
+
+    private static UserEntity user(String username, boolean active) {
+        UserEntity user = new UserEntity();
+        user.setId(1L);
+        user.setUsername(username);
+        user.setPassword(PasswordHasher.hash(PASSWORD));
+        user.setIsActive(active);
+        return user;
+    }
+}

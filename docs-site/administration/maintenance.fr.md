@@ -1,0 +1,107 @@
+# Rotation et purge
+
+## Faire tourner la clé de chiffrement
+
+`ENCRYPTION_KEY` protège les clés de déploiement et les jetons de tracker au repos. La faire
+tourner est une opération en quatre étapes, sans interruption de service.
+
+**1. Garder l'ancienne clé lisible.**
+
+```bash
+ENCRYPTION_KEY_FILE=/run/secrets/vectispire-key-new
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE=/run/secrets/vectispire-keys-old
+```
+
+Les clés précédentes ne sont essayées **qu'au déchiffrement**. Jamais à l'écriture.
+
+**2. Redémarrer.** Les valeurs existantes se déchiffrent avec une ancienne clé ; les nouvelles
+écritures utilisent la nouvelle.
+
+**3. Resceller les secrets.** Les valeurs migrent vers la nouvelle clé au fur et à mesure
+qu'elles sont réenregistrées ; la clé de signature et les seconds facteurs migrent d'eux-mêmes, au
+démarrage suivant et à la vérification suivante du second facteur de chaque compte.
+`/actuator/encryption` — une session d'administrateur — liste chaque stockage scellé, combien de
+ses valeurs dépendent encore d'une ancienne clé, et ce qui les rescelle : ce rapport, et non une
+page, est ce qui vous dit que la rotation est terminée plutôt que seulement commencée. Chaque
+démarrage journalise aussi les stockages qui en dépendent encore.
+
+**4. Retirer l'ancienne clé** de la liste des clés précédentes une fois que le rapport répond
+`"rotationFinished": true`.
+
+Ne repoussez pas indéfiniment l'étape 4. Une rotation qui laisse l'ancienne clé lisible en
+permanence a changé quelle clé est écrite, et rien d'autre.
+
+!!! warning "Les clés antérieures à tout ENCRYPTION_KEY"
+    Une valeur chiffrée avec le défaut autrefois livré dans ce dépôt s'affichera comme
+    illisible. Ce défaut a été retiré et **sa moitié privée est publique**. Remplacez la paire
+    de clés chez votre hébergeur Git plutôt que d'essayer de la récupérer.
+
+## Faire tourner la clé de signature des documents
+
+La clé qui signe les dossiers de preuves, les exports VEX, CSAF et CycloneDX, les approbations de
+checklist et la provenance des rapports n'est pas `ENCRYPTION_KEY`, et la rotation ci-dessus ne la
+change pas.
+
+**1. Générez la nouvelle clé :** `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out vectispire-signing-key.pem`.
+
+**2. Configurez-la et redémarrez chaque instance :** `VECTISPIRE_SIGNING_KEY` dans le `.env` de la
+composition, `secrets.signingKey` dans le chart, `vectispire.signing.key` sinon. Une clé configurée
+l'emporte sur celle que Vectispire a générée.
+
+**3. Vérifiez** `GET /api/v1/crypto/public-keys` (sans compte) : la nouvelle clé `ACTIVE`, la
+précédente `RETIRED` avec la date de son remplacement.
+
+**4. Prévenez ceux qui vérifient vos documents.** Les documents signés avant la rotation se
+vérifient toujours : chacun nomme sa clé, et `GET /api/v1/crypto/public-keys/<keyId>.pub` la sert.
+`public-key.pub` sert désormais la nouvelle clé.
+
+L'enregistrement des clés publiées commence au premier démarrage de la 1.0.0 : démarrez une fois
+dessus avant la rotation. L'enregistrement des clés publiées est scellé sous `ENCRYPTION_KEY`, puisque chaque clé qu'il
+contient vérifie comme celle de Vectispire : sauvegardez cette clé, ou les clés retirées cessent
+d'être publiées avec elle. Une clé **compromise** va aussi dans `VECTISPIRE_SIGNING_REVOKED_KEYS`
+(son identifiant) : elle reste publiée comme `REVOKED`, et rien de ce qu'elle a signé ne se vérifie.
+La procédure complète, et sa rencontre avec une rotation d'`ENCRYPTION_KEY`, est dans
+[`docs/fr/KEY_ROTATION.fr.md`](https://github.com/asmolabs/vectispire/blob/main/docs/fr/KEY_ROTATION.fr.md#faire-tourner-la-cle-de-signature-des-documents).
+
+## Le fichier plutôt que l'environnement
+
+`ENCRYPTION_KEY_FILE` plutôt qu'`ENCRYPTION_KEY`, en production, toujours. Cela garde la valeur
+hors de `/proc/<pid>/environ`, de `docker inspect` et des journaux de votre orchestrateur, et
+c'est ce qu'un secret Docker ou Kubernetes monte nativement.
+
+Poser les deux est refusé. Un chemin qui ne résout pas arrête l'application plutôt que de la
+démarrer sans clé — un démarrage qui se poursuivrait silencieusement sans clé refuserait toute
+écriture de secret des heures plus tard, à un endroit sans rapport.
+
+## Rétention et purge
+
+Les scans s'accumulent : constats normalisés, plus le SBOM brut et la sortie du moteur de
+rapprochement, conservés pour l'audit. La rétention se configure sous [Réglages](settings.md).
+
+Deux choses à mettre en balance :
+
+**Les blobs bruts sont la partie volumineuse.** Ce sont aussi les preuves dont quelqu'un a
+besoin pour re-dériver vos conclusions plutôt que de les prendre sur parole.
+
+**Les preuves ont une fenêtre à elles**, *Evidence kept for (days)* (`evidence_retention_days`,
+400 jours par défaut ; zéro les garde pour toujours) : les verdicts de la barrière, les relevés
+mensuels de conformité, le relevé hebdomadaire OWASP et, pour chaque
+[rapport](report-plugins.fr.md#demander-un-rapport) produit, l'export qu'il a reçu et le document
+signé qu'il a produit. Seuls ces octets partent : l'exécution du rapport elle-même reste, avec les
+empreintes de son export, de son document et de son paquet. Contrairement à un artefact brut, rien de
+cela ne se régénère : réglez-la sur la période qu'un auditeur vous demande de couvrir, plus le délai
+avant qu'il la lise, et non sur la fenêtre des artefacts. Seul un gouverneur de plateforme la change :
+un CISO ou un administrateur pouvait la régler à un jour, et le tour suivant purgeait la trace de chaque
+contrôle qu'il mène. Le tour de maintenance horaire purge ce qui en est sorti. Une semaine du relevé OWASP est gardée tant qu'une partie d'elle est encore dans la
+fenêtre ; une fois purgée, la vue *Par semaine* la montre comme les semaines d'avant le début du
+relevé — reconstituée à partir des dates des issues, sans état relevé.
+
+**Purger un scan ne purge pas l'issue.** Les issues suivent les problèmes d'un scan à l'autre
+et portent leur propre historique et leurs décisions de triage. Le registre de ce qui a été
+décidé survit au registre de l'exécution qui l'a observé en premier.
+
+## Avant de supprimer une cible
+
+Retirer un dépôt ou une image retire ses scans et son historique d'issues avec lui. Exportez
+d'abord l'[historique de détection et de triage](../guide/history.md) là où ce registre doit
+survivre — il est écrit précisément pour le lecteur qui n'était pas là.

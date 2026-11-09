@@ -1,0 +1,69 @@
+# Architecture Decision Records (ADR) — English
+
+This directory contains the structural Architecture Decision Records (ADRs) for Vectispire.
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-pluggable-scan-layer.md) | Pluggable scan layer | superseded by [0010](0010-one-scan-runner.md) |
+| [0002](0002-the-database-carries-the-queue.md) | The database carries the scan queue | accepted |
+| [0003](0003-long-polling-for-agents.md) | Long polling for agents | accepted (amended by [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) |
+| [0004](0004-sqlite-and-postgresql-only.md) | SQLite and PostgreSQL support | superseded by [0008](0008-postgresql-and-mysql.md) |
+| [0005](0005-quality-never-blocks-the-gate.md) | Quality findings never block the gate | accepted |
+| [0006](0006-semgrep-rules-written-here.md) | Bundled Semgrep rules | accepted |
+| [0007](0007-none-is-not-an-empty-list.md) | None is not an empty list | accepted |
+| [0008](0008-postgresql-and-mysql.md) | PostgreSQL and MySQL support | superseded by [0009](0009-four-engines.md) |
+| [0009](0009-four-engines.md) | Support four database engines | superseded by [0014](0014-two-engines-and-a-test-fixture.md) |
+| [0010](0010-one-scan-runner.md) | Single concrete ScanRunner | accepted |
+| [0011](0011-liquibase-rather-than-flyway.md) | Liquibase, with hand-written structural DDL | superseded by [0013](0013-flyway-multi-dialect-migrations.md) |
+| [0012](0012-apache-2-0.md) | Licensing under Apache 2.0 | accepted |
+| [0013](0013-flyway-multi-dialect-migrations.md) | Flyway multi-dialect SQL migrations | accepted (amended by [0027](0027-common-migrations-with-type-placeholders.md)) |
+| [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture | accepted |
+| [0015](0015-one-secrets-engine.md) | One secrets engine | accepted |
+| [0016](0016-no-spdx-document.md) | CycloneDX is the generated SBOM; SPDX is not produced | accepted |
+| [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images emitting SARIF, and SARIF only from declared internal sources | accepted (amended by [0032](0032-security-checklists.md)) |
+| [0018](0018-the-docker-socket-is-never-mounted.md) | The Docker socket is never mounted into the control plane | accepted |
+| [0019](0019-screen-text-is-translated-on-the-client.md) | The server sends a token; the screen holds the sentence | accepted |
+| [0020](0020-screenshots-stay-png.md) | Screenshots stay PNG, and the trigger to change that is named | accepted |
+| [0021](0021-the-docs-site-stays-on-mkdocs-1.md) | The documentation site stays on MkDocs 1, until something else can publish it in two languages | accepted |
+| [0022](0022-https-clone-tokens-are-bound-to-a-host.md) | Cloning over HTTPS uses a managed token, bound to one host | accepted |
+| [0023](0023-solutions-projects-and-repositories.md) | Solutions contain projects, a project references repositories, and a grant may name a project | accepted |
+| [0024](0024-integration-api-keys-act-for-an-account.md) | An integration API key acts for one account, on the routes that accept it | accepted |
+| [0025](0025-siem-events-leave-through-the-outbox.md) | SIEM events leave through the outbox, after commit, and their catalogue is a contract | accepted |
+| [0026](0026-services-are-grouped-by-domain.md) | Services are grouped by domain, and the domains depend in one direction | superseded by [0030](0030-modulith-verifies-the-module-boundaries.md) |
+| [0027](0027-common-migrations-with-type-placeholders.md) | Common migrations with type placeholders; vendor directories for structural divergence | accepted |
+| [0028](0028-vertical-modules.md) | The domains become vertical modules, and the foundation is shared | accepted (completed by [0029](0029-core-domains-become-modules.md)) |
+| [0029](0029-core-domains-become-modules.md) | The core domains become modules, and the layered packages are gone | accepted |
+| [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
+| [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | An agent's sealing key is believed only on the word of its pinned signing key | accepted |
+| [0032](0032-security-checklists.md) | A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran | accepted |
+| [0033](0033-internal-reactions-leave-through-the-outbox.md) | A reaction between modules that must survive a commit leaves through the outbox, not Modulith's registry | accepted |
+| [0034](0034-mysql-replaces-the-sqlite-fixture.md) | MySQL replaces SQLite as the fixture the unit and HTTP suites run on | accepted, done |
+| [0035](0035-report-plugins.md) | A report plugin is a signed container image that turns a project export into one document, which the platform validates, signs and keeps with its provenance | accepted |
+| [0036](0036-the-posture-score-formula.md) | The posture score falls by a share per issue, licences weigh like a high, an exploited issue caps at D, a scope is graded by its weakest target, the portfolio by its distribution, and the risk points are shown | accepted |
+| [0037](0037-discovering-repositories-at-setup.md) | Repositories are discovered through a read-only forge connection, chosen by a person, and imported as ordinary targets | accepted |
+| [0038](0038-deploying-on-kubernetes.md) | On Kubernetes the control plane runs without a container endpoint, scans run on agents with a Docker daemon of their own, the database is external, and report plugins wait for an executor that can reach a remote daemon | accepted |
+| [0039](0039-a-build-sbom-completes-the-scanners-inventory.md) | A build's SBOM completes the scanner's inventory: union, the build's stated version wins, the newest one for every later scan | proposed |
+| [0040](0040-integrations-are-switched-on-not-installed.md) | An integration is switched on, not installed: forges, SIEM transports, AI providers, notification channels and trackers the governor enables | accepted |
+| [0041](0041-will-not-fix-is-not-not-affected.md) | "Will not fix" is not "not affected": an accepted risk stays exposed in VEX, and every format reads the same triage | accepted |
+| [0042](0042-a-report-document-is-read-by-who-sees-what-it-carried.md) | A report document is read by who sees what it carried, not only who sees the project now | accepted |
+| [0043](0043-what-1-0-promises.md) | What 1.0 promises: an additive API, agents one version behind, one engine, one instance, a supported line | accepted |
+| [0044](0044-checklist-contacts-are-reminded-weekly.md) | A checklist's contacts are linked to accounts and reminded weekly | accepted |
+| [0045](0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md) | On a cluster without Docker, agents run each scanner as a pod in a namespace of their own | accepted |
+| [0046](0046-compliance-codes-for-1-0.md) | The compliance codes 1.0 freezes: the CRA's as adopted, OWASP's 2021 edition | accepted |
+| [0047](0047-patch-releases-carry-no-migration.md) | A patch release carries no migration | accepted |
+
+**On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
+[0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
+because they are **superseded** — but short is not the same as silent. Each one now says what it
+decided and **what proved it wrong**, because that is the part a reader needs and the part the
+record that replaced it cannot supply: a successor argues its own case, not the failure of its
+predecessor. [0001](0001-pluggable-scan-layer.md) is short for the same reason.
+
+A decision recorded without its reasoning is a changelog entry. This register had nine of those on
+2026-08-25; the engine scope had reversed three times in six days precisely because no record
+explained the previous reversal. Every record in this register now carries its argument. The engine history is the
+one worth reading end to end — [0004](0004-sqlite-and-postgresql-only.md) →
+[0008](0008-postgresql-and-mysql.md) → [0009](0009-four-engines.md) →
+[0014](0014-two-engines-and-a-test-fixture.md) — because it ends one engine away from where it
+started, and the records now say why the return was the expensive one and therefore the one that
+should hold.

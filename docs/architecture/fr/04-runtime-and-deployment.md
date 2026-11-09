@@ -1,0 +1,204 @@
+# 04 — Exécution et déploiement
+
+Ce qu'un déploiement a le droit d'être, ce qui lui est refusé, et ce qui coordonne plusieurs
+instances.
+
+## Les deux formes
+
+Un seul binaire et un seul interrupteur. `VECTISPIRE_EMBEDDED_WORKER` décide si le plan de contrôle
+analyse aussi.
+
+| | Worker embarqué (`true`, par défaut) | Agents distants (`false`) |
+|---|---|---|
+| Qui détient la socket Docker | le plan de contrôle | chaque agent |
+| Qui atteint la base de données | le plan de contrôle | le plan de contrôle, **uniquement** |
+| Qui détient `ENCRYPTION_KEY` | le plan de contrôle | le plan de contrôle, **uniquement** |
+| Ce qu'un agent reçoit | — | un jeton restreint, et du matériel scellé par analyse |
+
+**L'interrupteur est porteur, pas cosmétique.** `ScanDispatcher` prend un `Optional<ScanRunner>` et
+refuse de réclamer du travail lorsqu'il est vide — un plan de contrôle sans capacité d'analyse ne
+doit pas réclamer une analyse pour ensuite la faire échouer. Mettre l'indicateur à `false` est ce
+qui fait dire à cette branche vide *« servi par des agents »* plutôt que *« personne n'a câblé le
+runner »* ; la seconde a été vraie, et chaque analyse en file restait `pending` pour toujours sans
+une seule ligne de journal.
+
+Un agent n'ouvre jamais de connexion JDBC et ne détient jamais la clé de chiffrement. Il reçoit le
+travail par long polling ([0003](decisions/0003-long-polling-for-agents.md)) et renvoie les
+résultats par le même canal — ou, pour une analyse qu'il n'a pas pu exécuter, un rapport d'échec qui
+termine la tentative comme l'expiration du bail l'aurait fait, mais aussitôt et avec la raison
+(`AgentProtocolService.reportFailure`).
+
+**Le contrat de l'agent est une plage** ([0043](decisions/0043-what-1-0-promises.md) §2). Un agent
+annonce le numéro de contrat avec lequel il a été construit ; le plan de contrôle sert de
+`AgentContract.OLDEST_SERVED` à `CURRENT`, refuse tout autre numéro par un 409 avant de confier le moindre
+travail, et répond à l'agent dans son propre numéro. Le numéro ne bouge que lorsque l'agent précédent lirait
+de travers ce qu'on lui remet — une nouvelle enveloppe, un nouveau champ obligatoire — et un tel changement
+prend **deux versions** : la première relève `CURRENT`, garde l'ancienne forme et choisit par agent selon le
+numéro enregistré à son `hello` ; la suivante relève `OLDEST_SERVED` et supprime l'ancienne forme. 0.11.0
+est la raison pour laquelle c'est écrit : son enveloppe scellée `v2` a atteint les agents 0.10 sous le
+numéro 1 inchangé. Le job `previous-agent` de la CI fait tourner l'image de l'agent de la dernière version,
+vérifiée par cosign, à travers la vérification d'analyse de la composition, contre chaque commit.
+
+## Une analyse qui n'a pas pu s'exécuter
+
+**Une seule règle, quel que soit l'exécutant qui a échoué.** Le rapport d'un agent, l'échec propre du
+worker intégré et un bail expiré terminent tous la tentative par `ScanQueue.abandon` ou par la
+reprise, et tous deux appliquent `ScanQueue.afterFailure` (dans `vectispire-common`) : un échec
+**permanent** fait échouer l'analyse aussitôt, quelle que soit la tentative ; un échec **transitoire**
+la remet dans la file avec la tentative comptée et fixe `t_scan.not_before` — l'instant de l'échec plus
+1 minute après la première tentative, 5 après la deuxième, 15 après toute tentative suivante
+(`vectispire.queue.retry-delays`), dans la limite du nombre de tentatives. Chaque sélection de la prise
+et la prise conditionnelle elle-même ignorent une analyse dont le `not_before` est à venir, sur chaque
+moteur ; la prise l'efface.
+
+**La nature est décidée là où se trouve l'exception.** L'agent l'envoie dans le `kind` du rapport —
+absent, il vaut transitoire, pour qu'un agent plus ancien garde la règle qu'il avait ; le worker
+intégré la lit sur les mêmes exceptions (`FailureKind.of`, qui parcourt les causes à la recherche d'un
+`ClassifiedFailure`). La nature d'un échec de clonage vient des types — la raison de déconnexion de
+MINA, la `NoRemoteRepositoryException` de JGit, les exceptions de socket, le statut HTTP lu sur la
+connexion — et de la phrase formatée par JGit pour une branche absente, la seule nature qu'aucun type
+ne porte (`GitClone.diagnose`). Une tâche que le plan de contrôle refuse de construire est une
+`TaskRefused`, permanente. Tout ce qui n'est pas classé est transitoire.
+
+**Pourquoi l'attente.** Sans elle, un agent seul reprenait à son interrogation suivante l'analyse qu'il
+venait de signaler, et les trois tentatives censées survivre à un incident passager étaient consommées
+en quelques secondes. **Pourquoi le worker intégré a été aligné** : il faisait échouer une analyse pour
+de bon à la première erreur de son runner, avec le message brut non nettoyé, là où la même erreur sur
+un agent coûtait une tentative sur trois. Il s'agit d'une analyse qui n'a pas pu s'exécuter du tout ;
+une étape qui échoue dans une analyse qui s'est exécutée laisse son artefact absent, comme l'exige la
+décision [0007](decisions/0007-none-is-not-an-empty-list.md), et n'est pas retentée.
+
+## La base de données
+
+**PostgreSQL ou MySQL. MySQL est le défaut** — c'est ce que livre `docker-compose.yml` — et le
+moteur est choisi par la seule variable `VECTISPIRE_DB_URL`
+([0014](decisions/0014-two-engines-and-a-test-fixture.md)).
+
+**SQLite est refusé, et le refus mérite d'être énoncé parce qu'il a été documenté comme
+supporté.** Sous le `ddl-auto: validate` livré, l'application ne démarrait pas dessus : SQLite a
+des *affinités* de type plutôt que des types, il renvoyait donc une colonne d'horodatage comme un
+FLOAT et Hibernate rejetait la correspondance. Il est resté dans le dépôt comme la fixture de la
+suite de tests HTTP jusqu'à ce que [0034](decisions/0034-mysql-replaces-the-sqlite-fixture.md) fasse
+passer cette suite sur MySQL ; son pilote, son dialecte et ses migrations sont partis, et une URL
+`jdbc:sqlite:` ne démarre pas.
+
+Le schéma appartient aux migrations Flyway, un jeu SQL natif par dialecte
+([0013](decisions/0013-flyway-multi-dialect-migrations.md)). Hibernate valide et ne réconcilie
+jamais : un déploiement dont le schéma diverge des entités échoue au démarrage plutôt qu'à la
+première requête qui touche la différence.
+
+## Plusieurs instances à la fois
+
+Quatre tâches périodiques tournent dans chaque instance, et **une seule est élue par bail.** Cette
+distinction fait tout l'objet de cette section, car le résumé évident — « les tâches de fond sont
+coordonnées par un bail » — est faux et enverrait un lecteur chercher un bail qui n'existe pas.
+
+| Tâche | Période | Coordination |
+|---|---|---|
+| Tick du worker d'analyse | 15 s | inutile : **réclamer** une analyse en file est le contrôle de concurrence |
+| Planificateur d'analyses | 60 s | **leader seul**, sur le bail `scheduler` dans `t_leader_lease` |
+| Relais de l'outbox — notifications et événements SIEM | 60 s | aucune : chaque message est **réservé** avant d'être envoyé, si bien que deux instances ne le livrent pas en même temps |
+| Maintenance horaire | 1 h | aucune : l'élagage est idempotent |
+
+Le relais, le tick du planificateur et la maintenance horaire sont une seule classe, `MaintenanceJobs`,
+qui ne connaît aucun des travaux : chaque module apporte une `MaintenanceTask` depuis son propre
+paquet `internal` — la rétention des scans, le balayage des tickets, l'expiration des triages, les
+purges de preuves… — et le tick exécute les tâches d'une cadence dans leur ordre déclaré
+([0029](decisions/0029-core-domains-become-modules.md)). Seul un travail qui tolère de tourner sur
+plusieurs instances peut en être une.
+
+Le planificateur est élu parce qu'il *crée* du travail : deux instances décidant indépendamment
+qu'une analyse nocturne est due la mettraient deux fois en file. Les autres réclament ce qui existe
+déjà ou répètent une opération dont la seconde exécution ne coûte rien — et une élection n'y
+apporterait rien tout en ajoutant un bail qui peut expirer en cours de passe.
+
+**Une tâche qui s'exécute une fois par base est réclamée, pas vérifiée.** La réparation des
+tentatives comptées par les réclamations retenues s'exécutait tant qu'aucune entrée
+`SCAN_ATTEMPTS_REPAIRED` n'existait : deux instances démarrant ensemble n'en trouvaient aucune,
+s'exécutaient toutes deux et en écrivaient chacune une. `OneShotJobs.claim` insère le nom de la
+tâche dans `t_one_shot_job` (depuis `V46`), première instruction de la transaction qui fait le
+travail ; la clé primaire laisse passer une insertion, l'autre attend cette transaction et échoue,
+et son instance n'écrit rien. Une exécution qui échoue annule sa réclamation avec elle, et le
+démarrage suivant réessaie. **Laquelle des deux était un échec, c'est la ligne validée qui le dit**
+(`OneShotJobs.hasRun`, lue après l'annulation), jamais l'exception : un verrou expiré ou une
+connexion perdue font échouer la même insertion (et la fixture SQLite d'alors signalait le refus de
+la clé comme une erreur non classée) — lus comme « réclamée ailleurs », chacun ferait passer la tâche pour exécutée alors que
+personne ne l'a exécutée.
+
+**La coordination n'est pas la seule chose qu'elles auraient pu partager.** Ces quatre tâches
+tournent sur un ordonnanceur de quatre threads, déclaré dans `CoreConfiguration` plutôt que laissé
+au défaut de Spring Boot — qui est un pool d'**un seul**. Sur un thread unique, le tableau ci-dessus
+ne dit rien d'utile : une tâche lente ne retarde pas les autres, elle les arrête, et la tâche lente
+est toujours la même, puisque le tick du worker exécute les analyses qu'il réclame. Le tick confie
+désormais sa ronde à un thread que `ScanWorker` possède : la durée d'une analyse n'est plus la
+période de personne d'autre.
+
+**Les long polls des agents ont leur propre ordonnanceur**, `agentPollScheduler`. `AgentJobPoller`
+revérifie la file par une tâche programmée, et cette tâche se trouvait dans le même pool à un thread
+que les tâches de fond : une analyse locale dans ce processus signifiait qu'aucun agent *distant* ne
+recevait de travail pendant toute sa durée. Un plan de contrôle exécutant son propre worker cessait
+de servir sa flotte, ce qui est l'inverse de ce pour quoi la
+[décision 0003](decisions/0003-long-polling-for-agents.md) les sépare. `SchedulerSeparationTest`
+maintient les deux pools distincts, car rien d'autre ne remarquerait qu'ils redeviennent un seul.
+
+**Ce que chaque instance garde encore pour elle : les seaux de limitation de débit.**
+`LoginRateLimitFilter` et `BearerRateLimitFilter` comptent en mémoire, donc *n* instances laissent
+passer environ *n* fois le plafond configuré. C'est délibéré, et ce n'est pas ce qui protège les
+mots de passe — `t_login_attempt` s'en charge, en base, par compte et par client. Ces deux
+filtres-là sont un tamis grossier par adresse, dont la valeur annoncée est l'entrée d'audit écrite
+quand le plafond est atteint : l'approximer sur une flotte coûte de la précision, pas un contrôle.
+Dimensionnez-les par instance, pas par déploiement. **La MFA figurait sur cette liste et n'y est
+plus** : le défi vit dans `t_mfa_challenge` depuis `V23`, donc aucune affinité de session n'est
+requise sur `/api/v1/auth/**`. **Le plafond du webhook des trackers non plus**
+(`vectispire.security.webhook-requests-per-window`) : c'est la seule limite qu'un opérateur
+dimensionne d'après l'édition en masse d'un tracker plutôt que d'après un attaquant, et trois
+instances en donnaient trois à une adresse. `WebhookRateLimitFilter` garde son seau en tête, puis
+compte chaque livraison admise dans `t_rate_window` (depuis `V44`), par fenêtres fixes que toutes les
+instances partagent : le chiffre configuré est celui du déploiement. Une fenêtre fixe laisse une
+adresse dépenser son allocation à la fin d'une fenêtre puis au début de la suivante ; une base
+injoignable admet plutôt que de refuser, la livraison derrière elle ayant de toute façon besoin de
+la base.
+
+**Chaque tâche attend avant sa première exécution.** `fixedDelay` espace les exécutions suivantes
+et ne fait rien pour la première, qui partirait sinon alors que Flyway vient de terminer et que le
+pool se remplit encore.
+
+## Ce qu'un déploiement doit recevoir
+
+Deux variables n'ont pas de valeur par défaut, délibérément, et le conteneur refuse de démarrer
+sans elles :
+
+- `ENCRYPTION_KEY` — déchiffre chaque clé SSH de déploiement et chaque jeton d'intégration que
+  l'instance détient. Un défaut partagé signifierait que quiconque possède une copie de ce dépôt
+  peut les lire.
+- le mot de passe de la base, et celui du premier administrateur.
+
+`VECTISPIRE_TRUSTED_PROXIES` est vide par défaut, ce qui signifie que `X-Forwarded-For` est
+**ignoré** et que l'adresse du pair sert de clé de limitation de débit. Ne la renseigner que
+lorsqu'il y a réellement quelque chose devant : faire confiance à l'en-tête sans proxy laisse un
+appelant choisir son propre seau de limitation.
+
+## Le miroir d'audit
+
+`VECTISPIRE_AUDIT_MIRROR` est **désactivé dans l'application et activé dans compose**, ce qui
+paraît incohérent et ne l'est pas : l'application le livre désactivé parce qu'écrire vers un chemin
+par défaut échoue sur un système de fichiers en lecture seule, et un déploiement compose dispose
+d'un volume inscriptible — c'est donc le seul endroit où le défaut peut être « activé ».
+
+Il ferme le cas que la chaîne de hachage ne peut pas voir. Supprimer la *dernière* entrée — celle
+dont rien ne descend — laisse une chaîne qui se vérifie parfaitement. Le miroir impose à cette
+suppression une seconde édition dans un second médium, et un collecteur de journaux expédie
+normalement le fichier hors de la machine en quelques secondes. Pointez un collecteur sur ce
+volume ; un miroir que personne ne collecte ne fait qu'augmenter le coût d'une suppression.
+
+## Les images
+
+Trois images sont publiées — le plan de contrôle, l'agent et, à partir de la
+0.11.0, le plugin de rapport de démonstration ; la 0.10.0 publiait les deux premières. **La release
+livre les images de Jib** : `release.yml` lance `jibBuildTar`, comme le job `images` de chaque
+poussée, parce que Jib n'a besoin d'aucun démon et qu'il est rapide. Les `Dockerfile` sont la seconde
+voie, celle qui peut faire un `chown` du répertoire du miroir d'audit là où Jib ne peut poser qu'un
+mode ; le job `dockerfiles` les construit sur une poussée qui change ce qu'eux seuls lisent, et la
+tâche nocturne chaque nuit. Chaque image embarque `LICENSE` et `NOTICE`, et la tâche nocturne
+vérifie que le jar est bien là où l'image `Dockerfile` le dit — le défaut qui a rendu cette tâche nécessaire
+était un `COPY` d'un fichier que la construction ne produisait pas.

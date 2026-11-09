@@ -1,0 +1,319 @@
+package com.asmolabs.vectispire.core.access;
+
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Turning an identity the provider vouched for into an account Vectispire already knows.
+ * Also synchronizes team memberships from IdP group claims.
+ */
+@Service
+public class ExternalIdentityService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExternalIdentityService.class);
+
+    private final UserRepository users;
+    private final Optional<TeamRepository> teams;
+    private final Optional<TeamMemberRepository> teamMembers;
+    private final boolean linkPrivileged;
+    private final boolean linkByClaim;
+
+    /**
+     * @param oidc {@link OidcProperties#linkPrivilegedAccounts}: whether an administrative or governing
+     *     account may be bound on its first sign-on like any other — off by default, see {@link
+     *     #resolve(String, String, Claimed)}; and {@link OidcProperties#linkByClaim}: whether any account
+     *     is bound on its first sign-on by a claim at all — on by default, which is how a realm and an
+     *     existing set of accounts meet; off, an identity signs in only to an account provisioning
+     *     already bound to its subject
+     */
+    public ExternalIdentityService(
+            UserRepository users,
+            Optional<TeamRepository> teams,
+            Optional<TeamMemberRepository> teamMembers,
+            OidcProperties oidc) {
+        this.users = users;
+        this.teams = teams;
+        this.teamMembers = teamMembers;
+        this.linkPrivileged = oidc.linkPrivilegedAccounts();
+        this.linkByClaim = oidc.linkByClaim();
+        if (this.linkPrivileged && this.linkByClaim) {
+            // Each switch is legitimate alone; together they bind an administrator, a CISO or the governor
+            // to whoever first signs on under its name. Right for a realm where nobody chooses a username,
+            // and said at every start so that it stays a choice somebody can see.
+            log.warn("vectispire.oidc.link-privileged-accounts and vectispire.oidc.link-by-claim are both on: a "
+                    + "privileged account without a second factor is linked to the first identity that signs on "
+                    + "under its username. Keep it only for a realm where nobody chooses or edits their own username.");
+        }
+    }
+
+    /**
+     * What the provider said about the person, as far as binding an account goes.
+     *
+     * @param username {@code preferred_username}
+     * @param email {@code email}, used only when {@code emailVerified} and no username came
+     * @param emailVerified {@code email_verified}; absent reads as false
+     */
+    public record Claimed(String username, String email, boolean emailVerified) {}
+
+    /** Why a sign-on was refused, as a code the login screen translates. */
+    public enum Refusal {
+        NO_SUBJECT,
+        NO_ACCOUNT,
+        ALREADY_LINKED,
+        PRIVILEGED,
+        NO_USERNAME,
+        UNVERIFIED_EMAIL,
+        DEACTIVATED,
+        NO_IDENTITY,
+        MFA_REQUIRED,
+        /** The account protects itself with a local second factor, which a claim would bypass. */
+        LOCAL_MFA;
+
+        public String wireName() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    /**
+     * Refused, with a code for the screen and a sentence for the audit log.
+     *
+     * <p>The sentence used to travel in the redirect itself — {@code /login?sso=refused&reason=…} —
+     * and the screen displayed whatever that parameter said. A link carrying "Your account is
+     * suspended, call +33 …" rendered as Vectispire's own message on Vectispire's own page. Only
+     * the code leaves now, and the screen shows its own text for the codes it knows.
+     */
+    public static class SignInRefusedException extends RuntimeException {
+        private final Refusal refusal;
+
+        public SignInRefusedException(Refusal refusal, String message) {
+            super(message);
+            this.refusal = refusal;
+        }
+
+        public Refusal refusal() {
+            return refusal;
+        }
+    }
+
+    /** A username claim alone — what a provider sending no email amounts to. */
+    public UserView resolve(String subject, String issuer, String claimedName) {
+        return resolve(subject, issuer, new Claimed(claimedName, null, false));
+    }
+
+    /**
+     * The account this identity signs in as.
+     *
+     * <p>Once bound, the subject is the only thing that matters. The first time, a claim has to be
+     * matched to an account, and <b>a claim is whatever the realm lets people write</b>: in a realm
+     * with self-registration or editable profiles, anybody can call themselves {@code admin}. So the
+     * first binding is held to three rules, each closing a way it was taken:
+     *
+     * <ul>
+     *   <li><b>No unverified email.</b> With no username claim the email was used as the name,
+     *       verified or not — an address typed at registration opened the account of that name.
+     *   <li><b>The name must be the account's, accent for accent.</b> The lookup follows the
+     *       database's collation, and MySQL's default opens {@code admin} for {@code ádmin}: a
+     *       different identity, registered to look the same. Only case is forgiven.
+     *   <li><b>No privileged account on a claim.</b> An account whose role administers, governs,
+     *       sees the whole estate's security or approves triage — see {@link #privileged} — is not
+     *       bound by name unless the operator allows it — {@code vectispire.oidc.link-privileged-accounts},
+     *       for a realm where nobody chooses their own username. Otherwise it is linked through
+     *       SCIM, which sets the subject from the provider itself.
+     *   <li><b>No account with a local second factor on a claim, whatever the setting.</b> A single
+     *       sign-on skips the local TOTP — the provider owns the second factor — so binding such an
+     *       account by name would trade the factor its owner enrolled for a claim somebody else may
+     *       have written. Its owner signs in with the password and code, or has it linked through
+     *       provisioning.
+     * </ul>
+     *
+     * @param subject the provider's {@code sub}, stable for the life of the account
+     * @param issuer which provider vouched for it. Required, and <b>not</b> part of the lookup
+     */
+    @Transactional
+    public UserView resolve(String subject, String issuer, Claimed claimed) {
+        return UserView.of(bind(subject, issuer, claimed));
+    }
+
+    private UserEntity bind(String subject, String issuer, Claimed claimed) {
+        if (subject == null || subject.isBlank() || issuer == null || issuer.isBlank()) {
+            throw new SignInRefusedException(Refusal.NO_SUBJECT, "The identity provider returned no usable subject.");
+        }
+
+        Optional<UserEntity> bound = users.findByKeycloakId(subject);
+        if (bound.isPresent()) {
+            return active(bound.get());
+        }
+
+        // **The operator's switch for plain accounts too.** A privileged account had one
+        // (`link-privileged-accounts`); a plain account was bound to whoever claimed its name, with no
+        // way to say that this realm's names are writable by their owners. Off, nothing is bound on a
+        // claim: provisioning binds the subject, and an identity it did not bind opens no account.
+        // Refused before the name is looked up, so the answer says nothing of which names exist.
+        if (!linkByClaim) {
+            log.warn("Single sign-on refused: no account is bound to this subject, and binding by claim is off ({}).",
+                    issuer);
+            throw new SignInRefusedException(Refusal.NO_ACCOUNT, "No account is linked to this identity, and linking "
+                    + "by name is switched off (vectispire.oidc.link-by-claim). Only an account provisioning bound to it signs in.");
+        }
+
+        String name = nameToMatch(claimed);
+
+        UserEntity account = users.findByUsername(name)
+                // The collation found it; the name has to agree too.
+                .filter(found -> found.getUsername().toLowerCase(Locale.ROOT).equals(name))
+                .orElseThrow(() -> {
+                    log.warn("Single sign-on refused: no account named \"{}\" ({}).", name, issuer);
+                    return new SignInRefusedException(Refusal.NO_ACCOUNT,
+                            "No Vectispire account matches this identity. An administrator has to create it first.");
+                });
+
+        if (account.getKeycloakId() != null) {
+            log.warn("Single sign-on refused: \"{}\" is already bound to another subject.", name);
+            throw new SignInRefusedException(Refusal.ALREADY_LINKED,
+                    "This account is already linked to a different identity, and a link is never moved: a new identity "
+                            + "signs in to a new account.");
+        }
+
+        if (Boolean.TRUE.equals(account.getMfaEnabled())) {
+            log.warn("Single sign-on refused: \"{}\" has a local second factor and is not bound on a claim ({}).",
+                    name, issuer);
+            throw new SignInRefusedException(Refusal.LOCAL_MFA, "This account is protected by its own second factor, "
+                    + "so it is not linked by name. Sign in with its password and code; to sign on through the provider, "
+                    + "its owner turns the second factor off first.");
+        }
+        if (Role.of(account.getRole()).map(ExternalIdentityService::privileged).orElse(true) && !linkPrivileged) {
+            log.warn("Single sign-on refused: \"{}\" holds a privileged role and is not bound on a claim ({}).",
+                    name, issuer);
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account holds a privileged role, so it is not linked by name. "
+                    + "Sign in with its password; to sign on through the provider, an administrator grants the role to "
+                    + "an account the provider is linked to.");
+        }
+
+        if (account.getScimLoweredFrom() != null && !linkPrivileged) {
+            // Lowered by the directory while unbound: a claim binds it no more than SCIM does, until an
+            // administrator has set its role (V93).
+            log.warn("Single sign-on refused: \"{}\" was lowered out of a privileged role by the directory and "
+                    + "is not bound on a claim ({}).", name, issuer);
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account held a privileged role until the "
+                    + "directory lowered it, so it is not linked by name until an administrator sets its role.");
+        }
+
+        UserEntity allowed = active(account);
+        allowed.setKeycloakId(subject);
+        return users.save(allowed);
+    }
+
+    /**
+     * Whether a role is too much to hand over on a claim.
+     *
+     * <p><b>Not only the administrative ones.</b> Only an administrator or the governor used to be
+     * held back, so a CISO — who rewrites the gate policy and approves triage — an auditor — who
+     * reads every account's actions and the whole estate's posture — or a security champion — whose
+     * dismissals settle rather than queue — was bound to whoever claimed the name. Everything but a
+     * plain account is privileged here.
+     */
+    static boolean privileged(Role role) {
+        return role.isAdministrative()
+                || role.governsPlatform()
+                || role.hasGlobalSecurityScope()
+                || role.canWriteGovernance()
+                || role.canApproveTriage();
+    }
+
+    private static String nameToMatch(Claimed claimed) {
+        String username = claimed.username() == null ? "" : claimed.username().trim();
+        if (!username.isEmpty()) {
+            return username.toLowerCase(Locale.ROOT);
+        }
+        String email = claimed.email() == null ? "" : claimed.email().trim();
+        if (!email.isEmpty() && claimed.emailVerified()) {
+            return email.toLowerCase(Locale.ROOT);
+        }
+        throw email.isEmpty()
+                ? new SignInRefusedException(Refusal.NO_USERNAME,
+                        "The identity provider returned no username to match an account on.")
+                : new SignInRefusedException(Refusal.UNVERIFIED_EMAIL,
+                        "The identity provider returned no username, and an email address it has not verified.");
+    }
+
+    /**
+     * Brings an account's teams into line with what the directory has just said.
+     *
+     * <p><b>A reconciliation, no longer an addition.</b> This method only ever added: removing
+     * somebody from a group in the directory took away neither the team nor the visibility that
+     * comes with it. That is the opposite of what delegating means — one delegates precisely so
+     * that leaving a group revokes an access — and it made the promise "the directory is
+     * authoritative" untenable.
+     *
+     * <p><b>It touches only its own rows.</b> Reconciling everything would have replaced that
+     * defect with a worse one: every sign-in would silently erase the teams an administrator
+     * assigned by hand. The origin carried by the membership decides who may remove it; what comes
+     * from SCIM or from a human decision stays where it is.
+     *
+     * <p><b>An empty claim is not a revocation.</b> A misconfigured provider, a forgotten mapper, a
+     * token without the claim: an absence of groups reads as a configuration failure and not as
+     * "this person is no longer in any team". Removing everything on that basis would cut off
+     * everyone's access at the first badly set mapper — the caller in fact calls us only when the
+     * claim is present and non-empty, and the guard is repeated here because it protects against a
+     * mass revocation.
+     */
+    @Transactional
+    public void syncGroups(UserView user, List<String> groupNames) {
+        if (groupNames == null || groupNames.isEmpty() || teams.isEmpty() || teamMembers.isEmpty()) {
+            return;
+        }
+
+        TeamRepository teamsRepo = teams.get();
+        TeamMemberRepository membersRepo = teamMembers.get();
+
+        // The teams the claim names and that exist here. A group with no matching team is not an
+        // error: an organisation's directory is wider than what this tool tracks.
+        Set<Long> claimed = new LinkedHashSet<>();
+        for (String groupName : groupNames) {
+            if (groupName == null || groupName.isBlank()) continue;
+            teamsRepo.findByNameIgnoreCase(groupName.trim())
+                    .ifPresent(team -> claimed.add(team.getId()));
+        }
+
+        List<TeamMemberEntity> held = membersRepo.findByUserId(user.id());
+        Set<Long> alreadyIn = held.stream().map(m -> m.getId().teamId()).collect(Collectors.toSet());
+
+        for (Long teamId : claimed) {
+            if (!alreadyIn.contains(teamId)) {
+                membersRepo.save(new TeamMemberEntity(teamId, user.id(), TeamMemberEntity.Origin.OIDC));
+                log.info("OIDC sync: user '{}' joined team {}", user.username(), teamId);
+            }
+        }
+
+        for (TeamMemberEntity membership : held) {
+            if (TeamMemberEntity.Origin.OIDC.equals(membership.getOrigin())
+                    && !claimed.contains(membership.getId().teamId())) {
+                membersRepo.delete(membership);
+                log.info("OIDC sync: user '{}' left team {} — no longer in the claim",
+                        user.username(), membership.getId().teamId());
+            }
+        }
+    }
+
+    private static UserEntity active(UserEntity account) {
+        if (!account.getIsActive()) {
+            throw new SignInRefusedException(Refusal.DEACTIVATED, "This account is deactivated.");
+        }
+        return account;
+    }
+}

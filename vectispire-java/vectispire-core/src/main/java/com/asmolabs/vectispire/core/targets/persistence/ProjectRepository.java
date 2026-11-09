@@ -1,0 +1,17 @@
+package com.asmolabs.vectispire.core.targets.persistence;
+
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/** The projects, each in one solution (decision 0023). */
+public interface ProjectRepository extends JpaRepository<ProjectEntity, Long> {
+
+    /** Unique within its solution, case-insensitively — see {@link SolutionRepository#findByNameIgnoreCase}. */
+    Optional<ProjectEntity> findBySolutionIdAndNameIgnoreCase(Long solutionId, String name);
+
+    long countBySolutionId(Long solutionId);
+
+    /** A solution's projects — what a grant naming one of them is compared with, one parameter whatever their number. */
+    List<ProjectEntity> findBySolutionId(Long solutionId);
+}

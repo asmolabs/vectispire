@@ -1,0 +1,233 @@
+import { DatePipe } from '@angular/common';
+import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
+import { messageOf } from '../../core/api-error';
+import { IntegrationsApi } from '../../core/api/integrations.api';
+import type { SiemConfig, SiemTestResult } from '../../core/api.models';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { INTEGRATIONS_ROUTE, IntegrationRegistry, siemIntegration } from '../../shared/integrations';
+import { SettingsState } from './settings-state';
+
+/** The four transports the server accepts, in the order the list shows them. */
+const PROTOCOLS: readonly {
+    value: SiemConfig['protocol'];
+    key:
+        | 'settings.siem_protocol_webhook'
+        | 'settings.siem_protocol_udp'
+        | 'settings.siem_protocol_tcp'
+        | 'settings.siem_protocol_tls';
+}[] = [
+    { value: 'WEBHOOK', key: 'settings.siem_protocol_webhook' },
+    { value: 'SYSLOG_UDP', key: 'settings.siem_protocol_udp' },
+    { value: 'SYSLOG_TCP', key: 'settings.siem_protocol_tcp' },
+    { value: 'SYSLOG_TLS', key: 'settings.siem_protocol_tls' }
+];
+
+/**
+ * The endpoint each protocol reads: a URL for the webhook, host:port for syslog — 6514 is the
+ * registered port for syslog over TLS, 514 for UDP and TCP.
+ */
+const ENDPOINT_PLACEHOLDERS: Record<SiemConfig['protocol'], string> = {
+    WEBHOOK: 'https://siem-collector.internal.corp/api/v1/cef-receiver',
+    SYSLOG_UDP: 'siem-collector.internal.corp:514',
+    SYSLOG_TCP: 'siem-collector.internal.corp:514',
+    SYSLOG_TLS: 'siem-collector.internal.corp:6514'
+};
+
+/**
+ * The Integrations tab's SIEM forwarder card.
+ *
+ * <p>Hidden with its tab rather than destroyed with it, like the tracker cards: an endpoint being
+ * typed survives a look at another tab.
+ */
+@Component({
+    selector: 'app-settings-siem',
+    imports: [
+        DatePipe,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        MessageModule,
+        ToggleSwitchModule,
+        TranslatePipe
+    ],
+    templateUrl: './settings-siem.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    host: { class: 'contents' }
+})
+export class SettingsSiem {
+    private readonly integrationsApi = inject(IntegrationsApi);
+    private readonly i18n = inject(I18nService);
+    private readonly state = inject(SettingsState);
+
+    readonly active = input.required<boolean>();
+
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
+
+    /**
+     * The transports the platform governor has switched on (decision 0040 §1). The stored one stays in the
+     * list even when it is off — the form would otherwise show a protocol it was never given — and the
+     * card says it is suspended: its events wait in the outbox until it is enabled again.
+     */
+    readonly registry = new IntegrationRegistry();
+    readonly suspendedTransport = computed(() => {
+        const stored = this.siemConfig()?.protocol;
+        return stored && this.registry.isDisabled(siemIntegration(stored)) ? siemIntegration(stored) : null;
+    });
+
+    readonly siemConfig = signal<SiemConfig | null>(null);
+    readonly savingSiem = signal(false);
+    readonly testingSiem = signal(false);
+    readonly siemTestResult = signal<SiemTestResult | null>(null);
+    siemForm = {
+        enabled: false,
+        // The four protocols the server accepts, not the one the form starts on: typed as the
+        // literal 'WEBHOOK', the form could not hold a syslog configuration it had just loaded,
+        // and an `as any` further down was what kept that quiet.
+        protocol: 'WEBHOOK' as SiemConfig['protocol'],
+        endpoint: '',
+        authHeader: '',
+        minSeverity: 'HIGH',
+        tlsCaPem: ''
+    };
+
+    constructor() {
+        this.state.register(() => this.load(), inject(DestroyRef));
+    }
+
+    /**
+     * The protocols the list offers — enabled, or the one stored — each worded with *suspended* beside the
+     * stored transport the governor switched off: computed once per configuration, registry or language.
+     */
+    readonly protocols = computed(() => {
+        this.i18n.translations();
+        const stored = this.siemConfig()?.protocol;
+        return PROTOCOLS.filter(({ value }) =>
+            this.registry.offers(siemIntegration(value), stored ? siemIntegration(stored) : null)
+        ).map(({ value, key }) => {
+            const label = this.i18n.t(key);
+            return {
+                value,
+                label: this.registry.isDisabled(siemIntegration(value))
+                    ? this.i18n.t('integrations.option_suspended', { name: label })
+                    : label
+            };
+        });
+    });
+
+    /** Read by the template as a lookup on the protocol on screen: the form is a plain field the select writes. */
+    readonly endpointPlaceholders = ENDPOINT_PLACEHOLDERS;
+
+    /** The authorization header travels with a webhook only; the syslog protocols have nowhere to put it. */
+    isWebhook(): boolean {
+        return this.siemForm.protocol === 'WEBHOOK';
+    }
+
+    /** The collector CA is read for syslog over TLS only; the other protocols verify no certificate against it. */
+    isTls(): boolean {
+        return this.siemForm.protocol === 'SYSLOG_TLS';
+    }
+
+    /**
+     * The CA as the requests carry it: what the field holds for TLS — blank removes a pinned one —
+     * and nothing otherwise, since the server refuses a CA sent with another protocol and drops the
+     * stored one when the protocol leaves TLS.
+     */
+    private caToSend(): string | undefined {
+        return this.isTls() ? this.siemForm.tlsCaPem.trim() : undefined;
+    }
+
+    saveSiemConfig(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingSiem()) return;
+        this.savingSiem.set(true);
+        this.state.error.set(null);
+        this.integrationsApi
+            .updateSiemConfig({
+                enabled: this.siemForm.enabled,
+                protocol: this.siemForm.protocol,
+                endpoint: this.siemForm.endpoint.trim(),
+                // Not sent for syslog even if typed before the protocol changed: the server refuses
+                // a header it could never use, and the field is hidden anyway.
+                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined,
+                minSeverity: this.siemForm.minSeverity,
+                tlsCaPem: this.caToSend()
+            })
+            .subscribe({
+                next: (cfg) => {
+                    this.savingSiem.set(false);
+                    this.siemConfig.set(cfg);
+                    this.siemForm.tlsCaPem = cfg.tlsCaPem ?? '';
+                    this.state.saved.set(true);
+                },
+                error: (response) => {
+                    this.savingSiem.set(false);
+                    this.state.error.set(messageOf(response, this.i18n.t('settings.error_save_siem')));
+                }
+            });
+    }
+
+    testSiem(): void {
+        if (!this.siemForm.endpoint.trim()) {
+            this.siemTestResult.set({
+                success: false,
+                message: this.i18n.t('settings.siem_endpoint_required'),
+                statusCode: 0
+            });
+            return;
+        }
+        this.testingSiem.set(true);
+        this.siemTestResult.set(null);
+        this.integrationsApi
+            .testSiemConnection({
+                // The protocol on screen, saved or not: the test used to speak HTTP whatever was
+                // selected, and a working syslog collector was reported unreachable.
+                protocol: this.siemForm.protocol,
+                endpoint: this.siemForm.endpoint.trim(),
+                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined,
+                // The CA on screen, saved or not, as for the protocol.
+                tlsCaPem: this.caToSend()
+            })
+            .subscribe({
+                next: (res) => {
+                    this.testingSiem.set(false);
+                    this.siemTestResult.set(res);
+                },
+                error: () => {
+                    this.testingSiem.set(false);
+                    this.siemTestResult.set({
+                        success: false,
+                        message: this.i18n.t('settings.error_connection_test_request'),
+                        statusCode: 0
+                    });
+                }
+            });
+    }
+
+    private load(): void {
+        this.registry.load();
+        this.integrationsApi.getSiemConfig().subscribe({
+            next: (cfg) => {
+                this.siemConfig.set(cfg);
+                this.siemForm = {
+                    enabled: cfg.enabled,
+                    protocol: cfg.protocol || 'WEBHOOK',
+                    endpoint: cfg.endpoint ?? '',
+                    authHeader: '',
+                    minSeverity: cfg.minSeverity || 'HIGH',
+                    tlsCaPem: cfg.tlsCaPem ?? ''
+                };
+            },
+            error: () => this.siemConfig.set(null)
+        });
+    }
+}

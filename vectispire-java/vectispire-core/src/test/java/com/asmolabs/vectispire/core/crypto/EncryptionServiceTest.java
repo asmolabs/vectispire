@@ -1,0 +1,195 @@
+package com.asmolabs.vectispire.core.crypto;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
+import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("encryption at rest, as the environment configures it")
+class EncryptionServiceTest {
+
+    private static final String CONTEXT = "ssh_key:7";
+
+    // Deliberately 32-byte base64 keys rather than passphrases: scrypt costs a hundred
+    // milliseconds per derivation, and this suite constructs a service per test.
+    private static final String CURRENT = EncryptionKey.generate();
+    private static final String PREVIOUS = EncryptionKey.generate();
+
+    @Test
+    void roundTripsUnderTheCurrentKey() {
+        EncryptionService service = service(CURRENT, List.of());
+
+        String secret = "ssh-rsa-test-private-key-material";
+        String encrypted = service.encrypt(secret, CONTEXT);
+
+        assertThat(encrypted).doesNotContain("test-private-key");
+        assertThat(service.inspect(encrypted, CONTEXT))
+                .returns(secret, d -> d.plainText())
+                .returns(SecretState.CURRENT, d -> d.state());
+    }
+
+    @Test
+    @DisplayName("a value written under the old key still reads, and says so")
+    void reportsAValueThatHasNotBeenRotated() {
+        String written = service(PREVIOUS, List.of()).encrypt("deployment key", CONTEXT);
+
+        // The state is the whole point: rotation is not finished until nothing reports
+        // PREVIOUS_KEY, and that is a screen, not a log line.
+        assertThat(service(CURRENT, List.of(PREVIOUS)).inspect(written, CONTEXT))
+                .returns("deployment key", d -> d.plainText())
+                .returns(SecretState.PREVIOUS_KEY, d -> d.state());
+    }
+
+    @Test
+    @DisplayName("the current key is never reported as previous, even when listed twice")
+    void deduplicatesTheConfiguredKeys() {
+        EncryptionService service = service(CURRENT, List.of(CURRENT, PREVIOUS));
+
+        assertThat(service.inspect(service.encrypt("secret", CONTEXT), CONTEXT).state())
+                .isEqualTo(SecretState.CURRENT);
+    }
+
+    @Test
+    @DisplayName("a value relocated to another row does not read")
+    void bindsTheCiphertextToItsContext() {
+        EncryptionService service = service(CURRENT, List.of());
+
+        String encrypted = service.encrypt("deployment key", CONTEXT);
+
+        assertThat(service.inspect(encrypted, "ssh_key:8").state()).isEqualTo(SecretState.UNREADABLE);
+    }
+
+    @Test
+    @DisplayName("with no key configured, reading keeps working and writing refuses")
+    void readsWithoutAKeyAndRefusesToWrite() {
+        String written = service(CURRENT, List.of()).encrypt("deployment key", CONTEXT);
+        EncryptionService unconfigured = service(null, List.of(CURRENT));
+
+        assertThat(unconfigured.isConfigured()).isFalse();
+        assertThat(unconfigured.inspect(written, CONTEXT).plainText()).isEqualTo("deployment key");
+        assertThatThrownBy(() -> unconfigured.encrypt("new secret", CONTEXT))
+                .isInstanceOf(MissingEncryptionKeyException.class);
+    }
+
+    @Test
+    @DisplayName("an empty value is left alone rather than refused")
+    void anEmptyValueNeedsNoKey() {
+        // A repository with no deployment key must still be saveable on a deployment that has
+        // not configured encryption yet.
+        assertThat(service(null, List.of()).encrypt("", CONTEXT)).isEmpty();
+    }
+
+    @Test
+    void anUnreadableValueYieldsNoPlainText() {
+        assertThat(service(CURRENT, List.of()).inspect("v2:not-even-base64", CONTEXT))
+                .returns("", d -> d.plainText())
+                .returns(SecretState.UNREADABLE, d -> d.state());
+    }
+
+    @Test
+    @DisplayName("asking for Vault and not getting it refuses to start rather than falling back")
+    void vaultWithoutCredentialsRefusesToStart() {
+        // **The failure this replaces was silent.** It logged a warning and carried on with a
+        // local scrypt key, so an expired token at boot moved every subsequent write out of
+        // Transit's custody — and the two are not interchangeable afterwards: what was written
+        // locally is not in Vault, and the next boot that does reach Transit cannot read it.
+        assertThatThrownBy(() -> new EncryptionService(vault(Optional.empty(), Optional.of("s.token"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no endpoint was provided");
+
+        assertThatThrownBy(() -> new EncryptionService(vault(Optional.of("https://vault.invalid"), Optional.empty())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no token was provided");
+    }
+
+    @Test
+    @DisplayName("choosing local encryption on purpose is not an error")
+    void localKmsStartsNormally() {
+        // The refusal above must be about `vault` specifically. A deployment that never asked
+        // for a KMS has to keep starting, or the fix is worse than what it fixed.
+        EncryptionService service = service(CURRENT, List.of());
+        assertThat(service.isConfigured()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a template's placeholder as the current key stops the start, whatever its spelling")
+    void aPlaceholderKeyStopsTheStart() {
+        // The composition's template shipped CHANGE_ME, and Compose refuses only an empty value: an
+        // instance started on it sealed every secret under a key derivable from the public repository.
+        for (String placeholder : List.of("CHANGE_ME", "changeme", "change-me", " Change Me ", "<replace me>",
+                "CHANGE_ME_generate_with_openssl_rand_base64_32")) {
+            assertThatThrownBy(() -> service(placeholder, List.of()))
+                    .as(placeholder)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ENCRYPTION_KEY is refused")
+                    .hasMessageContaining("placeholder")
+                    .hasMessageContaining("VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS");
+        }
+    }
+
+    @Test
+    @DisplayName("a passphrase shorter than twenty characters stops the start, and the message does not quote it")
+    void aShortPassphraseStopsTheStart() {
+        assertThatThrownBy(() -> service("Summer2026!", List.of()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("11 characters")
+                .hasMessageContaining("openssl rand -base64 32")
+                .hasMessageNotContaining("Summer2026!");
+        assertThatThrownBy(() -> service("a".repeat(EncryptionKey.MIN_PASSPHRASE_LENGTH - 1), List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("a long passphrase and a generated key keep working, as they did")
+    void aStrongKeyStillStarts() {
+        String passphrase = "correct horse battery staple";
+        String written = service(passphrase, List.of()).encrypt("deployment key", CONTEXT);
+
+        assertThat(service(passphrase, List.of()).inspect(written, CONTEXT).state()).isEqualTo(SecretState.CURRENT);
+        assertThat(service("b".repeat(EncryptionKey.MIN_PASSPHRASE_LENGTH), List.of()).isConfigured()).isTrue();
+        assertThat(service(CURRENT, List.of()).isConfigured()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a refused key is still accepted as a previous one, so the rotation away from it can read what it sealed")
+    void aRefusedKeyStillOpensAsAPreviousKey() {
+        // What an installation started on the placeholder holds: values sealed under it. Refusing it
+        // among the previous keys would strand them; the rotation is how they leave it.
+        EncryptionService before = new EncryptionService(new EncryptionProperties(Optional.empty(), List.of("CHANGE_ME")));
+        String sealedUnderThePlaceholder = new com.asmolabs.vectispire.common.domain.crypto.SecretCipher()
+                .encrypt(EncryptionKey.derive("CHANGE_ME"), "deployment key", CONTEXT);
+
+        EncryptionService rotating = service(CURRENT, List.of("CHANGE_ME"));
+
+        assertThat(before.inspect(sealedUnderThePlaceholder, CONTEXT).plainText()).isEqualTo("deployment key");
+        assertThat(rotating.inspect(sealedUnderThePlaceholder, CONTEXT))
+                .returns("deployment key", d -> d.plainText())
+                .returns(SecretState.PREVIOUS_KEY, d -> d.state());
+        assertThat(rotating.sealOf(rotating.encrypt("deployment key", CONTEXT), CONTEXT))
+                .isEqualTo(EncryptionService.Seal.CURRENT);
+    }
+
+    private static EncryptionProperties vault(Optional<String> endpoint, Optional<String> token) {
+        return new EncryptionProperties(
+                Optional.of(CURRENT),
+                Optional.empty(),
+                List.of(),
+                Optional.empty(),
+                Optional.of("vault"),
+                endpoint,
+                token,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
+    private static EncryptionService service(String key, List<String> previous) {
+        return new EncryptionService(new EncryptionProperties(Optional.ofNullable(key), previous));
+    }
+}

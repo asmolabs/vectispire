@@ -1,0 +1,125 @@
+@if (page.preview(); as current) {
+    <h3 class="text-base font-semibold mt-6 mb-2">{{ 'checklist_templates.pairing_title' | translate }}</h3>
+    @if (current.version.previousOrdinal === null) {
+        <p class="text-sm text-muted-color mt-0" data-testid="no-previous">
+            {{ 'checklist_templates.pairing_none' | translate }}
+        </p>
+    } @else {
+        <p class="text-sm text-muted-color mt-0">
+            {{ 'checklist_templates.pairing_explain' | translate: { ordinal: current.version.previousOrdinal } }}
+        </p>
+        <div class="flex flex-wrap gap-2 mb-2 text-sm" data-testid="pairing-counts">
+            <p-tag
+                severity="secondary"
+                [value]="'checklist_templates.count_unchanged' | translate: { count: pairingCounts().unchanged }"
+            />
+            <p-tag
+                severity="warn"
+                [value]="'checklist_templates.count_changed' | translate: { count: pairingCounts().changed }"
+            />
+            <p-tag
+                severity="info"
+                [value]="'checklist_templates.count_added' | translate: { count: pairingCounts().added }"
+            />
+            <p-tag
+                severity="danger"
+                [value]="'checklist_templates.count_removed' | translate: { count: pairingCounts().removed }"
+            />
+        </div>
+        <p-table [value]="changes()" styleClass="p-datatable-sm mb-3" data-testid="pairing">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'checklist_templates.col_change' | translate }}</th>
+                    <th>{{ 'checklist_templates.col_this_version' | translate }}</th>
+                    <th>{{ 'checklist_templates.col_previous_version' | translate }}</th>
+                    <th class="text-right">{{ 'common.actions' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-change>
+                <tr [attr.data-testid]="'change-' + change.change">
+                    <td>
+                        <p-tag [severity]="change.tone" [value]="change.text" />
+                        @if (change.pairedByHand) {
+                            <span class="block text-xs text-muted-color mt-1">
+                                {{ 'checklist_templates.paired_by_hand' | translate }}
+                            </span>
+                        }
+                    </td>
+                    <td class="text-sm">
+                        @if (change.row !== null) {
+                            <span class="font-mono text-muted-color">{{ change.row }}</span>
+                            {{ change.control }}
+                        } @else {
+                            —
+                        }
+                    </td>
+                    <td class="text-sm">
+                        @if (change.previousRow !== null) {
+                            <span class="font-mono text-muted-color">{{ change.previousRow }}</span>
+                            {{ change.previousControl }}
+                        } @else {
+                            —
+                        }
+                    </td>
+                    <td class="text-right">
+                        @if (page.editable() && change.pairedByHand) {
+                            <p-button
+                                icon="pi pi-times"
+                                size="small"
+                                [text]="true"
+                                severity="danger"
+                                [label]="'checklist_templates.unpair_btn' | translate"
+                                [disabled]="page.busy()"
+                                (onClick)="unpair(change)"
+                            />
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+        @if (page.editable() && addedOptions().length > 0 && removedOptions().length > 0) {
+            <div class="flex flex-wrap items-end gap-3 mb-4" data-testid="pair-form">
+                <div class="flex flex-col gap-1">
+                    <label for="pair-added" class="text-sm font-medium">{{
+                        'checklist_templates.pair_added' | translate
+                    }}</label>
+                    <p-select
+                        inputId="pair-added"
+                        [options]="addedOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="page.pairAdded()"
+                        (ngModelChange)="page.pairAdded.set($event)"
+                        appendTo="body"
+                        styleClass="w-80 max-w-full"
+                    />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="pair-removed" class="text-sm font-medium">
+                        {{ 'checklist_templates.pair_removed' | translate }}
+                    </label>
+                    <p-select
+                        inputId="pair-removed"
+                        [options]="removedOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="page.pairRemoved()"
+                        (ngModelChange)="page.pairRemoved.set($event)"
+                        appendTo="body"
+                        styleClass="w-80 max-w-full"
+                    />
+                </div>
+                <p-button
+                    id="pair-items"
+                    icon="pi pi-link"
+                    [label]="'checklist_templates.pair_btn' | translate"
+                    [disabled]="!page.pairAdded() || !page.pairRemoved() || page.busy()"
+                    (onClick)="pair()"
+                />
+            </div>
+            <p class="text-xs text-muted-color mt-0">
+                {{ 'checklist_templates.pair_explain' | translate }}
+            </p>
+        }
+    }
+}

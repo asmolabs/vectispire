@@ -1,0 +1,35 @@
+package com.asmolabs.vectispire.core.compliance;
+
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
+import com.asmolabs.vectispire.core.scanning.PurgedScans;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The model reviews run on a purged target's scans, before the scans.
+ *
+ * <p>Here because {@code OwaspReviewService} is what writes them. Synchronous and in the deleting
+ * transaction, like every {@link TargetPurge} listener.
+ */
+@Component
+class AiReviewPurge {
+
+    private final PurgedScans scans;
+    private final AiReviewResultRepository reviews;
+
+    AiReviewPurge(PurgedScans scans, AiReviewResultRepository reviews) {
+        this.scans = scans;
+        this.reviews = reviews;
+    }
+
+    @EventListener
+    @Order(TargetPurge.Phase.SCAN_CHILDREN)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void purge(TargetPurge purge) {
+        scans.inBatches(purge, reviews::deleteByScanIdIn);
+    }
+}

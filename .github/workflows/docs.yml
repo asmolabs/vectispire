@@ -1,0 +1,122 @@
+# The documentation site, published at https://asmolabs.github.io/vectispire/
+#
+# **Separate from `verify` on purpose.** The verification pipeline runs on every push and every
+# merge request; publishing from it would mean either publishing from a branch, or adding a branch
+# condition to a job that does not need one. A workflow that fires only on `main`, and only when
+# the site's source has changed, says what it does in its `on:`.
+#
+# Every `uses:` is pinned to a commit SHA, with the version in a trailing comment, as in `ci.yml`.
+# A tag is mutable: `actions/checkout@v4` means whatever its owner decides today, and this
+# workflow's `deploy` job holds `pages: write` and an OIDC token.
+
+# **This workflow is the only one that deploys to Pages, and there is a reason to say so here.**
+# On 30 August, `static.yml` — GitHub's "Deploy static content to Pages" template — was added in
+# order to switch the site on. It uploads `path: '.'`, that is *the whole repository*, without
+# building mkdocs. Three consequences, in order of severity:
+#
+#   1. `docs/` got published: 30 dated audit reports, two STRIDE threat models, the list of known
+#      weaknesses and the state of their remediation. `mkdocs.yml`'s header explains that
+#      `docs_dir` does not see `docs/` precisely so that this cannot happen, "not even by guessing
+#      the URL". Uploading the root works around the protection in one `path:`.
+#   2. The site did not work: without `mkdocs build`, the root has no `index.html`, so
+#      `/vectispire/` answered 404 while `/vectispire/README.md` answered 200.
+#   3. Two workflows targeted the `github-pages` environment with the same `pages` concurrency
+#      group: the last to arrive overwrites the other.
+#
+# To switch Pages on, the source must be **GitHub Actions** in the repository settings; that was
+# all that was missing. No second workflow is needed, and a second workflow is exactly what breaks
+# this one.
+
+name: docs
+
+# **Built on `develop` and on pull requests, published from `main` only.** The site used to be
+# built for the first time at publication: a page broken on `develop` — or a Dependabot bump of a
+# plugin — reached `main` green, and `--strict` then refused it there, with the previous site
+# still served and nobody reading the log. The build now runs where the change is proposed; the
+# `deploy` job, and the steps that talk to Pages, stay behind a `main` condition.
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docs-site/**'
+      - 'mkdocs.yml'
+      - 'ci/docs/requirements.in'
+      - 'ci/docs/requirements.txt'
+      - '.github/workflows/docs.yml'
+  # The same paths as above — repeated rather than anchored, so every tool reading the workflow
+  # sees the list without resolving YAML aliases.
+  pull_request:
+    paths:
+      - 'docs-site/**'
+      - 'mkdocs.yml'
+      - 'ci/docs/requirements.in'
+      - 'ci/docs/requirements.txt'
+      - '.github/workflows/docs.yml'
+  # To republish without a commit — after switching Pages on, for instance.
+  workflow_dispatch:
+
+# Read-only by default; the write access is granted to `deploy` alone.
+#
+# **These were workflow-wide, and that put them in the wrong job.** `build` runs third-party code
+# — mkdocs and its plugins — which executed with a Pages write token and an OIDC token in reach,
+# while `release.yml` asserted that it was the only workflow holding `id-token`. The packages are
+# now hash-pinned as well, but a pin says which code runs, not that it is harmless. `build` needs
+# to read Pages' configuration and nothing more.
+permissions:
+  contents: read
+
+# A publication in flight is not cancelled: the half-deployed page would be served. Builds that
+# publish nothing get a group of their own per ref, so a pull request never queues behind — or
+# ahead of — a publication.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'pages' || format('docs-{0}', github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # `configure-pages` reads the site's settings; it does not change them.
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ci/docs/requirements.txt
+      # `--require-hashes` refuses any archive whose digest is not in the file, and `--no-deps`
+      # stops pip resolving anything the file does not already pin: what runs here is exactly
+      # what was reviewed, since this job builds the artifact `deploy` publishes.
+      - run: pip install --require-hashes --no-deps -r ci/docs/requirements.txt
+      # `--strict` turns warnings into failure: a dead link or a page missing from the navigation
+      # stops the publication instead of going live with nobody reading the log.
+      - run: mkdocs build --strict
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Write to Pages, and an OIDC token because `deploy-pages` authenticates with one, with no
+    # secret to hold. This job runs one pinned action and no third-party code.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

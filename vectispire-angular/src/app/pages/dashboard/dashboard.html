@@ -1,0 +1,671 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'dashboard.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'dashboard.subtitle' | translate }}</p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+@if (data(); as overview) {
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'dashboard.failing_targets' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
+                {{ overview.posture.failingCount
+                }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
+            </div>
+            <a routerLink="/security" class="text-sm">{{ 'dashboard.see_posture' | translate }}</a>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'dashboard.actively_exploited' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">
+                {{ overview.posture.kevCount }}
+            </div>
+            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">{{
+                'dashboard.see_kev' | translate
+            }}</a>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'dashboard.never_scanned' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.neverScannedCount > 0">
+                {{ overview.posture.neverScannedCount }}
+            </div>
+            <div class="text-sm text-muted-color">{{ 'dashboard.no_finding_want_obs' | translate }}</div>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'dashboard.past_remediation_deadline' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.overdueCount > 0">
+                {{ overview.posture.overdueCount }}
+            </div>
+            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">{{
+                'dashboard.see_what_is_late' | translate
+            }}</a>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'dashboard.last_scan_failed' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.lastScanFailedCount > 0">
+                {{ overview.posture.lastScanFailedCount }}
+            </div>
+            <div class="text-sm text-muted-color">{{ 'dashboard.data_possibly_stale' | translate }}</div>
+        </p-card>
+    </div>
+
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <span>{{ 'dashboard.backlog_over_time' | translate }}</span>
+                <div class="flex gap-2">
+                    @for (choice of windows(); track choice.value) {
+                        <p-button
+                            [label]="choice.label"
+                            size="small"
+                            [outlined]="window() !== choice.value"
+                            (onClick)="loadTrends(choice.value)"
+                        />
+                    }
+                </div>
+            </div>
+        </ng-template>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div class="lg:col-span-3">
+                @if (trendError(); as message) {
+                    <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+                } @else if (trends(); as series) {
+                    @if (series.points.length === 0) {
+                        <p class="text-muted-color m-0">{{ 'dashboard.no_issue_recorded' | translate }}</p>
+                    } @else {
+                        <!--
+                            **Two charts, and not two axes.** The backlog and the daily movements
+                            differ by two orders of magnitude; a second axis on the right let a
+                            reader see a crossing whose position comes from the framing and not from
+                            the data. Stacked, they share the date axis — carried by the lower one —
+                            and no longer suggest anything false.
+                        -->
+                        <p-chart
+                            type="line"
+                            [data]="backlogChart()"
+                            [options]="backlogOptions()"
+                            [plugins]="chartPlugins"
+                            height="12rem"
+                            [ariaLabel]="'dashboard.chart.backlog_aria' | translate"
+                        />
+                        <p-chart
+                            type="line"
+                            [data]="flowChart()"
+                            [options]="flowOptions()"
+                            [plugins]="chartPlugins"
+                            height="7rem"
+                            [ariaLabel]="'dashboard.chart.flow_aria' | translate"
+                        />
+                        <!-- The dated line, in words: a canvas says nothing to a screen reader. -->
+                        @if (formulaChange(); as change) {
+                            <!-- A calendar day (`yyyy-MM-dd`), which the pipe reads as local midnight: no timezone,
+                                 or 'UTC' would print the day before east of Greenwich. -->
+                            <p class="m-0 mt-2 text-xs text-muted-color" data-testid="score-formula-change">
+                                {{
+                                    'dashboard.score_formula_changed_note'
+                                        | translate: { date: (change.day | date: 'dd/MM/yyyy') ?? change.day }
+                                }}
+                            </p>
+                        }
+                    }
+                } @else {
+                    <p class="text-muted-color m-0">{{ 'dashboard.loading_trend' | translate }}</p>
+                }
+            </div>
+
+            <div class="flex flex-col justify-center gap-4">
+                <div>
+                    <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve_global' | translate }}</div>
+                    <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
+                    <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
+                </div>
+
+                @if (analyticsError(); as message) {
+                    <p-message data-testid="analytics-error" severity="warn" [closable]="false" styleClass="w-full">{{
+                        message
+                    }}</p-message>
+                } @else if (postureAnalytics(); as pa) {
+                    <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
+                        <div class="text-xs uppercase font-semibold text-muted-color">
+                            {{ 'dashboard.mttr_by_severity' | translate }}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div
+                                class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center gap-1"
+                            >
+                                <span class="font-bold text-red-600 dark:text-red-400">{{
+                                    'dashboard.sev_critical' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
+                                    pa.mttrBySeverity?.['CRITICAL'] != null
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['CRITICAL'] | localNumber) })
+                                        : '—'
+                                }}</span>
+                            </div>
+                            <div
+                                class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center gap-1"
+                            >
+                                <span class="font-bold text-amber-600 dark:text-amber-400">{{
+                                    'dashboard.sev_high' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
+                                    pa.mttrBySeverity?.['HIGH'] != null
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['HIGH'] | localNumber) })
+                                        : '—'
+                                }}</span>
+                            </div>
+                            <div
+                                class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center gap-1"
+                            >
+                                <span class="font-bold text-blue-600 dark:text-blue-400">{{
+                                    'dashboard.sev_medium' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
+                                    pa.mttrBySeverity?.['MEDIUM'] != null
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['MEDIUM'] | localNumber) })
+                                        : '—'
+                                }}</span>
+                            </div>
+                            <div
+                                class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center gap-1"
+                            >
+                                <span class="font-semibold text-muted-color">{{
+                                    'dashboard.sev_low' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
+                                    pa.mttrBySeverity?.['LOW'] != null
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['LOW'] | localNumber) })
+                                        : '—'
+                                }}</span>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-2 pt-2 border-t border-surface-200 dark:border-surface-700 flex justify-between items-center text-xs"
+                        >
+                            <span class="text-muted-color">{{ 'dashboard.remediation_velocity' | translate }}</span>
+                            <span
+                                class="font-bold"
+                                [class.text-emerald-600]="pa.netResolutionRatePercentage >= 80"
+                                [class.text-amber-600]="pa.netResolutionRatePercentage < 80"
+                            >
+                                {{
+                                    'dashboard.resolution_ratio'
+                                        | translate
+                                            : {
+                                                  percent: (pa.netResolutionRatePercentage | localPercent),
+                                                  resolved: pa.totalResolvedInWindow,
+                                                  opened: pa.totalOpenedInWindow
+                                              }
+                                }}
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </p-card>
+
+    <!-- Estimated security debt & high-impact actions (optimised remediation) -->
+    @if (debtError(); as message) {
+        <p-message data-testid="security-debt-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+            message
+        }}</p-message>
+    } @else if (securityDebt(); as debt) {
+        <div id="security-debt" class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+            <p-card styleClass="xl:col-span-1 border-l-4 border-l-primary-500 h-full">
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>{{ 'dashboard.estimated_debt' | translate }}</span>
+                        <p-tag
+                            [value]="
+                                (debt.totalEstimatedPersonDays | localNumber) +
+                                ' ' +
+                                ('dashboard.person_days' | translate)
+                            "
+                            severity="warn"
+                        />
+                    </div>
+                </ng-template>
+                <div class="text-sm text-muted-color mb-3">
+                    {{ 'dashboard.debt_help' | translate: { count: debt.totalOpenIssues } }}
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_sca' | translate }}</span>
+                        <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_secrets' | translate }}</span>
+                        <span class="font-semibold">{{ debt.secretsDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_sast' | translate }}</span>
+                        <span class="font-semibold">{{ debt.sastDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_iac' | translate }}</span>
+                        <span class="font-semibold">{{ debt.iacDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_licenses' | translate }}</span>
+                        <span class="font-semibold">{{ debt.licenseDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-muted-color">{{ 'dashboard.debt_eol' | translate }}</span>
+                        <span class="font-semibold">{{ debt.eolDebtHours | localNumber }} h</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400"
+                    >
+                        <span>{{ 'dashboard.debt_total' | translate }}</span>
+                        <span
+                            >{{ debt.totalEstimatedHours | localNumber }} h (~{{
+                                debt.totalEstimatedPersonDays | localNumber
+                            }}
+                            {{ 'dashboard.person_days' | translate }})</span
+                        >
+                    </div>
+                </div>
+            </p-card>
+
+            <p-card styleClass="xl:col-span-2 h-full">
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>{{ 'dashboard.high_impact' | translate }}</span>
+                        <span class="text-xs text-muted-color font-normal">{{
+                            'dashboard.high_impact_help' | translate
+                        }}</span>
+                    </div>
+                </ng-template>
+                @if (!debt.topHighImpactFixes || debt.topHighImpactFixes.length === 0) {
+                    <p class="text-muted-color m-0 py-4 text-center">{{ 'dashboard.no_high_impact' | translate }}</p>
+                } @else {
+                    <p-table [value]="debt.topHighImpactFixes || []" styleClass="p-datatable-sm">
+                        <ng-template #header>
+                            <tr>
+                                <th>{{ 'dashboard.component' | translate }}</th>
+                                <th>{{ 'dashboard.cves_resolved' | translate }}</th>
+                                <th>{{ 'dashboard.effort' | translate }}</th>
+                                <th>{{ 'dashboard.leverage_score' | translate }}</th>
+                                <th>{{ 'dashboard.targets_affected' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-fix>
+                            <tr>
+                                <td>
+                                    <div class="font-semibold">{{ fix.packageName }}</div>
+                                    <!--
+                                        Null when no finding announces a fix: an arrow to nothing read as
+                                        "upgrade to" with the version missing, where the answer is that there
+                                        is none to upgrade to.
+                                    -->
+                                    <div class="text-xs text-muted-color" data-testid="high-impact-version">
+                                        @if (fix.recommendedVersion) {
+                                            v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}
+                                        } @else {
+                                            {{
+                                                'dashboard.no_fixed_version'
+                                                    | translate: { version: fix.currentVersion }
+                                            }}
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="'dashboard.cve_count' | translate: { count: fix.cveCountResolved }"
+                                        severity="danger"
+                                    />
+                                    @if (fix.criticalCveCount > 0) {
+                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold"
+                                            >({{
+                                                'dashboard.critical_count' | translate: { count: fix.criticalCveCount }
+                                            }})</span
+                                        >
+                                    }
+                                </td>
+                                <td>
+                                    <span class="font-mono text-sm">{{ fix.estimatedHours | localNumber }} h</span>
+                                </td>
+                                <td>
+                                    <p-tag [value]="(fix.leverageScore | localNumber) + 'x'" severity="success" />
+                                </td>
+                                <td>
+                                    <div
+                                        class="text-xs text-muted-color max-w-[12rem] truncate"
+                                        [title]="fix.affectedTargetNames.join(', ')"
+                                    >
+                                        {{ fix.affectedTargetNames.join(', ') || '—' }}
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                }
+            </p-card>
+        </div>
+    }
+
+    <!--
+        The portfolio, with no grade of its own (decision 0036): how many targets read each grade, the
+        weakest of them, and what is open. A list rather than a chart, so that each count is read with
+        its grade by a screen reader as on screen.
+    -->
+    @if (portfolioError(); as message) {
+        <p-message data-testid="portfolio-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+            message
+        }}</p-message>
+    } @else if (portfolio(); as estate) {
+        @if (estate.totalTargets > 0) {
+            <p-card styleClass="mb-4">
+                <ng-template #title>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span>{{ 'dashboard.portfolio.title' | translate }}</span>
+                        <span class="text-xs text-muted-color font-normal">{{
+                            'dashboard.portfolio.help' | translate
+                        }}</span>
+                    </div>
+                </ng-template>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <ul
+                        class="lg:col-span-2 list-none m-0 p-0 flex flex-wrap gap-3"
+                        data-testid="portfolio-distribution"
+                        [attr.aria-label]="'dashboard.portfolio.distribution' | translate"
+                    >
+                        @for (row of portfolioGrades(); track row.grade) {
+                            <li
+                                class="flex flex-col items-center gap-1 p-2 min-w-16 border rounded"
+                                [attr.aria-label]="row.accessibleName"
+                                [attr.data-grade]="row.grade"
+                            >
+                                <p-tag [value]="row.label" [severity]="row.grade | gradeTone" aria-hidden="true" />
+                                <span class="text-xl font-bold" aria-hidden="true">{{ row.targets }}</span>
+                            </li>
+                        }
+                    </ul>
+                    <div class="flex flex-col gap-3">
+                        <div data-testid="portfolio-weakest">
+                            <div class="text-muted-color text-sm">{{ 'dashboard.portfolio.weakest' | translate }}</div>
+                            @if (estate.weakestTarget; as weakest) {
+                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                    <span class="font-bold">{{ weakest.targetName }}</span>
+                                    <p-tag
+                                        [value]="weakest.grade | gradeLabel"
+                                        [severity]="weakest.grade | gradeTone"
+                                    />
+                                    <span class="font-mono text-sm">{{ weakest.score }}/100</span>
+                                </div>
+                            } @else {
+                                <div class="mt-1">{{ 'dashboard.portfolio.no_weakest' | translate }}</div>
+                            }
+                        </div>
+                        <div data-testid="portfolio-risk-points">
+                            <div class="text-muted-color text-sm">
+                                {{ 'dashboard.portfolio.open_risk' | translate }}
+                            </div>
+                            <div class="text-xl font-bold mt-1">{{ estate.riskPoints | riskPoints }}</div>
+                        </div>
+                    </div>
+                </div>
+            </p-card>
+        }
+    }
+
+    <!-- Target Security Maturity Scoreboard -->
+    @if (postureAnalytics()?.targetScoreboard?.length) {
+        <p-card styleClass="mb-4">
+            <ng-template #title>
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <i class="pi pi-trophy text-amber-500"></i>
+                        {{ 'dashboard.scoreboard' | translate }}
+                    </span>
+                    <span class="text-xs text-muted-color font-normal">{{
+                        'dashboard.scoreboard_help' | translate
+                    }}</span>
+                </div>
+            </ng-template>
+
+            <p-table
+                [value]="postureAnalytics()!.targetScoreboard"
+                styleClass="p-datatable-sm"
+                [paginator]="true"
+                [rows]="5"
+            >
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'dashboard.target' | translate }}</th>
+                        <th>{{ 'dashboard.col_grade' | translate }}</th>
+                        <th>{{ 'dashboard.security_score' | translate }}</th>
+                        <th class="text-right">{{ 'dashboard.col_risk_points' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.critical_open' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.high_open' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.resolved' | translate }}</th>
+                        <th class="text-right">{{ 'dashboard.col_mean_mttr' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-target>
+                    <tr>
+                        <td>
+                            <div class="font-bold text-sm">{{ target.targetName }}</div>
+                            <div class="text-xs text-muted-color">{{ target.targetKind | targetKind }}</div>
+                        </td>
+                        <td>
+                            <!-- A target nobody scanned has no grade and no score: "/100" and an empty
+                                 bar would read as a measured zero, the worst mark on the board. -->
+                            @if (target.maturityGrade === 'NO_DATA' || target.securityScore === null) {
+                                <p-tag
+                                    severity="secondary"
+                                    data-testid="maturity-no-data"
+                                    [value]="'NO_DATA' | gradeLabel"
+                                />
+                            } @else {
+                                <p-tag
+                                    [value]="target.maturityGrade | gradeLabel"
+                                    [severity]="target.maturityGrade | gradeTone"
+                                />
+                            }
+                        </td>
+                        <td>
+                            @if (target.securityScore !== null && target.maturityGrade !== 'NO_DATA') {
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold font-mono text-sm">{{ target.securityScore }}/100</span>
+                                    <div
+                                        class="w-16 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden"
+                                    >
+                                        <div
+                                            class="h-full bg-purple-600 rounded-full"
+                                            data-testid="maturity-score-bar"
+                                            [style.width.%]="target.securityScore"
+                                        ></div>
+                                    </div>
+                                </div>
+                            }
+                        </td>
+                        <!-- What breaks a tie in the order, and what still moves deep in F. -->
+                        <td class="text-right font-mono text-xs" data-testid="maturity-risk-points">
+                            {{ target.riskPoints !== null ? (target.riskPoints | localNumber: 3) : '—' }}
+                        </td>
+                        <td class="text-center">
+                            @if (target.openCritical > 0) {
+                                <span
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300"
+                                >
+                                    {{ target.openCritical }}
+                                </span>
+                            } @else {
+                                <span class="text-xs text-muted-color">0</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (target.openHigh > 0) {
+                                <span
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                >
+                                    {{ target.openHigh }}
+                                </span>
+                            } @else {
+                                <span class="text-xs text-muted-color">0</span>
+                            }
+                        </td>
+                        <td class="text-center font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            {{ target.totalResolved }}
+                        </td>
+                        <td class="text-right font-mono text-xs">
+                            {{
+                                target.targetMttrDays != null
+                                    ? ('dashboard.days_count'
+                                      | translate: { count: (target.targetMttrDays | localNumber) })
+                                    : '—'
+                            }}
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <p-card styleClass="xl:col-span-1">
+            <ng-template #title>{{ 'dashboard.open_backlog_severity' | translate }}</ng-template>
+            <div class="flex flex-col gap-3">
+                @for (level of severities(); track level.key) {
+                    <div class="flex items-center justify-between">
+                        <p-tag [value]="level.label" [severity]="level.severity" />
+                        <a
+                            [routerLink]="['/issues']"
+                            [queryParams]="{ severity: level.key, state: 'open', unsettled: true }"
+                            class="text-xl font-semibold"
+                        >
+                            {{ overview.backlogBySeverity[level.key] ?? 0 }}
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
+                <div class="flex items-center justify-between">
+                    <span class="text-muted-color text-sm"
+                        >{{ 'dashboard.quality' | translate }}
+                        <span class="text-xs">({{ 'dashboard.quality_never_blocks' | translate }})</span></span
+                    >
+                    <a routerLink="/quality" class="font-semibold">{{ overview.qualityTotal }}</a>
+                </div>
+            </div>
+        </p-card>
+
+        <p-card styleClass="xl:col-span-2">
+            <ng-template #title>{{ 'dashboard.targets_in_failure' | translate }}</ng-template>
+            @if (overview.failing.length === 0) {
+                <p class="text-muted-color m-0">{{ 'dashboard.no_target_failing' | translate }}</p>
+            } @else {
+                <p-table [value]="failing()" styleClass="p-datatable-sm zs-table-narrow">
+                    <ng-template #header>
+                        <tr>
+                            <th>{{ 'dashboard.target' | translate }}</th>
+                            <th>{{ 'dashboard.col_rule_at_fault' | translate }}</th>
+                            <!-- The gate's violations, one per rule the target fails: not findings, not issues. -->
+                            <th class="text-right">{{ 'dashboard.col_violations' | translate }}</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template #body let-target>
+                        <tr>
+                            <td>
+                                <div class="font-medium">{{ target.name }}</div>
+                                <div class="text-sm text-muted-color">
+                                    {{
+                                        target.kind === 'repository'
+                                            ? ('dashboard.kind_repository' | translate)
+                                            : ('dashboard.kind_container' | translate)
+                                    }}
+                                </div>
+                            </td>
+                            <td>
+                                @for (violation of target.firstViolations; track $index) {
+                                    <div class="text-sm" [title]="violation.reason" data-testid="violation-reason">
+                                        <p-tag [value]="violation.label" severity="danger" styleClass="mr-2" />
+                                        {{ violation.text }}
+                                    </div>
+                                }
+                                @if (target.violations.length > 3) {
+                                    <div class="text-sm text-muted-color mt-1">
+                                        {{
+                                            'dashboard.more_violations'
+                                                | translate: { count: target.violations.length - 3 }
+                                        }}
+                                    </div>
+                                }
+                            </td>
+                            <td class="text-right font-semibold" data-testid="failing-violations">
+                                {{ target.violations.length | localNumber: 0 }}
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            }
+        </p-card>
+    </div>
+
+    <p-card styleClass="mt-4">
+        <ng-template #title>{{ 'dashboard.recent_scans' | translate }}</ng-template>
+        <p-table [value]="overview.recentScans" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'dashboard.target' | translate }}</th>
+                    <th>{{ 'common.status' | translate }}</th>
+                    <!-- The scan's issues, not its occurrences: the scan detail shows both, and says which. -->
+                    <th class="text-right">{{ 'dashboard.recent_scans_issues' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-scan>
+                <tr>
+                    <td>
+                        <a [routerLink]="['/scans', scan.id]">{{
+                            scan.targetName ??
+                                (scan.targetKind === 'container'
+                                    ? ('dashboard.container_numbered' | translate: { id: scan.containerId ?? '—' })
+                                    : ('dashboard.repository_numbered' | translate: { id: scan.repoId ?? '—' }))
+                        }}</a>
+                        <div class="text-xs text-muted-color">
+                            {{ scan.targetKind | targetKind }}
+                        </div>
+                    </td>
+                    <td><app-last-scan [scan]="scan" /></td>
+                    <td class="text-right">{{ (scan.findingsCount | localNumber: 0) ?? '—' }}</td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="3" class="text-center text-muted-color py-6">
+                        {{ 'dashboard.no_scans_run' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+} @else if (loading()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+}

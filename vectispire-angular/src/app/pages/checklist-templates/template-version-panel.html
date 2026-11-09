@@ -1,0 +1,91 @@
+@if (page.selected(); as open) {
+    <p-card data-testid="version-panel">
+        <ng-template #title>
+            {{ 'checklist_templates.panel_title' | translate: { slug: open.slug, ordinal: open.ordinal } }}
+        </ng-template>
+
+        @if (page.panelError(); as message) {
+            <p-message severity="error" [closable]="true" styleClass="mb-3 w-full" data-testid="panel-error">
+                {{ message }}
+            </p-message>
+        }
+        @if (page.refusal(); as refused) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="refusal">
+                <div class="flex flex-col gap-2">
+                    <span data-testid="refusal-message">{{ refused.message }}</span>
+                    @if (refused.reload) {
+                        <div>
+                            <p-button
+                                id="reload-version"
+                                icon="pi pi-refresh"
+                                size="small"
+                                [label]="'checklist_templates.reload_btn' | translate"
+                                (onClick)="page.reloadShown()"
+                            />
+                        </div>
+                    }
+                </div>
+            </p-message>
+        }
+
+        @if (page.previewLoading() && !page.preview()) {
+            <p class="text-sm text-muted-color m-0">{{ 'common.loading' | translate }}</p>
+        }
+
+        @if (page.shown(); as summary) {
+            <dl class="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1 text-sm mt-0 mb-4">
+                <dt class="text-muted-color">{{ 'checklist_templates.col_status' | translate }}</dt>
+                <dd class="m-0" data-testid="shown-status">
+                    <p-tag [severity]="statusTone()" [value]="statusText()" />
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.revision' | translate }}</dt>
+                <dd class="m-0 font-mono" data-testid="shown-revision">{{ summary.revision }}</dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.workbook' | translate }}</dt>
+                <dd class="m-0 font-mono break-all">
+                    {{
+                        'checklist_templates.workbook_value'
+                            | translate: { size: summary.sourceSize, sha: summary.sourceSha256 }
+                    }}
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.previous' | translate }}</dt>
+                <dd class="m-0">
+                    @if (summary.previousOrdinal !== null) {
+                        {{ summary.previousOrdinal }}
+                    } @else {
+                        —
+                    }
+                    @if (summary.derivedFromOrdinal !== null) {
+                        <span class="text-muted-color">
+                            ·
+                            {{
+                                'checklist_templates.derived_from' | translate: { ordinal: summary.derivedFromOrdinal }
+                            }}
+                        </span>
+                    }
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.authors' | translate }}</dt>
+                <dd class="m-0" data-testid="shown-authors">{{ summary.draftAuthors.join(', ') || '—' }}</dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.offers_na' | translate }}</dt>
+                <dd class="m-0">{{ (summary.offersNotApplicable ? 'common.yes' : 'common.no') | translate }}</dd>
+            </dl>
+        }
+
+        @if (page.preview(); as current) {
+            <app-template-sheet />
+            <app-template-layout />
+
+            <!-- The items the confirmed layout read, fill-down applied: what a project will answer. -->
+            <app-template-items />
+
+            <!-- The pairing with the previous published version (decision 0032 §4). -->
+            @if (current.layout) {
+                <app-template-pairing />
+            }
+
+            <!-- The acts: publish or set aside a draft, derive from or retire a published version. -->
+            @if (page.writes() && current.version.status !== 'retired') {
+                <app-template-acts />
+            }
+        }
+    </p-card>
+}

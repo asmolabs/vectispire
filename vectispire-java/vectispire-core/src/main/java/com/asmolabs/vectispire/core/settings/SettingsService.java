@@ -1,0 +1,232 @@
+package com.asmolabs.vectispire.core.settings;
+
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
+import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The settings, as text keyed by name.
+ *
+ * <p><b>The catalog is the domain's, the storage is this table's.</b> A row whose key is not
+ * in {@link Setting} is not an error — it is a setting that has been removed, and the reader
+ * that no longer asks for it simply never sees it. That is what lets a setting be retired
+ * without a migration.
+ *
+ * <p><b>Reads go through {@link Setting}, and the default comes from the catalog.</b> The
+ * NestJS version took a key and a fallback at every call site, which put the same default in
+ * several places and let them drift: a caller that passed the wrong fallback got the opposite
+ * behaviour of the settings screen, silently, for an absent row. Here the default has exactly
+ * one definition, next to the label and the help text that describe it to the operator.
+ */
+@Service
+public class SettingsService {
+
+    private final SettingRepository settings;
+
+    public SettingsService(SettingRepository settings) {
+        this.settings = settings;
+    }
+
+    /** Every stored value, with no defaults filled in — what is on disk, not what applies. */
+    @Transactional(readOnly = true)
+    public Map<String, String> stored() {
+        Map<String, String> values = new HashMap<>();
+        settings.findAll().forEach(row -> values.put(row.getKey(), row.getValue() == null ? "" : row.getValue()));
+        return values;
+    }
+
+    /** Every setting in the catalog with its effective value: stored if present, default if not. */
+    @Transactional(readOnly = true)
+    public Map<String, String> effective() {
+        Map<String, String> values = new HashMap<>(Setting.defaults());
+        values.putAll(stored());
+        return values;
+    }
+
+    @Transactional(readOnly = true)
+    public String get(Setting setting) {
+        return settings.findById(setting.key())
+                // The stored value wins even when empty: an operator who deliberately cleared a
+                // field means it, and substituting the default there is how a cleared webhook URL
+                // comes back to life.
+                .map(row -> row.getValue() == null ? "" : row.getValue())
+                .orElseGet(setting::defaultValue);
+    }
+
+    /**
+     * Whether the key has a row of its own, rather than falling back to the catalog's default.
+     *
+     * <p>Not the same question as {@link #get(Setting)} returning the default value: an operator
+     * may have deliberately written the value the catalog also proposes, and overwriting that is
+     * overwriting a decision. The distinction is what lets {@link FirstInstallDefaults} seed a
+     * fresh install without ever undoing a choice.
+     */
+    @Transactional(readOnly = true)
+    public boolean isStored(Setting setting) {
+        return settings.findById(setting.key()).isPresent();
+    }
+
+    /** A boolean setting. Anything that is not {@code "true"} is false — the absent row included. */
+    @Transactional(readOnly = true)
+    public boolean isEnabled(Setting setting) {
+        return "true".equals(get(setting));
+    }
+
+    @Transactional(readOnly = true)
+    public int asInt(Setting setting) {
+        try {
+            return Integer.parseInt(get(setting).trim());
+        } catch (NumberFormatException notANumber) {
+            // A row written before a validation rule tightened must not take a screen down. The
+            // catalog's default is the documented behaviour, so falling back to it is the same
+            // answer the deployment would give with no row at all.
+            return Integer.parseInt(setting.defaultValue().trim());
+        }
+    }
+
+    /**
+     * A row no {@link Setting} names: a value the deployment keeps for itself and never shows on the
+     * settings screen — the document signing key, encrypted, is the one there is. Empty when absent,
+     * and when the row holds no value.
+     *
+     * <p>Here rather than in its caller's hands because the table is this module's: {@code crypto}
+     * read and wrote {@code t_setting} through the repository while the code was packaged by layer,
+     * a dependency on settings nothing showed.
+     *
+     * <p><b>Outside the caller's transaction, deliberately</b> — see {@link #storeInternalIfAbsent}:
+     * this is the read-back of a row that method has just committed in a transaction of its own, and
+     * inside a caller's {@code REPEATABLE READ} transaction (MySQL's default) the snapshot taken at
+     * the caller's first read would not show it. The repository call opens a transaction of its own.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Optional<String> internalValue(String key) {
+        return settings.findById(key).map(SettingEntity::getValue);
+    }
+
+    /**
+     * Stores such a row unless one exists, and says whether it did.
+     *
+     * <p><b>Insert-if-absent, never overwrite.</b> This was a merge, and a merge overwrites: two
+     * instances starting together each generated a signing key, each wrote it and each read back
+     * its own — the second write replaced the first after the first instance had already started
+     * signing with it, so its signatures verified against nothing stored. The insert now fails for
+     * whoever comes second, and the caller reads back the row that won.
+     *
+     * <p><b>Outside the caller's transaction.</b> The signing key is created by the first document
+     * signed, and documents are signed in read-only transactions — the evidence bundle's among them:
+     * joined to one, the insert was refused on both engines ("Connection is read-only") and the first
+     * bundle of every installation without {@code vectispire.signing.key} answered 500. SQLite
+     * ignores the read-only flag, and the suite ran on it. Suspending the caller's transaction also
+     * keeps a refused insert from marking it rollback-only, or aborting it on PostgreSQL.
+     *
+     * @return false when the key already had a row, which is left as it was
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public boolean storeInternalIfAbsent(String key, String value) {
+        try {
+            return settings.insert(key, value) == 1;
+        } catch (DataAccessException refused) {
+            // Decided by what is there, not by the exception's type: a lock timeout or a dropped
+            // connection fails the insert too, and the SQLite fixture of the time reported the key's
+            // refusal as a generic JPA failure. A refusal with no row behind it is some other
+            // failure, and is not swallowed.
+            if (settings.existsById(key)) {
+                return false;
+            }
+            throw refused;
+        }
+    }
+
+    /**
+     * Writes a row no {@link Setting} names — state the deployment keeps for itself and the settings screen
+     * never offers, such as what the tracker last said of its token — creating it if it is not there.
+     *
+     * <p>Refused for a catalog key: that row has a label, a validation and an audit trail, which this door
+     * would skip.
+     */
+    @Transactional
+    public void setInternal(String key, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        if (settings.updateValue(key, value) == 0) {
+            SettingEntity row = new SettingEntity();
+            row.setKey(key);
+            row.setValue(value);
+            settings.save(row);
+        }
+    }
+
+    /**
+     * Moves a row no {@link Setting} names from the value its caller read to another, <b>in the caller's
+     * transaction</b>, and says whether this caller is the one that moved it.
+     *
+     * <p>For state that must change once whoever else is looking at it — what was last said about a token, which
+     * every instance's hourly turn notices — and for an effect that must commit with that change or not at all: the
+     * caller opens the transaction, moves the row, and only the one told {@code true} queues what the change causes.
+     *
+     * <p><b>The row must exist</b>: an update cannot arbitrate over a row nobody has written. Store it first with
+     * {@link #storeInternalIfAbsent}, outside the transaction, and read it back.
+     */
+    @Transactional
+    public boolean replaceInternal(String key, String expected, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        return settings.replaceValue(key, expected, value) == 1;
+    }
+
+    /**
+     * Moves such a row from the value its caller read to another, in a transaction of its own, and
+     * says whether it moved.
+     *
+     * <p>For a value re-sealed under the current encryption key as it is read: the read may happen
+     * inside a read-only transaction — the signing key is first loaded by a document signed in one —
+     * where joining would be refused, and a refusal must not mark the caller's transaction for
+     * rollback. Conditional, so of two instances re-sealing the same row one writes and the other
+     * leaves the result alone.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean resealInternal(String key, String expected, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        return settings.replaceValue(key, expected, value) == 1;
+    }
+
+    /** Deletes a row no {@link Setting} names: the state kept for something that no longer exists. */
+    @Transactional
+    public void removeInternal(String key) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, and is not deleted.");
+        }
+        settings.deleteById(key);
+    }
+
+    /**
+     * Writes a value, creating the row if it is not there.
+     *
+     * <p><b>Update first, insert only if nothing was updated.</b> Read-then-write would let two
+     * concurrent writers of the same key both decide to insert, and the primary key would fail
+     * the second rather than merging it. The residual race — both find nothing, both insert —
+     * is left to raise: settings are written from an administration screen at human speed, and
+     * a caught-and-retried insert inside a transaction already marked rollback-only cannot
+     * commit anyway.
+     */
+    @Transactional
+    public void set(Setting setting, String value) {
+        if (settings.updateValue(setting.key(), value) == 0) {
+            SettingEntity row = new SettingEntity();
+            row.setKey(setting.key());
+            row.setValue(value);
+            settings.save(row);
+        }
+    }
+}

@@ -1,0 +1,124 @@
+<div class="flex flex-wrap gap-3 mb-4">
+    <p-select
+        [(ngModel)]="page.state"
+        [options]="page.states()"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="page.filtersChanged()"
+        [placeholder]="'issues.filter_state' | translate"
+        [ariaLabel]="'issues.filter_state' | translate"
+    />
+    <p-select
+        [(ngModel)]="page.severity"
+        [options]="page.severities()"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="page.filtersChanged()"
+        [placeholder]="'issues.filter_severity' | translate"
+        [ariaLabel]="'issues.filter_severity' | translate"
+        [showClear]="true"
+    />
+    <p-select
+        [(ngModel)]="page.type"
+        [options]="page.types()"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="page.filtersChanged()"
+        [placeholder]="'issues.col_type' | translate"
+        [ariaLabel]="'issues.col_type' | translate"
+        [showClear]="true"
+    />
+    <p-select
+        [(ngModel)]="page.target"
+        [options]="page.targets()"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="page.filtersChanged()"
+        [placeholder]="'issues.col_target' | translate"
+        [ariaLabel]="'issues.col_target' | translate"
+        [showClear]="true"
+        [filter]="true"
+        filterBy="label"
+        styleClass="min-w-56"
+    />
+    <p-select
+        [(ngModel)]="page.triageFilter"
+        [options]="page.triageOptions()"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="page.filtersChanged()"
+        [placeholder]="'issues.col_triage' | translate"
+        [ariaLabel]="'issues.col_triage' | translate"
+        [showClear]="true"
+    />
+    <div class="flex flex-col">
+        <p-iconfield>
+            <p-inputicon class="pi pi-search" />
+            <input
+                pInputText
+                vsSearchBound
+                #searchBound="vsSearchBound"
+                [(ngModel)]="page.search"
+                (keyup.enter)="page.filtersChanged()"
+                [placeholder]="'issues.search_placeholder' | translate"
+                [attr.aria-label]="'issues.search_label' | translate"
+            />
+        </p-iconfield>
+        <vs-search-bound-hint [bound]="searchBound" />
+    </div>
+</div>
+
+<!--
+    Written as `[ngModel]` plus one `(ngModelChange)` rather than the banana-in-a-box with a
+    second change handler beside it: two listeners for one event on one element is a reload
+    whose ordering against the assignment is left to attribute order.
+
+    Switches rather than three more selects: each is one-way. "Not only exploited" is the
+    unfiltered backlog, so a clearable select would offer a "no" that means the same as its
+    own empty state — and the server acts on `true` alone, which is the same shape.
+-->
+<div class="flex flex-wrap gap-x-6 gap-y-3 mb-4">
+    <div class="flex items-center gap-2">
+        <p-toggleswitch
+            inputId="filter-kev"
+            [ngModel]="page.onlyKev()"
+            (ngModelChange)="page.onlyKev.set($event); page.filtersChanged()"
+        />
+        <label for="filter-kev" class="m-0">{{ 'issues.filter_kev_label' | translate }}</label>
+    </div>
+    <div class="flex items-center gap-2">
+        <p-toggleswitch
+            inputId="filter-overdue"
+            [ngModel]="page.overdue()"
+            (ngModelChange)="page.overdue.set($event); page.filtersChanged()"
+        />
+        <!--
+            "Past its deadline" and not "late": the server also drops what triage settled, so
+            this is not simply the age of the row. A label promising the wider set would make
+            the count on the dashboard look wrong.
+        -->
+        <label for="filter-overdue" class="m-0">{{ 'issues.filter_overdue' | translate }}</label>
+    </div>
+    <div class="flex items-center gap-2">
+        <p-toggleswitch
+            inputId="filter-unsettled"
+            [ngModel]="page.unsettled()"
+            (ngModelChange)="page.unsettled.set($event); page.filtersChanged()"
+        />
+        <label for="filter-unsettled" class="m-0">
+            {{ 'issues.filter_unsettled' | translate }}
+            <span class="block text-muted-color text-sm">{{ 'issues.filter_unsettled_hint' | translate }}</span>
+        </label>
+    </div>
+    <div class="flex items-center gap-2">
+        <p-toggleswitch
+            inputId="filter-direct"
+            [ngModel]="page.onlyDirect()"
+            (ngModelChange)="page.onlyDirect.set($event); page.filtersChanged()"
+        />
+        <label for="filter-direct" class="m-0">
+            {{ 'issues.filter_direct' | translate }}
+            <span class="block text-muted-color text-sm">{{ 'issues.filter_direct_hint' | translate }}</span>
+        </label>
+    </div>
+</div>

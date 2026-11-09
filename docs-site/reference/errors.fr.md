@@ -1,0 +1,121 @@
+# Erreurs de l'API
+
+Chaque refus de l'API REST est un document « problem » au sens de la
+[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457). Lisez `detail` : c'est la phrase écrite pour
+l'auteur de la requête ; décidez sur `code`.
+
+```json
+{
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Scheme \"ftp\" is not allowed. Expected https, ssh or git.",
+  "instance": "/api/v1/repositories",
+  "code": "invalid-request"
+}
+```
+
+| Membre | Toujours présent | Sens |
+|---|---|---|
+| `status` | oui | Le statut HTTP, répété. |
+| `title` | oui | La formule standard du statut. Pas faite pour être affichée seule. |
+| `detail` | oui | Ce qui ne va pas, en des termes faits pour être affichés tels quels. |
+| `instance` | oui | Le chemin demandé. |
+| `code` | oui | Ce qu'est le refus, en jeton stable sur lequel un programme décide — voir [les codes](#les-codes). |
+| `retryAfterSeconds` | sur un 429 | Le temps d'attente. L'en-tête `Retry-After` porte le même nombre. |
+| `correlationId` | sur un 500 | Une référence à transmettre à votre administrateur ; elle figure aussi dans `detail`. |
+| `type` | sur certains 409 | `urn:vectispire:problem:<cause>`, qui nomme la raison — voir [Causes d'un 409](#causes-dun-409). Absent, il vaut `about:blank`. |
+| `integration` | avec `integration-disabled` ou `integration-in-use` | La clé de l'intégration désactivée, ou qui n'a pas pu l'être, par exemple `forge.gitlab`, `siem.syslog_tls`, `ai.ollama` ou `notification.slack`. |
+
+Le type de contenu est `application/problem+json`, y compris pour une requête que le serveur web
+refuse avant que l'application ne la voie : une URL que le pare-feu de sécurité rejette — `//`, un
+`..` encodé, un `;` — et une URL que le conteneur de servlets ne peut pas décoder, comme un `%`
+isolé ou un `/` encodé. Les deux sont un 400 dont le `detail` dit quel genre d'URL a été refusé ;
+aucune n'est une page HTML, et aucune ne nomme le serveur ni sa version. Une exception demeure :
+une défaillance levée avant qu'une route ne soit atteinte reçoit de la page d'erreur les mêmes
+membres, en `application/json` sauf si le client demande `application/problem+json` dans
+`Accept`.
+
+## Les codes
+
+`code` nomme le genre de refus pour un programme, pour qu'un script décide sur un jeton plutôt que sur
+la formulation de `detail`, écrite pour une personne et qui change avec elle. Il a été ajouté en route
+vers la 1.0 (décision 0043 §6) ; `status`, `title`, `detail` et `type` sont restés ce qu'ils étaient.
+
+| `code` | Statut | Quand |
+|---|---|---|
+| `invalid-request` | 400 | La requête est mal formée ou une valeur y est refusée. |
+| `authentication-required` | 401 | Pas d'identifiant, ou un identifiant invalide. |
+| `forbidden` | 403 | L'identifiant n'autorise pas ceci. |
+| `credential-not-accepted` | 403 | Une clé d'API ou un identifiant d'agent sur une route qui n'en accepte pas. |
+| `password-change-required` | 403 | Le compte doit d'abord changer de mot de passe. |
+| `import-refused` | 403 | Un SARIF, une couverture ou un rapport de tests d'une source non déclarée pour lui. |
+| `not-found` | 404 | Ce que nomme le chemin est absent — ou vous est caché ; le code ne distingue pas les deux non plus. |
+| `no-such-route` | 404 | Rien n'est servi à ce chemin : l'URL est fausse, la cible n'a pas disparu. |
+| `method-not-allowed`, `not-acceptable`, `unsupported-media-type` | 405, 406, 415 | Mauvaise méthode, mauvais `Accept` ou mauvais type de corps. |
+| `conflict` | 409 | L'état le refuse, pour une raison sans code propre. |
+| `already-queued`, `not-attestable`, `solution-not-empty`, `plugin-conflict` | 409 | Un scan déjà en file ; un scan sans rien à attester ; une solution qui contient encore des projets ; l'état d'un plugin. |
+| *la cause* | 409 | Un conflit qu'un client doit distinguer : le code est le dernier segment de son `type` `urn:vectispire:problem:`, comme `target-already-registered`. |
+| `encryption-key-missing`, `credential-withheld` | 412 | Le déploiement manque d'un réglage d'exploitant. |
+| `content-too-large` | 413 | Le corps dépasse le plafond de la route. |
+| `unsafe-url` | 422 | Une destination refusée par la politique sortante. |
+| `rate-limited` | 429 | Trop de tentatives ; attendez `retryAfterSeconds`. |
+| `account-throttled` | 429 | Une connexion au-delà du budget du compte, tous clients confondus, depuis un client qui ne s'y est jamais connecté : attendez `retryAfterSeconds`, connectez-vous depuis un endroit habituel, ou envoyez le second facteur avec le mot de passe — voir [votre compte](../administration/account.fr.md#echecs-venus-de-nombreux-endroits). |
+| `unexpected-failure` | 500 | Une défaillance pour laquelle personne n'a écrit de phrase ; citez le `correlationId`. |
+| `unavailable` | 502–504 | Passager. |
+
+Les codes sont ouverts, comme les valeurs d'énumération : un client qui en rencontre un qu'il ne connaît
+pas se rabat sur `status`. Un statut que ce tableau ne nomme pas se lit `http-<statut>`.
+
+L'interface affiche un refus dans sa propre langue à partir de `code`, et le `detail` anglais tel quel
+pour un code qu'elle ne connaît pas. Là où `detail` porte le fait qui compte — la valeur qu'un
+`invalid-request` a refusée, le plafond d'un `content-too-large` — la phrase traduite le cite.
+
+## Ce que signifie chaque statut
+
+| Statut | Quand |
+|---|---|
+| **400** | La requête est mal formée ou une valeur y est refusée : un champ manquant, une URL dont le schéma n'est pas admis, un paramètre du mauvais type, un corps qui n'est pas du JSON. Corrigez-la et renvoyez-la. |
+| **401** | Pas d'identifiant, ou un identifiant invalide. Reconnectez-vous, ou vérifiez la clé. |
+| **403** | L'identifiant est valide et n'autorise pas ceci : le rôle ne le permet pas, un changement de mot de passe est dû, ou la clé ou l'identifiant d'agent n'est pas accepté sur cette route. Le détail ne nomme pas les rôles qui le permettraient. |
+| **404** | La route n'existe pas, ou ce que le chemin désigne n'existe pas — **ou existe et vous n'avez pas à le voir**. Les deux se lisent pareil, dans les mêmes mots, à dessein : une réponse différente confirmerait l'existence d'un dépôt, d'un scan ou d'un constat qui ne vous a pas été confié. |
+| **405 / 406 / 415** | Mauvaise méthode, un `Accept` auquel la route ne sait pas répondre, un corps dans un type de média que la route ne lit pas. |
+| **409** | La requête entre en conflit avec l'état actuel et peut réussir plus tard telle quelle : un scan déjà en file, une solution qui contient encore des projets, une revue OWASP qui ne peut pas encore tourner, une intégration désactivée. |
+| **412** | Il manque au déploiement quelque chose qu'un exploitant règle : la clé de chiffrement, un secret qu'un agent ne peut pas recevoir. |
+| **413** | Le corps dépasse ce que la route accepte. Le détail donne le plafond. |
+| **422** | Une destination refusée par la politique de sortie. |
+| **429** | Trop de tentatives depuis cette adresse ou avec cette clé. Attendez `retryAfterSeconds`. |
+| **500** | Une défaillance pour laquelle personne n'a écrit de phrase. Le détail dit seulement qu'elle s'est produite et cite un `correlationId` ; l'erreur complète est dans le journal du plan de contrôle, sous cette référence. |
+| **503** | Passager : trop de connexions attendent leur second facteur — réessayez dans quelques minutes — ou trop de mots de passe sont vérifiés à la fois, avec `Retry-After` et `retryAfterSeconds` — réessayez après ce délai. L'un comme l'autre répond pareil quel que soit le nom, et aucun ne compte comme une tentative échouée. |
+
+## Causes d'un 409
+
+Quand une route refuse pour plusieurs raisons qui appellent des gestes différents, le `type` du
+problème nomme la cause, pour qu'un client les distingue sans lire la phrase, qui peut changer.
+Chaque route énonce ses causes dans la [référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md).
+Deux concernent les intégrations — la première sur plusieurs routes, la seconde sur la bascule du gouverneur :
+
+| `type` | Quand | Membres |
+|---|---|---|
+| `urn:vectispire:problem:integration-disabled` | Le geste a besoin d'une intégration — un type de forge, un transport SIEM, un fournisseur d'IA, un canal de notification, un gestionnaire de tickets — que le gouverneur de la plateforme a désactivée, dans *Administration → Intégrations* ou par `PUT /api/v1/integrations/{key}/enabled` ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)). La même requête réussit une fois l'intégration réactivée. Le `detail` nomme cette route, pour un client de l'API : *The integration "tracker.jira" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/tracker.jira/enabled.* Une fonction qui lit un fournisseur d'IA — le rapport OWASP, l'explication du conseiller, le test du point d'accès — l'ouvre par ce que le lecteur n'obtient pas : *AI unavailable — provider disabled. Nothing is sent to the other provider in its place.* L'autre fournisseur ne répond jamais à sa place. L'interface affiche à la place une phrase à elle, dans sa langue, qui nomme la clé et l'écran. | `integration` : sa clé |
+| `urn:vectispire:problem:integration-in-use` | Le gouverneur de la plateforme a demandé de désactiver une intégration qu'une configuration utilise encore — le transport SIEM par lequel l'export activé envoie, ou un canal de notification qui a où envoyer : une URL ou des destinataires dans les réglages de notification, le webhook propre d'une équipe (le canal webhook générique), les rappels hebdomadaires des checklists (le courriel). Rien n'est changé ni enregistré : ce qui attend dans la file n'aurait sinon plus nulle part où aller et serait perdu en silence. Changez d'abord cette configuration — pointez l'export SIEM vers un autre transport ou désactivez-le, videz l'URL, les destinataires ou les webhooks d'équipe du canal — puis désactivez l'intégration ; le `detail` liste ce qui l'utilise. Un fournisseur d'IA utilisé n'est pas refusé : il peut être désactivé, et les fonctions qui le lisent le disent. | `integration` : sa clé |
+
+## Un 500 ne s'explique jamais
+
+Un 500 ne porte pas le message de ce qui a échoué. Ce message n'a pas été écrit pour un client — il
+peut nommer une table, une colonne, un fichier de l'hôte ou les rouages d'une bibliothèque — il
+reste donc dans le journal. Pour enquêter, cherchez le `correlationId` dans le journal du plan de
+contrôle :
+
+```text
+ERROR … Unexpected failure 6f1c2a9e-… on PATCH /api/v1/users/12
+```
+
+## SCIM
+
+`/scim/v2/Users` et `/scim/v2/Groups` répondent à une valeur refusée, à un compte protégé, à un
+utilisateur ou un groupe absent (`404`) et à un `userName` ou un `displayName` déjà pris (`409`,
+`scimType` `uniqueness`) dans le schéma d'erreur de la
+[RFC 7644 §3.12](https://www.rfc-editor.org/rfc/rfc7644#section-3.12), parce que c'est ce qu'un
+client d'annuaire sait lire ; un filtre qu'il n'évalue pas reçoit `400` avec `scimType` `invalidFilter`.
+Tout autre refus sur les routes SCIM — celui du jeton, un corps qui n'est pas du JSON, un `startIndex`
+ou un `count` qui n'est pas un nombre — est un document « problem » comme ci-dessus.

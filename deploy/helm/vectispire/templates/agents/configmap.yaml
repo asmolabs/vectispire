@@ -1,0 +1,13 @@
+{{- if and .Values.agents.enabled .Values.agents.knownHosts }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vectispire.fullname" . }}-agent-known-hosts
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+data:
+  known_hosts: |
+    {{- .Values.agents.knownHosts | nindent 4 }}
+{{- end }}

@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+"""Load-bearing facts asserted in prose are checked against the tree that decides them.
+
+Why this exists
+---------------
+`check-doc-links.py` proves every relative link resolves. Bilingual parity was proved by
+counting files: ``docs/fr`` has twelve, ``docs/en`` has twelve, therefore parity. Both checks
+passed, for five consecutive audits, while ``README.md`` announced **"Four engines are
+supported"** and ``README.fr.md`` — its own counterpart — said two engines and a test fixture.
+
+ADR 0009 (four engines) was superseded by ADR 0014 (two engines and a fixture) on 25 August. The
+register recorded the reversal correctly, with dates and cross-links. The front page kept
+selling the reversed decision for five days, and no rule could see it, because *counting files
+is not reading them*. The same page carried "around 840 unit tests" against a real figure past
+1300.
+
+What this checks, and what it deliberately does not
+---------------------------------------------------
+Only facts with a single mechanical source of truth in the tree — the engine list Gradle
+iterates, the migration directories Flyway reads, the ADR files on disk, the compliance
+catalogue's own enum. Each is derived by *asking the source*, never by pinning a literal here:
+a checker with the answer hardcoded is a second copy of the claim, and the stale copy is always
+the one nobody updates.
+
+It does not check test counts. That number changes with every commit, so a document quoting it
+is wrong within a day and a checker chasing it is noise. The fix for that class of claim is to
+not write it down — see the Tests section of ``README.md``.
+
+It does not check prose for meaning. It looks for *contradictions of a known count*, which is a
+narrower and more honest job than "is this paragraph true".
+"""
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+# Prose to inspect: the front pages, the modules' own READMEs, every published document in both
+# languages, the architecture record and the user guide the site publishes.
+#
+# **The module READMEs and the site were outside it, and that is where the drift was.** The Java
+# README claimed "all four engines" and "twenty-six tables" a month after both had stopped being
+# true, and the installation guide said `docker compose` starts PostgreSQL when it starts MySQL —
+# every one of those documents is read before the ones this list did cover.
+DOCUMENTS = sorted(
+    path
+    for path in (
+        {ROOT / "README.md", ROOT / "README.fr.md",
+         ROOT / "vectispire-java" / "README.md", ROOT / "vectispire-angular" / "README.md"}
+        | set((ROOT / "docs" / "en").rglob("*.md"))
+        | set((ROOT / "docs" / "fr").rglob("*.md"))
+        | set((ROOT / "docs" / "architecture").rglob("*.md"))
+        | set((ROOT / "docs-site").rglob("*.md"))
+    )
+    # The decision records are left out of the counts, deliberately: they are history, and a
+    # superseded record *must* still say "four engines" — that is what it decided. Their index is
+    # checked separately, against their headers.
+    if "decisions" not in path.parts
+)
+
+NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+    "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six_fr": 6,
+    "sept": 7, "huit": 8,
+}
+
+
+def spelled(value: int) -> set[str]:
+    """Every way a document might write this number, digits included."""
+    written = {str(value)}
+    for word, number in NUMBER_WORDS.items():
+        if number == value:
+            written.add(word.removesuffix("_fr"))
+    return written
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def prose(text: str) -> str:
+    """The sentences, with everything that is not a sentence blanked out.
+
+    Fenced blocks, inline code and link *targets* are removed — replaced by spaces rather than
+    deleted, so every remaining character keeps its original offset and reported line numbers
+    stay true. Without this, `0014-two-engines-and-a-test-fixture.md` inside a link reads as a
+    document claiming fourteen engines, and `0009-four-engines.md` as one claiming nine. Those
+    were the first two false positives this checker produced, and a checker that cries wolf gets
+    an exemption list, then gets ignored, then gets deleted.
+    """
+    def blank(match: re.Match[str]) -> str:
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    text = re.sub(r"```.*?```", blank, text, flags=re.S)   # fenced blocks
+    text = re.sub(r"`[^`\n]*`", blank, text)              # inline code
+    text = re.sub(r"\]\([^)]*\)", blank, text)             # link targets, link text kept
+    return text
+
+
+# --------------------------------------------------------------------------------------
+# Ground truth, derived rather than declared.
+# --------------------------------------------------------------------------------------
+
+def deployable_engines() -> list[str]:
+    """The engines Gradle actually runs the campaign against.
+
+    ADR 0014 kept SQLite as a fixture beside the two deployable engines, and this filtered it out:
+    conflating a fixture with an offer was the exact defect this file was written for. ADR 0034
+    removed the fixture, its campaign leg and its migrations, so the campaign's list is the offer.
+    """
+    gradle = read(ROOT / "vectispire-java/vectispire-core/build.gradle.kts")
+    match = re.search(r"val\s+engines\s*=\s*listOf\(([^)]*)\)", gradle)
+    if not match:
+        raise LookupError("build.gradle.kts no longer declares `val engines = listOf(...)`")
+    return re.findall(r'"([a-z]+)"', match.group(1))
+
+
+def migration_vendors() -> list[str]:
+    """The engines there is SQL for — one directory each, and `common` is not one of them.
+
+    ADR 0027 added `common`, read by every engine. Counted as a directory like the others it would
+    have raised the engine ceiling below from three to four, and "four engines are supported" — the
+    exact claim this file was written against — would have passed again.
+    """
+    directory = ROOT / "vectispire-java/vectispire-core/src/main/resources/db/migration"
+    return sorted(d.name for d in directory.iterdir() if d.is_dir() and d.name != "common")
+
+
+def adr_numbers() -> list[str]:
+    decisions = ROOT / "docs/architecture/en/decisions"
+    return sorted(m.group(1) for f in decisions.glob("*.md")
+                  if (m := re.match(r"^(\d{4})-", f.name)))
+
+
+def compliance_counts() -> dict[str, int]:
+    catalogue = read(
+        ROOT / "vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire"
+             "/common/domain/compliance/ComplianceFramework.java")
+    control = read(
+        ROOT / "vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire"
+             "/common/domain/compliance/ComplianceControl.java")
+    categories = re.search(r"enum Category \{(.*?)\}", control, re.S)
+    if not categories:
+        raise LookupError("ComplianceControl no longer declares `enum Category`")
+    return {
+        "frameworks": len(re.findall(r"^    [A-Z][A-Z_0-9]*\($", catalogue, re.M)),
+        "controls": catalogue.count("new ComplianceControl("),
+        "categories": len(re.findall(r"^\s+([A-Z][A-Z_]+),?$", categories.group(1), re.M)),
+    }
+
+
+# --------------------------------------------------------------------------------------
+# The claims. Each is a pattern that means "this document is stating a count for X".
+# --------------------------------------------------------------------------------------
+
+def cyclonedx_minor() -> int:
+    """Le rang mineur de la version CycloneDX que le code émet réellement.
+
+    La constante est la seule source : `CycloneDxDocument.SPEC_VERSION`. La documentation
+    annonçait « CycloneDX 1.6 avec VEX intégré » dans le tableau du CRA et « export
+    CycloneDX 1.5/1.6 » deux sections plus bas, au-dessus d'un générateur dont la constante vaut
+    1.5 — et dont le javadoc disait lui aussi 1.5/1.6. Trois affirmations, une seule vérité.
+    """
+    source = read(ROOT / "vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire"
+                         "/common/domain/cyclonedx/CycloneDxDocument.java")
+    match = re.search(r'SPEC_VERSION\s*=\s*"1\.(\d+)"', source)
+    if not match:
+        raise SystemExit("CycloneDxDocument.SPEC_VERSION est introuvable : la règle ne vérifie plus rien.")
+    return int(match.group(1))
+
+
+def claims() -> list[tuple[str, int, re.Pattern[str]]]:
+    """(label, the true count, a pattern whose group 1 is the count a document asserts)."""
+    MAX = len(migration_vendors())
+    counts = compliance_counts()
+    return [
+        # **La version d'un format est une affirmation comme une autre, et elle n'enfle que dans
+        # un sens.** Personne n'annonce une version plus vieille que celle qu'il émet ; le défaut
+        # est toujours de promettre la plus récente. Le plafond est donc le rang mineur de la
+        # constante, et « 1.5/1.6 » échoue par son second terme — ce qui est voulu : un lecteur
+        # qui monte un pipeline sur la promesse d'un 1.6 découvre l'écart à l'intégration.
+        #
+        # L'ingestion, elle, ne lit pas la version déclarée et accepte les deux ; c'est ce que la
+        # documentation doit dire, plutôt que de laisser croire à un analyseur qui la contrôle.
+        #
+        # Le préfixe optionnel fait porter la vérification sur le terme le plus haut d'une plage :
+        # « CycloneDX 1.5/1.6 » est une promesse de 1.6, et un motif qui s'arrête au premier
+        # nombre l'aurait déclarée conforme — la forme exacte dans laquelle l'écart se cachait.
+        ("CycloneDX minor version (at most)", cyclonedx_minor(), re.compile(
+            r"CycloneDX[\s\u00a0]+(?:\d+\.\d+\s*/\s*)?1\.(\d+)", re.I)),
+        # **Engines are checked as a ceiling, not an equality, and that is a deliberate
+        # retreat.** The obvious rule — "any number next to `engines` must equal 2" — produced
+        # seventeen false positives on its first run: `un moteur` is a French article, and
+        # `one engine` is ordinary prose in a sentence about running the campaign against a
+        # single one. Both are correct English and correct French, and neither is the defect.
+        #
+        # The defect only ever *inflates*. "Four engines are supported" was wrong because four
+        # exceeds what exists; no document has ever undersold the engine list. So the bound is
+        # the number of migration directories Flyway actually carries — claim more targets than
+        # there is SQL for, and it is wrong whatever the phrasing. That catches the case that
+        # broke and stays silent on the cases that did not.
+        # A product version is not a count: "MySQL 8 sont les moteurs supportés" is two engines,
+        # and without the lookbehinds it read as eight.
+        ("database engines (at most)", MAX, re.compile(
+            r"(?<!MySQL )(?<!PostgreSQL )(?<!SQLite )"
+            r"\b(\d+|one|two|three|four|five|six|un|une|deux|trois|quatre|cinq|six)\b\s+"
+            r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
+            r"(?:engines?|moteurs?)\b", re.I)),
+        # "six frameworks", "cinq référentiels internationaux majeurs", "all 5 frameworks".
+        #
+        # The adjective gap is not incidental. The first version of this pattern required the
+        # number to sit next to the noun, and it missed the live defect it was written for:
+        # *"against five major international regulatory frameworks"*, three words apart, above a
+        # list of six. Up to four intervening adjectives, and no sentence boundary crossed.
+        ("compliance frameworks", counts["frameworks"], re.compile(
+            r"\b(\d+|four|five|six|seven|quatre|cinq|sept)\b\s+"
+            r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,4}"
+            r"(?:frameworks?|référentiels?)\b", re.I)),
+        # "24 controls", "détail des 24 contrôles"
+        # Not after a dot: "### 2.2 Role-Based Access Control" is a section number.
+        ("compliance controls", counts["controls"], re.compile(
+            r"(?<![\d.])\b(\d+)\s+(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
+            r"(?:controls?|contrôles?)\b", re.I)),
+        # "7 assessment categories", "7 catégories d'évaluation", "seven control categories".
+        # The documents say *assessment* categories where the enum says Category; matching only
+        # the code's word is how a pattern ends up checking nothing at all.
+        ("control categories", counts["categories"], re.compile(
+            r"\b(\d+|six|seven|eight|sept|huit)\b\s+"
+            r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
+            # STRIDE has six categories of its own, which are threats, not compliance controls.
+            r"(?:categor(?:y|ies)|catégories?)\b(?!\s+STRIDE)", re.I)),
+    ]
+
+
+def adr_index_disagreements() -> list[str]:
+    """Rows of the ADR index whose status is not the one the decision's own header states.
+
+    The index gained a status column so that a reader need not open nine files to learn which
+    decisions still hold. A column copied by hand is a second copy of each status, and the one
+    that goes stale is the index — so each row is compared with the header it summarises.
+    """
+    wording = {"accepted": "accepted", "proposed": "proposed", "superseded": "superseded by",
+               "accepté": "acceptée", "proposé": "proposée", "remplacé": "remplacée par"}
+    problems = []
+    for lang in ("en", "fr"):
+        decisions = ROOT / "docs" / "architecture" / lang / "decisions"
+        index = read(decisions / "README.md")
+        for row in re.finditer(r"^\| \[(\d{4})\]\(([^)]+)\) \| [^|]+ \| ([^|]+) \|$", index, re.M):
+            number, target, listed = row.group(1), row.group(2), row.group(3).strip()
+            header = re.search(
+                r"\*\*(?:Status|Statut)\s?:\*\*\s*\**([a-zéè]+)\**(?:\s+(?:by|par)\s+\[(\d{4})\])?",
+                read(decisions / target))
+            if header is None:
+                problems.append(f"docs/architecture/{lang}/decisions/{target}: no status in its header")
+                continue
+            expected = wording.get(header.group(1).lower(), header.group(1).lower())
+            if header.group(2):
+                expected += f" [{header.group(2)}]"
+            if not re.sub(r"\([^)]*\)", "", listed).startswith(expected):
+                problems.append(
+                    f"docs/architecture/{lang}/decisions/README.md: ADR {number} is listed as "
+                    f"“{listed}” but its header says “{expected}”")
+    return problems
+
+
+def asserted(text: str, pattern: re.Pattern[str]) -> list[tuple[int, str, str]]:
+    """Every count a document asserts for one claim, with the line it sits on."""
+    found = []
+    for match in pattern.finditer(text):
+        raw = match.group(1).lower()
+        value = int(raw) if raw.isdigit() else NUMBER_WORDS.get(raw)
+        if value is None:
+            continue
+        line = text.count("\n", 0, match.start()) + 1
+        found.append((line, value, match.group(0).strip()))
+    return found
+
+
+def main() -> int:
+    if not DOCUMENTS:
+        print("No documents were found to inspect — the walk is wrong, and a rule that "
+              "inspects nothing passes forever.", file=sys.stderr)
+        return 1
+
+    checks = claims()
+    failures: list[str] = []
+    inspected = 0
+    matched_per_claim = {label: 0 for label, _, _ in checks}
+
+    for document in DOCUMENTS:
+        text = prose(read(document))
+        relative = document.relative_to(ROOT)
+        for label, truth, pattern in checks:
+            for line, value, quote in asserted(text, pattern):
+                inspected += 1
+                matched_per_claim[label] += 1
+                ceiling = label.endswith("(at most)")
+                wrong = value > truth if ceiling else value != truth
+                if wrong:
+                    verb = "at most" if ceiling else "exactly"
+                    failures.append(
+                        f"{relative}:{line} claims {value} {label.removesuffix(' (at most)')}; "
+                        f"the tree allows {verb} {truth}\n    “{quote}”")
+
+    # **The guard against a rule that inspects nothing.** `check-i18n-keys.mjs` shipped with a
+    # floor of 40 keys and silently accepted a drop from 54 to 52 — a floor low enough to clear
+    # is a floor that never fires. Here the requirement is per-claim: if *any* claim stopped
+    # being found anywhere, its pattern has rotted and it is no longer checking a thing.
+    silent = [label for label, hits in matched_per_claim.items() if hits == 0]
+    if silent:
+        print("These claims matched nothing in any document, so they are not being checked:",
+              file=sys.stderr)
+        for label in silent:
+            print(f"  - {label}", file=sys.stderr)
+        print("Either the documentation stopped stating them, or the pattern is wrong. Both "
+              "need a human; neither is a clean run.", file=sys.stderr)
+        return 1
+
+    failures.extend(adr_index_disagreements())
+
+    if failures:
+        print("Documentation contradicts the tree:\n", file=sys.stderr)
+        for failure in failures:
+            print(f"  {failure}", file=sys.stderr)
+        print("\nA register that records a reversal and a front page that keeps selling the "
+              "reversed decision is worse than no register: the reader who checks is the one "
+              "who gets it wrong.", file=sys.stderr)
+        return 1
+
+    engines = deployable_engines()
+    vendors = migration_vendors()
+    # Two sources of one fact since ADR 0034: an engine with no SQL, or SQL for an engine nobody
+    # runs — a migration set left behind, the way the SQLite one could have been — is a tree that
+    # contradicts itself before any document does.
+    if len(engines) != len(vendors):
+        print(f"The campaign runs {len(engines)} engines ({', '.join(engines)}) and the tree carries "
+              f"migrations for {len(vendors)} ({', '.join(vendors)}).", file=sys.stderr)
+        return 1
+    adrs = adr_numbers()
+    counts = compliance_counts()
+    print(f"{len(DOCUMENTS)} documents, {inspected} numeric claims checked, none contradicted.")
+    print(f"  deployable engines : {len(engines)} ({', '.join(engines)}) "
+          f"— migrations for {len(vendors)}: {', '.join(vendors)}")
+    print(f"  ADRs               : {len(adrs)} ({adrs[0]}–{adrs[-1]})")
+    print(f"  compliance         : {counts['frameworks']} frameworks, "
+          f"{counts['controls']} controls, {counts['categories']} categories")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,44 @@
+<p-card styleClass="mb-4" data-testid="no-checklist">
+    <p class="mt-0" [class.mb-0]="!page.writes()">
+        {{ page.writes() ? ('project_checklist.none' | translate) : ('project_checklist.none_reader' | translate) }}
+    </p>
+    @if (page.writes()) {
+        @if (openOptions().length === 0) {
+            <p class="text-muted-color m-0" data-testid="no-offered">
+                {{ 'project_checklist.no_offered' | translate }}
+            </p>
+        } @else {
+            <p class="text-sm text-muted-color">{{ 'project_checklist.open_explain' | translate }}</p>
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="flex flex-col gap-2">
+                    <label for="open-version" class="font-medium">{{
+                        'project_checklist.open_field' | translate
+                    }}</label>
+                    <select
+                        id="open-version"
+                        [(ngModel)]="openChoice"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
+                        <option [ngValue]="null">—</option>
+                        @for (option of openOptions(); track option.value) {
+                            <option [ngValue]="option.value" [disabled]="option.disabled">
+                                {{ option.label }}
+                            </option>
+                        }
+                    </select>
+                </div>
+                <p-button
+                    id="open-checklist"
+                    icon="pi pi-plus"
+                    [label]="'project_checklist.open_btn' | translate"
+                    [loading]="page.busy()"
+                    [disabled]="!openChoice() || page.busy()"
+                    (onClick)="openChecklist()"
+                />
+            </div>
+            @for (note of openUnrenderable(); track note.value) {
+                <p-message severity="warn" styleClass="mt-3" data-testid="open-unrenderable">{{ note.text }}</p-message>
+            }
+        }
+    }
+</p-card>

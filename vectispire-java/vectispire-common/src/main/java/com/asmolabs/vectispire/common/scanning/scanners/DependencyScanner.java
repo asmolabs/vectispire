@@ -1,0 +1,294 @@
+package com.asmolabs.vectispire.common.scanning.scanners;
+
+import com.asmolabs.vectispire.common.scanning.Directories;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
+import com.asmolabs.vectispire.common.scanning.ContainerRun;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
+import com.asmolabs.vectispire.common.scanning.Workspace;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
+
+/**
+ * Dependency analysis, in two steps: one tool takes the inventory, the other matches it
+ * against known vulnerabilities.
+ *
+ * <p><b>Two tools and not one</b>, because the SBOM has value of its own: it is exportable, it
+ * answers "what is in this application", and it lets the vulnerability analysis be replayed
+ * without walking the code again. Merging the steps would lose that artifact.
+ *
+ * <p><b>Neither tool has the network.</b> The cataloguer, on a directory, reads dependency files and
+ * has nowhere to look. The matcher used to download its vulnerability database at every scan, which
+ * is what it had the network for; the database is now the host's, fetched and refreshed on its own
+ * by {@link VulnerabilityDatabase} and mounted read-only, and a database absent or too old fails the
+ * step rather than returning a reassuring result.
+ */
+public final class DependencyScanner {
+
+    private static final String SBOM_FILENAME = "sbom.json";
+    private static final String GRYPE = "grype";
+
+    /**
+     * The exported image, at the workspace root.
+     *
+     * <p>At the root and not under {@code source/}: it is not material for the other steps to
+     * analyse, and an image scan has no source tree anyway.
+     */
+    private static final String IMAGE_ARCHIVE_FILENAME = "image.tar";
+
+    /**
+     * The architecture audited by default.
+     *
+     * <p>Explicit, because the daemon would otherwise return the host's: an arm64 development
+     * machine would produce the SBOM of an arm64 image while production deploys linux/amd64,
+     * and the vulnerabilities found would not be the ones that matter.
+     */
+    public static final String DEFAULT_PLATFORM = "linux/amd64";
+
+    private final ContainerExecutor runner;
+    private final ScannerImages images;
+    private final VulnerabilityDatabase database;
+
+    public DependencyScanner(ContainerExecutor runner, ScannerImages images, VulnerabilityDatabase database) {
+        this.runner = runner;
+        this.images = images;
+        this.database = database;
+    }
+
+    /**
+     * A vulnerable component, reduced to what Vectispire keeps.
+     *
+     * @param fixVersions the versions that fix it, comma-separated; empty when none exists.
+     *     <b>A string and not a list</b>, because this doubles as the "fixable" flag in the
+     *     gate, where empty means "no published fix". An empty list and an absent value would
+     *     behave differently depending on the path taken
+     * @param purl the universal package identifier: what lets two sources be cross-referenced
+     */
+    public record DependencyFinding(
+            String identifier,
+            Severity severity,
+            String packageName,
+            String installedVersion,
+            String fixVersions,
+            String description,
+            String referenceUrl,
+            String purl) {}
+
+    /**
+     * Takes the inventory of a directory's dependencies.
+     *
+     * <p>Mounted read-only: the cataloguer has no reason to write into the tree it is
+     * analysing, and forbidding it removes the question of whether it does.
+     */
+    public Optional<JsonNode> sbomOfDirectory(Workspace workspace, String subPath) {
+        String label = "syft (directory SBOM)";
+
+        ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
+                        images.syft(),
+                        List.of("dir:" + ContainerPaths.source(subPath), "-o", "json"),
+                        List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
+                        label)
+                .runningAsOwnerOf(workspace.root())
+                .withEntrypoint(ScannerImages.SYFT_ENTRYPOINT));
+
+        return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
+    }
+
+    /**
+     * Takes the inventory of a <b>container image</b>.
+     *
+     * <p><b>Vectispire pulls it, the container does not.</b> The only process talking to the daemon
+     * is this one; the cataloguer sees a file. Mounting the socket into it would be equivalent
+     * to handing out root on the host, and no amount of container hardening changes that —
+     * whoever reaches the socket can start a privileged container.
+     *
+     * <p>The platform is applied <b>at the pull</b>, so the exported archive carries only the
+     * requested variant and there is nothing left to specify downstream.
+     */
+    public Optional<JsonNode> sbomOfImage(Workspace workspace, String reference, String platform) {
+        String label = "syft (SBOM of image " + reference + ")";
+        Path archive = workspace.root().resolve(IMAGE_ARCHIVE_FILENAME);
+
+        runner.exportImage(reference, platform, archive);
+        try {
+            ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
+                            images.syft(),
+                            List.of("docker-archive:" + ContainerPaths.MOUNT + "/" + IMAGE_ARCHIVE_FILENAME, "-o", "json"),
+                            List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
+                            label)
+                    // **Neither network nor socket.** The image is already here as an archive,
+                    // so there is nothing left for it to reach.
+                    .runningAsOwnerOf(workspace.root())
+                    .withEntrypoint(ScannerImages.SYFT_ENTRYPOINT));
+
+            return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
+        } finally {
+            // An image archive routinely runs to hundreds of megabytes, and the matcher does not
+            // need it: it goes as soon as the SBOM is read, without waiting for the scan to end.
+            try {
+                Files.deleteIfExists(archive);
+            } catch (IOException ignored) {
+                // The workspace removal will get it; this only shortens the window.
+            }
+        }
+    }
+
+    /**
+     * The cataloguer's output, believed only when it is a catalogue ({@link Sbom#isCatalogue}).
+     *
+     * <p>JSON of another shape was handed on as the scan's SBOM: the licence rule read it as an
+     * image with no package and resolved every licence issue, and the matcher was given it to match.
+     * Thrown, so that the step says what the cataloguer printed rather than that it "could not be
+     * taken".
+     */
+    private static Optional<JsonNode> catalogue(Optional<JsonNode> printed, String label) {
+        if (printed.isPresent() && !Sbom.isCatalogue(printed.get())) {
+            throw ScannerFailureException.of(label, "syft exited 0 and printed JSON that is not its catalogue (no "
+                    + "\"artifacts\" array); it is not read as a tree without dependencies.");
+        }
+        return printed;
+    }
+
+    /**
+     * Matches an SBOM against known vulnerabilities.
+     *
+     * <p>The SBOM goes through a file in the workspace rather than through standard input: that
+     * is what the matcher expects, and it leaves the artifact available for export.
+     *
+     * <p><b>Returns empty when the analysis did not happen</b>, never an empty list. An empty
+     * list means "analysed, no vulnerabilities" and resolves the target's whole backlog — which,
+     * after a failed database download, would be an expensive lie.
+     */
+    public Optional<List<DependencyFinding>> matchSbom(Workspace workspace, String sbomJson) {
+        writeSbom(workspace.root(), sbomJson);
+        return match(workspace.root(), "grype (SBOM analysis)");
+    }
+
+    /**
+     * Matching an SBOM that does not come from a cloned tree — an image's.
+     *
+     * <p>The SBOM is written into a temporary directory of its own, because the matcher reads it
+     * from a mount and there is no scan workspace to reuse here. Creating a full one for a single
+     * file would mean preparing a clone that will not happen.
+     *
+     * <p>The directory is removed in every case, failure included: an image SBOM weighs several
+     * megabytes, and a scan failing hourly would fill the disk without anybody making the
+     * connection.
+     */
+    public Optional<List<DependencyFinding>> matchStandaloneSbom(String sbomJson) {
+        Path directory;
+        try {
+            directory = Files.createTempDirectory("vectispire-sbom-");
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not stage the SBOM for matching", e);
+        }
+
+        try {
+            writeSbom(directory, sbomJson);
+            return match(directory, "grype (image SBOM analysis)");
+        } finally {
+            Directories.deleteRecursively(directory);
+        }
+    }
+
+    private Optional<List<DependencyFinding>> match(Path mounted, String label) {
+        // **The database is the host's, not the scan's.** It used to be downloaded into a directory
+        // of each workspace — some 3 GB, a minute and a half, per scan — which is why the matcher was
+        // the one scanner with the network. It is now one read-only generation per host, fetched and
+        // refreshed under a lock by `VulnerabilityDatabase`, and resolved here before the container
+        // starts: whatever is published afterwards, this scan reads what it mounted. No database and
+        // no way to get one throws, and the step is absent — never an empty list.
+        Path generation = database.mountable();
+
+        ContainerRun run = ContainerRun.of(
+                images.grype(),
+                List.of("sbom:" + ContainerPaths.MOUNT + "/" + SBOM_FILENAME, "-o", "json"),
+                List.of(
+                        ContainerRun.Mount.readOnly(mounted.toString(), ContainerPaths.MOUNT),
+                        ContainerRun.Mount.readOnly(generation.toString(), ContainerPaths.DATABASE_CACHE)),
+                label);
+        // **No network, and nothing writable but the scratch space.** The matcher has nothing left to
+        // fetch — `GRYPE_DB_AUTO_UPDATE=false` stops it trying — so the one scanner that ran online no
+        // longer does. As the workspace's owner rather than root: it reads the 0700 workspace and the
+        // 0700 generation, both this process's.
+        ContainerRunner.ContainerResult result = runner.run(run.runningAsOwnerOf(mounted)
+                .withEntrypoint(ScannerImages.GRYPE_ENTRYPOINT));
+
+        return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
+    }
+
+    /**
+     * The matcher's report as findings.
+     *
+     * <p><b>A report without its {@code matches} array is not a clean one.</b> It came back as an
+     * empty list, which resolves the target's whole vulnerability backlog — the "expensive lie" of
+     * {@link #matchSbom}, reached by JSON of another shape rather than by a failed download. Grype
+     * writes {@code "matches": []} when nothing matched (measured on the pinned image), so a missing
+     * array, or an element that is not an object, is thrown as the failure it is.
+     */
+    static List<DependencyFinding> findings(JsonNode payload) {
+        JsonNode matches = payload.path("matches");
+        if (!matches.isArray()) {
+            throw ScannerFailureException.of(GRYPE, "grype exited 0, and its report carries no \"matches\" array; "
+                    + "a report of another shape is not read as dependencies without vulnerabilities.");
+        }
+
+        List<DependencyFinding> findings = new ArrayList<>(matches.size());
+        for (JsonNode match : matches) {
+            if (!match.isObject()) {
+                throw ScannerFailureException.of(GRYPE, "grype's report holds a match that is not an object; the "
+                        + "report is not read.");
+            }
+            JsonNode vulnerability = match.path("vulnerability");
+            JsonNode artifact = match.path("artifact");
+
+            findings.add(new DependencyFinding(
+                    vulnerability.path("id").asText("unknown"),
+                    // Parsed into the enum rather than kept as text. The matcher says "High";
+                    // Vectispire's vocabulary is lowercase, and an unparsed "High" would match no
+                    // policy threshold — the finding would be created and enter no gate.
+                    Severity.of(vulnerability.path("severity").asText(null)),
+                    artifact.path("name").asText("unknown"),
+                    artifact.path("version").asText(""),
+                    fixVersions(vulnerability),
+                    text(vulnerability, "description"),
+                    text(vulnerability, "dataSource"),
+                    text(artifact, "purl")));
+        }
+        return List.copyOf(findings);
+    }
+
+    private static String fixVersions(JsonNode vulnerability) {
+        JsonNode versions = vulnerability.path("fix").path("versions");
+        if (!versions.isArray()) {
+            return "";
+        }
+        return StreamSupport.stream(versions.spliterator(), false)
+                .map(JsonNode::asText)
+                .filter(version -> !version.isBlank())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+    }
+
+    private static String text(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isTextual() && !value.asText().isBlank() ? value.asText() : null;
+    }
+
+    private static void writeSbom(Path directory, String sbomJson) {
+        try {
+            Files.writeString(directory.resolve(SBOM_FILENAME), sbomJson);
+        } catch (IOException e) {
+            throw ScannerFailureException.of("grype", "The SBOM could not be staged for matching: " + e.getMessage());
+        }
+    }
+}

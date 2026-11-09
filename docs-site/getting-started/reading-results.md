@@ -1,0 +1,112 @@
+# Reading the results
+
+The first scan of a real repository returns more than anybody will fix. That is normal, and
+working through it in severity order is how a backlog stops being triaged at all. This page
+is about the order that works instead.
+
+## Findings, issues, state, triage
+
+Four words, and mixing them up is the main source of confusion.
+
+**Finding** — one observation from one scan. Ephemeral by nature.
+
+**Issue** — the same problem tracked across scans: first seen, times seen, whether a fix
+exists, what was decided. The fingerprint that identifies it deliberately ignores the
+package version, so a dependency that stays vulnerable through three patch releases keeps
+one history and one decision.
+
+**State** — `open` or `resolved`. Written **only by the pipeline**, from what the scanners
+observed on the last run.
+
+**Triage status** — the VEX vocabulary: *affected*, *not affected*, *will not fix*
+(a risk accepted), *fixed*, *under review*. Written **only by a person**.
+
+Keeping state and triage apart is deliberate. If suppressing a finding marked it resolved,
+"resolved" would stop meaning anything, and nobody could tell a problem that was fixed from
+one somebody decided not to look at.
+
+## Rank by exploitability, not by severity
+
+A CVSS score says how bad a vulnerability would be if exploited. It says nothing about
+whether anyone is exploiting it. Two enrichments answer that, and both are attached to
+every vulnerability:
+
+- **EPSS** — the probability that this CVE will be exploited in the wild in the next 30
+  days.
+- **CISA KEV** — whether it is *actively exploited*, as a matter of record rather than
+  prediction.
+
+A KEV entry with a medium CVSS outranks a critical nobody has ever exploited. The issue
+list can be filtered on both.
+
+## Then by what you can actually fix today
+
+Each issue records whether your project **declared** the package itself or whether
+something else pulled it in — direct versus transitive, read from the SBOM's dependency
+graph.
+
+The distinction is operational, not academic. A critical CVE in a declared dependency is a
+version bump this afternoon. The same CVE four levels down waits on an upstream release
+you do not control. Ranked identically they produce a backlog nobody finishes, so narrow
+the list to what is fixable today and work that first.
+
+Where the SBOM carries no dependency graph the answer is **unknown** — a missing answer
+rather than a default one.
+
+The **Fixable only** filter goes further: it hides everything with no fix version
+published.
+
+## What a scan changed
+
+Each scan reports its delta: which issues are new, which are resolved. That is the view
+worth reading on a recurring scan, because the standing total barely moves week to week
+while the delta is where the news is.
+
+For the trend rather than the snapshot, the dashboard's backlog-over-time series shows the
+standing backlog day by day, what appeared against what was resolved, and the mean time to
+resolve. That last figure is shown as **absent** rather than zero when nothing was
+resolved, because a zero reads as "fixed the day it appeared".
+
+## Two states with an empty backlog
+
+An empty backlog would pass every rule that reads a backlog — including when it is empty because
+nothing ever ran. So two cases fail the gate verdict whatever the policy, with an `observation`
+violation, and the Security overview names them:
+
+- a target that was **never scanned** — no scan of it has completed yet;
+- a target whose **last scan failed**.
+
+Both count among the failing targets, on the screen and for a pipeline asking the
+[gate](../integrations/ci-gate.md#a-target-nobody-examined-never-passes). A scan still running is shown
+as such, and the verdict beside it is that of the scan before it.
+
+## Where to find what
+
+The sidebar answers two different questions, and they are two sections for that reason.
+
+**The estate** is what is wrong and what is being done about it: the dashboard, the targets, the
+scans, the findings, the [remediation plan](../guide/remediation.md) and the
+[times it takes](../guide/remediation-delays.md), the inventory, the risk views.
+
+**Evidence** is what you can show, and to whom: [compliance](../guide/compliance.md), the
+[statement of applicability](../guide/statement-of-applicability.md), the
+[certified scope](../guide/certified-scope.md), the [exceptions](../guide/exceptions.md), the
+[attestation](../guide/attestation.md) and the gate verdicts. An assessor opens these one after
+another, which is why they sit together rather than being filed by the part of the product that
+produces them.
+
+Five of those entries need governance read access, so an ordinary account sees the first three and
+an auditor sees all of them. **Settings** stay under Administration, with one distinction worth
+knowing: what *configures* a control is a setting, what a control *produces* is evidence. The gate
+policy is a setting; its refusals are evidence. The **audit log** and the **plugins** are
+Administration entries too, shown to the accounts that see that section; an ordinary account still
+opens a plugin's page from the scan that names it.
+
+The interface follows your language: the toggle in the top bar switches between English and
+French, and the choice is remembered in that browser. Prose written by a language model — the
+explanations on a finding, when one is configured — arrives in the model's own words and is not
+translated.
+
+## Next
+
+[Triaging issues →](../guide/issues.md) · [Failing a build on this →](../integrations/ci-gate.md)

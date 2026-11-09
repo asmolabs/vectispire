@@ -1,0 +1,200 @@
+package com.asmolabs.vectispire.core.rules;
+
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.scanning.BundledRules;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * What this instance can see, assembled from what it has installed and what it has inventoried.
+ *
+ * <p>The two halves come from different places and neither is expensive: the rule paths from the
+ * active rule set plus the files the jar ships, and the ecosystems from the distinct package URLs
+ * the component inventory already holds.
+ *
+ * <p><b>The bundled files are counted even though nobody installed them</b>, because they are
+ * what a fresh instance actually scans with — pretending an untouched deployment has no rules at
+ * all would be a different lie from the one being corrected.
+ */
+@Service
+public class RuleCoverageService {
+
+    private final RuleSetService ruleSets;
+    private final InventoryQueryService components;
+
+    public RuleCoverageService(RuleSetService ruleSets, InventoryQueryService components) {
+        this.ruleSets = ruleSets;
+        this.components = components;
+    }
+
+    /**
+     * The OWASP categories the installed rules declare about themselves — or, for a rule declaring no 2021
+     * category, the ones its CWEs map to ({@link OwaspTag#placedIn}): where its findings are placed.
+     *
+     * <p><b>Read from the rules, not from the findings.</b> Deriving the set from the categories
+     * that already carry a finding would make "nothing found here" indistinguishable from "no
+     * rule looks here" — and would flip a category out of the grid on the day its last finding
+     * is fixed, which is the moment it most deserves to say "looked at, clean".
+     *
+     * <p>The bundled files are read alongside the active set, for the reason {@link #assess()}
+     * gives: they are what a fresh instance actually scans with.
+     */
+
+    @Transactional(readOnly = true)
+    public Set<String> declaredOwaspCategories() {
+        Set<String> declared = new LinkedHashSet<>();
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> declared.addAll(OwaspTag.placedIn(BundledRules.contentOf(path))));
+
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
+                .forEach(file -> declared.addAll(OwaspTag.placedIn(file.content()))));
+
+        return declared;
+    }
+
+    /**
+     * The OWASP categories the installed rules declare, by the language each rule file is written for —
+     * what tells the grid that an A03 rule for Python says nothing of a Java repository.
+     *
+     * <p><b>{@link #declaredOwaspCategories} answers "does any rule here look at this category"; this
+     * answers "for which code".</b> The grid read the first alone, as a flag for the whole estate, so one
+     * Python rule tagged A03 made Injection "examined, nothing found" for every Java project. A file whose
+     * directory names no language ({@code generic/}) reaches no language and is in no entry here, though
+     * its categories are in the other answer: covered by the deployment, measured on no target.
+     */
+    @Transactional(readOnly = true)
+    public Map<Language, Set<String>> declaredOwaspCategoriesByLanguage() {
+        Map<Language, Set<String>> declared = new java.util.EnumMap<>(Language.class);
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> RuleCoverage.languageRead(path).ifPresent(language -> declared
+                        .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
+                        .addAll(OwaspTag.placedIn(BundledRules.contentOf(path)))));
+
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
+                .forEach(file -> RuleCoverage.languageRead(RuleCoverage.ruleTreePath(file)).ifPresent(language -> declared
+                        .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
+                        .addAll(OwaspTag.placedIn(file.content())))));
+
+        Map<Language, Set<String>> answer = new java.util.EnumMap<>(Language.class);
+        declared.forEach((language, categories) -> answer.put(language, Set.copyOf(categories)));
+        return java.util.Collections.unmodifiableMap(answer);
+    }
+
+    @Transactional(readOnly = true)
+    public RuleCoverage.Assessment assess() {
+        List<String> paths = new ArrayList<>(BundledRules.expected());
+
+        Optional<SemgrepRuleSetEntity> active = ruleSets.active();
+        // **The original name, not the storage name — without which this evaluation can only
+        // answer "not configured".** Uploaded files are stored flat as `rule-0001.yaml`;
+        // `RuleCoverage` reads the language from the *path*, and a path with no directory carries
+        // none. An operator could therefore import the whole upstream catalogue and go on reading
+        // "only the shipped rules are installed", indefinitely.
+        //
+        // The original name is the upstream path — `java/xss/….yaml`, kept deliberately because it
+        // goes into the rule identifier — and it reads like the shipped tree as soon as it is
+        // prefixed the same way.
+        active.ifPresent(row -> ruleSets.filesOf(row).stream()
+                .map(RuleCoverage::ruleTreePath)
+                .forEach(paths::add));
+
+        return RuleCoverage.assess(paths, components.distinctPurlTypes()).withOwasp(owaspTagging());
+    }
+
+    /**
+     * How the installed code-analysis rules declare their OWASP category, from the same files as {@link
+     * #declaredOwaspCategories}.
+     *
+     * <p><b>A rule tagged with another edition only is counted, not dropped.</b> It runs and its findings
+     * reach the backlog, but it declares no 2021 category, so the grid places none of them and reads the
+     * category it was written for as uncovered. Said here, the rule set's coverage carries the reason
+     * rather than leaving an operator to discover it category by category (decision 0046).
+     */
+    @Transactional(readOnly = true)
+    public OwaspTag.OwaspTagging owaspTagging() {
+        List<String> contents = new ArrayList<>();
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> contents.add(BundledRules.contentOf(path)));
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
+                .forEach(file -> contents.add(file.content())));
+        return OwaspTag.tally(contents);
+    }
+
+    /**
+     * The ecosystems no installed rule covers, for each target that has an inventory.
+     *
+     * <p><b>Per target, because a fleet-wide answer would fail the wrong builds.</b> An estate
+     * holding one Go repository among forty Java ones is {@code PARTIAL}; refusing every verdict
+     * on that basis would stop the forty that <em>are</em> examined, and the clause would be
+     * switched off within the day. The question a gate asks is about the target in front of it.
+     *
+     * <p>Keyed by {@code kind:id} — the same scope key the policies use — and targets with nothing
+     * uncovered are absent rather than present and empty, so a lookup miss and a clean answer are
+     * the same thing to a caller.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> uncoveredEcosystemsByTarget() {
+        List<String> paths = installedRulePaths();
+
+        Map<String, List<String>> purlsByTarget = new LinkedHashMap<>();
+        for (Object[] row : components.distinctPurlTypesByTarget()) {
+            Long repoId = (Long) row[0];
+            Long containerId = (Long) row[1];
+            String type = (String) row[2];
+            String key = repoId != null ? "repository:" + repoId : "container:" + containerId;
+            purlsByTarget.computeIfAbsent(key, ignored -> new ArrayList<>()).add(type);
+        }
+
+        Map<String, List<String>> uncovered = new LinkedHashMap<>();
+        purlsByTarget.forEach((key, purls) -> {
+            Set<String> gaps = RuleCoverage.assess(paths, purls).uncovered();
+            if (!gaps.isEmpty()) {
+                uncovered.put(key, List.copyOf(gaps));
+            }
+        });
+        return uncovered;
+    }
+
+    /**
+     * The ecosystems no installed rule covers in one target's inventory — {@link
+     * #uncoveredEcosystemsByTarget}'s entry for that target, read from that target's rows alone.
+     *
+     * <p><b>What a gate verdict asks</b>, once per pipeline run. It used to take the estate's whole
+     * answer and keep one entry, which made every verdict read every component row of every target:
+     * 1.8 s a call on the 1.0.0-rc.1 load test's estate (300 targets, a million rows), and the
+     * pipelines' calls queued behind each other on the connection pool.
+     */
+    @Transactional(readOnly = true)
+    public List<String> uncoveredEcosystemsOf(ScanTarget target) {
+        List<String> types = components.distinctPurlTypesOf(target);
+        if (types.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(RuleCoverage.assess(installedRulePaths(), types).uncovered());
+    }
+
+    /** The rule files this instance scans with: the active set, plus what the jar ships. */
+    private List<String> installedRulePaths() {
+        List<String> paths = new ArrayList<>(BundledRules.expected());
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row).stream()
+                .map(RuleCoverage::ruleTreePath)
+                .forEach(paths::add));
+        return paths;
+    }
+}

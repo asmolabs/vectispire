@@ -1,0 +1,410 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { IssueDetailPage } from './issue-detail';
+import { SessionStore } from '@/app/core/session.store';
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
+
+/**
+ * One issue's detail.
+ *
+ * <p>The page exists for the two things a backlog row cannot carry — where the issue was seen,
+ * and what was decided about it. Both are the answer to a question the row provokes: "is this
+ * still in the release we shipped" and "why is this dismissed".
+ */
+describe('the issue detail', () => {
+    let fixture: ComponentFixture<IssueDetailPage>;
+    let http: HttpTestingController;
+
+    const ISSUE = asSchema('IssueDetail', {
+        id: 7,
+        repoId: 5,
+        containerId: null,
+        targetKind: 'repository',
+        targetName: 'Arm Libs Spring',
+        type: 'vulnerability',
+        identifier: 'CVE-2026-1234',
+        severity: 'high',
+        packageName: 'openssl',
+        packageVersion: '3.0.1',
+        purl: null,
+        filePath: null,
+        line: null,
+        cvssScore: 9.1,
+        epssScore: null,
+        isKev: false,
+        fixState: 'fixed',
+        fixVersions: '3.0.14',
+        link: null,
+        description: 'A flaw in the parser.',
+        state: 'open',
+        firstSeenAt: '2026-03-03T08:00:00Z',
+        lastSeenAt: '2026-08-21T05:03:00Z',
+        timesSeen: 4,
+        triageStatus: 'under_review',
+        triageJustification: null,
+        triageComment: null,
+        triagedBy: null,
+        triagedAt: null,
+        triageExpiresAt: null,
+        triageRequestedStatus: null,
+        isDirectDependency: true,
+        ticketRef: null,
+        ticketUrl: null,
+        tool: null,
+        toolName: null,
+        toolVersion: null,
+        importSource: null,
+        sightings: [
+            {
+                scanId: 34,
+                status: 'completed',
+                branch: 'master',
+                version: '1.17.6',
+                scannedAt: '2026-08-21T05:03:00Z',
+                severity: 'high'
+            }
+        ],
+        decisions: []
+    });
+
+    /**
+     * What `PUT /issues/{id}/ticket` answers: the issue as `IssueView`, not the detail — no sightings,
+     * no decisions, no target name. The spec answered the detail spread with the new reference, four
+     * fields the route does not send; the screen takes `ticketRef` and `ticketUrl` from it and nothing else.
+     */
+    const ticketed = (ticketRef: string, ticketUrl: string | null) =>
+        asSchema('IssueView', {
+            id: ISSUE.id,
+            type: ISSUE.type,
+            identifier: ISSUE.identifier,
+            severity: ISSUE.severity,
+            state: ISSUE.state,
+            isKev: ISSUE.isKev,
+            timesSeen: ISSUE.timesSeen,
+            triageStatus: ISSUE.triageStatus,
+            ticketRef,
+            ticketUrl
+        });
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [IssueDetailPage],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        // An account that can act: the attach form is offered only to those, and an auditor who saw
+        // it would be refused by the server.
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'c.moreau',
+            displayName: null,
+            role: 'USER',
+            mustChangePassword: false,
+            mfaEnabled: false
+        });
+        TestBed.inject(I18nService).translations.set({
+            common: { save: 'Save', cancel: 'Cancel' },
+            issues: {
+                ticket: 'Ticket',
+                ticket_none: 'No ticket attached.',
+                ticket_attach: 'Attach a ticket',
+                ticket_change: 'Change the reference',
+                ticket_reference: 'Reference',
+                ticket_reference_help: '—',
+                ticket_url: 'Link',
+                ticket_synced: 'Closing this ticket can close this finding.',
+                ticket_attach_failed: 'The ticket could not be attached.'
+            }
+        });
+
+        useEnglish();
+        fixture = TestBed.createComponent(IssueDetailPage);
+        fixture.componentRef.setInput('id', '7');
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    });
+
+    /**
+     * The provenance card, for the two types another tool produced. An imported issue must read as
+     * declared by its source — not as analysed — with the source that sent it and the tool key
+     * that scopes its resolution; a plugin's names the plugin, linked to the registry.
+     */
+    describe('provenance', () => {
+        it('says an imported issue was declared by its source, with the tool and its scope', async () => {
+            await load({
+                ...ISSUE,
+                type: 'imported',
+                tool: 'import:payments-ci/sonarqube',
+                toolName: 'SonarQube',
+                toolVersion: '10.6',
+                importSource: 'payments-ci'
+            });
+
+            const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]');
+            const text = card?.textContent ?? '';
+            expect(text).toContain('Declared by a CI');
+            expect(text).not.toContain('Analysed by Vectispire');
+            expect(text).toContain('payments-ci');
+            expect(text).toContain('SonarQube');
+            expect(text).toContain('10.6');
+            expect(text).toContain('import:payments-ci/sonarqube');
+        });
+
+        it("names a plugin issue's plugin and links it to the registry", async () => {
+            await load({ ...ISSUE, type: 'plugin', tool: 'plugin:acme-lint', toolName: 'acme-lint' });
+
+            const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]');
+            expect(card?.textContent).toContain('Analysed by Vectispire');
+            expect(card?.querySelector('a')?.getAttribute('href')).toBe('/plugins?id=acme-lint');
+        });
+
+        it("shows no provenance card for Vectispire's own scanners", async () => {
+            await load();
+            expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]')).toBeNull();
+        });
+    });
+
+    async function load(issue: Record<string, unknown> = ISSUE): Promise<void> {
+        // The request is queued on a microtask so the required input is set before it fires.
+        await Promise.resolve();
+        http.expectOne('/api/v1/issues/7').flush(issue);
+        fixture.detectChanges();
+    }
+
+    it('shows the version each scan read, which is what dates the sighting', async () => {
+        await load();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('CVE-2026-1234');
+        expect(text).toContain('1.17.6');
+        expect(text).toContain('openssl');
+    });
+
+    it('says an issue nobody triaged was never decided upon', async () => {
+        await load();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        // With the shipped bundle loaded the reader's words can be asserted, rather than either an
+        // old sentence or the bare key.
+        expect(text).toContain('no decision recorded');
+    });
+
+    it('shows a decision with both ends of the transition', async () => {
+        await load({
+            ...ISSUE,
+            triageStatus: 'not_affected',
+            decisions: [
+                {
+                    fromStatus: 'under_review',
+                    toStatus: 'not_affected',
+                    justification: 'vulnerable_code_not_present',
+                    comment: 'Demonstration application.',
+                    actor: 'alice',
+                    origin: 'manual',
+                    occurredAt: '2026-03-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 34,
+                    version: null,
+                    previousResolvedAt: null
+                }
+            ]
+        });
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text.toLowerCase()).toContain('under review');
+        expect(text.toLowerCase()).toContain('not affected');
+        expect(text).toContain('Demonstration application.');
+    });
+
+    it('words the transition, the triage and the type in the reader language, after a switch too', async () => {
+        await load({
+            ...ISSUE,
+            triageStatus: 'not_affected',
+            decisions: [
+                {
+                    fromStatus: 'under_review',
+                    toStatus: 'not_affected',
+                    justification: null,
+                    comment: null,
+                    actor: 'alice',
+                    origin: 'manual',
+                    occurredAt: '2026-03-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 34,
+                    version: null,
+                    previousResolvedAt: null
+                }
+            ]
+        });
+        const text = () => (fixture.nativeElement as HTMLElement).textContent.replace(/\s+/g, ' ');
+        expect(text()).toContain('Under review → Not affected');
+        const english = text();
+
+        useFrench();
+        fixture.detectChanges();
+        expect(text()).toContain("En cours d'examen → Non affecté");
+        expect(text()).not.toBe(english);
+    });
+
+    it('shows a status it has no word for as the server sent it, never as a key path', async () => {
+        await load({ ...ISSUE, triageStatus: 'deferred' });
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('deferred');
+        expect(text).not.toContain('issues.triage_status.');
+    });
+
+    it('says a scan reopened the issue, and since when it had been resolved — never that it expired', async () => {
+        await load({
+            ...ISSUE,
+            decisions: [
+                {
+                    fromStatus: 'fixed',
+                    toStatus: 'under_review',
+                    justification: null,
+                    comment: null,
+                    actor: null,
+                    origin: 'reopen',
+                    occurredAt: '2026-06-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 35,
+                    version: null,
+                    previousResolvedAt: '2026-05-02T09:00:00Z'
+                }
+            ]
+        });
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('reopened — found again by a scan or an import, resolved since 02/05/2026');
+        expect(text).not.toContain('expired automatically');
+    });
+
+    it('says "none published" rather than leaving the fix blank', async () => {
+        await load({ ...ISSUE, fixVersions: null });
+
+        // The case that needs a human decision is exactly the one an empty cell hides.
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text.includes('none published') || text.includes('issues.fix_none_published')).toBe(true);
+    });
+
+    it('says no ticket tracks this finding, rather than leaving the box empty', async () => {
+        await load();
+
+        // "No ticket" and "the card showed nothing" look alike on screen and do not mean the same
+        // thing; it is the sentence that makes somebody click "attach".
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('No ticket attached.');
+        expect(text).toContain('Attach a ticket');
+    });
+
+    it('attaches the reference onto the field the webhook looks up', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '  SEC-1234  ';
+        page.ticketUrl = 'https://tracker.invalid/SEC-1234';
+        page.saveTicket();
+
+        const call = http.expectOne('/api/v1/issues/7/ticket');
+        expect(call.request.method).toBe('PUT');
+        // Trimmed here rather than on the server: a reference surrounded by spaces would be found
+        // by no webhook.
+        expect(call.request.body).toEqual({ reference: 'SEC-1234', url: 'https://tracker.invalid/SEC-1234' });
+        call.flush(ticketed('SEC-1234', 'https://tracker.invalid/SEC-1234'));
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('SEC-1234');
+        expect(text).toContain('Closing this ticket can close this finding.');
+        expect(page.editingTicket()).toBe(false);
+    });
+
+    it('is a form requiring the reference, and attaches once however often it is submitted', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector<HTMLInputElement>('#ticket-reference')!.required).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('#ticket-url')!.required).toBe(false);
+        page.ticketReference = 'SEC-1234';
+        const form = root.querySelector('#ticket-reference')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/issues/7/ticket').length).toBe(1);
+    });
+
+    it('sends a null URL rather than an empty one, an internal tracker may have none', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '#87';
+        page.saveTicket();
+
+        const call = http.expectOne('/api/v1/issues/7/ticket');
+        expect(call.request.body).toEqual({ reference: '#87', url: null });
+        call.flush(ticketed('#87', null));
+    });
+
+    it('sends nothing for an empty reference, instead of having the move refused', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '   ';
+        page.saveTicket();
+
+        // The server refuses, and rightly: a field emptied by mistake would make the finding
+        // invisible to the webhook and reopen the door to a second ticket from the sweep.
+        http.expectNone('/api/v1/issues/7/ticket');
+    });
+
+    it('garde le formulaire ouvert et dit pourquoi quand le serveur refuse', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = 'SEC-1234';
+        page.saveTicket();
+        http.expectOne('/api/v1/issues/7/ticket').flush(
+            { message: 'Issue not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        fixture.detectChanges();
+
+        expect(page.editingTicket()).toBe(true);
+        expect(page.ticketError()).toContain('Issue not found.');
+    });
+
+    it('does not offer the attachment to an account that can change nothing', async () => {
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'audit',
+            displayName: null,
+            role: 'AUDITOR',
+            mustChangePassword: false,
+            mfaEnabled: false
+        });
+        await load();
+
+        // Offering a door the server closes is worse than offering nothing: the auditor clicks,
+        // gets a refusal, and learns to distrust the screen.
+        expect(fixture.componentInstance.canAttach()).toBe(false);
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Attach a ticket');
+    });
+
+    it('reports a load failure instead of rendering half a page', async () => {
+        await Promise.resolve();
+        http.expectOne('/api/v1/issues/7').flush(null, { status: 404, statusText: 'Not Found' });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.issue()).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('could not be loaded');
+    });
+});

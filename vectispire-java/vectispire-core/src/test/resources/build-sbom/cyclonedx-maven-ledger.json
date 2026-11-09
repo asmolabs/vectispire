@@ -1,0 +1,359 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-03T08:12:44Z",
+    "lifecycles": [
+      {
+        "phase": "build"
+      }
+    ],
+    "tools": {
+      "components": [
+        {
+          "type": "library",
+          "author": "OWASP Foundation",
+          "group": "org.cyclonedx",
+          "name": "cyclonedx-maven-plugin",
+          "version": "2.9.1",
+          "purl": "pkg:maven/org.cyclonedx/cyclonedx-maven-plugin@2.9.1?type=maven-plugin"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:maven/org.example/ledger-service@1.4.0?type=jar",
+      "group": "org.example",
+      "name": "ledger-service",
+      "version": "1.4.0",
+      "purl": "pkg:maven/org.example/ledger-service@1.4.0?type=jar"
+    },
+    "properties": [
+      {
+        "name": "maven.goal",
+        "value": "makeAggregateBom"
+      },
+      {
+        "name": "maven.scopes",
+        "value": "compile,provided,runtime,system"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.example/ledger-model@1.4.0?type=jar",
+      "group": "org.example",
+      "name": "ledger-model",
+      "version": "1.4.0",
+      "description": "Ledger domain model",
+      "scope": "required",
+      "purl": "pkg:maven/org.example/ledger-model@1.4.0?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/ledger-model"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/ledger-model.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.springframework/spring-core@6.1.14?type=jar",
+      "group": "org.springframework",
+      "name": "spring-core",
+      "version": "6.1.14",
+      "description": "Spring Core Library",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/org.springframework/spring-core@6.1.14?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/spring-core"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/spring-core.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.springframework/spring-jcl@6.1.14?type=jar",
+      "group": "org.springframework",
+      "name": "spring-jcl",
+      "version": "6.1.14",
+      "description": "Spring Commons Logging Bridge",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/org.springframework/spring-jcl@6.1.14?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/spring-jcl"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/spring-jcl.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.2?type=jar",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-databind",
+      "version": "2.17.2",
+      "description": "General data-binding functionality for Jackson",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.2?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/jackson-databind"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/jackson-databind.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.17.2?type=jar",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-annotations",
+      "version": "2.17.2",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.17.2?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/jackson-annotations"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/jackson-annotations.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.17.2?type=jar",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-core",
+      "version": "2.17.2",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.17.2?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/jackson-core"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/jackson-core.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.yaml/snakeyaml@2.2?type=jar",
+      "group": "org.yaml",
+      "name": "snakeyaml",
+      "version": "2.2",
+      "description": "YAML 1.1 parser and emitter for Java",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:maven/org.yaml/snakeyaml@2.2?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/snakeyaml"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/snakeyaml.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/ch.qos.logback/logback-classic@1.5.8?type=jar",
+      "group": "ch.qos.logback",
+      "name": "logback-classic",
+      "version": "1.5.8",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "EPL-1.0"
+          }
+        },
+        {
+          "license": {
+            "id": "LGPL-2.1-only"
+          }
+        }
+      ],
+      "purl": "pkg:maven/ch.qos.logback/logback-classic@1.5.8?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/logback-classic"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/logback-classic.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/ch.qos.logback/logback-core@1.5.8?type=jar",
+      "group": "ch.qos.logback",
+      "name": "logback-core",
+      "version": "1.5.8",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "EPL-1.0"
+          }
+        },
+        {
+          "license": {
+            "id": "LGPL-2.1-only"
+          }
+        }
+      ],
+      "purl": "pkg:maven/ch.qos.logback/logback-core@1.5.8?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/logback-core"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/logback-core.git"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.slf4j/slf4j-api@2.0.16?type=jar",
+      "group": "org.slf4j",
+      "name": "slf4j-api",
+      "version": "2.0.16",
+      "description": "The slf4j API",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:maven/org.slf4j/slf4j-api@2.0.16?type=jar",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://example.invalid/slf4j-api"
+        },
+        {
+          "type": "vcs",
+          "url": "https://example.invalid/slf4j-api.git"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:maven/org.example/ledger-service@1.4.0?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.example/ledger-model@1.4.0?type=jar",
+        "pkg:maven/org.springframework/spring-core@6.1.14?type=jar",
+        "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.2?type=jar",
+        "pkg:maven/ch.qos.logback/logback-classic@1.5.8?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.springframework/spring-core@6.1.14?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.springframework/spring-jcl@6.1.14?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.2?type=jar",
+      "dependsOn": [
+        "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.17.2?type=jar",
+        "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.17.2?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.example/ledger-model@1.4.0?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.yaml/snakeyaml@2.2?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/ch.qos.logback/logback-classic@1.5.8?type=jar",
+      "dependsOn": [
+        "pkg:maven/ch.qos.logback/logback-core@1.5.8?type=jar",
+        "pkg:maven/org.slf4j/slf4j-api@2.0.16?type=jar"
+      ]
+    }
+  ]
+}

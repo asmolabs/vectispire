@@ -1,0 +1,81 @@
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { PasswordModule } from '@openng/optimus-ui/password';
+import { messageOf } from '../../core/api-error';
+import { AuthApi } from '../../core/api/auth.api';
+import { safeReturnUrl } from '../../core/auth.guard';
+import { SessionStore } from '../../core/session.store';
+import { I18nService } from '../../core/i18n/i18n.service';
+
+const MINIMUM_LENGTH = 12;
+
+/**
+ * Changing your own password.
+ *
+ * Outside `AppLayout`, like the sign-in screen: an account that has to change its password has
+ * no business in the rest of the application, and showing it a clickable sidebar would be an
+ * invitation to go around this screen.
+ */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
+@Component({
+    selector: 'app-change-password',
+    imports: [FormsModule, ButtonModule, MessageModule, PasswordModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './change-password.html'
+})
+export class ChangePassword {
+    private readonly authApi = inject(AuthApi);
+    private readonly session = inject(SessionStore);
+    private readonly router = inject(Router);
+    private readonly i18n = inject(I18nService);
+
+    readonly minimumLength = MINIMUM_LENGTH;
+    readonly loading = signal(false);
+    readonly error = signal<string | null>(null);
+    readonly imposed = computed(() => this.session.mustChangePassword());
+
+    /**
+     * The page to go back to, from the `returnUrl` query parameter (`withComponentInputBinding`): the
+     * one the guard turned away, or the one the topbar was on. Read through `safeReturnUrl` and never
+     * as it stands — it arrives in a URL anybody can write, and an address followed blindly after a
+     * password change is an open redirect at the moment the person trusts the page most.
+     */
+    readonly returnUrl = input<string | undefined>();
+
+    currentPassword = '';
+    newPassword = '';
+    confirmation = '';
+
+    submit(): void {
+        // Checked here and not on the server: the confirmation guards against a typo, it is
+        // not a rule. Sending it would give the server nothing to check.
+        if (this.newPassword !== this.confirmation) {
+            this.error.set(this.i18n.t('auth.error_confirmation_differs'));
+            return;
+        }
+
+        this.loading.set(true);
+        this.error.set(null);
+        this.authApi.changePassword(this.currentPassword, this.newPassword).subscribe({
+            next: () => {
+                this.loading.set(false);
+                this.session.clearMustChangePassword();
+                void this.router.navigateByUrl(safeReturnUrl(this.returnUrl() ?? null) ?? '/dashboard');
+            },
+            error: (response: { status: number; error?: { message?: string } }) => {
+                this.loading.set(false);
+                if (response.status === 0) {
+                    this.error.set(this.i18n.t('auth.error_server_unreachable'));
+                } else {
+                    // The server distinguishes "current password wrong" (401) from "new
+                    // password refused" (400); its message says which one.
+                    this.error.set(messageOf(response, this.i18n.t('auth.error_change_failed')));
+                }
+            }
+        });
+    }
+}

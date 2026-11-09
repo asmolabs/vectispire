@@ -1,0 +1,75 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">
+            {{ 'project_checklist.title' | translate }}
+            @if (page.projectName(); as name) {
+                <span class="text-muted-color font-normal" data-testid="project-name">— {{ name }}</span>
+            }
+        </h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'project_checklist.subtitle' | translate }}</p>
+    </div>
+    <a routerLink="/solutions" [fragment]="'project-' + page.id()" class="whitespace-nowrap text-sm">
+        <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        {{ 'project_checklist.back' | translate }}
+    </a>
+</div>
+
+@if (page.error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full" data-testid="error">{{ message }}</p-message>
+}
+@if (page.notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="notice">{{
+        message
+    }}</p-message>
+}
+
+<!-- A refusal that concerns no single line: the checklist's own, shown above everything. -->
+@if (page.refusal(); as refused) {
+    @if (refused.itemId === null) {
+        <app-checklist-refusal [refusal]="refused" />
+    }
+}
+
+@if (page.loading() && !page.view() && !page.notFound()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+} @else if (page.notFound()) {
+    <p-card styleClass="mb-4">
+        <p class="m-0" data-testid="not-found">{{ 'project_checklist.not_found' | translate }}</p>
+    </p-card>
+} @else if (!page.view()) {
+    <app-checklist-opening />
+} @else if (page.summary(); as current) {
+    <app-checklist-header />
+
+    @if (page.writes() && page.isLatest()) {
+        <app-checklist-acts />
+    }
+
+    <!-- Who each profile of the contact column is, reminded weekly of its lines (decision 0044). -->
+    <app-checklist-contacts [projectId]="page.id()" [writes]="page.writes()" [edition]="current.edition" />
+
+    <!-- The lines, grouped as the template groups them: by domain, then by objective. -->
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'project_checklist.lines_title' | translate }}</ng-template>
+        <app-checklist-as-measured />
+        @for (group of page.groups(); track group.domain) {
+            <section class="mb-6" [attr.data-testid]="'domain-' + $index">
+                <h3 class="text-lg font-semibold mt-0 mb-2">
+                    {{ group.domain ?? ('project_checklist.no_domain' | translate) }}
+                </h3>
+                @for (objective of group.objectives; track objective.objective) {
+                    <h4 class="text-base font-medium text-muted-color mt-3 mb-2">
+                        {{ objective.objective ?? ('project_checklist.no_objective' | translate) }}
+                    </h4>
+                    <ul class="list-none p-0 m-0 flex flex-col gap-3">
+                        @for (line of objective.lines; track line.itemId) {
+                            <li><app-checklist-line [line]="line" /></li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
+    </p-card>
+
+    <app-checklist-revisions />
+}

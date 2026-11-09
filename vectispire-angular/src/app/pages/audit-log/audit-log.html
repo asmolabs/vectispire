@@ -1,0 +1,165 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'audit_log.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'audit_log.subtitle' | translate }}</p>
+</div>
+
+<!--
+    The chaining has existed from the start and could only be verified by a script. A
+    log whose integrity nobody ever looks at mostly protects the conscience of whoever
+    wrote it: the result has to be visible without effort.
+-->
+@if (verification(); as result) {
+    @if (result.intact) {
+        <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">
+            @if (result.unverifiable > 0) {
+                {{
+                    'audit_log.chain_intact_partial'
+                        | translate
+                            : {
+                                  count: result.verified,
+                                  unverifiable:
+                                      ('audit_log.unverifiable_count' | translate: { count: result.unverifiable })
+                              }
+                }}
+            } @else {
+                {{ 'audit_log.chain_intact' | translate: { count: result.verified } }}
+            }
+        </p-message>
+    } @else {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">
+            @if (result.broken) {
+                <strong>{{ 'audit_log.chain_broken' | translate }}</strong> {{ result.broken }}
+            } @else {
+                <!--
+                    A break the chain itself cannot report: entries removed from this table
+                    that the second copy still holds. Nothing descends from the last entry
+                    written, so deleting it leaves a chain that verifies perfectly.
+                -->
+                <strong>{{ 'audit_log.missing_from_table' | translate: { count: result.missingFromTable } }}</strong>
+                {{ 'audit_log.missing_from_table_detail' | translate }}
+            }
+        </p-message>
+    }
+
+    <!--
+        The state of the second copy, shown whether or not it exists. A verification that
+        reported only differences would say nothing at all on an install with no mirror, which
+        reads exactly like a mirror with nothing to report.
+    -->
+    @if (result.mirrored) {
+        @if (result.missingFromMirror > 0) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+                {{ 'audit_log.missing_from_mirror' | translate: { count: result.missingFromMirror } }}
+            </p-message>
+        }
+    } @else {
+        <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">
+            {{ 'audit_log.no_mirror' | translate }} {{ 'audit_log.no_mirror_set_before' | translate }}
+            <code>VECTISPIRE_AUDIT_MIRROR</code> {{ 'audit_log.no_mirror_set_after' | translate }}
+        </p-message>
+    }
+} @else if (verifying()) {
+    <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">{{
+        'audit_log.verifying' | translate
+    }}</p-message>
+}
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <div class="flex flex-wrap gap-3 mb-4 items-end">
+        <div class="flex flex-col gap-2">
+            <label for="type" class="font-medium text-sm">{{ 'audit_log.operation' | translate }}</label>
+            <p-select
+                id="type"
+                [options]="operationOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="filters.operationType"
+                (ngModelChange)="search()"
+                [showClear]="true"
+                [placeholder]="'common.all' | translate"
+                [style]="{ minWidth: '14rem' }"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="user" class="font-medium text-sm">{{ 'audit_log.user' | translate }}</label>
+            <input
+                pInputText
+                id="user"
+                [(ngModel)]="filters.userId"
+                (keyup.enter)="search()"
+                [placeholder]="'audit_log.any_user' | translate"
+            />
+        </div>
+        <div class="flex flex-col gap-2 flex-1" style="min-width: 16rem">
+            <label for="q" class="font-medium text-sm">{{ 'audit_log.description_contains' | translate }}</label>
+            <div class="flex flex-col">
+                <input
+                    pInputText
+                    vsSearchBound
+                    #searchBound="vsSearchBound"
+                    id="q"
+                    [(ngModel)]="filters.search"
+                    (keyup.enter)="search()"
+                    class="w-full"
+                />
+                <vs-search-bound-hint [bound]="searchBound" />
+            </div>
+        </div>
+        <p-button [label]="'common.filter' | translate" icon="pi pi-search" (onClick)="search()" />
+    </div>
+
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th style="width: 11rem">{{ 'audit_log.col_timestamp' | translate }}</th>
+                <th style="width: 12rem">{{ 'audit_log.operation' | translate }}</th>
+                <th>{{ 'common.description' | translate }}</th>
+                <th style="width: 9rem">{{ 'audit_log.user' | translate }}</th>
+                <th style="width: 9rem">{{ 'audit_log.col_ip' | translate }}</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-entry>
+            <tr>
+                <td class="whitespace-nowrap text-sm">{{ entry.timestamp | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td><p-tag [value]="entry.operation" severity="secondary" /></td>
+                <td>{{ entry.description }}</td>
+                <td>{{ entry.userId || '—' }}</td>
+                <td class="font-mono text-sm">{{ entry.ipAddress || '—' }}</td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="5" class="text-center text-muted-color py-6">{{ 'audit_log.empty' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+
+    @if (total() > 0) {
+        <div class="flex items-center justify-between mt-4">
+            <span class="text-sm text-muted-color">
+                {{ 'common.page_range' | translate: { from: offset() + 1, to: shownTo(), total: total() } }}
+            </span>
+            <div class="flex gap-2">
+                <p-button
+                    [label]="'common.previous' | translate"
+                    icon="pi pi-chevron-left"
+                    [text]="true"
+                    [disabled]="offset() === 0"
+                    (onClick)="previous()"
+                />
+                <p-button
+                    [label]="'common.next' | translate"
+                    icon="pi pi-chevron-right"
+                    iconPos="right"
+                    [text]="true"
+                    [disabled]="shownTo() >= total()"
+                    (onClick)="next()"
+                />
+            </div>
+        </div>
+    }
+</p-card>

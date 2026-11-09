@@ -1,0 +1,91 @@
+package com.asmolabs.vectispire.core.audit.persistence;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+public interface AuditLogRepository extends JpaRepository<AuditLogEntity, UUID> {
+    /**
+     * The whole log in chain order.
+     *
+     * <p>Ordered by instant then id, which is the order the integrity chain was written in
+     * and the only one verification can follow. Two entries written in the same millisecond
+     * by two instances are a legitimate fork, and the id breaks the tie deterministically.
+     */
+    List<AuditLogEntity> findAllByOrderByTimestampAscIdAsc();
+
+    /**
+     * The entry the next one chains onto.
+     *
+     * <p>Same ordering as the verification, reversed. Reading "the latest" by timestamp
+     * alone would pick either of two entries written in the same millisecond, and the chain
+     * would then be built onto one and verified against the other.
+     */
+    Optional<AuditLogEntity> findTopByOrderByTimestampDescIdDesc();
+
+    /** The newest entries, for the screen. */
+    @Query("select a from AuditLogEntity a order by a.timestamp desc, a.id desc")
+    List<AuditLogEntity> findRecent(Limit limit);
+
+    /**
+     * Whether an operation has been recorded since an instant.
+     *
+     * <p><b>Read as bookkeeping, not only as history.</b> The weekly digest asks this to decide
+     * whether one has already gone out — so the append-only log is what stops two instances, or two
+     * restarts inside an hour, from sending the same report twice. Keeping a last-sent timestamp
+     * elsewhere would put the same fact in two places, and the copy an operator can edit would be
+     * the one that decided.
+     */
+    long countByOperationTypeAndTimestampGreaterThanEqual(String operationType, java.time.Instant since);
+
+    /**
+     * Rewrites one entry's hashes. Used by the rebuild, and by nothing else.
+     *
+     * <p>A targeted update rather than a save: loading the entity would let a dirty check
+     * rewrite columns the rebuild has no business touching, on a table whose whole purpose
+     * is that its rows do not change.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update AuditLogEntity a set a.previousHash = :previousHash, a.entryHash = :entryHash where a.id = :id")
+    int updateHashes(
+            @Param("id") UUID id,
+            @Param("previousHash") String previousHash,
+            @Param("entryHash") String entryHash);
+
+    /**
+     * The filtered page the screen shows.
+     *
+     * <p>Every filter optional, expressed as a null check rather than as four query methods:
+     * four methods is four orderings to keep in step, and the day one drifts the log reads
+     * differently depending on which filter happens to be set — on the one table whose whole
+     * value is that it reads the same to everybody.
+     */
+    @Query("""
+            select a from AuditLogEntity a
+             where (:operationType is null or a.operationType = :operationType)
+               and (:userId is null or a.userId = :userId)
+               and (:search is null
+                    or lower(a.description) like :search
+                    or lower(a.resourceId) like :search)""")
+    Page<AuditLogEntity> findFiltered(
+            @Param("operationType") String operationType,
+            @Param("userId") String userId,
+            @Param("search") String search,
+            Pageable pageable);
+
+    /** Which of these resources at least one entry of this operation names. */
+    @Query("select distinct a.resourceId from AuditLogEntity a where a.operationType = :operation and a.resourceId in :ids")
+    List<String> findResourcesNamed(@Param("operation") String operationType, @Param("ids") java.util.Collection<String> ids);
+
+    @Query("select distinct a.operationType from AuditLogEntity a order by a.operationType asc")
+    List<String> distinctOperationTypes();
+}

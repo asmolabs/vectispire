@@ -1,0 +1,187 @@
+# 04 — Runtime and deployment
+
+What a deployment is allowed to be, what it is refused, and what coordinates several of them.
+
+## The two shapes
+
+There is one binary and one switch. `VECTISPIRE_EMBEDDED_WORKER` decides whether the control
+plane also scans.
+
+| | Embedded worker (`true`, the default) | Remote agents (`false`) |
+|---|---|---|
+| Who holds the Docker socket | the control plane | each agent |
+| Who reaches the database | the control plane | the control plane, **only** |
+| Who holds `ENCRYPTION_KEY` | the control plane | the control plane, **only** |
+| What an agent is given | — | a scoped token, and sealed material per scan |
+
+**The switch is load-bearing rather than cosmetic.** `ScanDispatcher` takes an
+`Optional<ScanRunner>` and declines to claim work when it is empty — a control plane with no
+scanning capability must not claim a scan and then fail it. Setting the flag to `false` is what
+makes that empty branch mean *"served by agents"* instead of *"nobody wired the runner"*; the
+second was once true, and every queued scan stayed `pending` for ever without a single log line.
+
+An agent never opens a JDBC connection and never holds the encryption key. It receives work by
+long polling ([0003](decisions/0003-long-polling-for-agents.md)) and returns results over the same
+channel — or, for a scan it could not run, a failure report that ends the attempt as a lapsed lease
+would, at once and with the reason (`AgentProtocolService.reportFailure`).
+
+**The agent contract is a range** ([0043](decisions/0043-what-1-0-promises.md) §2). An agent announces
+the contract number it was built with; the control plane serves `AgentContract.OLDEST_SERVED` to
+`CURRENT`, refuses anything else with 409 before any work is handed over, and answers the agent in its
+own number. The number moves only when the previous agent would misread what it is handed — a new
+envelope, a new mandatory field — and such a change takes **two releases**: the first raises `CURRENT`,
+keeps the old form and chooses per agent by the number recorded at its `hello`; the next raises
+`OLDEST_SERVED` and deletes the old form. 0.11.0 is why it is written down: its sealed `v2` envelope
+reached 0.10 agents under the unchanged number 1. CI's `previous-agent` job runs the newest release's
+agent image, verified with cosign, through the composition's scan check against every commit.
+
+## A scan that could not run
+
+**One rule, whichever executor failed.** An agent's report, the built-in worker's own failure and a
+lease that lapsed all end the attempt through `ScanQueue.abandon` or the reclaim, and both apply
+`ScanQueue.afterFailure` (in `vectispire-common`): a **permanent** failure fails the scan at once,
+whatever the attempt; a **transient** one requeues it with the attempt counted and sets
+`t_scan.not_before` — the failure's instant plus 1 minute after the first attempt, 5 after the
+second, 15 after any later one (`vectispire.queue.retry-delays`), bounded by the attempt limit.
+Every claim selection and the conditional take itself skip a scan whose `not_before` is ahead, on
+every engine; the take clears it.
+
+**The kind is decided where the exception is.** The agent sends it as the report's `kind`, absent
+reading as transient so an older agent keeps the rule it had; the built-in worker reads it from the
+same exceptions (`FailureKind.of`, which walks the causes for a `ClassifiedFailure`). A clone's kind
+comes from types — MINA's disconnect reason, JGit's `NoRemoteRepositoryException`, the socket
+exceptions, the HTTP status read off the connection — and from JGit's own formatted sentence for an
+absent branch, the one kind no type carries (`GitClone.diagnose`). A task the control plane refuses
+to build is `TaskRefused`, permanent. Anything unclassified is transient.
+
+**Why the wait.** Without it, a lone agent took back at its next poll the scan it had just reported,
+and the three attempts meant to outlast a passing incident were spent in seconds. **Why the built-in
+worker was aligned**: it failed a scan for good at its first runner error, with the raw message
+unscrubbed, where the same error on an agent cost one attempt of three. This concerns a scan that
+could not run at all; a step that fails inside a scan that ran leaves its artifact absent, as decision
+[0007](decisions/0007-none-is-not-an-empty-list.md) requires, and is not retried.
+
+## The database
+
+**PostgreSQL or MySQL. MySQL is the default** — it is what `docker-compose.yml` ships — and the
+engine is selected by `VECTISPIRE_DB_URL` alone
+([0014](decisions/0014-two-engines-and-a-test-fixture.md)).
+
+**SQLite is refused, and the refusal is worth stating because it used to be documented as
+supported.** Under the shipped `ddl-auto: validate` the application did not start on it: SQLite
+has type *affinities* rather than types, so it reported a timestamp column back as FLOAT and
+Hibernate rejected the mapping. It stayed in the repository as the fixture the HTTP test suite ran
+on until [0034](decisions/0034-mysql-replaces-the-sqlite-fixture.md) moved that suite to MySQL;
+its driver, its dialect and its migrations are gone, and a `jdbc:sqlite:` URL does not start.
+
+The schema belongs to the Flyway migrations, one native SQL set per dialect
+([0013](decisions/0013-flyway-multi-dialect-migrations.md)). Hibernate validates and never
+reconciles: a deployment whose schema disagrees with the entities fails at startup rather than on
+the first query that touches the difference.
+
+## Several instances at once
+
+Four periodic jobs run in every instance, and **only one of them is leader-elected.** The
+distinction is the whole of this section, because the obvious summary — "background jobs are
+coordinated by a lease" — is wrong and would send a reader looking for a lease that is not there.
+
+| Job | Period | Coordination |
+|---|---|---|
+| Scan worker tick | 15 s | none needed: **claiming** a queued scan is the concurrency control |
+| Scan scheduler | 60 s | **leader-only**, on the `scheduler` lease in `t_leader_lease` |
+| Outbox relay — notifications and SIEM events | 60 s | none: each message is **claimed** before it is sent, so two instances do not deliver it at once |
+| Hourly maintenance | 1 h | none: pruning is idempotent |
+
+The relay, the scheduler's tick and the hourly maintenance are one class, `MaintenanceJobs`, which
+knows none of the work: each module contributes a `MaintenanceTask` from its own `internal` package —
+the scan retention, the ticket sweep, the triage expiry, the evidence purges… — and the tick runs a
+cadence's tasks in their declared order ([0029](decisions/0029-core-domains-become-modules.md)). Only
+work that tolerates running on several instances may be one.
+
+The scheduler is elected because it *creates* work: two instances deciding independently that a
+nightly scan is due would queue it twice. The others either claim what already exists or repeat an
+operation whose second run costs nothing — and an election there would buy nothing while adding a
+lease that can expire mid-pass.
+
+**A job that runs once per database is claimed, not checked.** The repair of the attempts withheld
+claims counted ran while no `SCAN_ATTEMPTS_REPAIRED` entry existed: two instances starting together
+both found none, both ran, and both wrote one. `OneShotJobs.claim` inserts the job's name into
+`t_one_shot_job` (since `V46`) as the first statement of the transaction that does the work; the
+primary key lets one insert through, the other waits for that transaction and fails, and its
+instance writes nothing. A run that fails rolls its claim back with it, so the next start tries
+again. **Which of the two a failure was is the committed row's to say** (`OneShotJobs.hasRun`,
+read after the rollback), never the exception's: a lock timeout or a dropped connection fails the
+same insert (and the SQLite fixture of the time reported the key's refusal as an uncategorised
+error) — read as
+"claimed elsewhere", each would report the job as run while nobody ran it.
+
+**Coordination is not the only thing they could have shared.** These four run on a scheduler of
+four threads, declared in `CoreConfiguration` rather than left to Spring Boot's default — which is
+a pool of **one**. On one thread the table above says nothing useful: a slow job does not delay the
+others, it stops them, and the slow job is always the same one, because the worker tick executes
+the scans it claims. The tick now hands its round to a thread `ScanWorker` owns, so the length of
+a scan is nobody else's period.
+
+**The agents' long polls have a scheduler of their own**, `agentPollScheduler`. `AgentJobPoller`
+re-checks the queue on a scheduled task, and that task used to sit in the same single-threaded pool
+as the jobs: a local scan running in this process meant no *remote* agent was handed work for its
+duration. A control plane running its own worker stopped serving its fleet, which is the opposite
+of what [0003](decisions/0003-long-polling-for-agents.md) separates them for. `SchedulerSeparationTest`
+is what keeps the two pools apart, because nothing else would notice them becoming one again.
+
+**What each instance still keeps to itself: the rate-limiting buckets.** `LoginRateLimitFilter`
+and `BearerRateLimitFilter` count in memory, so *n* instances allow roughly *n* times the
+configured ceiling. That is deliberate and it is not the throttle that protects the passwords —
+`t_login_attempt` is, in the database, per account and per client. These two are a coarse
+per-address filter whose stated value is the audit entry written when the ceiling is reached, so
+approximating it across a fleet costs precision and not a control. Size them per instance, not per
+deployment. **Multi-factor sign-in used to be on this list and no longer is**: the challenge lives
+in `t_mfa_challenge` since `V23`, so no session affinity is required on `/api/v1/auth/**`. **Nor
+is the tracker webhook's ceiling** (`vectispire.security.webhook-requests-per-window`): it is the
+one limit whose figure an operator sizes against a tracker's bulk edit rather than against an
+attacker, and three instances used to give an address three of them. `WebhookRateLimitFilter` keeps
+its bucket in front, then counts each admitted delivery in `t_rate_window` (since `V44`), in fixed
+windows every instance shares, so the configured figure is the deployment's. A fixed window lets an
+address spend its allowance at the end of one window and again at the start of the next; a
+database that cannot be reached admits rather than refuses, the delivery behind it needing the
+database anyway.
+
+**Every job waits before its first run.** `fixedDelay` spaces out the runs that follow and does
+nothing about the first, which would otherwise fire while Flyway has just finished and the pool is
+still filling.
+
+## What a deployment must be given
+
+Two variables have no default, on purpose, and the container refuses to start without them:
+
+- `ENCRYPTION_KEY` — decrypts every deployment SSH key and integration token the instance holds. A
+  shared default would mean anyone holding a copy of this repository can read them.
+- the database password, and the first administrator's password.
+
+`VECTISPIRE_TRUSTED_PROXIES` is empty by default, which means `X-Forwarded-For` is **ignored** and
+the peer address is the rate-limiting key. Set it only when something really does sit in front:
+trusting the header without a proxy lets a caller choose their own rate-limit bucket.
+
+## The audit mirror
+
+`VECTISPIRE_AUDIT_MIRROR` is **off in the application and on in compose**, which looks
+inconsistent and is not: the application ships with it off because writing to a path by default
+fails on a read-only filesystem, and a compose deployment has a writable volume, so that is the
+one place the default can be "on".
+
+It closes the case the hash chain cannot see. Deleting the *last* entry — the one nothing descends
+from — leaves a chain that still verifies perfectly. The mirror makes that deletion require a
+second edit in a second medium, and a log collector normally ships the file off the host within
+seconds. Point a collector at the volume; a mirror nobody collects only raises the cost of one
+deletion.
+
+## The images
+
+Three are published — the control plane, the agent and, from 0.11.0 on, the
+demonstration report plugin; 0.10.0 published the first two. **The release ships Jib's images**:
+`release.yml` runs `jibBuildTar`, as every push's `images` job does, because Jib needs no daemon and
+is fast. The `Dockerfile`s are the second route, the one that can `chown` the audit mirror's
+directory where Jib can only set a mode; the `dockerfiles` job builds them on a push that changes
+what only they read, and the nightly does every night. Every image carries `LICENSE` and `NOTICE`,
+and the nightly job asserts the jar is where the `Dockerfile` image says it is — the defect that made
+the job necessary was a `COPY` of a file the build never produced.

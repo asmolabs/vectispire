@@ -1,0 +1,15 @@
+/* The Playwright suite and its config. Nothing compiles them for a run — Playwright strips the types
+   and executes — so until this file existed the suite had never been type-checked, and the
+   type-aware lint read every Node global in it as `any`. `npm run lint` checks it with this file. */
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        // TypeScript 6 defaults `types` to none, so `process`, `Buffer` and `node:*` did not resolve,
+        // and `mysql2`'s declarations, which build on Node's, collapsed with them: `Connection` had
+        // no `execute`. `@types/node` is not ours to pin: it is a required peer of `mysql2`, whose own
+        // declarations do not compile without it, and npm installs it with `mysql2`.
+        "types": ["node"]
+    },
+    "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

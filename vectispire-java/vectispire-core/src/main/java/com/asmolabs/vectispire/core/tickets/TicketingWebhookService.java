@@ -1,0 +1,470 @@
+package com.asmolabs.vectispire.core.tickets;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.text.LogText;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
+import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.issues.IssueTriageService;
+import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.settings.Integrations;
+import com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals;
+import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryRepository;
+import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * What an issue tracker's webhook is allowed to change, and how its payload is read.
+ *
+ * <p>The outcomes are a closed set because each one is a different answer to the tracker — refused,
+ * unreadable, nothing to do, done — and the status each maps to belongs next to the route.
+ */
+@Service
+public class TicketingWebhookService {
+
+    private static final Logger log = LoggerFactory.getLogger(TicketingWebhookService.class);
+
+    /** How much of the user name a tracker reports is kept in an audit description. */
+    static final int CLAIMED_AUTHOR_LENGTH = 200;
+
+    /**
+     * The review date proposed with a tracker's refusal: an accepted risk carries one, and a tracker states
+     * none. A proposal only — the request waits for a person, who grants it with the date they choose.
+     */
+    static final java.time.Period PROPOSED_ACCEPTANCE_REVIEW = java.time.Period.ofDays(90);
+
+    private final IssueCatalog issues;
+    private final IssueTriageService triageService;
+    private final AuditLogService audit;
+    private final ObjectMapper json;
+    private final TicketService tickets;
+    private final WebhookDeliveryRepository deliveries;
+    private final WebhookRefusals refusals;
+    private final java.time.Clock clock;
+    private final Integrations integrations;
+
+    /**
+     * The trackers whose deliveries were last found ignored, by the registry's key: so that the log says when a
+     * suspension begins and when it ends, never on every delivery it ignores.
+     */
+    private final Set<String> ignoring = ConcurrentHashMap.newKeySet();
+
+    /** How long a delivery's body is remembered for the replay check. */
+    private static final java.time.Duration REPLAY_WINDOW = java.time.Duration.ofDays(30);
+
+    public TicketingWebhookService(
+            IssueCatalog issues,
+            IssueTriageService triageService,
+            AuditLogService audit,
+            ObjectMapper json,
+            TicketService tickets,
+            WebhookDeliveryRepository deliveries,
+            WebhookRefusals refusals,
+            java.time.Clock clock,
+            Integrations integrations) {
+        this.issues = issues;
+        this.triageService = triageService;
+        this.audit = audit;
+        this.json = json;
+        this.tickets = tickets;
+        this.deliveries = deliveries;
+        this.refusals = refusals;
+        this.clock = clock;
+        this.integrations = integrations;
+    }
+
+    public sealed interface Outcome {
+        /** The secret is configured and the call does not carry it, or the secret cannot be read. */
+        record Rejected() implements Outcome {}
+
+        /** No secret is configured, so nothing is accepted. */
+        record NotConfigured() implements Outcome {}
+
+        record Malformed() implements Outcome {}
+
+        record NoReference() implements Outcome {}
+
+        /** This exact body was already acted on: a replay, or the tracker's own redelivery. */
+        record AlreadyProcessed() implements Outcome {}
+
+        /**
+         * Authenticated, and read no further: the tracker's integration is switched off (decision 0040 §3).
+         *
+         * @param integration the registry's key a governor re-enables it by, {@code tracker.gitlab}
+         */
+        record IgnoredIntegrationDisabled(Integration integration) implements Outcome {}
+
+        record NoMatchingIssue(String ticketRef) implements Outcome {}
+
+        /** @param issueIds every issue carrying the reference, oldest first — never empty */
+        record Synced(List<Long> issueIds, String ticketRef, String actionTaken) implements Outcome {}
+    }
+
+    /**
+     * Audits a refusal when {@link WebhookRefusals} says it earns an entry.
+     *
+     * <p>Every refusal used to write one, on the only anonymous route that writes: the audit log —
+     * chained and never purged — could be filled by anybody who could reach the port.
+     */
+    private void recordRefusal(RequestActor origin, String description) {
+        refusals.refused(origin.ipAddress()).ifPresent(note -> audit.record(AuditLogService.Record.of(
+                AuditOperation.LOGIN_BLOCKED, "ticket_webhook", description + note, "anonymous")));
+    }
+
+    public Outcome handle(
+            TicketProvider provider, String rawPayload, WebhookAuthenticity.Presented presented, RequestActor origin) {
+
+        // **The system's only anonymous door: shut until a secret is set.** It cannot require a
+        // session — the caller is the tracker — so the secret is the whole of its authentication.
+        // With none configured it used to stay open, and once inside a stranger queued a "not
+        // affected" for any ticket reference they guessed. Nothing is accepted without one now,
+        // and a secret no key can read refuses like a wrong signature rather than reopening.
+        TicketService.WebhookSecret secret = tickets.webhookSecret();
+        if (secret instanceof TicketService.WebhookSecret.Absent) {
+            recordRefusal(origin, "Refused " + provider + " webhook from " + origin.ipAddress()
+                    + ": no webhook secret is configured");
+            return new Outcome.NotConfigured();
+        }
+        WebhookAuthenticity.Verdict verdict = secret instanceof TicketService.WebhookSecret.Present(String value)
+                ? WebhookAuthenticity.verify(provider, value, presented, rawPayload)
+                : WebhookAuthenticity.Verdict.REJECTED;
+        if (verdict != WebhookAuthenticity.Verdict.ACCEPTED) {
+            // Audited, because a stream of these is somebody probing and the audit log is where
+            // that becomes visible — sparingly, see `recordRefusal`. No detail in the response: a
+            // caller learning *which* header was wrong learns which tracker we expect.
+            recordRefusal(origin,
+                    (secret instanceof TicketService.WebhookSecret.Unreadable
+                                    ? "Refused " + provider + " webhook: the stored secret cannot be decrypted, from "
+                                    : "Rejected unsigned or wrongly signed " + provider + " webhook from ")
+                            + origin.ipAddress());
+            return new Outcome.Rejected();
+        }
+
+        // **Once per body.** A signed delivery captured on the wire stayed valid for ever: sent again,
+        // it queued the same decision again. Remembered by the hash of the body, which the
+        // signature covers — not by the delivery id, which travels in a header it does not.
+        Instant now = clock.instant();
+        deliveries.deleteBefore(now.minus(REPLAY_WINDOW));
+        String bodyHash = Sessions.hashOf(provider.wireName() + ":" + rawPayload);
+        try {
+            deliveries.saveAndFlush(new WebhookDeliveryEntity(bodyHash, provider.wireName(), now));
+        } catch (org.springframework.dao.DataAccessException refused) {
+            // The insert fails for more than a duplicate — a lock timeout, a dropped connection —
+            // and the SQLite fixture of the time did not even report the duplicate as one, so the
+            // row is asked for rather than the exception's class trusted. A database that is down
+            // is not a replay.
+            if (!deliveries.existsById(bodyHash)) {
+                throw refused;
+            }
+            log.info("{} webhook body already processed; ignored.", provider);
+            return new Outcome.AlreadyProcessed();
+        }
+
+        // **A suspended tracker's delivery is accepted and ignored** (decision 0040 §3) — after the secret, so that
+        // a stranger is refused as before and learns nothing of the switch, and before anything is read.
+        // Not a 409: a tracker retries a delivery that failed, and GitLab disables a webhook after repeated
+        // failures, so a refusal here would leave the webhook broken once the governor switched the tracker back
+        // on. Nothing of it is applied — but its body is in the replay table already, above: left out, a delivery
+        // captured while the tracker was off could be sent again once it was back on and be acted on then. The
+        // owner's call of 2026-10-14; the cost is that the tracker's own redelivery of an ignored event is not
+        // applied after re-enabling either.
+        // The configured tracker's suspension counts whatever path the delivery came by: one secret authenticates every
+        // provider's path, and a Jira-shaped body naming a GitLab ticket matches it, so checking only the path's
+        // integration let a suspended GitLab's tickets be synced through /webhook/jira.
+        Integration integration = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(TicketService.Standing::integration)
+                .orElse(Integration.of(provider));
+        if (!integrations.isEnabled(integration)) {
+            if (ignoring.add(integration.key())) {
+                log.info("Ticket webhook: the {} integration is disabled. Its deliveries are authenticated, answered "
+                        + "200 and ignored — no triage and no ticket state is changed — until a platform governor "
+                        + "re-enables it with PUT /api/v1/integrations/{}/enabled.", integration.key(), integration.key());
+            }
+            return new Outcome.IgnoredIntegrationDisabled(integration);
+        }
+        if (ignoring.remove(integration.key())) {
+            log.info("Ticket webhook: the {} integration is enabled again; its deliveries are applied again.",
+                    integration.key());
+        }
+
+        JsonNode payload;
+        try {
+            payload = json.readTree(rawPayload);
+        } catch (Exception e) {
+            return new Outcome.Malformed();
+        }
+
+        ExtractedTicketEvent event = extractEvent(provider, payload);
+
+        if (event == null || event.ticketRef() == null || event.ticketRef().isBlank()) {
+            return new Outcome.NoReference();
+        }
+
+        // **Every issue carrying the reference, not one.** A person may attach one ticket to several
+        // findings, and "12" and "#12" both match: read as one, two rows answered 500 for that ticket at
+        // every delivery. Each is synced as a lone one was, its own history and audit entry included.
+        List<IssueView> matching = issues.withTicket(event.ticketRef()).stream()
+                .filter(issue -> sameTicket(issue, event, provider))
+                .toList();
+        if (matching.isEmpty()) {
+            // Through LogText: the key is the tracker's, and a line break in it would write a second,
+            // forged entry into this log.
+            log.info("Received webhook for ticket {} from {} but no corresponding Vectispire issue found.",
+                    LogText.of(event.ticketRef()), provider);
+            return new Outcome.NoMatchingIssue(event.ticketRef());
+        }
+
+        List<String> actions = new ArrayList<>();
+        for (IssueView issue : matching) {
+            String action = sync(issue, event, provider, origin);
+            actions.add(matching.size() == 1 ? action : "issue " + issue.id() + ": " + action);
+        }
+        return new Outcome.Synced(matching.stream().map(IssueView::id).toList(), event.ticketRef(), String.join("; ", actions));
+    }
+
+    /** What one issue carrying the ticket becomes, as the tracker's event says; answers what was done. */
+    private String sync(IssueView issue, ExtractedTicketEvent event, TicketProvider provider, RequestActor origin) {
+        String actionTaken;
+
+        if (event.isRefusedOrFalsePositive()) {
+            // **What the tracker said, in the triage's words** (decision 0041). A refusal — "won't fix",
+            // declined, rejected, risk accepted, withdrawn, GitHub's `not_planned` — is an accepted
+            // exposure: `will_not_fix`, with no VEX justification. It used to be queued as `not_affected`
+            // with "inline mitigations already exist", a statement about the product the tracker never
+            // made, which the signed documents would have carried once approved. Only an explicit false
+            // positive is a claim about exposure, and only it is queued as `not_affected`.
+            TriageStatus status = event.isFalsePositive() ? TriageStatus.NOT_AFFECTED : TriageStatus.WILL_NOT_FIX;
+            VexJustification justification = event.isFalsePositive()
+                    ? VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH
+                    : null;
+
+            // **The author is the integration, and the claimed name goes down into the comment.**
+            // It used to come from the payload: on an anonymous route, that let the caller choose
+            // the name the audit log — tamper-evident, never purged — was going to seal beside its
+            // decision. The hash chain protects the entry against a later modification; it does not
+            // protect against a lie dictated to it. The name stays useful and stays written, but as
+            // reported data and not as an identity.
+            String author = provider.name() + "_webhook";
+            String claimed = event.author() != null && !event.author().isBlank()
+                    ? " (reported by the tracker as: " + event.author() + ")"
+                    : "";
+            // Clipped, not refused: the tracker wrote it, nobody here can shorten it, and a refusal
+            // would drop the decision it carries over the length of its prose.
+            String comment = BoundedText.clip((event.comment() != null && !event.comment().isBlank()
+                    ? event.comment()
+                    : "Status updated from " + provider.name() + " ticket " + event.ticketRef())
+                    + claimed, Triage.MAX_COMMENT_LENGTH);
+
+            // **A person's settled decision is not moved by a payload.** The tracker's word is recorded
+            // beside it; where it disagrees, the security lead is told (`VECTI-SEC-037`), since one of
+            // the two is wrong and only a person can say which.
+            Optional<TriageStatus> settled = TriageStatus.fromWireName(issue.triageStatus())
+                    .filter(TriageStatus::isSettled);
+            if (settled.isPresent()) {
+                boolean agrees = settled.get() == status;
+                actionTaken = (agrees ? "Tracker agrees with the settled decision " : "Tracker says " + status.wireName()
+                        + ", the issue stays " ) + settled.get().wireName() + "; nothing changed";
+                audit.record(new AuditLogService.Record(
+                        agrees ? AuditOperation.TICKET_SYNCED : AuditOperation.TRIAGE_CONTRADICTED_BY_TRACKER,
+                        String.valueOf(issue.id()),
+                        provider.name() + " ticket " + event.ticketRef() + ": " + actionTaken + " — " + comment,
+                        author,
+                        origin.ipAddress(),
+                        origin.userAgent()));
+                return actionTaken;
+            }
+
+            // **`false`, and that is the whole fix.** This boolean was `true`: a tracker's
+            // decision settled on the spot, bypassing four-eyes. On a route that requires no
+            // authentication as long as no secret is configured — the default — that meant an
+            // anonymous POST could set `not_affected` with the justification
+            // `vulnerable_code_not_in_execute_path`, which travels as it stands into the signed
+            // CycloneDX, OpenVEX and CSAF documents handed to customers.
+            //
+            // It is the claim this repository has already withdrawn once: the reachability analyser
+            // was made one-way so that no machine clears a component without a human, and
+            // `CycloneDxGeneratorService.mapAnalysis` writes the invariant out in full — "triage
+            // clears a component; reachability does not". This door was the hole in it: neither a
+            // human, nor authenticated.
+            //
+            // **Nothing breaks.** `queueIfNotApprover` converts the decision into
+            // `PENDING_APPROVAL` without consulting the four-eyes setting — `will_not_fix` settles,
+            // so it is queued like a dismissal — and `pending_approval` renders as "under
+            // investigation" in the documents. Synchronisation therefore goes on recording what the
+            // tracker says; it only stops publishing it in a human's place. An accepted risk needs a
+            // review date: the tracker gives none, so one is proposed, and whoever grants it sets theirs.
+            IssueView triaged = triageService.triageView(
+                    issue.id(),
+                    new Triage.Request(
+                            status,
+                            author,
+                            justification,
+                            comment,
+                            status == TriageStatus.WILL_NOT_FIX ? PROPOSED_ACCEPTANCE_REVIEW : null),
+                    false);
+
+            actionTaken = "Queued as " + triaged.triageStatus() + " (" + status.wireName()
+                    + (justification == null ? "" : ", " + justification.wireName()) + ") from " + author;
+
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.TICKET_SYNCED,
+                    String.valueOf(issue.id()),
+                    "Issue triage automatically synchronized from " + provider.name() + " ticket " + event.ticketRef() + ": " + actionTaken,
+                    author,
+                    origin.ipAddress(),
+                    origin.userAgent()));
+        } else {
+            actionTaken = "Ticket updated on " + provider.name() + " (status: " + event.status() + ")";
+            // **The integration is the actor here too.** This branch still sealed the payload's user
+            // name as the entry's actor — a name the sender chooses, written into the trail as the
+            // person who acted. As above, the claim is kept, bounded, as reported data.
+            String claimed = event.author() != null && !event.author().isBlank()
+                    ? " (reported by the tracker as: " + BoundedText.clip(event.author(), CLAIMED_AUTHOR_LENGTH) + ")"
+                    : "";
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.TICKET_SYNCED,
+                    String.valueOf(issue.id()),
+                    "Ticket update received from " + provider.name() + " for " + event.ticketRef() + " (status: "
+                            + event.status() + ")" + claimed,
+                    provider.name() + "_webhook",
+                    origin.ipAddress(),
+                    origin.userAgent()));
+        }
+
+        return actionTaken;
+    }
+
+    /**
+     * Whether the issue's ticket is the one the event is about, and not merely one with the same
+     * number.
+     *
+     * <p><b>A GitHub or GitLab number is a repository's, not the tracker's.</b> The issues were
+     * matched on the bare number, so an event about issue 12 of any repository — another project on
+     * the same forge, sent by a webhook configured there — moved every finding whose ticket was 12
+     * somewhere else. Such an event matches an issue whose ticket URL is the event's own, or, for a
+     * reference attached without a URL, one in the repository the integration is configured for. A
+     * Jira key or a ServiceNow number already carries its namespace: the reference is the whole of it.
+     */
+    private boolean sameTicket(IssueView issue, ExtractedTicketEvent event, TicketProvider provider) {
+        if (provider != TicketProvider.GITHUB && provider != TicketProvider.GITLAB) {
+            return true;
+        }
+        if (issue.ticketUrl() != null && !issue.ticketUrl().isBlank()) {
+            return event.url() != null && withoutTrailingSlash(issue.ticketUrl()).equalsIgnoreCase(withoutTrailingSlash(event.url()));
+        }
+        String project = tickets.project();
+        return tickets.provider() == provider && !project.isBlank() && project.equalsIgnoreCase(event.project());
+    }
+
+    private static String withoutTrailingSlash(String url) {
+        String trimmed = url.trim();
+        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+    }
+
+    /**
+     * @param url the ticket's own web address, as the forge sends it — GitHub and GitLab only
+     * @param project the repository it belongs to ({@code owner/repository}, {@code group/project}) —
+     *     GitHub and GitLab only
+     */
+    private record ExtractedTicketEvent(
+            String ticketRef,
+            String status,
+            String resolution,
+            String comment,
+            String author,
+            boolean isRefusedOrFalsePositive,
+            boolean isFalsePositive,
+            String url,
+            String project) {}
+
+    private ExtractedTicketEvent extractEvent(TicketProvider provider, JsonNode root) {
+        if (root == null) return null;
+
+        switch (provider) {
+            case GITLAB -> {
+                JsonNode attrs = root.path("object_attributes");
+                String iid = attrs.path("iid").asText("");
+                String state = attrs.path("state").asText("");
+                String title = attrs.path("title").asText("");
+                String author = root.path("user").path("username").asText("");
+                String comment = attrs.path("description").asText("");
+
+                boolean isFp = title.toLowerCase(Locale.ROOT).contains("false positive") || comment.toLowerCase(Locale.ROOT).contains("false positive");
+                boolean isWontFix = state.equalsIgnoreCase("closed") && (title.toLowerCase(Locale.ROOT).contains("wontfix") || title.toLowerCase(Locale.ROOT).contains("won't fix") || isFp);
+
+                return new ExtractedTicketEvent(iid, state, null, comment, author, isWontFix || isFp, isFp,
+                        attrs.path("url").asText(null), root.path("project").path("path_with_namespace").asText(null));
+            }
+            case GITHUB -> {
+                JsonNode issueNode = root.path("issue");
+                String number = issueNode.path("number").asText("");
+                String state = issueNode.path("state").asText("");
+                String stateReason = issueNode.path("state_reason").asText("");
+                String author = root.path("sender").path("login").asText("");
+                String body = issueNode.path("body").asText("");
+
+                // `not_planned` is GitHub's only way to close without completing: it says nothing of
+                // reachability, so it is a refusal. Only the words "false positive" make one.
+                boolean isFp = body.toLowerCase(Locale.ROOT).contains("false positive");
+                boolean isWontFix = isFp || stateReason.equalsIgnoreCase("not_planned");
+
+                return new ExtractedTicketEvent(number, state, stateReason, body, author, isWontFix, isFp,
+                        issueNode.path("html_url").asText(null), root.path("repository").path("full_name").asText(null));
+            }
+            case JIRA -> {
+                JsonNode issueNode = root.path("issue");
+                String key = issueNode.path("key").asText("");
+                JsonNode fields = issueNode.path("fields");
+                String status = fields.path("status").path("name").asText("");
+                String resolution = fields.path("resolution").path("name").asText("");
+                String author = root.path("user").path("displayName").asText("");
+                String comment = root.path("comment").path("body").asText("");
+
+                String resLower = resolution.toLowerCase(Locale.ROOT);
+                boolean isFp = resLower.contains("false positive") || resLower.contains("cannot reproduce");
+                boolean isWontFix = isFp || resLower.contains("won't fix") || resLower.contains("wontfix") || resLower.contains("declined") || resLower.contains("rejected");
+
+                return new ExtractedTicketEvent(key, status, resolution, comment, author, isWontFix, isFp, null, null);
+            }
+            case SERVICENOW -> {
+                String number = root.path("number").asText("");
+                String sysId = root.path("sys_id").asText("");
+                String state = root.path("state").asText("");
+                String closeCode = root.path("close_code").asText("");
+                String author = root.path("closed_by").asText("");
+                String closeNotes = root.path("close_notes").asText("");
+
+                String codeLower = closeCode.toLowerCase(Locale.ROOT);
+                boolean isFp = codeLower.contains("false positive") || codeLower.contains("not an issue");
+                boolean isWontFix = isFp || codeLower.contains("won't fix") || codeLower.contains("risk accepted") || codeLower.contains("withdrawn");
+
+                return new ExtractedTicketEvent(number.isEmpty() ? sysId : number, state, closeCode, closeNotes, author, isWontFix,
+                        isFp, null, null);
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+}

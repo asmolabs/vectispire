@@ -1,0 +1,351 @@
+<div class="flex flex-col gap-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">
+                {{ 'compliance.title' | translate }}
+            </h1>
+            <p class="text-surface-600 dark:text-surface-400 mt-1">{{ 'compliance.subtitle' | translate }}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <button
+                pButton
+                icon="pi pi-refresh"
+                class="p-button-outlined"
+                [label]="'common.refresh' | translate"
+                [loading]="loading()"
+                (click)="loadSummary()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-file-pdf"
+                class="p-button-outlined"
+                [label]="'compliance.export_pdf' | translate"
+                [loading]="exporting()"
+                (click)="exportPdf()"
+            ></button>
+            @if (isSecurityLead()) {
+                <button
+                    pButton
+                    icon="pi pi-upload"
+                    class="p-button-outlined"
+                    [label]="'compliance.import_vex' | translate"
+                    (click)="openImport()"
+                ></button>
+            }
+            <button
+                pButton
+                icon="pi pi-file"
+                class="p-button-outlined"
+                [label]="'compliance.export_vex' | translate"
+                [loading]="exportingVex()"
+                (click)="exportOpenVex()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-file"
+                class="p-button-outlined"
+                [label]="'compliance.export_csaf' | translate"
+                [loading]="exportingCsaf()"
+                (click)="exportCsaf()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-code"
+                class="p-button-outlined"
+                [label]="'compliance.export_cyclonedx' | translate"
+                [loading]="exportingCycloneDx()"
+                (click)="exportCycloneDx()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-key"
+                class="p-button-outlined"
+                [label]="'compliance.cosign_key' | translate"
+                [loading]="downloadingPubKey()"
+                (click)="downloadPublicKey()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-verified"
+                class="p-button-outlined"
+                [label]="'compliance.verify_signature' | translate"
+                (click)="openVerifier()"
+            ></button>
+            @if (canReadGovernance()) {
+                <button
+                    pButton
+                    icon="pi pi-shield"
+                    class="p-button-primary"
+                    [label]="'compliance.export_bundle' | translate"
+                    [loading]="exportingBundle()"
+                    (click)="exportEvidenceBundle()"
+                ></button>
+            }
+        </div>
+    </div>
+
+    <!-- Scope Selector Bar -->
+    <div
+        class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 flex flex-wrap items-center justify-between gap-4"
+    >
+        <div class="flex items-center gap-3">
+            <i class="pi pi-building text-primary-500 text-xl"></i>
+            <div>
+                <span class="font-bold text-surface-900 dark:text-surface-0 text-sm">{{
+                    'compliance.scope' | translate
+                }}</span>
+                <p class="text-xs text-surface-500 my-0">{{ 'compliance.scope_help' | translate }}</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <p-select
+                [ariaLabel]="'compliance.scope' | translate"
+                [options]="targetOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="selectedTarget()"
+                (ngModelChange)="onTargetChange($event)"
+                styleClass="w-80"
+            />
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    @if (error()) {
+        <p-message severity="error" [text]="error()!"></p-message>
+    }
+
+    @if (summary(); as data) {
+        <app-compliance-summary
+            [summary]="data"
+            [showMatrix]="selectedTarget() === 'ALL'"
+            [inspectable]="true"
+            (inspect)="onTargetChange($event)"
+        />
+    }
+
+    <!-- VEX Import Dialog -->
+    <p-dialog
+        [header]="'compliance.import_title' | translate"
+        [(visible)]="importOpen"
+        [modal]="true"
+        [style]="{ width: '38rem' }"
+        [appendTo]="'body'"
+    >
+        <form class="flex flex-col gap-4" (ngSubmit)="submitIngestVex()">
+            <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
+                {{ 'compliance.upload_statement' | translate }}
+                <strong>{{ 'compliance.format_openvex' | translate }}</strong
+                >, <strong>{{ 'compliance.format_csaf' | translate }}</strong> {{ 'compliance.or' | translate }}
+                <strong>{{ 'compliance.format_cyclonedx' | translate }}</strong>
+                {{ 'compliance.vex_upload_help' | translate }} <em>not_affected</em>
+                {{ 'compliance.with_vendor_justification' | translate }}
+            </p>
+
+            <div>
+                <label
+                    for="vex-import-file"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.pick_json' | translate }}</label
+                >
+                <input
+                    id="vex-import-file"
+                    type="file"
+                    accept=".json,application/json"
+                    (change)="onFileSelected($event)"
+                    class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
+            </div>
+
+            <div>
+                <label
+                    for="vex-import-json"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.paste_json' | translate }}</label
+                >
+                <textarea
+                    id="vex-import-json"
+                    name="vex-import-json"
+                    rows="8"
+                    required
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="importJson"
+                    class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'
+                ></textarea>
+            </div>
+
+            @if (importSuccess()) {
+                <p-message severity="success" [text]="importSuccess()!"></p-message>
+            }
+            @if (importError()) {
+                <p-message severity="error" [text]="importError()!"></p-message>
+            }
+        </form>
+
+        <ng-template #footer>
+            <button
+                pButton
+                [label]="'common.cancel' | translate"
+                class="p-button-text"
+                (click)="importOpen.set(false)"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-check"
+                [label]="'compliance.ingest_and_apply' | translate"
+                [loading]="importing()"
+                [disabled]="!importJson().trim()"
+                (click)="submitIngestVex()"
+            ></button>
+        </ng-template>
+    </p-dialog>
+
+    <!-- Cosign / Sigstore Verification Dialog -->
+    <p-dialog
+        [header]="'compliance.verifier_title' | translate"
+        [(visible)]="verifyOpen"
+        [modal]="true"
+        [style]="{ width: '42rem' }"
+        [appendTo]="'body'"
+    >
+        <form class="flex flex-col gap-4" (ngSubmit)="submitVerification()">
+            <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
+                {{ 'compliance.verify_help' | translate }}
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label
+                        for="verify-payload-file"
+                        class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                        >{{ 'compliance.payload_file' | translate }}</label
+                    >
+                    <input
+                        id="verify-payload-file"
+                        type="file"
+                        (change)="onVerifyPayloadSelected($event)"
+                        class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
+                    />
+                    <textarea
+                        id="verify-payload"
+                        name="verify-payload"
+                        rows="4"
+                        required
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="verifyPayload"
+                        [placeholder]="'compliance.paste_payload' | translate"
+                        class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    ></textarea>
+                </div>
+                <div>
+                    <label
+                        for="verify-signature-file"
+                        class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                        >{{ 'compliance.signature_file' | translate }}</label
+                    >
+                    <input
+                        id="verify-signature-file"
+                        type="file"
+                        (change)="onVerifySigSelected($event)"
+                        class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
+                    />
+                    <textarea
+                        id="verify-signature"
+                        name="verify-signature"
+                        rows="4"
+                        required
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="verifySignature"
+                        [placeholder]="'compliance.paste_signature' | translate"
+                        class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    ></textarea>
+                </div>
+            </div>
+
+            <div>
+                <label
+                    for="verify-public-key"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.public_key_field' | translate }}</label
+                >
+                <textarea
+                    id="verify-public-key"
+                    name="verify-public-key"
+                    rows="2"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="verifyPublicKey"
+                    placeholder="-----BEGIN PUBLIC KEY----- ..."
+                    class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                ></textarea>
+            </div>
+
+            <!-- Live, and always in the page: the verdict arrives after the request, where nobody looks. -->
+            <div aria-live="polite">
+                @if (verifyResult()) {
+                    <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
+                         caller supplied is shown amber: it proves the document matches that key, not that
+                         Vectispire signed it — the confusion this screen used to invite. -->
+                    <div
+                        class="p-3 rounded-lg border flex items-center gap-3"
+                        [class.bg-emerald-50]="verifyAuthentic()"
+                        [class.border-emerald-200]="verifyAuthentic()"
+                        [class.text-emerald-800]="verifyAuthentic()"
+                        [class.bg-amber-50]="verifyForeign()"
+                        [class.border-amber-200]="verifyForeign()"
+                        [class.text-amber-800]="verifyForeign()"
+                        [class.bg-rose-50]="!verifyResult()!.valid"
+                        [class.border-rose-200]="!verifyResult()!.valid"
+                        [class.text-rose-800]="!verifyResult()!.valid"
+                    >
+                        <i
+                            class="pi text-xl"
+                            [class.pi-check-circle]="verifyAuthentic()"
+                            [class.pi-exclamation-triangle]="verifyForeign()"
+                            [class.pi-times-circle]="!verifyResult()!.valid"
+                        ></i>
+                        <div class="text-xs">
+                            <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
+                            <p class="text-[11px] opacity-75 my-0">
+                                {{
+                                    'compliance.verify_result_meta'
+                                        | translate
+                                            : { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
+                                }}
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (verifyError()) {
+                <p-message severity="error" [text]="verifyError()!"></p-message>
+            }
+
+            @if (cosignCliInfo()?.commands?.cosignVerifyManifest) {
+                <div class="bg-surface-900 text-surface-100 p-3 rounded text-xs font-mono">
+                    <p class="text-surface-400 text-[11px] mb-1">{{ 'compliance.cosign_equivalent' | translate }}</p>
+                    <code>{{ cosignCliInfo()?.commands?.cosignVerifyManifest }}</code>
+                </div>
+            }
+        </form>
+
+        <ng-template #footer>
+            <button
+                pButton
+                [label]="'common.close' | translate"
+                class="p-button-text"
+                (click)="verifyOpen.set(false)"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-verified"
+                [label]="'compliance.verify_integrity' | translate"
+                [loading]="verifying()"
+                [disabled]="!verifyPayload().trim() || !verifySignature().trim()"
+                (click)="submitVerification()"
+            ></button>
+        </ng-template>
+    </p-dialog>
+</div>

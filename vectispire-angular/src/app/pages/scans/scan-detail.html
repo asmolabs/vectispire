@@ -1,0 +1,385 @@
+@if (view(); as shown) {
+    @let detail = shown.detail;
+    <div class="mb-4">
+        <a routerLink="/repositories" class="text-sm">{{ 'scans.back_to_repos' | translate }}</a>
+        <h1 class="text-2xl font-semibold m-0 mt-1">
+            {{ 'scans.scan_title' | translate }} #{{ detail.scan.id }} — {{ detail.scan.targetName }}
+        </h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ detail.scan.branch }} · {{ detail.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            @if (detail.scan.durationMs) {
+                · {{ shown.seconds | localNumber }} s
+            }
+            @if (detail.projectType) {
+                · {{ detail.projectType }}
+                @if (detail.projectVersion) {
+                    {{ detail.projectVersion }}
+                }
+            }
+        </p>
+    </div>
+
+    @if (detail.scan.error) {
+        <p-message
+            [severity]="detail.scan.status === 'failed' ? 'error' : 'warn'"
+            [closable]="false"
+            styleClass="mb-4 w-full"
+        >
+            {{ detail.scan.error }}
+        </p-message>
+    }
+    <!--
+        **When the next attempt may start.** A scan whose last attempt could not run waits before it
+        can be claimed again — a minute, then five, then fifteen — and "Queued" alone read as a scan
+        about to start that did not.
+    -->
+    @if (retryAt(detail.scan); as at) {
+        <p class="text-sm text-muted-color mt-0 mb-4" data-testid="scan-retry-at">
+            {{ 'scans.retry_at' | translate: { time: (at | date: 'dd/MM/yyyy HH:mm') ?? at } }}
+        </p>
+    }
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'scans.state' | translate }}</div>
+            <div class="mt-2"><app-last-scan [scan]="detail.scan" /></div>
+        </p-card>
+        <!--
+            **Issues above, occurrences beneath: two counts, never one word.** `findingsCount` is the
+            issues this scan saw open — one per fingerprint, which carries no line — while the list
+            below holds one row per place a tool reported. One rule hitting a file on fifteen lines is
+            one issue and fifteen occurrences; under one word, "28" above a list of 56 read as data
+            lost or duplicated.
+        -->
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'scans.issues' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" data-testid="scan-issues-count">
+                {{ detail.scan.findingsCount | localNumber: 0 }}
+            </div>
+            <div class="text-sm text-muted-color mt-1" data-testid="scan-occurrences-count">
+                {{ 'scans.occurrences' | translate: { count: detail.findingsTotal | localNumber: 0 } }}
+            </div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'scans.new_issues' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.scan.newIssuesCount > 0">
+                {{ detail.scan.newIssuesCount }}
+            </div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">{{ 'scans.resolved_issues' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.scan.resolvedIssuesCount > 0">
+                {{ detail.scan.resolvedIssuesCount }}
+            </div>
+        </p-card>
+    </div>
+
+    <!--
+        **The documents this scan produced.** The in-toto attestation and the two VEX documents were
+        computed and served, and no screen offered them: yet they are the pieces an assessor asks
+        for from a scan — what produced this result, and what the publisher says about each
+        vulnerability.
+    -->
+    <div class="mb-4 flex flex-wrap gap-2">
+        @if (detail.hasSbom) {
+            <p-button
+                [label]="'scans.download_sbom' | translate"
+                icon="pi pi-download"
+                severity="secondary"
+                size="small"
+                (onClick)="downloadSbom(detail.scan.id)"
+            />
+        }
+        <p-button
+            [label]="'scans.download_attestation' | translate"
+            icon="pi pi-verified"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadAttestation(detail.scan.id)"
+        />
+        <p-button
+            [label]="'scans.download_csaf' | translate"
+            icon="pi pi-file"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadCsaf(detail.scan.id)"
+        />
+        <p-button
+            [label]="'scans.download_cyclonedx' | translate"
+            icon="pi pi-file"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadCycloneDx(detail.scan.id)"
+        />
+    </div>
+
+    <!--
+        **Which built-in steps looked (decision 0032).** A clean list of findings reads as "nothing
+        found" only for the steps that produced; a step that failed or was not run looked at nothing,
+        and a scan from before the control plane recorded it says so rather than showing every step
+        as not examined.
+    -->
+    @if (shown.examination; as examination) {
+        <p-card styleClass="mb-4" data-testid="scan-examined">
+            <ng-template #title>{{ 'scans.examined_title' | translate }}</ng-template>
+            @if (examination.state === 'unrecorded') {
+                <p class="text-muted-color text-sm m-0" data-testid="scan-examined-unrecorded">
+                    {{ 'scans.examined_unrecorded' | translate }}
+                </p>
+            } @else {
+                <p class="text-muted-color text-sm mt-0">{{ 'scans.examined_explain' | translate }}</p>
+                @if (examination.examined.length === 0) {
+                    <p class="text-sm m-0 mb-2" data-testid="scan-examined-none">
+                        {{ 'scans.examined_none' | translate }}
+                    </p>
+                } @else {
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm font-medium">{{ 'scans.examined_steps' | translate }}</span>
+                        @for (type of examination.examined; track type.value) {
+                            <p-tag
+                                severity="success"
+                                icon="pi pi-check-circle"
+                                [value]="type.label"
+                                data-testid="examined-type"
+                                [attr.data-type]="type.value"
+                            />
+                        }
+                    </div>
+                }
+                @if (examination.notExamined.length > 0) {
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-medium">{{ 'scans.not_examined_steps' | translate }}</span>
+                        @for (type of examination.notExamined; track type.value) {
+                            <p-tag
+                                severity="secondary"
+                                icon="pi pi-minus-circle"
+                                [value]="type.label"
+                                data-testid="not-examined-type"
+                                [attr.data-type]="type.value"
+                            />
+                        }
+                    </div>
+                }
+            }
+        </p-card>
+    }
+
+    <!--
+        **Each plugin's end, in one of its states (decision 0017).** Not applicable and absent both
+        leave the plugin's issues as they were, and are told apart because only one of them is
+        somebody's problem: a Java plugin on a Python tree is not a failure, a plugin whose report
+        never came back is. They must not look alike, or every scan would carry a red row nobody
+        reads, and the real failure would be one of them. **Refused (§9.1) is a failure too, named by
+        its reason** — "unsigned" read as "crashed" is how a requirement nobody can see gets switched
+        off — and a plugin that ran unsigned under the governor's waiver says so on its row.
+    -->
+    @if (detail.plugins.length > 0) {
+        <p-card styleClass="mb-4" data-testid="scan-plugins">
+            <ng-template #title>{{ 'scans.plugins_title' | translate }}</ng-template>
+            <p class="text-muted-color text-sm mt-0">{{ 'scans.plugins_explain' | translate }}</p>
+            <ul class="list-none p-0 m-0 flex flex-col gap-2">
+                @for (outcome of shown.plugins; track outcome.pluginId) {
+                    <li
+                        class="flex flex-wrap items-center gap-3 border rounded-md p-2"
+                        style="border-color: var(--surface-border)"
+                        data-testid="plugin-outcome"
+                        [attr.data-state]="outcome.state"
+                    >
+                        @switch (outcome.state) {
+                            @case ('produced') {
+                                <p-tag
+                                    severity="success"
+                                    icon="pi pi-check-circle"
+                                    [value]="'scans.plugin_state.produced' | translate"
+                                />
+                            }
+                            @case ('not_applicable') {
+                                <p-tag
+                                    severity="secondary"
+                                    icon="pi pi-minus-circle"
+                                    [value]="'scans.plugin_state.not_applicable' | translate"
+                                />
+                            }
+                            @case ('refused') {
+                                <p-tag severity="danger" icon="pi pi-ban" [value]="outcome.refusalLabel" />
+                            }
+                            @default {
+                                <p-tag
+                                    severity="danger"
+                                    icon="pi pi-times-circle"
+                                    [value]="'scans.plugin_state.absent' | translate"
+                                />
+                            }
+                        }
+                        <a
+                            class="font-mono font-medium"
+                            [routerLink]="['/plugins']"
+                            [queryParams]="{ id: outcome.pluginId }"
+                            >{{ outcome.pluginId }}</a
+                        >
+                        <span class="text-sm">
+                            @switch (outcome.state) {
+                                @case ('produced') {
+                                    {{ 'scans.plugin_findings' | translate: { count: outcome.findings ?? 0 } }}
+                                    @if (outcome.signature === 'waived') {
+                                        <p-tag
+                                            styleClass="ml-2"
+                                            severity="warn"
+                                            icon="pi pi-exclamation-triangle"
+                                            data-testid="plugin-waived"
+                                            [title]="'scans.plugin_waived_title' | translate"
+                                            [value]="'scans.plugin_waived' | translate"
+                                        />
+                                    } @else if (outcome.signature === 'not_required') {
+                                        <span class="ml-2 text-muted-color" data-testid="plugin-not-required">{{
+                                            'scans.plugin_not_required' | translate
+                                        }}</span>
+                                    }
+                                }
+                                @case ('refused') {
+                                    <span class="text-red-600 dark:text-red-400">{{
+                                        outcome.reason ?? ('scans.plugin_refused_no_reason' | translate)
+                                    }}</span>
+                                }
+                                @case ('not_applicable') {
+                                    {{
+                                        'scans.plugin_not_applicable_detail'
+                                            | translate: { languages: outcome.languages.join(', ') }
+                                    }}
+                                }
+                                @default {
+                                    <span class="text-red-600 dark:text-red-400">{{
+                                        outcome.reason ?? ('scans.plugin_absent_no_reason' | translate)
+                                    }}</span>
+                                }
+                            }
+                        </span>
+                        <span class="text-xs text-muted-color font-mono ml-auto" [title]="outcome.manifestDigest ?? ''">
+                            {{ 'scans.plugin_manifest' | translate }} {{ outcome.shortDigest }}
+                        </span>
+                    </li>
+                }
+            </ul>
+        </p-card>
+    }
+
+    <!--
+        **Directly above the list, because that is where the emptiness is read.** An empty list of
+        findings on a repository whose language no rule covers says "this scan found nothing" where
+        it must be read as "this scan looked for nothing".
+    -->
+    <zs-rule-coverage-banner />
+
+    <p-card>
+        <ng-template #title>
+            {{ 'scans.findings_title' | translate }}
+            <span class="text-muted-color font-normal text-sm">
+                {{ 'scans.findings_subtitle' | translate }}
+            </span>
+        </ng-template>
+
+        @if (detail.findingsTruncated) {
+            <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
+                {{
+                    'scans.findings_truncated'
+                        | translate
+                            : {
+                                  total: detail.findingsTotal | localNumber: 0,
+                                  shown: detail.findings.length | localNumber: 0
+                              }
+                }}
+            </p-message>
+        }
+
+        <p-table
+            [value]="shown.findings"
+            dataKey="id"
+            styleClass="p-datatable-sm"
+            [paginator]="detail.findings.length > 25"
+            [rows]="25"
+            [rowsPerPageOptions]="[25, 50, 100]"
+        >
+            <ng-template #header>
+                <tr>
+                    <th style="width: 9rem">{{ 'issues.filter_type' | translate }}</th>
+                    <th style="width: 7rem">{{ 'issues.filter_severity' | translate }}</th>
+                    <th>{{ 'scans.col_identifier' | translate }}</th>
+                    <th>{{ 'issues.location' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-finding>
+                <tr>
+                    <td>{{ finding.typeLabel }}</td>
+                    <td>
+                        <p-tag [value]="finding.severity | severityLabel" [severity]="finding.tone" />
+                    </td>
+                    <td>
+                        <div class="font-medium">
+                            @if (finding.link) {
+                                <a [href]="finding.link" target="_blank" rel="noopener noreferrer">{{
+                                    finding.identifier
+                                }}</a>
+                            } @else {
+                                {{ finding.identifier }}
+                            }
+                        </div>
+                        @if (finding.description) {
+                            <div class="text-sm text-muted-color">{{ finding.description }}</div>
+                        }
+                        @if (finding.toolName) {
+                            <div class="text-xs text-muted-color" data-testid="finding-tool">
+                                {{
+                                    'scans.reported_by'
+                                        | translate
+                                            : {
+                                                  tool:
+                                                      finding.toolName +
+                                                      (finding.toolVersion ? ' ' + finding.toolVersion : '')
+                                              }
+                                }}
+                            </div>
+                        }
+                        @if (finding.packageName) {
+                            <div class="text-sm text-muted-color">
+                                {{ finding.packageName }} {{ finding.packageVersion }}
+                                @if (finding.fixVersions) {
+                                    ·
+                                    <span class="text-green-600">{{
+                                        'scans.fixed_in' | translate: { versions: finding.fixVersions }
+                                    }}</span>
+                                } @else {
+                                    ·
+                                    <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
+                                }
+                            </div>
+                        }
+                    </td>
+                    <td class="font-mono text-sm">
+                        @if (finding.filePath) {
+                            {{ finding.filePath }}
+                            @if (finding.line) {
+                                <span>:{{ finding.line }}</span>
+                            }
+                        } @else {
+                            <span class="text-muted-color font-sans">—</span>
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="4" class="text-center text-muted-color py-6">
+                        {{ 'quality.no_finding' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+} @else if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+} @else {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+}

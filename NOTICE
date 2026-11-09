@@ -1,0 +1,170 @@
+Vectispire
+Copyright 2026 Laurent Boucher
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+The copyright is held personally, not by an employer or by the Asmolabs
+organisation that hosts the repository. The `com.asmolabs.vectispire` package name
+is a namespace, not an assignment of rights.
+
+--------------------------------------------------------------------------------
+Third-party components distributed with Vectispire
+--------------------------------------------------------------------------------
+
+The application jar, the agent's jar and the images built from them bundle the
+following components. Their own licenses apply to them, not Vectispire's. The
+list is held to the jars' SBOMs by `ci/licences/check.py`: a component under a
+license other than Apache-2.0 that is not named here fails the build, and so
+does any license not reviewed in `ci/licences/allowed.txt`.
+
+Apache License 2.0 — the large majority, among them
+  org.springframework.boot, org.springframework, org.springframework.security,
+  org.springframework.data  Spring Boot 4.1, Spring Framework, Security, Data
+                            (the core jars also carry BSD-3-Clause code: ASM
+                            and CGLIB, repackaged)
+  org.hibernate.orm, org.hibernate.validator, org.hibernate.models
+                            Hibernate ORM 7, Hibernate Validator
+  com.fasterxml.jackson, tools.jackson
+                            Jackson 2 and 3
+  org.apache.tomcat.embed   Apache Tomcat (embedded)
+  org.apache.pdfbox         PDFBox
+  org.apache.httpcomponents Apache HttpClient 5
+  org.apache.commons, commons-io, commons-codec, commons-logging
+  org.flywaydb              Flyway (Community)
+  com.github.docker-java    docker-java
+  com.zaxxer                HikariCP
+  com.google.guava          Guava
+  com.nimbusds              Nimbus JOSE + JWT, OAuth 2.0 SDK
+  io.micrometer             Micrometer
+  org.yaml                  SnakeYAML
+  com.sun.jna               JNA (dual Apache-2.0 / LGPL-2.1, taken as Apache-2.0)
+
+  Apache-2.0 asks that each component's own NOTICE be passed on: every one of
+  those jars is shipped unmodified, nested in Vectispire's, with its
+  META-INF/NOTICE inside it.
+
+MIT
+  org.bouncycastle:bcprov-jdk18on, bcpkix-jdk18on, bcutil-jdk18on
+                            Bouncy Castle
+  org.slf4j:slf4j-api, jul-to-slf4j
+                            SLF4J
+  org.checkerframework:checker-qual
+                            Checker Framework qualifiers
+  org.webjars:webjars-locator-lite
+                            WebJars locator
+
+BSD-3-Clause (including the Eclipse Distribution License 1.0, which is BSD-3-Clause)
+  org.eclipse.jgit:org.eclipse.jgit, org.eclipse.jgit.ssh.apache
+                            JGit and its Apache MINA SSH transport (EDL-1.0)
+  org.glassfish.jaxb:jaxb-core, jaxb-runtime, txw2
+                            Jakarta XML Binding implementation (EDL-1.0)
+  jakarta.xml.bind:jakarta.xml.bind-api, jakarta.activation:jakarta.activation-api
+                            (EDL-1.0)
+  com.sun.istack:istack-commons-runtime
+  org.antlr:antlr4-runtime  ANTLR 4 runtime
+  org.objectweb.asm:asm     ASM
+
+BSD-2-Clause
+  org.postgresql:postgresql PostgreSQL JDBC driver
+  org.hdrhistogram:HdrHistogram
+                            HdrHistogram (CC0-1.0 or BSD-2-Clause)
+
+Eclipse Public License 2.0
+  ch.qos.logback:logback-classic, logback-core
+                            Logback (dual EPL-2.0 / LGPL-2.1, taken as EPL-2.0)
+  jakarta.annotation, jakarta.transaction, jakarta.mail, jakarta.persistence
+                            Jakarta EE APIs (EPL-2.0, or GPL-2.0 with the
+                            Classpath Exception, or EDL-1.0 — taken as EPL-2.0)
+  org.eclipse.angus:angus-mail, angus-core, angus-activation, smtp, imap, pop3,
+  logging-mailhandler       Eclipse Angus (same terms as Jakarta Mail)
+  org.aspectj.weaver:aspectjweaver
+                            AspectJ weaver
+
+  EPL-2.0 is a file-level copyleft. None of those files is modified, and their
+  source is where their authors publish it: https://github.com/qos-ch/logback,
+  https://github.com/jakartaee, https://github.com/eclipse-ee4j/angus-mail,
+  https://github.com/eclipse-aspectj/aspectj.
+
+GPL-2.0 WITH Universal-FOSS-Exception-1.0
+  com.mysql:mysql-connector-j               MySQL Connector/J
+
+  Vectispire ships two JDBC drivers, and one of them is copyleft. Both are
+  `runtimeOnly` in the build: no compiled Vectispire class links against a driver,
+  and the connection is obtained through the JDBC API. MySQL Connector/J is
+  distributed under the GPL with Oracle's Universal FOSS Exception, whose list of
+  permitted licenses includes Apache-2.0 — which is what makes shipping it inside
+  an Apache-2.0 image lawful. Replacing that license with a copyleft-incompatible
+  one, or linking a driver at compile time, breaks that and is the reason this
+  paragraph exists rather than a bare list.
+
+--------------------------------------------------------------------------------
+The interface bundled in the jar
+--------------------------------------------------------------------------------
+
+The web interface is served by the jar from `static/`. The notices of the npm
+packages compiled into it (Angular, Optimus UI, chart.js and the rest, MIT for
+most) are in `static/licenses/3rdpartylicenses.txt`, as `ng build` writes them.
+
+Its shell is not a package but code copied into the repository, and so is not in
+that file:
+
+MIT
+  Sparked (openng-org/sparked)              OpenNG's port onto Optimus UI of
+                                            Sakai, Copyright (c) 2018-2026 PrimeTek
+                                            — full text in
+                                            `vectispire-angular/LICENSE.md`, shipped
+                                            as `static/licenses/sparked/LICENSE.md`
+
+--------------------------------------------------------------------------------
+The container images
+--------------------------------------------------------------------------------
+
+The control plane's and the agent's images are built on Eclipse Temurin's JRE
+on Alpine Linux (`eclipse-temurin:25-jre-alpine`); the demonstration report
+plugin's on Google's distroless Java image (`gcr.io/distroless/java25-debian13`).
+Both pinned by digest in the build. Those base layers are separate programs
+aggregated beside Vectispire's jar, not linked into it:
+
+  the JRE                    GPL-2.0 with the Classpath Exception (OpenJDK)
+  busybox, apk-tools, coreutils, alpine-baselayout, scanelf, ssl_client, netbase,
+  base-files                 GPL-2.0 or GPL-3.0
+  musl, glibc, libattr, acl-libs, libintl, libtasn1, libcrypt
+                             MIT, LGPL-2.1 or later
+  the GCC runtime            GPL-3.0 with the GCC Runtime Library Exception
+  OpenSSL, zlib, libpng, FreeType, fontconfig, the DejaVu fonts, the CA bundle
+                             Apache-2.0, Zlib, Libpng, FTL, MIT-style,
+                             Bitstream Vera, MPL-2.0
+
+Each package's own license is in the image (`/usr/share/doc`, `/lib/apk/db`)
+and is checked against `ci/licences/allowed.txt` from the images' SBOMs.
+The source of every GPL and LGPL package in them is the distribution's, at
+the version the image carries: https://gitlab.alpinelinux.org/alpine/aports,
+https://sources.debian.org, and https://github.com/adoptium/jdk25u for the JRE.
+
+--------------------------------------------------------------------------------
+Scanners invoked as containers
+--------------------------------------------------------------------------------
+
+Vectispire runs each scanner as an ephemeral container, by command line, in a
+separate process. It bundles none of them and links against none of them; the
+images are pulled at run time from their own publishers.
+
+  Syft, Grype           Anchore                   Apache-2.0
+  checkov               Prisma Cloud/Bridgecrew   Apache-2.0
+  gitleaks              Zachary Rice              MIT
+  Semgrep OSS           Semgrep, Inc.             LGPL-2.1
+
+The Semgrep *rules* are a separate question from the Semgrep engine, and the
+one place where a licence decides how the code is shaped. Vectispire bundles a
+single rule of its own and redistributes no third-party rule set. An operator
+who wants real coverage has Vectispire fetch `opengrep/opengrep-rules` — LGPL-2.1
+with a Commons Clause, accepted explicitly because that clause takes whoever
+adopts those rules out of open source in the OSI sense. The rules travel from
+their author to that installation; nothing containing them is shipped here.
+`semgrep/semgrep-rules` is refused outright, by constant rather than by
+convention, because its terms forbid distribution at all. See
+`RuleCatalogue` and decision 0006.
+
+Vulnerability and lifecycle data reached over the network — the EPSS scores
+(FIRST.org), the CISA KEV catalog and endoflife.date — is neither bundled nor
+redistributed, and carries its publishers' own terms of use.

@@ -1,0 +1,288 @@
+package com.asmolabs.vectispire.core.targets;
+
+import static com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.COLUMN_LENGTH;
+import static com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.optional;
+import static com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.requiredLabel;
+import static com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.trim;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.domain.targets.AssetTier;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.TargetGrants;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.stereotype.Service;
+
+/**
+ * The container images under watch: listing them within an allowance, and changing the inventory.
+ *
+ * <p>No transaction of its own, for the same reason as {@link RepositoryAdministrationService}:
+ * every write is a single {@code save} carrying the repository's transaction, which is all the
+ * routes ever had. It is also what lets each write be audited here, straight after it: the audit
+ * entry opens its own transaction, and inside an outer one it would describe a write that may still
+ * roll back.
+ */
+@Service
+public class ContainerAdministrationService {
+
+    private final ContainerRepository containers;
+    private final TargetScans scans;
+    private final TargetBacklog backlog;
+    private final TargetDeletionService targetDeletion;
+    private final AuditLogService audit;
+    private final TargetNaming naming;
+    private final TargetSchedules schedules;
+
+    public ContainerAdministrationService(
+            ContainerRepository containers,
+            TargetScans scans,
+            TargetBacklog backlog,
+            TargetDeletionService targetDeletion,
+            AuditLogService audit,
+            TargetNaming naming,
+            TargetSchedules schedules) {
+        this.containers = containers;
+        this.scans = scans;
+        this.backlog = backlog;
+        this.targetDeletion = targetDeletion;
+        this.audit = audit;
+        this.naming = naming;
+        this.schedules = schedules;
+    }
+
+    /**
+     * An image as the inventory shows it: the row, its latest scan, what waits on it, and the project it
+     * is filed in.
+     *
+     * @param projectName {@code Solution / Project}, or null for an image in no project
+     * @param schedule the schedule in force, the installation's default included
+     */
+    public record Listed(
+            ContainerView container,
+            Optional<LatestScan> latestScan,
+            long openIssues,
+            String projectName,
+            Schedules.InForce schedule) {}
+
+    /** What an operator asked for; {@code null} is "leave alone" on update, as for repositories. */
+    public record Changes(
+            String registry,
+            String imageName,
+            String tag,
+            Integer scanIntervalMinutes,
+            String scanCron,
+            String requiredAgentLabel,
+            String tier,
+            Boolean scanManualOnly) {
+
+        /** The shape callers had before "manual only" was a choice: no change to it. */
+        public Changes(
+                String registry,
+                String imageName,
+                String tag,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String tier) {
+            this(registry, imageName, tag, scanIntervalMinutes, scanCron, requiredAgentLabel, tier, null);
+        }
+    }
+
+    public record Triggered(ContainerView container, TargetScans.Queued scan) {}
+
+    public List<Listed> list(Visibility allowed) {
+        return list(allowed, Optional.empty());
+    }
+
+    /**
+     * The images the allowance permits, by identifier, all of them or one page — cut from what the caller
+     * sees, for the reasons {@link RepositoryAdministrationService#list(Visibility, Integer, Integer)} gives.
+     *
+     * @param limit rows per page, or null for the whole list ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Visibility allowed, Integer limit, Integer offset) {
+        return list(allowed, ListWindow.requested(limit, offset));
+    }
+
+    private List<Listed> list(Visibility allowed, Optional<ListWindow> window) {
+        Map<Long, LatestScan> latest = scans.latestPerContainer();
+        Map<Long, Long> open = backlog.openPerContainer();
+
+        List<ContainerEntity> permitted = containers.findAll().stream()
+                .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
+                .sorted(Comparator.comparing(ContainerEntity::getId))
+                .toList();
+        List<ContainerEntity> visible = window.map(page -> page.of(permitted)).orElse(permitted);
+        // Named for the visible rows only, as the repository list does: a project's name is shown only
+        // beside an image the reader already sees.
+        Map<Long, String> projectNames = naming.projectNames(visible.stream()
+                .map(ContainerEntity::getProjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+        Duration defaultInterval = schedules.defaultInterval();
+        return visible.stream()
+                .map(container -> {
+                    ContainerView view = ContainerView.of(container);
+                    return new Listed(
+                            view,
+                            Optional.ofNullable(latest.get(container.getId())),
+                            open.getOrDefault(container.getId(), 0L),
+                            container.getProjectId() == null ? null : projectNames.get(container.getProjectId()),
+                            TargetSchedules.inForce(view, defaultInterval));
+                })
+                .toList();
+    }
+
+    /** One row of {@link #list}, read through it for the reason given on the repository side. */
+    public Optional<Listed> listed(Visibility allowed, long id) {
+        return list(allowed).stream()
+                .filter(listed -> listed.container().id().equals(id))
+                .findFirst();
+    }
+
+    public ContainerView create(Changes changes, RequestActor actor) {
+        ImageReference reference = new ImageReference(
+                optional(changes.registry()),
+                trim(changes.imageName()),
+                trim(changes.tag()).isEmpty() ? "latest" : trim(changes.tag()));
+        // Validated at the entry point, like a repository URL: a reference reaching a `docker
+        // pull` unchecked is not a typo, it is whatever the operator's daemon will fetch.
+        requireFits(reference);
+        reference.validate().ifPresent(message -> {
+            throw new InvalidInputException(message);
+        });
+
+        ContainerEntity container = new ContainerEntity();
+        container.setRegistry(reference.registry());
+        container.setImageName(reference.imageName());
+        container.setTag(reference.tag());
+        schedule(container, ScheduleChoice.NONE.apply(
+                changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
+        container.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
+        container.setTier(AssetTier.fromInput(changes.tier()).name());
+
+        ContainerEntity saved = containers.save(container);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image added: " + referenceOf(saved).format()));
+        return ContainerView.of(saved);
+    }
+
+    /**
+     * Applies what was sent and leaves the rest — see the route for the conventions, and for why
+     * the interval is cleared by zero rather than by emptiness.
+     *
+     * <p>The absent row is refused before the allowance is consulted, each in its own words: the
+     * order and the wording this route has always answered with.
+     *
+     * <p>The audit entry names the previous reference as well, for the reason the route gives.
+     */
+    public ContainerView update(long id, Changes changes, Visibility allowed, RequestActor actor) {
+        // Absent and hidden refused in one sentence, as for a repository.
+        ContainerEntity container =
+                RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
+
+        String previousReference = referenceOf(container).format();
+
+        // Validated as a whole and not field by field: a registry, a name and a tag are only
+        // legal together, and a reference reaching a `docker pull` unchecked is whatever the
+        // operator's daemon will fetch — as true of a row edited later as of a row added.
+        ImageReference reference = new ImageReference(
+                changes.registry() != null ? optional(changes.registry()) : container.getRegistry(),
+                changes.imageName() != null ? trim(changes.imageName()) : container.getImageName(),
+                changes.tag() != null ? (trim(changes.tag()).isEmpty() ? "latest" : trim(changes.tag())) : container.getTag());
+        requireFits(reference);
+        reference.validate().ifPresent(message -> {
+            throw new InvalidInputException(message);
+        });
+        container.setRegistry(reference.registry());
+        container.setImageName(reference.imageName());
+        container.setTag(reference.tag());
+
+        schedule(container, new ScheduleChoice(
+                        container.isScanManualOnly(), container.getScanIntervalMinutes(), container.getScanCron())
+                .apply(changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
+        if (changes.requiredAgentLabel() != null) {
+            // Normalized on update as on create: "Production" here and "production" on the agent
+            // would never meet, and the scan would wait for an agent that is present.
+            container.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
+        }
+        if (changes.tier() != null) {
+            container.setTier(AssetTier.fromInput(changes.tier()).name());
+        }
+
+        ContainerEntity saved = containers.save(container);
+        String now = referenceOf(saved).format();
+        String moved = now.equals(previousReference) ? "" : " (was " + previousReference + ")";
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image updated: " + now + moved));
+        return ContainerView.of(saved);
+    }
+
+    /** @param allowed what the caller may see, as for a repository: a restricted key is narrowed. */
+    public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
+        ContainerEntity container =
+                RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
+        ContainerView view = ContainerView.of(container);
+        TargetScans.Queued scan = scans.queue(view);
+        audit.record(actor.entry(
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.id()), "Scan requested: " + referenceOf(container).format()));
+        return new Triggered(view, scan);
+    }
+
+    /** Deletes the image and everything hanging off it. */
+    public void delete(long id, RequestActor actor) {
+        ContainerEntity container = containers.findById(id)
+                .orElseThrow(() -> new NotFoundException("Image not found."));
+        TargetGrants.Revoked revoked = targetDeletion.deleteContainer(id);
+        TargetDeletionAudit.record(audit, actor, id, "image " + id,
+                "Image deleted: " + referenceOf(container).format(), revoked);
+    }
+
+    /**
+     * Each part within its column, checked before the pattern is.
+     *
+     * <p>The pattern bounds the tag and nothing else, so a registry or an image name past 255
+     * characters was valid and then refused by the database at the write — a 500 for a paste.
+     */
+    private static void requireFits(ImageReference reference) {
+        BoundedText.within(reference.registry(), COLUMN_LENGTH, "The registry");
+        BoundedText.within(reference.imageName(), COLUMN_LENGTH, "The image name");
+        BoundedText.within(reference.tag(), COLUMN_LENGTH, "The tag");
+    }
+
+    public static ImageReference referenceOf(ContainerView container) {
+        return new ImageReference(container.registry(), container.imageName(), container.tag());
+    }
+
+    private static ImageReference referenceOf(ContainerEntity container) {
+        return new ImageReference(container.getRegistry(), container.getImageName(), container.getTag());
+    }
+
+    /**
+     * The repository's rule, through {@link ScheduleChoice}: the two dialogs put the server's message
+     * straight on screen, and an operator who learned the expected format on one screen should not
+     * have to learn it again on the other.
+     */
+    private static void schedule(ContainerEntity container, ScheduleChoice choice) {
+        container.setScanManualOnly(choice.manualOnly());
+        container.setScanIntervalMinutes(choice.intervalMinutes());
+        container.setScanCron(choice.cron());
+    }
+}

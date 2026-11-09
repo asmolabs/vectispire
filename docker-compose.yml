@@ -1,0 +1,588 @@
+# **No default is a working secret.** Every value below that guards something is required and
+# unset: `docker compose up` without a `.env` now stops with "variable is not set" instead of
+# starting an instance whose encryption key, admin password and database password are the ones
+# printed in a public repository. The three that matter are marked `:?` — Compose refuses to
+# render the file at all when they are missing, which is the right moment to find out.
+#
+# Copy `.env.example` and fill it in, or export them:
+#
+#   ENCRYPTION_KEY=$(openssl rand -base64 32)
+#   MYSQL_PASSWORD=$(openssl rand -base64 24)
+#   VECTISPIRE_BOOTSTRAP_PASSWORD=$(openssl rand -base64 24)
+#
+# **They reach the containers as files, not as environment.** A container's environment is part
+# of what `GET /containers/{id}/json` returns, and that call is open to anything that can talk to
+# the daemon — the socket proxy's `CONTAINERS: 1` included. Handed over as variables,
+# `ENCRYPTION_KEY`, the database password and the first administrator's password were one inspect
+# away from every other client of the daemon. The `secrets:` below are copied into
+# `/run/secrets/` at start and appear in no inspect; the key is read through `ENCRYPTION_KEY_FILE`,
+# the passwords through `spring.config.import: optional:configtree:/run/secrets/`.
+#
+# The document signing key and the OIDC client secret go the same way, as files named after the
+# property they set (`vectispire.signing.key`, `vectispire.oidc.client-secret`), and so do the
+# agent's token and signing key (profile `with-agent`, `VECTISPIRE_AGENT_TOKEN` and
+# `VECTISPIRE_AGENT_SIGNING_KEY`). Both are optional,
+# so both are declared in `.env` even when unused — empty then, and Compose mounts nothing. A `.env`
+# that does not declare them stops `docker compose up` with a message naming the variable, rather
+# than dropping a signing key an installation was using and generating another: a replaced key makes
+# every document already signed unverifiable.
+
+# Interpolated like every other value, so a missing secret still stops `docker compose up` before
+# anything starts — the `secrets:` entries alone would hand an empty file to the container.
+x-required:
+  - ${MYSQL_PASSWORD:?set MYSQL_PASSWORD — no default is provided on purpose}
+  - ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD — no default is provided on purpose}
+  - ${ENCRYPTION_KEY:?generate one with `openssl rand -base64 32`}
+  - ${VECTISPIRE_BOOTSTRAP_PASSWORD:?set the first administrator password}
+  # `?` without `:` — declared, possibly empty. Empty means unused, and no file is mounted.
+  - ${VECTISPIRE_SIGNING_KEY?declare VECTISPIRE_SIGNING_KEY in .env, empty when unused — it now reaches the container as a file}
+  - ${VECTISPIRE_OIDC_CLIENT_SECRET?declare VECTISPIRE_OIDC_CLIENT_SECRET in .env, empty without SSO — it no longer goes in .env.oidc}
+
+services:
+  # --- Database (MySQL) -----------------------------------------------------------------
+  db:
+    # **The data this composition keeps is in this image's hands**, so it is named by the
+    # multi-architecture index digest and not by a tag a registry can republish. `mysql:8` was the
+    # tag; on 2026-10-15 it resolved to 8.4.11, the 8.4 LTS line, and that line is what is pinned
+    # (8.4.13 since 2026-10-29) — not a move to another line. Dependabot (`docker-compose`) proposes the next 8.4 patch with its
+    # digest, and never MySQL 9: a server major is a one-way upgrade of the volume below. 8.4 is
+    # the integration campaign's oldest supported version (decision 0043 §3), and
+    # `scripts/check-db-pins.py` fails CI if this pin leaves the versions `Engine.java` runs.
+    image: mysql:8.4.13@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7
+    container_name: vectispire-db
+    # A report's export is kept in one row and the driver sends it hex-encoded, at twice its size: at
+    # the server's default 64 MiB packet an export past about 32 MiB is refused `export_too_large`, and
+    # a document's file is lowered to about 31 MiB. 160M restores the 64 MiB bound and the manifest's
+    # ceiling (decision 0038 §4 asks the same of a Kubernetes server).
+    command: --max-allowed-packet=160M
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vectispire}
+      MYSQL_USER: ${MYSQL_USER:-vectispire}
+      # The image's `_FILE` variants: the passwords stay out of this container's environment too.
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets:
+      - mysql_password
+      - mysql_root_password
+    volumes:
+      - vectispire_mysql_data:/var/lib/mysql
+    # **No published port, not even on loopback.** One used to be kept for the operator's SQL
+    # client, bound to 127.0.0.1 so that only the host could reach it. That is not what it did:
+    # Docker accepts traffic to a published container port from *any* other network on the host
+    # before its isolation between networks applies, so the database answered on its container
+    # address to the agent, to Keycloak, and to every container anyone starts — measured, from a
+    # fresh container on the agent's network. For a SQL session, `docker compose exec db mysql`.
+
+    # **The password through an option file, never on a command line.** `-p"$(cat …)"` put the root
+    # password in mysqladmin's arguments every ten seconds, and a process's arguments are what `ps`
+    # shows to every user of the container — and of the host. `printf` is a shell builtin, so the
+    # secret is never an argument of anything; the file is readable by its owner alone and removed
+    # whatever the ping answers. The same pattern as the backup in docs/en/BACKUP_AND_RESTORE.md.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |-
+          umask 077; cnf=$$(mktemp) || exit 1
+          printf '[client]\nuser=root\npassword="%s"\n' "$$(cat /run/secrets/mysql_root_password)" > "$$cnf"
+          mysqladmin --defaults-extra-file="$$cnf" ping -h localhost --silent; status=$$?
+          rm -f "$$cnf"; exit $$status
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      # **The database's own network, shared with the control plane and nothing else.** On
+      # `vectispire-net` it was reachable from the agent — whose isolation from the database is a
+      # security property (decision 0003) — and from Keycloak.
+      - vectispire-db
+
+  # --- Vectispire Control Plane (Spring Boot Backend + Angular UI) ---------------------------
+  # --- The only service that touches the Docker socket --------------------------------------
+  #
+  # **Mounting `/var/run/docker.sock` into the control plane gives it root on the host.** The
+  # daemon's API has no notion of partial privilege: whoever reaches it can run
+  # `docker run -v /:/host`, and no capability is needed for that. Yet this is the same process
+  # that holds `ENCRYPTION_KEY` — the key that decrypts every deployment key in the estate — and
+  # the database credentials. Compromising one gave the other.
+  #
+  # The architecture had taken that concentration apart: the remote agent exists so that scan
+  # execution and the encryption key are never in the same place, and the `vectispire-agent`
+  # module cannot compile against a JDBC driver (decision 0003). The default composition put them
+  # back together.
+  #
+  # **What this proxy removes, and what it does not.** It removes the socket file from the
+  # container's filesystem, and it removes from the API everything Vectispire never calls: `exec`
+  # into an existing container, secrets, volumes, networks, Swarm, `/system`. It does not remove
+  # `POST /containers/create` with its `Binds` — that is the call Vectispire lives on, and it is
+  # enough to mount the host. **The proxy reduces the surface, it does not draw a boundary.** The
+  # boundary is putting execution on another machine: the `with-agent` profile, with
+  # `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane.
+  #
+  # Pinned by the multi-architecture index digest, like the scanner images: this container talks to
+  # the daemon, and a mutable tag here would be a mutable tag on the socket.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    container_name: vectispire-docker-proxy
+    environment:
+      # What `ContainerRunner` actually calls, and nothing else.
+      PING: 1          # isAvailable(), avant de réclamer un scan
+      VERSION: 1       # la négociation d'API du client
+      INFO: 1          # infoCmd().getNCPU(), pour le quota CPU
+      # create, start, wait, logs, inspect, rm — and, since the proxy's rule matches the prefix,
+      # every other `/containers/…` route: stop, kill, pause, unpause. `ALLOW_PAUSE` and the like
+      # can only open those paths, never close what `CONTAINERS` admits.
+      CONTAINERS: 1
+      IMAGES: 1        # pull, save, inspect
+      POST: 1          # create/start/pull sont des POST ; sans cela tout est en lecture seule
+      # Named although they already default to 0: an absent line reads as an oversight, a line set
+      # to 0 reads as a decision.
+      #
+      # **`EXEC: 0` does not quite do what its name says, and that was measured.** It governs the
+      # `/exec/*` endpoints; `POST /containers/{id}/exec`, which *creates* the instance, is covered
+      # by `CONTAINERS` and answers 201. Starting it — `POST /exec/{id}/start` — answers 403, so the
+      # instance created stays inert. The capability is closed, just not where one looks for it: see
+      # decision 0018 for the codes observed.
+      EXEC: 0
+      # **The one section the image opens by default**, and nothing here calls it: the daemon's
+      # event stream names every container started on the host, the operator's own included.
+      EVENTS: 0
+      GRPC: 0
+      AUTH: 0
+      SECRETS: 0
+      CONFIGS: 0
+      SWARM: 0
+      NODES: 0
+      SERVICES: 0
+      TASKS: 0
+      VOLUMES: 0
+      NETWORKS: 0
+      PLUGINS: 0
+      SYSTEM: 0
+      DISTRIBUTION: 0
+      BUILD: 0
+      COMMIT: 0
+      SESSION: 0
+    volumes:
+      # Read-only: the proxy itself has no reason to write to the socket file.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      # **On the internal network only.** On `vectispire-net` it would be reachable by everything
+      # living there — Keycloak included — and a proxy to the daemon reachable by a third-party
+      # service is exactly what was just taken away from the control plane.
+      - vectispire-docker
+
+  control-plane:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # **Published, so nobody has to build it to run it.** This was `vectispire:latest` — a bare
+    # local tag, which `docker compose up` cannot pull: the shipped composition only worked for
+    # somebody who had already built the image, while the installation guide promised a path that
+    # needed no JDK.
+    #
+    # Pinned to the version rather than `latest`: a composition that follows a moving tag upgrades
+    # the control plane on a `docker compose pull` nobody asked for, and the two images would drift
+    # apart the day one of them is republished. Not pinned by digest, unlike the third-party images
+    # below, because this file ships inside the release that builds them — a digest here would have
+    # to be rewritten by the release job, and nothing does that.
+    image: &control-plane-image ghcr.io/asmolabs/vectispire:0.11.2
+    container_name: vectispire-control-plane
+    ports:
+      - "${VECTISPIRE_PORT:-3180}:3180"
+    # **The OIDC variables arrive through a file, never as an empty value.**
+    # `@ConditionalOnProperty("vectispire.oidc.issuer")` activates as soon as the property *exists*
+    # — an empty string included — and discovery would then fail on an empty issuer, at start-up, on
+    # an installation that never asked for SSO. An optional `env_file` does not have that defect:
+    # absent, no variable is set and the feature stays absent rather than present and refusing. Copy
+    # `.env.oidc.example` to switch it on. The client secret is not among them: it is a credential,
+    # and it arrives as a file like the others (`secrets:` below).
+    env_file:
+      - path: .env.oidc
+        required: false
+    environment:
+      VECTISPIRE_DB_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE:-vectispire}
+      VECTISPIRE_DB_USER: ${MYSQL_USER:-vectispire}
+      # VECTISPIRE_DB_PASSWORD and VECTISPIRE_BOOTSTRAP_PASSWORD arrive as files named after
+      # themselves under /run/secrets — see `secrets:` below and the header of this file.
+      #
+      # The key goes through its own `_FILE` setting instead, which refuses to start when the file
+      # is missing or empty; the config tree would start without it. Its file is therefore *not*
+      # named `ENCRYPTION_KEY`: that name would set the variable as well, and setting both is refused.
+      ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
+      VECTISPIRE_BOOTSTRAP_USERNAME: ${VECTISPIRE_BOOTSTRAP_USERNAME:-admin}
+      VECTISPIRE_EMBEDDED_WORKER: ${VECTISPIRE_EMBEDDED_WORKER:-true}
+      # Empty means "nothing in front of us", so X-Forwarded-For is ignored and the peer address
+      # is the rate-limit key. Set it to the balancer's address or CIDR when there is one.
+      VECTISPIRE_TRUSTED_PROXIES: ${VECTISPIRE_TRUSTED_PROXIES:-}
+      # **The audit mirror, on by default here and only here.** The application ships with it
+      # off, because writing to a path by default fails on a read-only filesystem. A compose
+      # deployment has a writable volume, so this is the one place the default can be "on".
+      #
+      # It is what closes the case the hash chain cannot see: deleting an entry nobody descends
+      # from — the last one written — leaves a chain that verifies perfectly. The mirror makes
+      # that deletion require a second edit, in a second medium, and a log collector normally
+      # ships the file off the host within seconds. Point a collector at this volume.
+      VECTISPIRE_AUDIT_MIRROR: ${VECTISPIRE_AUDIT_MIRROR:-/var/lib/vectispire/audit/audit-mirror.ndjson}
+      # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
+      VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
+      VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
+      VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
+      VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
+      VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
+      # A plugin runs only if its image's signer verifies, or the platform governor waived the
+      # requirement for that plugin, in writing, on the plugin. false runs every unsigned plugin here.
+      VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:-true}
+      # **Off here, although the application defaults to on.** "The host's own git access" is, in
+      # this container, the `.ssh` of the home set below — which holds no identity unless you put a
+      # dedicated one there. Each repository gets its key attached instead (SSH keys screen).
+      VECTISPIRE_HOST_SSH: ${VECTISPIRE_HOST_SSH:-false}
+      # **The daemon is spoken to through the proxy, never through the file.** `ContainerRunner`
+      # honours `DOCKER_HOST` before any autodetection, so nothing changes in the code: there is no
+      # socket left to detect in this container.
+      DOCKER_HOST: tcp://docker-proxy:2375
+      # **The temporary directory is where every scan lives, so it has to be the host's.** A scan's
+      # workspace, an exported image and the matcher's database are all created under
+      # `java.io.tmpdir` and then handed to the daemon as bind mounts — and the daemon resolves a
+      # bind's source on *its* host, not in this container. Left at the container's own `/tmp`,
+      # every scanner was given a directory the daemon created empty on the host: the shipped
+      # composition failed every scan ("no source providers were able to resolve the input
+      # /repo/source", "open /repo/rules/gitleaks/gitleaks.toml: no such file or directory").
+      # `JDK_JAVA_OPTIONS` rather than `JAVA_TOOL_OPTIONS`: the launcher reads it, and an operator
+      # who sets the other one for a proxy does not silently take this away.
+      #
+      # **And the home is set, because the image's own does not last.** It runs as 1000 with no
+      # passwd entry; until the image carried `HOME=/home/vectispire`, `user.home` was `/`: the
+      # known-hosts file an SSH clone records its hosts in could not be created, and every clone
+      # with a deployment key failed ("The known-hosts file could not be prepared: /.ssh"), along
+      # with JGit's own configuration ("Creating directories for /.config/jgit failed"). The image's
+      # home is in the container's writable layer, gone with the container. Under the work directory
+      # it is this process's alone — the agent has its own — and it survives a re-creation, so a host
+      # recorded once is checked against from then on rather than met again. This flag wins over the
+      # image's `HOME`, which the JVM reads only when nothing names the home. Scanners are handed
+      # their workspace, never this.
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
+        -Duser.home=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}/home
+    secrets:
+      - source: mysql_password
+        target: VECTISPIRE_DB_PASSWORD
+      # Decrypts every deployment SSH key and integration token this instance holds.
+      - source: encryption_key
+        target: encryption_key
+      - source: bootstrap_password
+        target: VECTISPIRE_BOOTSTRAP_PASSWORD
+      # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first
+      # use and stored encrypted under ENCRYPTION_KEY. Set it when several instances sign. The file
+      # is named after the property, which the config tree reads as it is.
+      - source: signing_key
+        target: vectispire.signing.key
+      # Optional: the OIDC client's secret, for the provider configured in `.env.oidc`.
+      - source: oidc_client_secret
+        target: vectispire.oidc.client-secret
+    volumes:
+      # **No `~/.ssh` of the operator's.** One was mounted here, read-only, and it did nothing it
+      # promised: at `/home/vectispire/.ssh` it was never read, the home being `/`; and where the home
+      # did match (an image built from the Dockerfile) a read-only known-hosts file made every keyed
+      # clone fail. It was also the wrong thing to hand over — every private key and host the
+      # operator has, to the process holding ENCRYPTION_KEY, usable with `VECTISPIRE_HOST_SSH` by
+      # anyone allowed to add a URL. To pin the forges' host keys rather than record them at first
+      # contact, write them to `home/.ssh/known_hosts` under the work directory — see the guide.
+      #
+      # The audit mirror's home. A named volume rather than a bind mount: it holds audit
+      # entries, and the image creates the directory owned by its unprivileged user so the
+      # volume inherits that owner instead of arriving root-owned.
+      - vectispire_audit:/var/lib/vectispire/audit
+      # **The same absolute path on both sides, and a bind rather than a named volume.** What this
+      # process creates at `…/vectispire-scan-123/source` is what the daemon mounts into a scanner
+      # under that very name; any other target path, or a volume whose host path is Docker's, and
+      # the two sides name different directories again. Prepared by `work-dir` below.
+      - ${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}:${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
+    # `group_add: docker` went with the socket mount: there is no longer a file whose group has to
+    # be held. It is also one less piece of host configuration to guess — it was a name on some
+    # hosts and a numeric GID on others.
+    # **Declared here, because the published image has none.** The `Dockerfile` carries a
+    # HEALTHCHECK, but the image this file pulls is built by Jib, which writes none — and the
+    # agent below waits for `service_healthy`, so `--profile with-agent up` stopped at "container
+    # vectispire-control-plane has no healthcheck configured" and the agent never started. Same probe as the
+    # Dockerfile's: the health endpoint knows whether the database answers, the port alone does not.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3180/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    depends_on:
+      db:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
+      work-dir:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - vectispire-net
+      - vectispire-db
+      - vectispire-docker
+      # Where the agent reaches the API, and the only thing the agent reaches.
+      - vectispire-agent
+
+  # **The scans' directory on the host, handed to the control plane's user before it starts.** The
+  # daemon creates a missing bind source itself, owned by root and mode 755, and the control plane
+  # runs as 1000:1000 — it could then create no workspace at all. This one-shot container gives the
+  # directory to that user, at 0700: it holds cloned trees and, while a scan runs, the secrets report
+  # in the clear, so nobody else on the host has to be able to list it.
+  #
+  # Root, because a chown is; and nothing else. It is the control plane's own image (already pulled,
+  # no third image to pin), with no network, every capability dropped but the two a chown and a
+  # chmod of a directory it does not own need, and nothing mounted but that one directory.
+  work-dir:
+    image: *control-plane-image
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chmod 0700 /work && chown 1000:1000 /work"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}:/work
+    restart: "no"
+
+  # --- Optional: Remote Agent (for isolated container worker nodes) --------------------------
+  # **Keycloak, behind a profile and for evaluation.** `docker compose --profile sso up`.
+  #
+  # It is not in the default composition, and that is not timidity: embedding an identity provider
+  # means inheriting its upgrades and its CVEs. What this service ships is a working example — a
+  # realm with the client already set up and the group mapper correctly configured, which is
+  # precisely what people get wrong doing it by hand. A real deployment points
+  # `VECTISPIRE_OIDC_ISSUER` at the organisation's own Keycloak.
+  #
+  # `start-dev` says so itself at start-up: in-memory storage, no HTTPS, not for production. The
+  # client secret and the realm password are in `ci/keycloak/vectispire-realm.json`, in the clear
+  # and named for what they are — **realm import does not substitute `${env.…}`**, which was
+  # checked: the marker comes back literal. A production realm therefore carries its own secrets,
+  # set some other way.
+  #
+  # Pinned by digest like the other third-party images: this one decides who signs in. It was
+  # 26.0.8, the last release of a line Keycloak no longer patches; 26.8.1 was taken with the realm
+  # import re-checked against it — imported on both, the client, its redirect URIs, the group mapper
+  # and the groups read back identical through the admin API.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:3879c623248408de29a5303178b5816c77e8dfef3890c361f8c0bbeaa979ba3b
+    container_name: vectispire-keycloak
+    profiles:
+      - sso
+    # **No default password, and no start without one.** It defaulted to `admin`/`admin`: the master
+    # realm's administrator of every evaluation Keycloak was a pair printed in a public repository,
+    # and that account rewrites the `vectispire` realm — its users, its client, its group mapper —
+    # and with them who signs in to Vectispire as whom. Not `:?` — Compose interpolates the whole
+    # file even for an inactive profile, so a required variable would stop a plain `docker compose
+    # up` for everyone who never runs Keycloak. The check runs in the container instead, before
+    # Keycloak starts, and names the variable.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        test -n "$${KC_BOOTSTRAP_ADMIN_PASSWORD}" ||
+        { echo 'Set KEYCLOAK_ADMIN_PASSWORD in .env (openssl rand -base64 24): Keycloak has no default administrator password.' >&2; exit 1; };
+        exec /opt/keycloak/bin/kc.sh "$$@"
+      - kc.sh
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-}
+    volumes:
+      - ./ci/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8081}:8080"
+    restart: unless-stopped
+    networks:
+      - vectispire-net
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    # Same reasoning as the control plane above, and the same version: an agent from one release
+    # talking to a plane from another is a protocol mismatch nobody set out to test.
+    image: &agent-image ghcr.io/asmolabs/vectispire-agent:0.11.2
+    container_name: vectispire-agent
+    profiles:
+      - with-agent
+    environment:
+      VECTISPIRE_URL: http://control-plane:3180
+      # **The token and the signing key arrive as files, never as environment** — see `secrets:`
+      # below and the header of this file. They were variables here, and an agent's environment is
+      # one `GET /containers/{id}/json` away from every client of the daemon, both socket proxies
+      # included: the token polls for work as this agent, and the signing key is what makes the
+      # control plane believe an empty result — the one that resolves a target's whole backlog. Read
+      # through the configuration tree, as the Helm chart's agents and the control plane read theirs.
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
+      VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
+      VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
+      VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
+      VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
+      VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
+      # This agent's own decision about unsigned plugins, as the control plane's above.
+      VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:-true}
+      # **Its own proxy, never the control plane's.** Sharing one put the agent on the network
+      # where the control plane's daemon endpoint lives. On a real deployment the agent runs on
+      # another machine and talks to that machine's daemon, which holds neither the database nor
+      # `ENCRYPTION_KEY` — that is its whole purpose.
+      DOCKER_HOST: tcp://agent-docker-proxy:2375
+      # The agent creates its workspaces the way the built-in worker does, and hands them to its
+      # daemon the same way: same defect, same cure — see the control plane's. Its home too, for the
+      # same reason, and in its own directory: a `delegated` agent's keyed clones record their hosts
+      # there. A `local` agent clones with that home's `.ssh` — empty unless you put a dedicated
+      # deployment key there, never the operator's own.
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
+        -Duser.home=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}/home
+    # Compose refuses to start this service when `.env` does not declare them, naming the variable,
+    # and mounts nothing for one declared empty. An empty token is not a weak secret, it is an agent
+    # that fails to enrol and says so; an empty signing key means this agent's results are accepted
+    # on its API key alone — pin a key from the agents screen and put the private half it returns
+    # to you once in `VECTISPIRE_AGENT_SIGNING_KEY`. Not in `x-required`: a plain `docker compose up`
+    # runs no agent and must not ask for its secrets.
+    secrets:
+      - source: agent_token
+        target: VECTISPIRE_AGENT_TOKEN
+      - source: agent_signing_key
+        target: VECTISPIRE_AGENT_SIGNING_KEY
+    volumes:
+      # **Its own directory, not the control plane's.** Sharing one would let each side read the
+      # other's clones; the agent exists to be another trust domain, even on one host.
+      - ${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}:${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
+    depends_on:
+      control-plane:
+        condition: service_healthy
+      agent-docker-proxy:
+        condition: service_started
+      agent-work-dir:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      # Not `vectispire-net`, and above all not `vectispire-db`: the agent needs the API and its own
+      # daemon, and a network that also carried the database would hand back what decision 0003
+      # takes away at compile time.
+      - vectispire-agent
+      - vectispire-agent-docker
+
+  # The agent's directory, prepared like the control plane's by `work-dir` above.
+  agent-work-dir:
+    image: *agent-image
+    profiles:
+      - with-agent
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chmod 0700 /work && chown 1000:1000 /work"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}:/work
+    restart: "no"
+
+  # **The agent's daemon endpoint, apart from the control plane's.** Same filter, same pin.
+  #
+  # What it does not change, said plainly: both proxies reach the one daemon of this host, and
+  # `POST /containers/create` with a bind of `/` — which no URL-prefix filter can refuse, because it
+  # is the call scanning lives on — is root on that host, where the database files and the secrets
+  # above also live. On one machine the agent profile is an evaluation of the protocol, not of the
+  # isolation. The isolation is the agent on another host, with `VECTISPIRE_EMBEDDED_WORKER=false`
+  # here so the control plane needs no daemon at all.
+  agent-docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    container_name: vectispire-agent-docker-proxy
+    profiles:
+      - with-agent
+    environment:
+      PING: 1
+      VERSION: 1
+      INFO: 1
+      CONTAINERS: 1
+      IMAGES: 1
+      POST: 1
+      EXEC: 0
+      EVENTS: 0
+      GRPC: 0
+      AUTH: 0
+      SECRETS: 0
+      CONFIGS: 0
+      SWARM: 0
+      NODES: 0
+      SERVICES: 0
+      TASKS: 0
+      VOLUMES: 0
+      NETWORKS: 0
+      PLUGINS: 0
+      SYSTEM: 0
+      DISTRIBUTION: 0
+      BUILD: 0
+      COMMIT: 0
+      SESSION: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - vectispire-agent-docker
+
+secrets:
+  mysql_password:
+    environment: MYSQL_PASSWORD
+  mysql_root_password:
+    environment: MYSQL_ROOT_PASSWORD
+  encryption_key:
+    environment: ENCRYPTION_KEY
+  bootstrap_password:
+    environment: VECTISPIRE_BOOTSTRAP_PASSWORD
+  # Empty in `.env` means no file, and the application reads no value.
+  signing_key:
+    environment: VECTISPIRE_SIGNING_KEY
+  oidc_client_secret:
+    environment: VECTISPIRE_OIDC_CLIENT_SECRET
+  # The agent's (profile `with-agent`), named after the property each sets.
+  agent_token:
+    environment: VECTISPIRE_AGENT_TOKEN
+  agent_signing_key:
+    environment: VECTISPIRE_AGENT_SIGNING_KEY
+
+volumes:
+  vectispire_mysql_data:
+    name: vectispire_mysql_data
+  vectispire_audit:
+    name: vectispire_audit
+
+networks:
+  # The front: the control plane, and Keycloak when the `sso` profile runs.
+  vectispire-net:
+    name: vectispire-net
+    driver: bridge
+
+  # The database and the control plane, nothing else, and no route out: the database has no
+  # reason to call anywhere.
+  vectispire-db:
+    name: vectispire-db
+    driver: bridge
+    internal: true
+
+  # The API for the agent. Not internal: the agent clones repositories.
+  vectispire-agent:
+    name: vectispire-agent
+    driver: bridge
+
+  # **`internal: true`, and that is half the control.** An internal network has no route out: the
+  # proxy to the daemon is reachable only by the two services explicitly attached to it, and it
+  # cannot itself call anywhere.
+  vectispire-docker:
+    name: vectispire-docker
+    driver: bridge
+    internal: true
+
+  vectispire-agent-docker:
+    name: vectispire-agent-docker
+    driver: bridge
+    internal: true

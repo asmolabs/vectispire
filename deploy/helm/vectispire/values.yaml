@@ -1,0 +1,425 @@
+# Vectispire on Kubernetes — decision 0038 (docs/architecture/en/decisions/0038-deploying-on-kubernetes.md).
+#
+# What this chart deploys: the control plane (a Deployment, the interface served by the same jar), its
+# Service, an Ingress, the audit mirror's volume, and — off by default — scan agents in pods with a
+# Docker-in-Docker sidecar. What it does not deploy: the database (an external MySQL), the Secrets (yours,
+# named below), and agents on a Docker host outside the cluster, which is the recommended place for them.
+#
+# **The control plane runs no container.** The built-in worker is off and cannot be switched on here: a
+# pod has no Docker daemon, and the report plugins that would need one answer 409 until an executor can
+# reach a remote daemon (decision 0038, option A). Every scan runs on an agent.
+
+image:
+  repository: ghcr.io/asmolabs/vectispire
+  tag: "0.11.1"
+  # **By digest.** A tag can be moved; what was reviewed and what runs are then two images. The chart
+  # refuses to render without one. `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<tag>`.
+  digest: "sha256:089974b81a297ed140e4f25d0f118d3c98dc183c600c12f1a6fc99a0a131f73e"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# **One, and only one is supported in 1.0** (decision 0043 §4). The code is written for several instances
+# (decision 0038 §1), and none of its mechanisms — the maintenance tasks, the audit chain's lock, the
+# outbox — has been exercised by two running applications. Two would also need cookie affinity on the Ingress for
+# single sign-on (`ingress.stickySessions`) and a ReadWriteMany volume for the audit mirror, one file per
+# pod; the chart refuses two replicas with a ReadWriteOnce mirror.
+replicaCount: 1
+
+# The external database. Only MySQL is offered here, at 8.4 LTS or 9.x (decision 0043 §3); PostgreSQL's
+# code is kept and takes the same keys, but nothing tests it and 1.0 does not promise it.
+database:
+  # **Required.** One host, no `mysql+srv`: the application must know the database's address to keep
+  # webhooks off it, and refuses to start otherwise. TLS through Connector/J's own properties, e.g.
+  #   jdbc:mysql://db.example.org:3306/vectispire?sslMode=VERIFY_IDENTITY&trustCertificateKeyStoreUrl=file:/etc/vectispire/mysql/truststore.p12&trustCertificateKeyStoreType=PKCS12
+  # The server: `max_allowed_packet` at least 160M, `default_time_zone` '+00:00' (decision 0038 §4).
+  url: ""
+  user: vectispire
+  password:
+    secretName: ""
+    key: password
+  # The MySQL server's CA as a PKCS12 truststore, mounted at mountPath for the URL above to name.
+  trustStore:
+    secretName: ""
+    key: truststore.p12
+    mountPath: /etc/vectispire/mysql
+
+# Each secret reaches the pod as a file under /run/secrets — the config tree the application imports —
+# never as an environment variable. Create the Secrets yourself (see the chart's README).
+secrets:
+  # **Required.** Decrypts every deployment key and token Vectispire holds. Lose it and they are lost.
+  encryptionKey:
+    secretName: ""
+    key: encryption-key
+  # Read only while no account exists: the first administrator's password. Required for a first install.
+  bootstrapPassword:
+    secretName: ""
+    key: bootstrap-password
+  # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first use and
+  # stored encrypted in the database. Set it with two replicas, and keep it: a replaced key makes every
+  # document already signed unverifiable.
+  signingKey:
+    secretName: ""
+    key: signing-key
+  # Optional: the OIDC client's secret, with `oidc.issuer` set.
+  oidcClientSecret:
+    secretName: ""
+    key: oidc-client-secret
+  # Optional, during a rotation only: the previous encryption keys, comma-separated.
+  previousEncryptionKeys:
+    secretName: ""
+    key: previous-encryption-keys
+  # Optional: the mail relay's password, with `mail.username` set. Read as `vectispire.mail.password`.
+  mailPassword:
+    secretName: ""
+    key: mail-password
+  # Optional: the token a Prometheus server scrapes `/actuator/prometheus` with, at least 32 characters.
+  # Unset, the page answers an administrator's session only. Read as `vectispire.metrics.scrape-token`.
+  metricsScrapeToken:
+    secretName: ""
+    key: metrics-scrape-token
+
+bootstrap:
+  username: admin
+
+oidc:
+  # Set to switch single sign-on on. The other OIDC settings go in `extraEnv`
+  # (docs-site/reference/configuration.md, "Authentication").
+  issuer: ""
+
+# **Where people reach Vectispire**, written into links: the weekly checklist reminder's, SARIF's information
+# URI, a VEX document's identifier, a tracker ticket. Empty, it is `https://<ingress.host>` while the Ingress
+# is on — TLS ends there or before it, so the address people use is https either way — and unset without one.
+publicUrl: ""
+
+# **The SMTP relay, off while `host` is empty.** No host renders no mail variable at all: the application
+# builds a sender as soon as `vectispire.mail.host` exists, so an empty one would make every send fail
+# rather than none be attempted. Alerts, the weekly posture digest and the checklist reminders all leave
+# through it; who receives them is a setting, not this. With `networkPolicy.restrictEgress`, list the relay
+# in `networkPolicy.egress`.
+mail:
+  host: ""
+  port: 587
+  # **Required with a host.** Unset, the application signs as vectispire@localhost, which a relay refuses.
+  from: ""
+  # Empty for an anonymous relay; set, it needs `secrets.mailPassword`.
+  username: ""
+  # On unless the relay refuses it: the messages name unfixed vulnerabilities.
+  starttls: true
+
+# **The ingress controller's addresses or CIDR — required with an Ingress.** Left empty, the rate limiter
+# and every audit entry name the controller, and `X-Forwarded-Proto` is ignored, so TLS ending at the
+# Ingress reads as plain HTTP to the pod.
+#
+# **Requires `networkPolicy.enabled`.** A peer in this range is believed about the client's address, and the
+# controller's pods have no fixed address, so the range is usually the pod range: without a policy keeping
+# port 3180 to the controller, any pod in the cluster calls the pod directly, names any client address it
+# likes — a fresh rate-limit bucket on every request, an audit entry naming somebody else — and is believed.
+# Set `trustedProxiesWithoutNetworkPolicy` only where the range holds the controller and nothing else.
+trustedProxies: ""
+trustedProxiesWithoutNetworkPolicy: false
+
+# Plain variables, for the settings this chart does not name (docs-site/reference/configuration.md).
+# Never a secret here: an environment is readable by whoever can read the pod.
+extraEnv: []
+#  - name: VECTISPIRE_GIT_ALLOWED_HOSTS
+#    value: gitlab.example.org
+
+# The audit mirror: each audit entry appended, as it is written, to a file outside the database — what
+# makes deleting the last entry a second edit in a second medium. One file per pod, named after it.
+auditMirror:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  # ReadWriteOnce for one replica. Two replicas need ReadWriteMany, each pod writing its own file.
+  accessMode: ReadWriteOnce
+
+service:
+  type: ClusterIP
+  port: 3180
+
+ingress:
+  enabled: true
+  className: ""
+  host: vectispire.example.org
+  tls:
+    # The Secret holding the certificate for `host`; empty serves no TLS, which the chart refuses unless
+    # `allowPlainHttp` says so — the interface signs people in.
+    secretName: ""
+  allowPlainHttp: false
+  # With two replicas, single sign-on needs the callback on the pod that sent the person out. These are
+  # ingress-nginx's; another controller has its own.
+  stickySessions: false
+  # **ingress-nginx's, and each one is needed.** An agent's long poll holds its request 30 seconds; an
+  # agent's result carries the SBOM, up to 256 MB; a rule set is up to 64 MB. Another controller needs
+  # the same three settings in its own words.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: "256m"
+
+# Starting values; measure. The heap is 75 % of the limit (`-XX:MaxRAMPercentage=75` in the image).
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+
+# Room for Tomcat's and the reports' temporary files, and the home JGit and the JVM write to.
+tmpSize: 1Gi
+
+probes:
+  # Long enough for the migrations of an upgrade: thirty times ten seconds.
+  startup:
+    periodSeconds: 10
+    failureThreshold: 30
+  liveness:
+    periodSeconds: 15
+    failureThreshold: 4
+  readiness:
+    periodSeconds: 10
+    failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+# The chart adds a required anti-affinity to every agent pod, of any release in any namespace, to whatever is
+# here: their daemon is privileged — root on its node — and this pod holds the encryption key. On a
+# single node the control plane then stays Pending rather than share it.
+affinity: {}
+podAnnotations: {}
+
+networkPolicy:
+  # A floor, not the control: a policy names addresses, the application names destinations
+  # (`OutboundUrlGuard`). Off by default because the ingress controller's namespace is yours to name.
+  enabled: false
+  # Who may reach port 3180: the ingress controller, by its namespace's labels.
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+  # Restricting egress means listing every destination: the database, the forges, the OIDC issuer, the
+  # SIEM collector, the trackers and the threat-intelligence feeds. DNS is added for you. Never the
+  # Kubernetes API server's endpoints or the nodes' range: the application refuses the API service and
+  # ports 6443 and 10250 on any address, and a managed API server on 443 only this list can keep out.
+  restrictEgress: false
+  egress: []
+  #  - to:
+  #      - ipBlock:
+  #          cidr: 10.0.20.15/32   # the MySQL server
+  #    ports:
+  #      - port: 3306
+
+# --- Scan agents in the cluster ------------------------------------------------------------------------
+#
+# **Off by default, and the recommendation is to keep it off**: run agents on a Docker host outside the
+# cluster (docs-site/getting-started/installation.md, "Kubernetes"). In the cluster an agent needs a
+# Docker daemon of its own, and a privileged container is root on its node — so these pods belong in a
+# namespace and on nodes of their own, and nowhere a privileged pod is forbidden.
+agents:
+  enabled: false
+  # A namespace of its own, labelled for privileged pods (Pod Security Admission) when created here.
+  # Installing into one namespace you were given: `namespace: ""` (the release's) and
+  # `createNamespace: false` — that namespace's owner then decides whether a privileged pod is admitted.
+  namespace: vectispire-agents
+  createNamespace: true
+
+  image:
+    repository: ghcr.io/asmolabs/vectispire-agent
+    tag: "0.11.1"
+    digest: "sha256:735c5c5f712de817b30af1a2c1ff6888552c371f5560f089a356424001270f76"
+    pullPolicy: IfNotPresent
+
+  # **Required, and https://.** The control plane as the agent reaches it — through the Ingress. The agent
+  # sends its key on every poll and receives credentials sealed for it; the chart refuses http://.
+  controlPlaneUrl: ""
+  # The agent's API key (scope `agent`) and the private half of its pinned signing key — both required.
+  # Without a pinned key the control plane accepts the agent's results unattested, and whoever holds the
+  # token Secret can submit an empty scan that resolves a target's backlog.
+  # One agent identity is one pod: more scans at once is the agent's concurrency, set on its row.
+  token:
+    secretName: ""
+    key: token
+  signingKey:
+    secretName: ""
+    key: signing-key
+  # A PKCS12 truststore, when the Ingress certificate is from a private CA. It replaces the JVM's own:
+  # include every authority the agent must trust, the forges' included.
+  trustStore:
+    secretName: ""
+    key: truststore.p12
+  # The forges' SSH host keys, pinned: a read-only known_hosts is only matched against, never written.
+  # Without it the first contact records them, and the pod forgets them at every restart.
+  knownHosts: ""
+  pluginRegistry: ""
+  pluginSignatureRequired: true
+  # Rendered into the agent's container as written. Never KUBERNETES_SERVICE_HOST or _PORT: they would
+  # replace the kubelet's, and the agent refuses to start on an API server address that is not the cluster's.
+  extraEnv: []
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+  # **What runs the scanners.** `dind`: a Docker daemon beside the agent, configured under `dind` below —
+  # privileged, or rootless. `kubernetes`: one pod per scanner run in a namespace of its own, under Pod
+  # Security `restricted` (decision 0045): no Docker and no privileged pod anywhere. The agent's service
+  # account then holds a Role in that namespace only — create, read, list and delete pods, exec into them,
+  # read their logs — and `dind` is not read.
+  executor: dind
+  kubernetes:
+    # **One per release, and never the agents' namespace nor the release's**: the Role reaches every pod in
+    # it. Empty is `<release fullname>-scans`, so two releases never share one — their policies and Roles would
+    # reach each other's scan pods (security review of 2026-10-26, M2). The chart refuses the agents' or the
+    # release's.
+    scansNamespace: ""
+    createNamespace: true
+    # Using a namespace the chart did not create — GitOps, a namespace given to you — needs this: the chart
+    # cannot see its labels, and it must enforce Pod Security `restricted` and hold nothing else. The agent
+    # checks the first at every start and refuses to scan without it; the second is yours.
+    acknowledgeExistingNamespace: false
+    # How long a scan pod may take to be scheduled, pull its images and receive its workspace.
+    startTimeout: 5m
+    # Each scan pod's scanner, request and limit alike — the closed shape's bound. The pods go on the agents'
+    # nodes: size the pool for the agent's concurrency times these.
+    scanCpuMillis: 2000
+    scanMemoryMiB: 2048
+    # **The matcher's database, kept for scan pods** (decision 0045 §7): a ReadWriteOnce claim in the scans'
+    # namespace, onto which each generation the agent downloads — some 3 GB — is copied once, then mounted
+    # read-only by every matcher pod, on the agent's node. It keeps the generations the agent still holds — the
+    # current one and, for a while, the one before. Off, the database is copied into each matcher pod, at every
+    # scan.
+    matcherCache:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    # **A private registry's credentials, for verifying a plugin's signature.** cosign reads the signature from
+    # the registry the plugin's image lives in, in a scan pod; a private registry refuses it anonymously, and the
+    # plugin is refused as `registry_authentication_required`. Name a `kubernetes.io/dockerconfigjson` Secret in
+    # the agents' namespace: the agent hands cosign its entry for that registry alone, for that run alone. The
+    # image itself is pulled by the cluster, with the nodes' credentials or an `imagePullSecrets` on the scans'
+    # namespace's `default` service account — never with this Secret, which scan pods cannot read.
+    registryCredentials:
+      secretName: ""
+    # **An admission policy keeping scan pods on the agents' pool** (security review of 2026-10-26, L2): every
+    # pod created in the scans' namespace must carry `agents.nodeSelector`, must not name its node and must not
+    # mount a token — refused by the API server even if the agent asks. Cluster-scoped, so installing it needs
+    # the right to create a ValidatingAdmissionPolicy; Kubernetes 1.30 or later. Turning it off needs the
+    # acknowledgement: a compromised agent could then place a scan pod on any node, the control plane's included.
+    admissionPolicy:
+      enabled: true
+      acknowledgeUnpinnedScanPods: false
+    # **Required with the network policy.** The agent calls the API server, whose real address — the
+    # endpoints of the `kubernetes` Service, `kubectl get endpoints kubernetes -n default` — usually lies in
+    # a range excludeCidrs keeps scanners out of. Listed here, it is reachable by the agent alone, on these
+    # ports; scan pods never are.
+    apiServer:
+      cidrs: []
+      #  - 10.0.0.10/32
+      ports: [443, 6443]
+
+  # The work directory: each scan's clone and the vulnerability matcher's database (some 3 GB). Mounted
+  # at the same path in the agent and in the daemon, because the daemon resolves a scanner's bind.
+  workDir:
+    path: /var/lib/vectispire/agent-work
+    sizeLimit: 30Gi
+
+  dind:
+    # `privileged` — docker:dind, the daemon as root in a privileged container: root on the node.
+    # `rootless` — docker:dind-rootless. **It does not scan with this release's agent**: under the
+    # daemon's user namespace the workspace the agent owns as uid 1000 reads as root's to a scanner run as
+    # uid 1000, and every scanner is absent (decision 0038, "Decided on 2026-10-03"). Rendered only with
+    # `rootless.acknowledgeUnreadableWorkspaces: true`.
+    variant: privileged
+    privileged:
+      image: docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977
+    rootless:
+      image: docker:29.9.2-dind-rootless@sha256:ae083cc7de51e7a8e5a597f8fb774ca7914c408a95fc0f1477826a913479518a
+      acknowledgeUnreadableWorkspaces: false
+      # What the image needs on most clusters. Docker's own instructions run it privileged — as uid 1000,
+      # so not root on the node — to lift seccomp, AppArmor and the masked /proc that rootlesskit needs. A
+      # cluster allowing unconfined seccomp and AppArmor, an unmasked procMount and user namespaces may do
+      # without `privileged`; replace this block then.
+      securityContext:
+        privileged: true
+        runAsUser: 1000
+        runAsGroup: 1000
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        memory: 6Gi
+    # The daemon's images and layers. An emptyDir by default: every restart pulls the scanners again. A
+    # volume keeps them; one pod per agent, so ReadWriteOnce.
+    imageCache:
+      enabled: false
+      size: 50Gi
+      storageClassName: ""
+    # Without a cache, the emptyDir's ceiling.
+    dataSizeLimit: 50Gi
+
+  # **Required: nodes of their own.** A node selector (or a required node affinity) and the toleration of a
+  # taint only these pods tolerate — selected onto their pool, and nothing else scheduled there. Without
+  # both the chart refuses to render; `acknowledgeSharedNodes` renders it on shared nodes anyway.
+  nodeSelector: {}
+  #  vectispire.dev/agents: "true"
+  tolerations: []
+  #  - key: vectispire.dev/agents
+  #    operator: Exists
+  #    effect: NoSchedule
+  affinity: {}
+  acknowledgeSharedNodes: false
+
+  networkPolicy:
+    # Nothing reaches an agent: deny every ingress. Egress to DNS, and to everything outside the
+    # excluded ranges — the forges, the registries, the matcher's database, the control plane through
+    # its Ingress. A scanner's traffic leaves through this pod, so the excluded ranges are what an
+    # escaped scanner cannot reach: the cluster's pod and service ranges, **the nodes' range** (the
+    # kubelets, and the API server's real address once kube-proxy has translated it), and **the
+    # database's subnet** when it sits outside them, as a managed MySQL usually does.
+    # 169.254.0.0/16 — link-local, the cloud metadata endpoint — is always excluded, and so are the metadata
+    # addresses outside it (100.100.100.200, 192.0.0.192, 168.63.129.16).
+    enabled: true
+    # **Required with agents.** Empty, the chart refuses to render: egress to 0.0.0.0/0 with nothing
+    # excluded is the whole cluster. `acknowledgeClusterReachable` renders it anyway — and is also what
+    # `enabled: false` requires, since no policy at all reaches further than an empty list.
+    excludeCidrs: []
+    acknowledgeClusterReachable: false
+    #  - 10.244.0.0/16
+    #  - 10.96.0.0/12
+    # Destinations inside an excluded range, each to its own ports. **The ingress controller is usually
+    # one**: kube-proxy translates the Ingress's LoadBalancer address to a controller pod's before the
+    # policy is applied, and that pod lies in the excluded pod range — without an entry the agent cannot
+    # reach the control plane. So is an internal Git host or registry in an excluded subnet.
+    # Each entry is one peer (an ipBlock, or a namespaceSelector and/or a podSelector, ANDed) with its
+    # `ports` — **required**: the chart refuses an entry without them, which would open every port of what
+    # it selects. A port is the pod's, after translation (the controller's container port, not the
+    # Service's); `protocol` defaults to TCP.
+    allowTo: []
+    #  - namespaceSelector:
+    #      matchLabels:
+    #        kubernetes.io/metadata.name: ingress-nginx
+    #    podSelector:
+    #      matchLabels:
+    #        app.kubernetes.io/name: ingress-nginx
+    #    ports:
+    #      - port: 443
+    #  - ipBlock:
+    #      cidr: 10.0.30.12/32    # an internal Git host: HTTPS and SSH
+    #    ports:
+    #      - port: 443
+    #      - port: 22
+    # DNS goes to port 53 anywhere unless this names the resolvers. Empty by default: the chart cannot tell
+    # kube-dns from a node-local cache (often 169.254.20.10) or another distribution's resolver, and a wrong
+    # guess leaves every agent without a name. Set it to yours to keep port 53 of every other pod and
+    # host out of a scanner's reach:
+    dnsTo: []
+    #  - namespaceSelector:
+    #      matchLabels:
+    #        kubernetes.io/metadata.name: kube-system
+    #    podSelector:
+    #      matchLabels:
+    #        k8s-app: kube-dns

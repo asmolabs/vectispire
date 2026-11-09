@@ -1,0 +1,126 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ComplianceHistoryPage, colourOf, height } from './compliance-history';
+import type { ComplianceMovement, ComplianceStep } from '@/app/core/api.models';
+import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+
+/**
+ * Progress, and the colour it refuses to give a drop.
+ *
+ * <h2>The client half of a domain rule</h2>
+ *
+ * <p>The domain already attributes each month to its cause: a drop that happened while the estate
+ * grew is an {@code ESTATE_GREW}, not a {@code DECLINED}. But that distinction is useless if the
+ * screen paints both red — a reader looks at the colour before reading the "why" column, and a
+ * chart where watching wider is red teaches people to watch less.
+ *
+ * <p>That is why the first case is about the colour and not about the text: the text is already
+ * tested on the domain side, the colour nowhere else.
+ */
+describe('compliance progress', () => {
+    let fixture: ComponentFixture<ComplianceHistoryPage>;
+    let http: HttpTestingController;
+
+    function step(period: string, score: number, movement: ComplianceMovement, targets = 10): ComplianceStep {
+        return asSchema('Step', {
+            snapshot: {
+                period,
+                framework: 'ISO_27001',
+                score,
+                status: 'PARTIAL',
+                targets,
+                observed: targets,
+                fresh: targets,
+                freshnessDays: 30,
+                endOfLifeEnabled: true,
+                codeAnalysisReaches: true,
+                controlsTotal: 4,
+                controlsDeclared: 4,
+                soaFindings: 0,
+                capturedAt: '2026-09-01T00:00:00Z'
+            },
+            delta: 0,
+            movement,
+            because: 'parce que.'
+        });
+    }
+
+    async function mount(body: unknown[]) {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [ComplianceHistoryPage],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(ComplianceHistoryPage);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne((call) => call.url === '/api/v1/compliance/history').flush(body);
+        fixture.detectChanges();
+    }
+
+    beforeEach(async () => {
+        await mount([
+            {
+                framework: 'ISO_27001',
+                comparable: false,
+                steps: [step('2026-07', 90, 'FIRST', 10), step('2026-08', 71, 'ESTATE_GREW', 14)]
+            }
+        ]);
+    }, 20_000);
+
+    it('does not paint a drop caused by a wider estate as a regression', () => {
+        expect(colourOf('ESTATE_GREW')).not.toBe(colourOf('DECLINED'));
+        expect(colourOf('ESTATE_SHRANK')).not.toBe(colourOf('IMPROVED'));
+        expect(colourOf('RULES_CHANGED')).not.toBe(colourOf('DECLINED'));
+        // And the bar on screen wears it: the month the estate grew is amber, not red.
+        const bars = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            'tbody tr .rounded:not(.flex-1)'
+        );
+        expect([...bars].map((bar) => bar.className.includes(colourOf('ESTATE_GREW')))).toEqual([false, true]);
+        expect([...bars].map((bar) => bar.style.width)).toEqual(['90%', '71%']);
+    });
+
+    it('says a series over a moving estate is not a trend', () => {
+        // Without that note, two joined points read as a trajectory, whatever the distance between
+        // the two estates that produced them.
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('history_compliance.not_comparable');
+    });
+
+    it('shows no delta on the first capture', () => {
+        // A "0" against the first month would read as "we did not move" where the true sentence is
+        // "there is nothing to compare with".
+        const changes = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            'tbody tr td:nth-child(3)'
+        );
+        expect([...changes].map((c) => c.textContent.trim())).toEqual(['—', '0']);
+    });
+
+    it('scales the bar against one hundred and not against the series maximum', () => {
+        // A scale that adjusts itself would make a two-point gain look like a leap.
+        expect(height(step('2026-08', 50, 'STEADY'))).toBe(50);
+        expect(height(step('2026-08', 0, 'STEADY'))).toBeGreaterThan(0);
+    });
+
+    it("heads each series with the standard's name, not the Java constant", () => {
+        const heading = () =>
+            (fixture.nativeElement as HTMLElement).querySelector('span.font-medium')!.textContent.trim();
+        useEnglish();
+        fixture.detectChanges();
+        expect(heading()).toBe('ISO/IEC 27001:2022');
+        useFrench();
+        fixture.detectChanges();
+        expect(heading()).toBe('ISO/IEC 27001:2022');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('ISO_27001');
+    });
+
+    it('announces the absence of captures rather than an empty chart', async () => {
+        await mount([]);
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('history_compliance.empty');
+    });
+});

@@ -1,0 +1,241 @@
+package com.asmolabs.vectispire.core.access.web.security.chain;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+@DisplayName("The ceiling on refused bearer tokens")
+class BearerRateLimitFilterTest {
+
+    private static final int CAPACITY = 3;
+
+    private BearerRateLimitFilter filter;
+    private AuditLogService audit;
+    private HttpServletResponse response;
+    private StringWriter written;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        audit = mock(AuditLogService.class);
+        filter = new BearerRateLimitFilter(
+                new TrustedProxies(""), audit, new SecurityLimits("", 0, null, CAPACITY, Duration.ofMinutes(5), 0, null, 0));
+
+        response = mock(HttpServletResponse.class);
+        written = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(written));
+    }
+
+    @AfterEach
+    void clearContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private static HttpServletRequest credentialed(String peer) {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn(peer);
+        when(request.getHeader("Authorization")).thenReturn("Bearer zsk-whatever");
+        when(request.getRequestURI()).thenReturn("/api/v1/issues");
+        return request;
+    }
+
+    /** The chain leaves nothing in the context, which is what a refused token looks like. */
+    private static FilterChain refusing() {
+        return mock(FilterChain.class);
+    }
+
+    private static FilterChain accepting() {
+        return (request, response) -> SecurityContextHolder.getContext()
+                .setAuthentication(new UsernamePasswordAuthenticationToken("someone", null));
+    }
+
+    @Test
+    @DisplayName("refuses an address once it has spent its allowance")
+    void refusesAfterCapacity() throws Exception {
+        HttpServletRequest request = credentialed("203.0.113.9");
+
+        for (int attempt = 0; attempt < CAPACITY; attempt++) {
+            FilterChain chain = refusing();
+            filter.doFilterInternal(request, response, chain);
+            verify(chain).doFilter(request, response);
+        }
+
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(request, response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(written.toString()).contains("Too many refused credentials");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "counts a refused token sent as [{0}]")
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Bearer\tzsk-whatever", "bearer zsk-whatever", "BEARER   zsk-whatever"})
+    void countsEverySeparatorTheAuthenticationFilterReads(String header) throws Exception {
+        // The ceiling read "bearer " with a space alone; the authentication filter, any whitespace.
+        // A tab took every token past the count — and past the audit entry the ceiling writes.
+        HttpServletRequest request = credentialed("203.0.113.10");
+        when(request.getHeader("Authorization")).thenReturn(header);
+
+        for (int attempt = 0; attempt < CAPACITY; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(request, response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    /**
+     * The property that keeps this filter off the population it is not aimed at.
+     *
+     * <p>A remote agent long-polls every thirty seconds with a key that works; an interface makes
+     * twenty calls to paint one page. Counting those would throttle the deployment rather than
+     * the sweep.
+     */
+    @Test
+    @DisplayName("never counts a token that worked")
+    void successNeverCounts() throws Exception {
+        HttpServletRequest request = credentialed("203.0.113.9");
+
+        for (int attempt = 0; attempt < CAPACITY * 5; attempt++) {
+            filter.doFilterInternal(request, response, accepting());
+            SecurityContextHolder.clearContext();
+        }
+
+        verify(response, never()).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
+    @DisplayName("counts a refused key sent in X-API-Key, as the authentication filter reads one there")
+    void theAliasHeaderCounts() throws Exception {
+        // The authentication filter reads `X-API-Key` when there is no `Authorization`, and this
+        // filter counted only the latter: the alias was a way to try keys with no ceiling.
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("203.0.113.9");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getHeader("X-API-Key")).thenReturn("zsk-guess");
+        when(request.getRequestURI()).thenReturn("/api/v1/issues");
+
+        for (int attempt = 0; attempt < CAPACITY; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(request, response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
+    @DisplayName("never counts a request that carried no credentials at all")
+    void anonymousNeverCounts() throws Exception {
+        HttpServletRequest anonymous = mock(HttpServletRequest.class);
+        when(anonymous.getRemoteAddr()).thenReturn("203.0.113.9");
+        when(anonymous.getHeader("Authorization")).thenReturn(null);
+
+        for (int attempt = 0; attempt < CAPACITY * 5; attempt++) {
+            FilterChain chain = refusing();
+            filter.doFilterInternal(anonymous, response, chain);
+            verify(chain).doFilter(anonymous, response);
+        }
+
+        verify(response, never()).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
+    @DisplayName("counts per address: one exhausted client does not refuse another")
+    void perAddress() throws Exception {
+        HttpServletRequest noisy = credentialed("203.0.113.9");
+        for (int attempt = 0; attempt <= CAPACITY; attempt++) {
+            filter.doFilterInternal(noisy, response, refusing());
+        }
+
+        FilterChain other = refusing();
+        HttpServletRequest quiet = credentialed("198.51.100.7");
+        filter.doFilterInternal(quiet, response, other);
+
+        verify(other).doFilter(quiet, response);
+    }
+
+    /**
+     * An IPv6 client is handed a /64 and picks any address in it; a budget per address gave it
+     * 2^64 budgets. The audit entry still names the address that emptied the bucket — the /64 is
+     * the unit of counting, not what an investigator searches for.
+     */
+    @Test
+    @DisplayName("an IPv6 client rotating addresses within its /64 spends one allowance, and the audit names the address")
+    void oneSlash64IsOneAllowance() throws Exception {
+        for (int attempt = 1; attempt <= CAPACITY; attempt++) {
+            filter.doFilterInternal(credentialed("2001:db8:7:9::" + attempt), response, refusing());
+        }
+        ArgumentCaptor<AuditLogService.Record> entry = ArgumentCaptor.forClass(AuditLogService.Record.class);
+        verify(audit).record(entry.capture());
+        assertThat(entry.getValue().ipAddress()).isEqualTo("2001:db8:7:9::3");
+
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(credentialed("2001:db8:7:9:dead:beef:0:1"), response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+
+        FilterChain neighbour = refusing();
+        HttpServletRequest nextNetwork = credentialed("2001:db8:7:a::1");
+        filter.doFilterInternal(nextNetwork, response, neighbour);
+        verify(neighbour).doFilter(nextNetwork, response);
+    }
+
+    /**
+     * One entry per window, not one per retry.
+     *
+     * <p>A loop retrying every second would otherwise write a thousand identical rows into a log
+     * that is never purged, and bury the entry that mattered inside its own alarm.
+     */
+    @Test
+    @DisplayName("writes one audit entry when the allowance runs out, and not one per refusal")
+    void auditsOnce() throws Exception {
+        HttpServletRequest request = credentialed("203.0.113.9");
+
+        for (int attempt = 0; attempt < CAPACITY + 10; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+
+        verify(audit, times(1)).record(any());
+    }
+
+    @Test
+    @DisplayName("reset clears the tracked addresses")
+    void resetClears() throws Exception {
+        HttpServletRequest request = credentialed("203.0.113.9");
+        for (int attempt = 0; attempt <= CAPACITY; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+
+        filter.reset();
+
+        FilterChain afterReset = refusing();
+        filter.doFilterInternal(request, response, afterReset);
+        verify(afterReset).doFilter(request, response);
+    }
+}

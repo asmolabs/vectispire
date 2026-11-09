@@ -1,0 +1,251 @@
+import { Component, OnInit, computed, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { SessionStore } from '@/app/core/session.store';
+import { IntelApi } from '../../core/api/intel.api';
+import { messageOf } from '../../core/api-error';
+import { LatestRequest } from '../../core/latest-request';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
+import * as wording from '../../shared/ai-advice';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
+import { DialogModule } from '@openng/optimus-ui/dialog';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
+import { TargetKindPipe } from '@/app/shared/target-kind';
+
+@Component({
+    selector: 'app-epss',
+    imports: [
+        FormsModule,
+        ButtonModule,
+        InputTextModule,
+        TableModule,
+        TagModule,
+        MessageModule,
+        ProgressSpinnerModule,
+        DialogModule,
+        TranslatePipe,
+        SeverityLabelPipe,
+        LocalNumberPipe,
+        LocalPercentPipe,
+        TargetKindPipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './epss.html'
+})
+export class Epss implements OnInit {
+    private readonly intelApi = inject(IntelApi);
+    private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
+
+    /** Synchronising the feed is an operator's act; reading the ranking is not. */
+    readonly isSecurityLead = this.session.isSecurityLead;
+
+    readonly loading = signal<boolean>(false);
+    readonly syncing = signal<boolean>(false);
+    readonly summary = signal<EpssFleetSummary | null>(null);
+    /**
+     * The top priorities with their tier's colour and words worked out once — per summary or language,
+     * not per row on every pass. Spread rather than wrapped, so a row still reads as the priority it is;
+     * `t` reads the bundle's signal, so a switch recomputes the words.
+     */
+    readonly priorities = computed(() =>
+        (this.summary()?.topPriorities ?? []).map((priority) => ({
+            ...priority,
+            tierTone: tierSeverity(priority.priorityTier),
+            tierLabel: tierLabel(this.i18n, priority.priorityTier)
+        }))
+    );
+    readonly error = signal<string | null>(null);
+    readonly syncFeedback = signal<string | null>(null);
+
+    cveSearchQuery = '';
+    readonly lookupResult = signal<ThreatIntelRecord | null>(null);
+    readonly lookupLoading = signal<boolean>(false);
+    readonly lookupError = signal<string | null>(null);
+    readonly lookupDialogOpen = signal<boolean>(false);
+
+    /**
+     * The explanation of a CVE one looks at before knowing whether it concerns them.
+     *
+     * <p><b>This is where the question is asked, and there was nowhere to ask it.</b> The advisor
+     * was reachable only from a finding in the estate; this screen is where one types a CVE read
+     * elsewhere — in a bulletin, in the press — to decide whether it deserves attention. The route
+     * existed, with a deterministic fallback for CVEs the estate does not carry, and no component
+     * called it.
+     *
+     * <p>As on the list of findings, the explanation is offered only if a model is configured.
+     */
+    readonly aiEnabled = signal<boolean>(false);
+    readonly advice = signal<AiVulnerabilityAdvice | null>(null);
+
+    /**
+     * The product's own sentences, in the reader's language, from exactly the values it sent —
+     * unknown said as unknown. This formatted a missing EPSS score as 85 %, beside a server that
+     * made up 75 % for every CVE the estate does not carry. Null when a model wrote the explanation,
+     * whose prose is shown as it came; worked out per explanation or language, and `t` reads the
+     * bundle's signal, so a switch recomputes it.
+     */
+    readonly ownWords = computed(() => {
+        const advice = this.advice();
+        const own = advice?.deterministic;
+        if (!advice || !own) return null;
+        return {
+            summary: wording.adviceSummary(this.i18n, advice.identifier, own),
+            exploitation: wording.adviceExploitation(this.i18n, own),
+            fix: wording.adviceFix(this.i18n, own)
+        };
+    });
+
+    readonly adviceLoading = signal<boolean>(false);
+    readonly adviceError = signal<string | null>(null);
+
+    /**
+     * The lookup and the explanation, each latest-wins. Clearing the advice on a new search was not
+     * enough: an explanation still on its way for the previous CVE arrived afterwards and was shown
+     * under the next CVE's numbers. A new search cancels it, and a slow lookup cannot overtake the
+     * one typed after it either.
+     */
+    private readonly lookupLoad = new LatestRequest();
+    private readonly adviceLoad = new LatestRequest();
+
+    ngOnInit(): void {
+        this.loadSummary();
+        this.intelApi.getAiAdvisorStatus().subscribe({
+            next: (status) => this.aiEnabled.set(status?.enabled === true),
+            error: () => this.aiEnabled.set(false)
+        });
+    }
+
+    /** Asks for the explanation of the CVE on screen. */
+    explain(): void {
+        const record = this.lookupResult();
+        if (!record) return;
+
+        this.adviceLoading.set(true);
+        this.adviceError.set(null);
+        this.advice.set(null);
+
+        this.adviceLoad.run(this.intelApi.explainCveWithAi(record.cveId, this.i18n.currentLang()), {
+            next: (advice) => {
+                this.advice.set(advice);
+                this.adviceLoading.set(false);
+            },
+            error: (response) => {
+                this.adviceLoading.set(false);
+                this.adviceError.set(messageOf(response, this.i18n.t('epss.explain_failed')));
+            }
+        });
+    }
+
+    loadSummary(): void {
+        this.loading.set(true);
+        this.error.set(null);
+
+        this.intelApi.getEpssPriorities().subscribe({
+            next: (data) => {
+                this.summary.set(data);
+                this.loading.set(false);
+            },
+            error: (err) => {
+                this.error.set(messageOf(err, this.i18n.t('epss.load_failed')));
+                this.loading.set(false);
+            }
+        });
+    }
+
+    syncThreatIntel(): void {
+        this.syncing.set(true);
+        this.syncFeedback.set(null);
+
+        this.intelApi.syncEpss().subscribe({
+            next: (res) => {
+                this.syncing.set(false);
+                // A catalogue that could not be read answers 200 with FAILED and its reason, and the
+                // catalogue in use is kept: announced as a success, the screen would say the flags
+                // are fresh when they are exactly as old as they were.
+                if (res.status !== 'SYNCED') {
+                    this.error.set(res.lastError ?? this.i18n.t('epss.sync_failed'));
+                    return;
+                }
+                // The EPSS file fails apart from the catalogue, and the scores this screen ranks on are
+                // its own: a file that could not be read is said as such, the scores in use kept.
+                if (res.epss.status !== 'SYNCED' && !res.epss.inProgress) {
+                    this.error.set(res.epss.lastError ?? this.i18n.t('epss.sync_failed'));
+                    return;
+                }
+                this.syncFeedback.set(
+                    this.i18n.t('epss.sync_succeeded', {
+                        cves: res.totalCves,
+                        kev: res.totalKev,
+                        scored: res.epss.totalScored
+                    })
+                );
+                this.loadSummary();
+            },
+            error: (err) => {
+                this.syncing.set(false);
+                this.error.set(messageOf(err, this.i18n.t('epss.sync_failed')));
+            }
+        });
+    }
+
+    searchCve(): void {
+        if (!this.cveSearchQuery.trim()) return;
+        this.lookupLoading.set(true);
+        this.lookupResult.set(null);
+        this.lookupError.set(null);
+        this.lookupDialogOpen.set(true);
+
+        // A fresh search clears the previous explanation and cancels the one in flight: either would
+        // show one CVE's analysis under another's numbers.
+        this.adviceLoad.cancel();
+        this.advice.set(null);
+        this.adviceError.set(null);
+        this.adviceLoading.set(false);
+
+        this.lookupLoad.run(this.intelApi.lookupEpssCve(this.cveSearchQuery.trim()), {
+            next: (record) => {
+                this.lookupResult.set(record);
+                this.lookupLoading.set(false);
+            },
+            error: () => {
+                this.lookupLoading.set(false);
+                this.lookupError.set(this.i18n.t('epss.lookup_none', { cve: this.cveSearchQuery.trim() }));
+            }
+        });
+    }
+}
+
+function tierSeverity(tier: string): 'danger' | 'warn' | 'info' | 'secondary' {
+    switch (tier) {
+        case 'CRITICAL_ARMED':
+            return 'danger';
+        case 'HIGH_PROBABLE':
+            return 'warn';
+        case 'MEDIUM_THEORETICAL':
+            return 'info';
+        default:
+            return 'secondary';
+    }
+}
+
+function tierLabel(i18n: I18nService, tier: string): string {
+    switch (tier) {
+        case 'CRITICAL_ARMED':
+            return i18n.t('epss.tier_critical_armed');
+        case 'HIGH_PROBABLE':
+            return i18n.t('epss.tier_high_probable');
+        case 'MEDIUM_THEORETICAL':
+            return i18n.t('epss.tier_medium_theoretical');
+        default:
+            return i18n.t('epss.tier_low');
+    }
+}

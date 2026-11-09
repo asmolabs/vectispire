@@ -1,0 +1,35 @@
+<p-dialog
+    [header]="'agents.concurrent_title' | translate: { name: page.concurrencyAgent()?.name ?? '' }"
+    [(visible)]="page.concurrencyVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    <form id="agent-concurrency" class="flex flex-col gap-2" (ngSubmit)="saveConcurrency()">
+        <label for="concurrent-edit" class="font-medium">{{ 'agents.concurrent_label' | translate }}</label>
+        <p-inputnumber
+            inputId="concurrent-edit"
+            name="concurrent-edit"
+            [required]="true"
+            [ariaRequired]="true"
+            [invalid]="!!page.concurrencyError()"
+            [ngModelOptions]="{ standalone: true }"
+            [(ngModel)]="page.concurrencyValue"
+            [min]="bounds.min"
+            [max]="bounds.max"
+            [showButtons]="true"
+            [useGrouping]="false"
+            [ariaDescribedBy]="
+                page.concurrencyError() ? 'concurrent-edit-hint concurrent-edit-error' : 'concurrent-edit-hint'
+            "
+            styleClass="w-full"
+        />
+        <small id="concurrent-edit-hint" class="text-muted-color">{{ 'agents.concurrent_hint' | translate }}</small>
+        @if (page.concurrencyError(); as message) {
+            <p-message severity="error" [closable]="false" id="concurrent-edit-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.concurrencyVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="page.saving()" (onClick)="saveConcurrency()" />
+    </ng-template>
+</p-dialog>

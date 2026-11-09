@@ -1,0 +1,334 @@
+package com.asmolabs.vectispire.core.outbox;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.Detail;
+import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.outbound.OutboundJson;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
+
+@DisplayName("draining the notification queue")
+class OutboxServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-18T14:00:00Z");
+    private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-00000000000f");
+
+    private OutboxMessageRepository messages;
+    private NotificationService notifications;
+    private OutboxService service;
+
+    @BeforeEach
+    void wire() {
+        messages = mock(OutboxMessageRepository.class);
+        notifications = mock(NotificationService.class);
+        // The relay routes on the outbox type, so the mock has to answer the one it was queued
+        // under — otherwise every row looks like a message no channel handles.
+        when(notifications.type()).thenReturn(OutboxService.TYPE_SCAN_DELTA);
+
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        service = new OutboxService(
+                messages, List.of(notifications), List.of(), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC),
+                new TransactionTemplate(manager));
+
+        when(messages.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of());
+        when(messages.claim(any(), anyString(), any(), any())).thenReturn(1);
+    }
+
+    @Test
+    @DisplayName("the payload carries a message identifier, because delivery is at-least-once")
+    void enqueueStampsAnIdentifier() {
+        service.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA);
+        OutboxMessageEntity message = saved();
+
+        // The POST can succeed and the transaction marking it sent can fail. The receiver is the
+        // only place that ambiguity can be resolved, so it has to be told which message this is.
+        assertThat(message.getPayload()).contains("\"message_id\":\"" + message.getId() + "\"");
+        assertThat(message.getStatus()).isEqualTo("pending");
+        assertThat(message.getNextAttemptAt()).isNull();
+    }
+
+    @Test
+    void marksADeliveredMessageSent() {
+        due(pending(0));
+
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 0, 0, 0));
+        verify(messages).markSent(ID, 1, "sent", NOW);
+    }
+
+    @Test
+    @DisplayName("a message another instance has claimed is not delivered again")
+    void aClaimedMessageIsSkipped() throws Exception {
+        // Every instance runs the relay and reads the same due rows. Without the claim each of
+        // them delivered each message.
+        OutboxMessageEntity message = pending(0);
+        due(message);
+        when(messages.claim(eq(message.getId()), anyString(), any(), any())).thenReturn(0);
+
+        assertThat(service.relay(20).sent()).isZero();
+        verify(messages, never()).markSent(any(), anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("a failure schedules the next attempt rather than losing the message")
+    void aFailureIsRetried() {
+        due(pending(0));
+        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
+
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 1, 0, 0));
+        verify(messages).recordAttempt(eq(ID), eq(1), anyString(), eq("pending"), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("the last attempt abandons the message and says so")
+    void theLastAttemptGivesUp() {
+        due(pending(OutboxRetry.MAX_ATTEMPTS - 1));
+        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
+
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 0, 1, 0));
+        // Failed, with no next attempt: a message circulating for ever would hide the outage
+        // behind a queue that never empties.
+        verify(messages).recordAttempt(eq(ID), eq(OutboxRetry.MAX_ATTEMPTS), anyString(), eq("failed"), isNull());
+    }
+
+    @Test
+    @DisplayName("one message failing does not undo the ones already delivered")
+    void eachMessageIsSettledSeparately() {
+        OutboxMessageEntity first = pending(0);
+        OutboxMessageEntity second = pending(0);
+        second.setId(UUID.fromString("00000000-0000-0000-0000-0000000000ff"));
+        due(first, second);
+        doThrow(new OutboundJson.OutboundFailureException("boom"))
+                .doNothing()
+                .when(notifications)
+                .deliver(any(), any());
+
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 1, 0, 0));
+    }
+
+    @Test
+    @DisplayName("an unreadable payload is a failure like any other, not a crash")
+    void malformedJsonDoesNotStopThePass() {
+        OutboxMessageEntity broken = pending(0);
+        broken.setPayload("{not json");
+        due(broken);
+
+        assertThat(service.relay(20).failed()).isEqualTo(1);
+    }
+
+    @Test
+    void countsByStatusForTheScreen() {
+        when(messages.countByStatus()).thenReturn(List.of(new Object[] {"sent", 4L}, new Object[] {"failed", 1L}));
+
+        assertThat(service.counts()).containsEntry("sent", 4L).containsEntry("failed", 1L);
+    }
+
+    @Test
+    void prunesDeliveredMessagesPastTheirRetention() {
+        when(messages.deleteSentBefore(anyString(), any())).thenReturn(3);
+
+        assertThat(service.pruneSent()).isEqualTo(3);
+        verify(messages).deleteSentBefore("sent", NOW.minus(OutboxRetry.SENT_RETENTION));
+    }
+
+    @Test
+    @DisplayName("what comes back out of the queue is what went in, message identifier included")
+    void thePayloadSurvivesTheRoundTrip() {
+        NotificationPayload queued = NotificationPayload.of(new NotificationPayload.Delta(
+                "service", 7, List.of(issue()), List.of(), 3, Severity.HIGH));
+        service.enqueue(queued, OutboxService.TYPE_SCAN_DELTA);
+        OutboxMessageEntity stored = saved();
+        due(stored);
+
+        ArgumentCaptor<NotificationPayload> delivered = ArgumentCaptor.forClass(NotificationPayload.class);
+        service.relay(20);
+        verify(notifications).deliver(delivered.capture(), org.mockito.ArgumentMatchers.isNull());
+
+        // The relay parses the stored text back into the record before posting it, so every field
+        // the record does not declare is dropped — and the mapper is configured not to complain
+        // about unknown properties, so it would be dropped without a word. `message_id` is the
+        // one that matters: it is stamped by `enqueue` and is the receiver's only way to
+        // recognise the repeat that at-least-once delivery will eventually send it.
+        assertThat(delivered.getValue().messageId()).isEqualTo(stored.getId().toString());
+        assertThat(delivered.getValue().scanId()).isEqualTo(7);
+        assertThat(delivered.getValue().resolvedCount()).isEqualTo(3);
+        assertThat(delivered.getValue().issues()).singleElement().returns("CVE-2026-1", Detail::identifier);
+    }
+
+    @Test
+    @DisplayName("a message of an unknown type is refused, not delivered as an empty scan delta")
+    void anUnknownTypeIsNotGuessedAt() {
+        OutboxMessageEntity other = pending(0);
+        other.setMessageType("digest");
+        due(other);
+
+        // Unknown properties are ignored by design, so parsing a digest as a scan delta would
+        // succeed and produce zeroes — a webhook announcing that nothing happened. Failing the
+        // message keeps it in the queue where somebody can see it.
+        assertThat(service.relay(20).failed()).isEqualTo(1);
+        verify(notifications, never()).deliver(any(), any());
+    }
+
+    private static NotificationPayload.NotifiableIssue issue() {
+        return new NotificationPayload.NotifiableIssue(
+                1L, "CVE-2026-1", FindingType.VULNERABILITY, Severity.HIGH, false, 0.4, "openssl", null, "3.5.2", null);
+    }
+
+    /** The row {@code enqueue} handed the repository — it returns the message identifier only, since decision 0029. */
+    private OutboxMessageEntity saved() {
+        ArgumentCaptor<OutboxMessageEntity> row = ArgumentCaptor.forClass(OutboxMessageEntity.class);
+        verify(messages).save(row.capture());
+        return row.getValue();
+    }
+
+    private void due(OutboxMessageEntity... pending) {
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(pending));
+    }
+
+    private static OutboxMessageEntity pending(int attempts) {
+        OutboxMessageEntity message = new OutboxMessageEntity();
+        message.setId(ID);
+        message.setMessageType(OutboxService.TYPE_SCAN_DELTA);
+        message.setPayload("{\"scan_id\":7,\"new_count\":2,\"reopened_count\":0}");
+        message.setStatus("pending");
+        message.setAttempts(attempts);
+        message.setCreatedAt(NOW.minusSeconds(600));
+        return message;
+    }
+
+    @Test
+    @DisplayName("a row is delivered to the destination its type names, not to the first channel")
+    void theTypeRoutesTheRow() {
+        NotificationChannel teams = mock(NotificationChannel.class);
+        when(teams.type()).thenReturn("scan_delta_teams");
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications, teams), List.of(), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(queued("scan_delta_teams")));
+
+        routed.relay(10);
+
+        // The point of one row per destination: a retry must reach the one that failed, and only
+        // that one. Delivering to every channel would re-send to the two that succeeded.
+        // The team the row is for travels with it: only the generic webhook reads it, but the
+        // relay has no business knowing which channel that is.
+        verify(teams).deliver(any(), isNull());
+        verify(notifications, org.mockito.Mockito.never()).deliver(any(), any());
+    }
+
+    @Test
+    @DisplayName("a row whose type no channel handles is an error, not a silent skip")
+    void anUnknownTypeIsRefused() {
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(queued("scan_delta_carrier_pigeon")));
+
+        // The message stays pending and the failure is recorded. A skipped row would sit in the
+        // table for ever, counted as neither sent nor failed.
+        assertThat(service.relay(10).sent()).isZero();
+    }
+
+    @Test
+    @DisplayName("a SIEM row goes to its handler, as stored, and to no notification channel")
+    void aHandlerTypeIsRoutedToItsHandler() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10).sent()).isEqualTo(1);
+
+        // The payload is handed over as the text that was stored: a SIEM event is not a
+        // NotificationPayload, and parsing it as one would produce a notification of zeroes.
+        verify(siem).deliver(row.getId(), row.getPayload());
+        verify(notifications, never()).deliver(any(), any());
+    }
+
+    @Test
+    @DisplayName("a handler whose destination is gone has its row abandoned at once, not retried")
+    void aGoneHandlerDestinationIsAbandoned() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        doThrow(new GoneDestinationException("the SIEM export was switched off"))
+                .when(siem).deliver(any(), any());
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 1, 0));
+        verify(messages).recordAttempt(eq(row.getId()), eq(1), eq("the SIEM export was switched off"), eq("failed"), isNull());
+    }
+
+    @Test
+    @DisplayName("a handler whose destination may not be reached for now has its row held: pending, uncounted, offered again later")
+    void aHeldHandlerDestinationKeepsTheRow() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        doThrow(new HeldDeliveryException("the SIEM transport \"siem.syslog_udp\" is disabled"))
+                .when(siem).deliver(any(), any());
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        row.setAttempts(3);
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 0, 1));
+        // Three attempts before the hold, three after it: a hold however long never nears abandonment.
+        verify(messages).recordAttempt(eq(row.getId()), eq(3), eq("the SIEM transport \"siem.syslog_udp\" is disabled"),
+                eq("pending"), eq(NOW.plus(OutboxRetry.HOLD_INTERVAL)));
+        verify(messages, never()).markSent(any(), anyInt(), anyString(), any());
+    }
+
+    private PlatformTransactionManager transactionManager() {
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        return manager;
+    }
+
+    private com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity queued(String type) {
+        var message = new com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity();
+        message.setId(java.util.UUID.randomUUID());
+        message.setMessageType(type);
+        message.setPayload("{\"scan_id\":34,\"message_id\":\"msg-1\"}");
+        message.setStatus("pending");
+        message.setAttempts(0);
+        message.setCreatedAt(NOW);
+        return message;
+    }
+}

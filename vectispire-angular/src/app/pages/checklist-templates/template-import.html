@@ -1,0 +1,99 @@
+<p-card styleClass="mb-4" data-testid="import-card">
+    <form (ngSubmit)="importWorkbook()">
+        <ng-template #title>{{ 'checklist_templates.import_title' | translate }}</ng-template>
+        <p class="text-sm text-muted-color mt-0">{{ 'checklist_templates.import_explain' | translate }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+                <label for="checklist-slug" class="font-medium">{{
+                    'checklist_templates.field_slug' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="checklist-slug"
+                    list="checklist-slugs"
+                    autocomplete="off"
+                    required
+                    [attr.aria-invalid]="slugInvalid()"
+                    [ngModelOptions]="{ standalone: true }"
+                    [ngModel]="page.uploadSlug()"
+                    (ngModelChange)="page.uploadSlug.set($event)"
+                    [placeholder]="'checklist_templates.slug_placeholder' | translate"
+                />
+                <datalist id="checklist-slugs">
+                    @for (template of page.templates(); track template.slug) {
+                        <option [value]="template.slug"></option>
+                    }
+                </datalist>
+                <small class="text-muted-color">
+                    @if (isNewTemplate()) {
+                        {{ 'checklist_templates.slug_new_hint' | translate }}
+                    } @else {
+                        {{ 'checklist_templates.slug_existing_hint' | translate }}
+                    }
+                </small>
+            </div>
+            @if (isNewTemplate()) {
+                <div class="flex flex-col gap-2">
+                    <label for="checklist-name" class="font-medium">{{
+                        'checklist_templates.field_name' | translate
+                    }}</label>
+                    <input
+                        pInputText
+                        id="checklist-name"
+                        [ngModelOptions]="{ standalone: true }"
+                        [ngModel]="page.uploadName()"
+                        (ngModelChange)="page.uploadName.set($event)"
+                    />
+                </div>
+            }
+            <div class="flex flex-col gap-2">
+                <label for="checklist-label" class="font-medium">{{
+                    'checklist_templates.field_label' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="checklist-label"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="uploadLabel"
+                    [placeholder]="'checklist_templates.label_placeholder' | translate"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="checklist-file" class="font-medium">{{
+                    'checklist_templates.field_file' | translate
+                }}</label>
+                <input
+                    id="checklist-file"
+                    type="file"
+                    required
+                    [attr.aria-describedby]="page.uploadError() ? 'upload-error' : null"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    (change)="pick($event)"
+                    class="text-sm"
+                />
+                <small class="text-muted-color">{{ 'checklist_templates.file_hint' | translate }}</small>
+            </div>
+        </div>
+        @if (page.uploadError(); as message) {
+            <p-message
+                severity="error"
+                [closable]="false"
+                styleClass="mt-3 w-full"
+                data-testid="upload-error"
+                id="upload-error"
+            >
+                {{ message }}
+            </p-message>
+        }
+        <div class="mt-4">
+            <p-button
+                id="import-workbook"
+                type="submit"
+                icon="pi pi-upload"
+                [label]="'checklist_templates.import_btn' | translate"
+                [loading]="uploading()"
+                [disabled]="!canImport()"
+            />
+        </div>
+    </form>
+</p-card>

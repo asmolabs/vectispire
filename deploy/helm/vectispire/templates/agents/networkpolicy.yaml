@@ -1,0 +1,33 @@
+{{- if and .Values.agents.enabled .Values.agents.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vectispire.fullname" . }}-agent
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vectispire.agentSelector" . | nindent 6 }}
+  # Nothing reaches an agent: it polls, and its daemon listens on a socket file only.
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    {{- include "vectispire.scannerEgress" . | nindent 4 }}
+    {{- if and (eq .Values.agents.executor "kubernetes") .Values.agents.kubernetes.apiServer.cidrs }}
+    # The API server, to the agent alone: its Role's calls. Scan pods have no rule to it (decision 0045).
+    - to:
+        {{- range .Values.agents.kubernetes.apiServer.cidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        {{- range .Values.agents.kubernetes.apiServer.ports }}
+        - port: {{ . }}
+          protocol: TCP
+        {{- end }}
+    {{- end }}
+{{- end }}

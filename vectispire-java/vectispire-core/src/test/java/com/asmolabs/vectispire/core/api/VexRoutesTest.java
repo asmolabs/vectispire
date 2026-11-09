@@ -1,0 +1,211 @@
+package com.asmolabs.vectispire.core.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.time.Instant;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@DisplayName("the OpenVEX advisory routes")
+class VexRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private ScanRepository scansRepo;
+
+    @Autowired
+    private GitRepositoryRepository repositoriesRepo;
+
+    @Autowired
+    private FindingRepository findingsRepo;
+
+    @Autowired
+    private IssueRepository issuesRepo;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Test
+    @DisplayName("generates valid OpenVEX v0.2.0 advisory for completed scan")
+    void generatesScanOpenVex() throws Exception {
+        String token = asAdmin();
+
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/portal");
+        repo.setUrl("https://github.com/corp/portal.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repo.getId());
+        scan.setBranch("main");
+        scan.setStatus("completed");
+        scan.setCreatedAt(Instant.now());
+        scan = scansRepo.save(scan);
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scan.getId());
+        finding.setType("sca");
+        finding.setIdentifier("CVE-2022-42889");
+        finding.setPackageName("commons-text");
+        finding.setPackageVersion("1.9");
+        finding.setPurl("pkg:maven/org.apache.commons/commons-text@1.9");
+        finding.setSource("trivy");
+        finding.setSeverity("HIGH");
+        finding.setCreatedAt(Instant.now());
+        finding = findingsRepo.save(finding);
+        // Behind the entity's back, which has no setter for a column nothing computes: a value
+        // there is somebody's hand, and the document must not state it as a call graph.
+        jdbc.update("update t_finding set reachability = 'REACHABLE' where id = ?", finding.getId());
+
+        mvc.perform(authenticated(get("/api/v1/vex/scans/" + scan.getId() + "/openvex.json"), token))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"scan-" + scan.getId() + "-openvex.json\""))
+                .andExpect(jsonPath("$.['@context']").value("https://openvex.dev/ns/v0.2.0"))
+                .andExpect(jsonPath("$.statements[0].vulnerability.name").value("CVE-2022-42889"))
+                // **This case required `not_affected` / `vulnerable_code_not_in_execute_path`.**
+                // The OpenVEX document is machine-readable and travels to a customer; it carried
+                // that exemption because the reachability column read UNREACHABLE, a value set by a
+                // substring search through the Semgrep findings that had found nothing. No human
+                // approved that path. Clearing is now a triage decision, and the absence of a
+                // finding means "under investigation".
+                .andExpect(jsonPath("$.statements[0].status").value("under_investigation"))
+                .andExpect(jsonPath("$.statements[0].justification").doesNotExist())
+                // And the other way: REACHABLE was stated `affected`, "active invocation in call
+                // path", and every other statement awaited a reachability confirmation nothing
+                // would ever give.
+                .andExpect(jsonPath("$.statements[0].action_statement").value("Awaiting contextual triage."));
+    }
+
+    @Test
+    @DisplayName("generates aggregate OpenVEX document for compliance audit")
+    void generatesAggregateOpenVex() throws Exception {
+        String token = asAdmin();
+
+        mvc.perform(authenticated(get("/api/v1/vex/aggregate.json"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.['@context']").value("https://openvex.dev/ns/v0.2.0"))
+                .andExpect(jsonPath("$.author").value("Vectispire ASPM Control Plane"));
+    }
+
+    @Test
+    @DisplayName("ingests upstream OpenVEX advisory and cascades automated triage")
+    void ingestsUpstreamOpenVex() throws Exception {
+        String token = asAdmin();
+
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.issues.persistence.IssueEntity();
+        issue.setFingerprint("fp-upstream-test-1");
+        issue.setIdentifier("CVE-2023-9999");
+        issue.setType("vulnerability");
+        issue.setPackageName("spring-core");
+        issue.setPackageVersion("6.0.0");
+        issue.setState("open");
+        issue.setSeverity("critical");
+        issue.setTriageStatus("under_review");
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        issuesRepo.save(issue);
+
+        String openVexPayload = """
+                {
+                  "@context": "https://openvex.dev/ns/v0.2.0",
+                  "@id": "https://vendor.example.com/vex/2026-001",
+                  "author": "Spring Security Team",
+                  "timestamp": "2026-08-23T00:00:00Z",
+                  "version": 1,
+                  "statements": [
+                    {
+                      "vulnerability": { "name": "CVE-2023-9999" },
+                      "products": [ "pkg:maven/org.springframework/spring-core@6.0.0" ],
+                      "status": "not_affected",
+                      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+                      "impact_statement": "Spring Core default configuration does not expose deserializer endpoint."
+                    }
+                  ]
+                }
+                """;
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/vex/ingest")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content(openVexPayload),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statementsProcessed").value(1))
+                .andExpect(jsonPath("$.triagedIssues").value(1))
+                .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-9999"));
+
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
+        assertThat(updated.getTriageComment()).contains("Spring Security Team");
+    }
+
+    @Test
+    @DisplayName("ingests upstream CycloneDX 1.5 BOM-linked VEX advisory and cascades triage")
+    void ingestsUpstreamCycloneDxVex() throws Exception {
+        String token = asAdmin();
+
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.issues.persistence.IssueEntity();
+        issue.setFingerprint("fp-upstream-cdx-test");
+        issue.setIdentifier("CVE-2023-8888");
+        issue.setType("vulnerability");
+        issue.setPackageName("log4j-core");
+        issue.setPackageVersion("2.14.0");
+        issue.setState("open");
+        issue.setSeverity("critical");
+        issue.setTriageStatus("under_review");
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        issuesRepo.save(issue);
+
+        String cycloneDxVexPayload = """
+                {
+                  "bomFormat": "CycloneDX",
+                  "specVersion": "1.5",
+                  "serialNumber": "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+                  "version": 1,
+                  "metadata": {
+                    "tools": [ { "name": "Apache Security Team" } ]
+                  },
+                  "vulnerabilities": [
+                    {
+                      "id": "CVE-2023-8888",
+                      "analysis": {
+                        "state": "not_affected",
+                        "justification": "vulnerable_code_not_in_execute_path",
+                        "detail": "JNDI lookup feature is completely disabled in runtime profile."
+                      },
+                      "affects": [ { "ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.0" } ]
+                    }
+                  ]
+                }
+                """;
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/vex/ingest")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content(cycloneDxVexPayload),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statementsProcessed").value(1))
+                .andExpect(jsonPath("$.triagedIssues").value(1))
+                .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-8888"));
+
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
+        assertThat(updated.getTriageComment()).contains("Apache Security Team");
+    }
+}

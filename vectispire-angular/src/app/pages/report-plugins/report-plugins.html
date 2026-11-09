@@ -1,0 +1,350 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'report_plugins.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'report_plugins.subtitle' | translate }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2 justify-end">
+        <p-button
+            id="download-export-schema"
+            icon="pi pi-download"
+            [outlined]="true"
+            [label]="'report_plugins.schema_btn' | translate"
+            (onClick)="downloadSchema()"
+        />
+        @if (governs()) {
+            <p-button
+                id="register-report-plugin"
+                icon="pi pi-plus"
+                [label]="'report_plugins.register_btn' | translate"
+                (onClick)="openRegister()"
+            />
+        }
+    </div>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full" data-testid="registry-error">{{
+        message
+    }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="registry-notice">{{
+        message
+    }}</p-message>
+}
+
+<!--
+    Said once, at the top, to everybody who reads the registry: why a digest waits for a second person,
+    and why that person cannot be the one who registered it.
+-->
+<p-message severity="info" [closable]="false" styleClass="mb-4 w-full" data-testid="four-eyes-explained">
+    {{ 'report_plugins.four_eyes_explained' | translate }}
+</p-message>
+
+<p-card styleClass="mb-4">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="plugin.id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'report_plugins.col_id' | translate }}</th>
+                <th>{{ 'report_plugins.col_name' | translate }}</th>
+                <th>{{ 'report_plugins.col_state' | translate }}</th>
+                <th>{{ 'report_plugins.col_approved' | translate }}</th>
+                <th>{{ 'report_plugins.col_pending' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-row>
+            <tr [attr.data-testid]="'report-plugin-' + row.plugin.id">
+                <td class="font-mono font-medium">{{ row.plugin.id }}</td>
+                <td>{{ row.plugin.name }}</td>
+                <td>
+                    @if (row.plugin.enabled) {
+                        <p-tag severity="success" [value]="'report_plugins.enabled' | translate" />
+                    } @else {
+                        <p-tag severity="secondary" [value]="'report_plugins.disabled' | translate" />
+                    }
+                </td>
+                <td class="font-mono text-sm" data-testid="approved-digest">
+                    @if (row.approved) {
+                        {{ row.approved }}
+                    } @else {
+                        <span class="text-muted-color font-sans">{{ 'report_plugins.none_approved' | translate }}</span>
+                    }
+                </td>
+                <td class="font-mono text-sm" data-testid="pending-digest">
+                    @if (row.pending) {
+                        <p-tag
+                            severity="warn"
+                            icon="pi pi-hourglass"
+                            [value]="row.pending"
+                            [attr.aria-label]="'report_plugins.aria_pending' | translate: { digest: row.pending }"
+                        />
+                    } @else {
+                        <span class="text-muted-color">—</span>
+                    }
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button
+                        [icon]="openId() === row.plugin.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'report_plugins.aria_manifests' | translate: { id: row.plugin.id }"
+                        [attr.data-testid]="'open-' + row.plugin.id"
+                        (onClick)="toggle(row.plugin)"
+                    />
+                    @if (governs()) {
+                        <p-button
+                            icon="pi pi-file-edit"
+                            [text]="true"
+                            [rounded]="true"
+                            [ariaLabel]="'report_plugins.aria_new_manifest' | translate: { id: row.plugin.id }"
+                            (onClick)="openUpdate(row.plugin)"
+                        />
+                        <p-button
+                            icon="pi pi-power-off"
+                            [text]="true"
+                            size="small"
+                            [severity]="row.plugin.enabled ? 'danger' : 'success'"
+                            [label]="
+                                row.plugin.enabled
+                                    ? ('report_plugins.disable_btn' | translate)
+                                    : ('report_plugins.enable_btn' | translate)
+                            "
+                            [loading]="busy() === row.plugin.id"
+                            [attr.data-testid]="'enable-' + row.plugin.id"
+                            (onClick)="setEnabled(row.plugin, !row.plugin.enabled)"
+                        />
+                    }
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="6" class="text-center text-muted-color py-6">{{ 'report_plugins.none' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+@if (opened(); as plugin) {
+    <p-card styleClass="mb-4" data-testid="report-plugin-detail">
+        <ng-template #title>
+            <span
+                ><span class="font-mono">{{ plugin.id }}</span> — {{ plugin.name }}</span
+            >
+        </ng-template>
+        <p class="text-muted-color text-sm mt-0">
+            {{ 'report_plugins.registered_by' | translate: { who: plugin.createdBy ?? '—' } }}
+            {{ plugin.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+        </p>
+        <h3 class="text-base font-semibold mb-2">{{ 'report_plugins.manifests_title' | translate }}</h3>
+        <ul class="list-none p-0 m-0 flex flex-col gap-4">
+            @for (entry of manifests(); track entry.manifest.digest) {
+                <li class="border border-surface rounded p-3" [attr.data-testid]="'manifest-' + entry.manifest.digest">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p-tag
+                            [severity]="entry.statusSeverity"
+                            [value]="entry.statusLabel"
+                            data-testid="manifest-status"
+                        />
+                        <span class="font-mono text-sm break-all">{{ entry.manifest.digest }}</span>
+                    </div>
+                    <dl class="grid grid-cols-1 md:grid-cols-[12rem_1fr] gap-x-6 gap-y-1 mt-2 mb-0 text-sm">
+                        <dt class="text-muted-color">{{ 'report_plugins.field_image' | translate }}</dt>
+                        <dd class="m-0 font-mono break-all">{{ entry.manifest.manifest.image }}</dd>
+                        <dt class="text-muted-color">{{ 'report_plugins.field_output' | translate }}</dt>
+                        <dd class="m-0">
+                            <span class="font-mono">{{ entry.manifest.manifest.output }}</span>
+                            ({{ entry.extension }})
+                        </dd>
+                        <dt class="text-muted-color">{{ 'report_plugins.field_export_schema' | translate }}</dt>
+                        <dd class="m-0">{{ entry.manifest.manifest.export_schema }}</dd>
+                        <dt class="text-muted-color">{{ 'report_plugins.field_signer' | translate }}</dt>
+                        <dd class="m-0 font-mono break-all">
+                            @if (entry.manifest.manifest.signature.public_key) {
+                                {{ 'report_plugins.signer_key' | translate }}
+                            } @else {
+                                {{ entry.manifest.manifest.signature.identity }} ·
+                                {{ entry.manifest.manifest.signature.issuer }}
+                            }
+                        </dd>
+                        <dt class="text-muted-color">{{ 'report_plugins.field_registered' | translate }}</dt>
+                        <dd class="m-0" data-testid="manifest-registered">
+                            {{ entry.manifest.registeredBy ?? '—' }} ·
+                            {{ entry.manifest.registeredAt | date: 'dd/MM/yyyy HH:mm' }}
+                        </dd>
+                        @if (entry.manifest.approvedAt) {
+                            <dt class="text-muted-color">{{ 'report_plugins.field_approved' | translate }}</dt>
+                            <dd class="m-0" data-testid="manifest-approved">
+                                {{ entry.manifest.approvedBy ?? '—' }} ·
+                                {{ entry.manifest.approvedAt | date: 'dd/MM/yyyy HH:mm' }}
+                                ·
+                                @if (entry.manifest.approvalFourEyes) {
+                                    {{ 'report_plugins.approved_four_eyes' | translate }}
+                                } @else {
+                                    {{ 'report_plugins.approved_alone' | translate }}
+                                }
+                            </dd>
+                        }
+                        @if (entry.manifest.withdrawnAt) {
+                            <dt class="text-muted-color">{{ 'report_plugins.field_withdrawn' | translate }}</dt>
+                            <dd class="m-0" data-testid="manifest-withdrawn">
+                                {{ entry.manifest.withdrawnBy ?? '—' }} ·
+                                {{ entry.manifest.withdrawnAt | date: 'dd/MM/yyyy HH:mm' }}
+                                <div class="whitespace-pre-wrap mt-1" data-testid="withdrawal-justification">
+                                    {{ entry.manifest.withdrawalJustification }}
+                                </div>
+                            </dd>
+                        }
+                    </dl>
+                    <details class="mt-2 text-sm">
+                        <summary class="cursor-pointer text-muted-color">
+                            {{ 'report_plugins.show_manifest' | translate }}
+                        </summary>
+                        <pre class="m-0 mt-1 font-mono text-xs whitespace-pre-wrap break-all">{{ entry.json }}</pre>
+                    </details>
+                    <div class="flex flex-wrap items-center gap-2 mt-3">
+                        @if (entry.manifest.status === 'pending_approval' && approves()) {
+                            @if (entry.approvalBlocked) {
+                                <p-button
+                                    icon="pi pi-check"
+                                    size="small"
+                                    [disabled]="true"
+                                    [label]="'report_plugins.approve_btn' | translate"
+                                    data-testid="approve"
+                                />
+                                <span class="text-sm" data-testid="approve-four-eyes">{{
+                                    'report_plugins.approve_four_eyes' | translate
+                                }}</span>
+                            } @else {
+                                <p-button
+                                    icon="pi pi-check"
+                                    size="small"
+                                    [label]="'report_plugins.approve_btn' | translate"
+                                    [loading]="busy() === entry.manifest.digest"
+                                    data-testid="approve"
+                                    (onClick)="approve(plugin, entry.manifest)"
+                                />
+                            }
+                        }
+                        @if (entry.manifest.status !== 'withdrawn' && governs()) {
+                            <p-button
+                                icon="pi pi-ban"
+                                size="small"
+                                severity="danger"
+                                [outlined]="true"
+                                [label]="'report_plugins.withdraw_btn' | translate"
+                                data-testid="withdraw"
+                                (onClick)="openWithdrawal(plugin, entry.manifest)"
+                            />
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+        <p class="text-muted-color text-sm mb-0 mt-3">{{ 'report_plugins.no_delete' | translate }}</p>
+    </p-card>
+}
+
+<p-dialog
+    [header]="
+        manifestFor()
+            ? ('report_plugins.header_update' | translate: { id: manifestFor()?.id ?? '' })
+            : ('report_plugins.header_register' | translate)
+    "
+    [(visible)]="manifestVisible"
+    [modal]="true"
+    [style]="{ width: '48rem', maxWidth: '95vw' }"
+>
+    <form class="flex flex-col gap-3" (ngSubmit)="saveManifest()">
+        <label for="report-manifest" class="font-medium">{{ 'report_plugins.field_manifest' | translate }}</label>
+        <textarea
+            pTextarea
+            id="report-manifest"
+            required
+            name="report-manifest"
+            rows="16"
+            class="font-mono text-xs w-full"
+            spellcheck="false"
+            [ngModelOptions]="{ standalone: true }"
+            [ngModel]="manifestText()"
+            (ngModelChange)="manifestText.set($event)"
+        ></textarea>
+        <small class="text-muted-color">{{ 'report_plugins.manifest_hint' | translate }}</small>
+        @if (manifestCheck(); as check) {
+            @if (check.problems.length > 0) {
+                <p-message severity="warn" [closable]="false" data-testid="manifest-problems">
+                    <ul class="m-0 pl-4">
+                        @for (problem of check.problems; track $index) {
+                            <li>{{ problem.key | translate: problem.params }}</li>
+                        }
+                    </ul>
+                </p-message>
+            } @else {
+                <p-message severity="success" [closable]="false" data-testid="manifest-ok">{{
+                    'report_plugins.manifest_ok' | translate
+                }}</p-message>
+            }
+        }
+        @if (manifestError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="manifest-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="manifestVisible.set(false)" />
+        <p-button
+            data-testid="save-manifest"
+            [label]="
+                manifestFor() ? ('report_plugins.update_btn' | translate) : ('report_plugins.register_btn' | translate)
+            "
+            [loading]="saving()"
+            [disabled]="!manifestCheck()?.manifest"
+            (onClick)="saveManifest()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'report_plugins.withdraw_title' | translate: { id: withdrawing()?.plugin?.id ?? '' }"
+    [visible]="withdrawing() !== null"
+    (visibleChange)="$event || closeWithdrawal()"
+    [modal]="true"
+    [style]="{ width: '36rem', maxWidth: '95vw' }"
+>
+    <form class="flex flex-col gap-3" (ngSubmit)="withdraw()">
+        <p class="m-0 text-sm font-mono break-all">{{ withdrawing()?.manifest?.digest }}</p>
+        <p class="m-0 text-sm">{{ 'report_plugins.withdraw_explain' | translate }}</p>
+        <label for="report-withdrawal-justification" class="font-medium">{{
+            'report_plugins.withdraw_justification' | translate
+        }}</label>
+        <textarea
+            pTextarea
+            id="report-withdrawal-justification"
+            required
+            name="report-withdrawal-justification"
+            rows="4"
+            [maxlength]="withdrawalMax"
+            [ngModelOptions]="{ standalone: true }"
+            [ngModel]="withdrawalText()"
+            (ngModelChange)="withdrawalText.set($event)"
+        ></textarea>
+        <small class="text-muted-color" data-testid="withdrawal-count">{{
+            'report_plugins.withdraw_count'
+                | translate: { count: withdrawalLength(), min: withdrawalMin, max: withdrawalMax }
+        }}</small>
+        @if (withdrawalError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="withdrawal-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeWithdrawal()" />
+        <p-button
+            data-testid="confirm-withdrawal"
+            severity="danger"
+            [label]="'report_plugins.withdraw_confirm' | translate"
+            [loading]="withdrawalBusy()"
+            [disabled]="withdrawalLength() < withdrawalMin || withdrawalLength() > withdrawalMax"
+            (onClick)="withdraw()"
+        />
+    </ng-template>
+</p-dialog>

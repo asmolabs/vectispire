@@ -1,0 +1,42 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'repositories.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'repositories.subtitle' | translate }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+        @if (page.isAdmin() && page.repositories().length > 0) {
+            <p-button
+                [label]="'repositories.scan_all' | translate"
+                icon="pi pi-server"
+                severity="secondary"
+                [outlined]="true"
+                [loading]="page.scanningAll()"
+                (onClick)="page.triggerScanAll()"
+            />
+        }
+        @if (page.isAdmin()) {
+            <p-button [label]="'repositories.add_btn' | translate" icon="pi pi-plus" (onClick)="form.openForm()" />
+        }
+    </div>
+</div>
+
+<!--
+    **A repository's language decides what was looked for inside it.** The status column of a
+    repository whose language no rule covers is green for the sole reason that nothing read it.
+-->
+<zs-rule-coverage-banner />
+
+@if (page.error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (page.notice(); as message) {
+    <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<app-repository-list (edit)="form.openForm($event)" />
+
+<app-repository-form-dialog #form />
+<app-delete-repository-dialog />
+<app-scorecard-dialog />
+<app-imports-dialog />
+<app-cicd-dialog />

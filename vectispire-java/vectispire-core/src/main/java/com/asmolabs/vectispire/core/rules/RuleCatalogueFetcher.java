@@ -1,0 +1,259 @@
+package com.asmolabs.vectispire.core.rules;
+
+import com.asmolabs.vectispire.common.scanning.Directories;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
+import com.asmolabs.vectispire.common.scanning.SourceFiles;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.springframework.stereotype.Service;
+
+/**
+ * Fetches the upstream rule catalogue, once, on an operator's instruction.
+ *
+ * <p><b>Vectispire does not redistribute these rules</b> — the whole point of decision 0006. They
+ * travel from their author to this installation because somebody here asked for them, and
+ * nothing Vectispire ships contains them.
+ *
+ * <p><b>The URL is a constant, not a parameter.</b> An operator-supplied clone URL would be a
+ * request this server makes to an address a caller chose, which is the definition of the hole
+ * the outbound guard exists to close. Fixing the upstream removes the question instead of
+ * answering it, and decision 0006 names exactly one permitted source anyway.
+ *
+ * <p><b>The head of {@code main}, and the commit it resolved to.</b> This said "a tag, never a
+ * branch", cloned as {@code refs/tags/…} so that the same tag always yields the same rules — but
+ * the upstream publishes no tags, and the code clones {@code refs/heads/main} at depth 1. Two
+ * fetches can therefore bring different rules. What keeps a scan explainable is the resolved
+ * commit, recorded with the stored set, so "which rules ran" still has an answer a year later;
+ * what the fetch does not offer is choosing a past version.
+ */
+@Service
+public class RuleCatalogueFetcher {
+
+    /** Anonymous HTTPS: these are public rules, and no credential should be anywhere near this. */
+    private static final String URL = "https://github.com/" + RuleCatalogue.UPSTREAM + ".git";
+
+    /** The only branch the upstream publishes; it carries no tags at all. */
+    private static final String BRANCH = "main";
+
+    private static final Duration TIMEOUT = Duration.ofMinutes(5);
+
+    /**
+     * A ceiling on what is read into memory.
+     *
+     * <p>Well above the catalogue's real size and well below what would trouble the process.
+     * Without it, an upstream that grew a large binary — or a tag that is not what it claims —
+     * would be read until the heap ran out, and an {@code OutOfMemoryError} says nothing about
+     * the cause.
+     */
+    private static final long MAX_BYTES = 128L * 1024 * 1024;
+
+    /**
+     * @param commit the resolved SHA-1 of what was actually fetched
+     * @param licenceSha256 what the operator's acceptance is bound to. Comparing it on the way
+     *     back is what stops the accepted licence and the fetched one being two different texts
+     */
+    public record Fetched(String commit, RuleCatalogue.Contents contents, String licenceSha256) {}
+
+    /** What the preview screen shows: the terms and the counts, not the rules themselves. */
+    public record Preview(
+            String commit,
+            String licence,
+            String licenceSha256,
+            java.util.Map<String, Integer> languages,
+            java.util.Map<String, Integer> categories,
+            int gitleaksDuplicates) {}
+
+    /** How long a preview answers for itself before the upstream is asked again. */
+    private static final Duration PREVIEW_LIFETIME = Duration.ofMinutes(10);
+
+    private Preview preview;
+    private java.time.Instant previewedAt;
+
+    private final Clock clock;
+
+    public RuleCatalogueFetcher(Clock clock) {
+        this.clock = clock;
+    }
+
+    /**
+     * The catalogue's terms and contents, cloned at most once every ten minutes.
+     *
+     * <p><b>A full clone per request</b> was what a screen refresh cost, and any governance
+     * reader could ask for it in a loop — an outbound GitHub clone and a temporary checkout each
+     * time. The preview is kept briefly and one clone runs at a time. The import does not use it:
+     * it clones again and compares the licence digest, so the terms accepted are always the ones
+     * fetched at that moment, whatever this held.
+     */
+    public synchronized Preview preview() {
+        java.time.Instant now = clock.instant();
+        if (preview == null || previewedAt.plus(PREVIEW_LIFETIME).isBefore(now)) {
+            Fetched fetched = fetch();
+            preview = new Preview(
+                    fetched.commit(),
+                    fetched.contents().licence(),
+                    fetched.licenceSha256(),
+                    fetched.contents().languages(),
+                    fetched.contents().categories(),
+                    fetched.contents().gitleaksDuplicates());
+            previewedAt = now;
+        }
+        return preview;
+    }
+
+    public Fetched fetch() {
+        RuleCatalogue.requireAllowed(RuleCatalogue.UPSTREAM);
+
+        Path checkout = temporaryDirectory();
+        try {
+            String commit = cloneHead(checkout);
+            List<RuleCatalogue.Entry> entries = read(checkout);
+            String licence = licenceOf(entries);
+            return new Fetched(
+                    commit,
+                    RuleCatalogue.describe(entries, licence),
+                    Digests.sha256Hex(licence.getBytes(StandardCharsets.UTF_8)));
+        } finally {
+            // Deleted whatever happened: a failed clone leaves a partial tree, and a temporary
+            // directory nobody removes is how a disk fills over months without a single error.
+            Directories.deleteRecursively(checkout);
+        }
+    }
+
+    /**
+     * Clones the default branch at depth 1 and reports what that resolved to.
+     *
+     * <p>Depth 1 because the history is of no interest, and the difference is not small: the
+     * shallow clone is 20 MB and takes under two seconds, which is what makes reading the
+     * catalogue an acceptable thing to do from a screen.
+     */
+    private static String cloneHead(Path into) {
+        String ref = "refs/heads/" + BRANCH;
+        try (Git repository = Git.cloneRepository()
+                .setURI(URL)
+                .setDirectory(into.toFile())
+                .setBranch(ref)
+                .setBranchesToClone(List.of(ref))
+                .setDepth(1)
+                .setCloneSubmodules(false)
+                .setTimeout((int) TIMEOUT.toSeconds())
+                .call()) {
+            return repository.getRepository().resolve("HEAD").name();
+        } catch (GitAPIException | IOException | RuntimeException failure) {
+            throw new FetchFailureException(
+                    "Could not reach " + RuleCatalogue.UPSTREAM + ". (" + rootMessage(failure) + ")", failure);
+        }
+    }
+
+    /**
+     * The rule files and the licence of a checkout. Package-private so the reading rules can be pinned on a
+     * local tree, without the network.
+     *
+     * <p><b>A regular file itself, never through a link, and opened without following one.</b> The checkout
+     * is the upstream's tree, and a symbolic link is something a commit can hold: {@code Files.isRegularFile}
+     * and {@code Files.readString} follow it, so a {@code LICENSE -> /run/secrets/encryption_key} committed
+     * upstream was read from this host — the licence preview showed it to a governance reader, and a rule file
+     * linked the same way was stored as a rule. A link is left out whatever it points to: one standing for
+     * the licence leaves the catalogue without one, which {@link #licenceOf} refuses. The open refuses a link
+     * as well ({@code NOFOLLOW_LINKS}), should an entry be swapped for one between the walk and the read, and
+     * the walk does not follow a linked directory. The ceiling is counted on the bytes read, not on a size
+     * asked beforehand: a file can grow in between.
+     */
+    static List<RuleCatalogue.Entry> read(Path checkout) {
+        List<RuleCatalogue.Entry> entries = new ArrayList<>();
+        long[] total = {0};
+        try (var paths = Files.walk(checkout)) {
+            paths.filter(SourceFiles::isRegularFile)
+                    .filter(path -> !checkout.relativize(path).startsWith(".git"))
+                    .filter(RuleCatalogueFetcher::isInteresting)
+                    .sorted(Comparator.naturalOrder())
+                    .forEach(path -> {
+                        try (InputStream in = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
+                            byte[] content = in.readNBytes((int) (MAX_BYTES - total[0] + 1));
+                            total[0] += content.length;
+                            if (total[0] > MAX_BYTES) {
+                                throw new FetchFailureException(
+                                        "The catalogue exceeds " + (MAX_BYTES / 1024 / 1024)
+                                                + " MB; refusing to read it into memory.");
+                            }
+                            entries.add(new RuleCatalogue.Entry(
+                                    checkout.relativize(path).toString().replace('\\', '/'),
+                                    new String(content, StandardCharsets.UTF_8)));
+                        } catch (IOException unreadable) {
+                            throw new UncheckedIOException(unreadable);
+                        }
+                    });
+        } catch (IOException unreadable) {
+            throw new FetchFailureException("Could not read the fetched catalogue.", unreadable);
+        }
+        return entries;
+    }
+
+    /** Rule files and the licence. Everything else is tests, CI and documentation. */
+    private static boolean isInteresting(Path path) {
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        return name.endsWith(".yaml") || name.endsWith(".yml") || name.startsWith("license");
+    }
+
+    /**
+     * The licence as it stands at this tag.
+     *
+     * <p>Read from the checkout and never from a copy kept here: a licence can change between
+     * tags, and showing a stored copy would let somebody accept a text that is not the one they
+     * are about to receive. Absence is a refusal, not a default — rules with no licence in front
+     * of them are rules nobody agreed to.
+     */
+    static String licenceOf(List<RuleCatalogue.Entry> entries) {
+        return entries.stream()
+                .filter(entry -> !entry.path().contains("/"))
+                .filter(entry -> entry.path().toLowerCase(Locale.ROOT).startsWith("license"))
+                .map(RuleCatalogue.Entry::content)
+                .findFirst()
+                .orElseThrow(() -> new FetchFailureException(
+                        "No LICENSE file at the root of " + RuleCatalogue.UPSTREAM
+                                + " at this tag. Refusing to offer rules whose terms cannot be shown."));
+    }
+
+    private static Path temporaryDirectory() {
+        try {
+            return Files.createTempDirectory("vectispire-rules-");
+        } catch (IOException failed) {
+            throw new FetchFailureException("Could not create a working directory for the fetch.", failed);
+        }
+    }
+
+    private static String rootMessage(Throwable failure) {
+        Throwable cause = failure;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        return String.valueOf(cause.getMessage());
+    }
+
+    /** A fetch that did not produce a catalogue. Always carries why. */
+    public static class FetchFailureException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public FetchFailureException(String message) {
+            super(message);
+        }
+
+        public FetchFailureException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+}

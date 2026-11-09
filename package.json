@@ -1,0 +1,32 @@
+{
+    "name": "vectispire",
+    "version": "1.0.0-rc.1",
+    "private": true,
+    "license": "Apache-2.0",
+    "description": "Vectispire — application security posture management and attestation. Spring Boot control plane in vectispire-java/, Angular interface in vectispire-angular/.",
+    "workspaces": [
+        "vectispire-angular"
+    ],
+    "engines": {
+        "node": "^22.22.3 || ^24.15.0"
+    },
+    "scripts": {
+        "build": "npm run build --workspaces --if-present",
+        "test": "npm run test --workspaces --if-present",
+        "lint": "npm run lint --workspaces --if-present",
+        "start": "npm run start --workspace @vectispire/frontend",
+        "docker:build": "docker build -t vectispire:latest .",
+        "docker:build:agent": "docker build -f Dockerfile.agent -t vectispire-agent:latest .",
+        "docker:up": "docker compose up -d",
+        "docker:down": "docker compose down",
+        "c4:generate": "./scripts/generate-c4-diagrams.sh",
+        "prepare": "git config core.hooksPath .githooks || true"
+    },
+    "devDependencies": {},
+    "overrides": {
+        "openapi-typescript": {
+            "typescript": "~6.0.3"
+        },
+        "zod": "^4.6.6"
+    }
+}

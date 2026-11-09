@@ -1,0 +1,52 @@
+<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'settings.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ 'settings.subtitle' | translate }}
+        </p>
+    </div>
+    <p-button
+        [label]="'settings.save_btn' | translate"
+        icon="pi pi-check"
+        [loading]="state.saving()"
+        [disabled]="!state.dirty()"
+        (onClick)="state.save()"
+    />
+</div>
+
+<!-- Tabs Navigation -->
+<div class="flex flex-wrap gap-2 border-b border-surface-200 dark:border-surface-700 pb-3 mb-6">
+    @for (tab of tabs(); track tab.id) {
+        <button
+            type="button"
+            (click)="selectTab(tab.id)"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            [ngClass]="
+                activeTab() === tab.id
+                    ? 'bg-primary text-primary-contrast shadow-sm'
+                    : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+            "
+        >
+            <i [class]="tab.icon"></i>
+            <span>{{ tab.label }}</span>
+        </button>
+    }
+</div>
+
+@if (state.error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (state.saved()) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{
+        'settings.settings_saved' | translate
+    }}</p-message>
+}
+
+<app-settings-catalog [tab]="activeTab()" />
+<app-settings-ticketing [active]="activeTab() === 'integrations'" />
+<app-settings-siem [active]="activeTab() === 'integrations'" />
+<app-settings-threat-intel [active]="activeTab() === 'threat-intel'" />
+
+@if (state.sections().length === 0 && !state.error()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+}

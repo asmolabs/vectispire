@@ -1,0 +1,62 @@
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { messageOf } from '../../core/api-error';
+import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { DashboardApi } from '@/app/core/api/dashboard.api';
+import { QualityOverview, Tally } from '@/app/core/api.models';
+
+/**
+ * Code quality, aggregated.
+ *
+ * **If this page were only the filtered backlog it would not deserve to exist.** It therefore
+ * aggregates along axes the backlog does not offer — rules, files, repositories — because in
+ * front of a four-digit quality backlog, "eight rules account for seventy per cent of the debt"
+ * is the only actionable framing.
+ *
+ * The banner says outright that these findings never fail a build. Without that sentence people
+ * assume the opposite — and it is that assumption which gets a gate switched off.
+ */
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
+
+@Component({
+    selector: 'zs-quality',
+    imports: [ButtonModule, MessageModule, RouterLink, RuleCoverageBanner, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './quality.html'
+})
+export class Quality {
+    private readonly i18n = inject(I18nService);
+    private readonly dashboardApi = inject(DashboardApi);
+    readonly overview = signal<QualityOverview | null>(null);
+    readonly error = signal<string | null>(null);
+
+    constructor() {
+        this.dashboardApi.qualityOverview().subscribe({
+            next: (data) => this.overview.set(data),
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('quality.load_failed')))
+        });
+    }
+
+    /**
+     * The three tables, each bar's width worked out once per answer or language rather than by a
+     * method per bar on every pass.
+     */
+    readonly groups = computed(() => {
+        const data = this.overview();
+        if (!data) return [];
+        return [
+            { title: this.i18n.t('quality.tables.most_frequent_rules'), rows: withShares(data.topRules) },
+            { title: this.i18n.t('quality.tables.most_affected_files'), rows: withShares(data.topFiles) },
+            { title: this.i18n.t('quality.tables.densest_repositories'), rows: withShares(data.topTargets) }
+        ];
+    });
+}
+
+/** A share relative to the largest in the group: that is the comparison that matters, not the proportion of the total. */
+function withShares(rows: Tally[]): (Tally & { share: number })[] {
+    const largest = Math.max(...rows.map((item) => item.count), 1);
+    return rows.map((row) => ({ ...row, share: Math.round((row.count / largest) * 100) }));
+}

@@ -1,0 +1,88 @@
+# Inventory and licenses
+
+## Inventory
+
+The inventory is the estate seen from the package side rather than the target side: which
+components you run, in which versions, in how many places.
+
+It answers the question that arrives on the morning a new CVE is published — *do we use
+this, and where?* — without re-scanning anything, because the SBOMs are already stored.
+
+### What the scanner cannot see, and the build can
+
+The scanner reads the source tree. For Maven it reads the poms, so a version a parent or a BOM
+manages is listed as `UNKNOWN`, and a library pulled in transitively is not listed at all. When the
+repository's pipeline sends the SBOM its build produced (CycloneDX JSON, from `cyclonedx-maven-plugin`
+or the Gradle CycloneDX plugin — see [Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom)),
+each scan's inventory is the scanner's **completed by it**: the build's stated version in place of
+`UNKNOWN`, the transitive libraries added, what only the scanner sees kept.
+
+**Every row says who listed it.** In the component search, a version marked **build** was stated by
+the build's SBOM: hover it to read what the scanner had read instead, or whether only the build listed
+the library. The project's consolidated inventory and its exports say the same per component
+(`sources`). Older scans keep the inventory they had; the licences and the checklist lines read the
+completed rows.
+
+## Licenses
+
+License compliance is evaluated against a **configurable blocklist**, using data already
+present in the SBOM. No separate scan, no separate tool.
+
+Configure the blocklist under [Settings](../administration/settings.md). What belongs on it
+is a decision for your organisation, not a default anybody else can supply: AGPL is fatal
+for a proprietary distributed product and irrelevant for an internal service that is never
+shipped.
+
+A component the build's SBOM added carries the licence the build declares; where the scanner had
+already listed it under `UNKNOWN`, the entry moves to the build's version, so it is counted once.
+
+A license violation is a first-class finding. It counts towards the gate, and the gate
+policy can be set to fail a build on it.
+
+### The copyleft matrix
+
+Licenses are resolved through a copyleft matrix rather than matched as strings, so a
+permissive dependency that acquired a copyleft transitive is visible as such rather than
+as a name nobody recognised.
+
+## SBOM drift and diff
+
+![The SBOM comparison: a target chosen first, then its own scans offered by date and issue count, with the two most recent already selected.](../assets/screens/en/sbom-comparison.png)
+
+**In the interface, the target comes first.** Choosing a repository or an image fills two
+pickers with that target's own scans — the date, the branch and how many issues each one
+carried — and preselects the two most recent, which is the comparison almost everybody wants:
+what changed since last time. The other question, between the version you shipped and the one
+before it, is two clicks away in the same pickers.
+
+The scan's number is still shown, at the end of each line. It is what the API takes and what a
+support conversation quotes; it is simply no longer the only thing on offer. This screen used to
+ask for two of them, typed, and nothing displayed them prominently.
+
+A target scanned once has no pair, and the screen says so rather than leaving two empty pickers.
+
+
+`GET /api/v1/sbom/diff` — and the equivalent viewer — compares two SBOMs and reports:
+
+- packages **added** and **pruned**;
+- **license migrations**, for instance permissive to GPL or AGPL copyleft;
+- **net CVE impact** between the two.
+
+This is the check a lockfile diff cannot give you. A dependency relicensed between two
+minor versions changes nothing visible in the diff of your manifest and changes everything
+about what you are allowed to ship.
+
+A licence is the one a component **declares** — in the build's SBOM, else in the scanner's — and
+`UNKNOWN` when it declares none; it is never guessed from the package's name. A scan whose SBOM
+cannot be read is not compared: the route answers 409 with the type
+`urn:vectispire:problem:sbom-unreadable`, rather than a comparison that would read as every
+component removed or as no change.
+
+## Security debt
+
+`GET /api/v1/remediation/debt` converts the open backlog into estimated engineering hours
+and person-days, and highlights the **top high-impact fixes** — those where one action
+clears the most risk.
+
+Treat the hours as a shape rather than a quotation. Their value is in comparing two
+repositories or two quarters, not in filling in a project plan.

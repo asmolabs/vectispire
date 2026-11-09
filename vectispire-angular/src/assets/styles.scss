@@ -1,0 +1,195 @@
+/* Global stylesheet.
+ *
+ * `layout/` and `tailwind.css` come from the Sparked template (`openng-org/sparked`, MIT,
+ * copyright PrimeTek — see `LICENSE.md`), OpenNG's port of Sakai onto Optimus UI. They
+ * first came from Sakai's `cetincakiroglu/sakai-assets` submodule; Sparked's copy was
+ * already the same, line for line, apart from formatting.
+ *
+ * Three departures from the original, all deliberate:
+ *
+ *  - the template's element rules (headings, paragraphs, links) and `.card` sit in Tailwind's
+ *    `base` and `components` layers rather than in none, so a utility on the element wins over
+ *    them; this file is therefore listed after `tailwind.css` in `angular.json`, since within
+ *    `base` the later rule wins and preflight would otherwise reset every heading's size — see
+ *    `layout/_typography.scss`;
+ *
+ *  - `demo/demo.scss` is not taken: it only styles the component showcase, which was
+ *    removed along with the demonstration pages;
+ *  - the icons are `@openng/icons`, OpenNG's MIT fork of `primeicons` 7.0.0 — the last
+ *    MIT release; 8.0.0 moved to a proprietary licence with the rest of the PrimeNG
+ *    family, which is precisely why this interface builds on Optimus. Same `pi-*` classes
+ *    on the same code points (all 314 compared), so no template changed.
+ */
+@use '@openng/icons/openng-icons.css';
+@use './layout/layout.scss';
+
+/* Inter, served locally.
+ *
+ * The template (Sakai, and Sparked after it) loads Lato from a CDN. Vectispire's
+ * content security policy refuses every third-party stylesheet, and that is how the
+ * Reflex version's typography never reached production: the request was blocked, the page fell back to the system font,
+ * and nothing reported it.
+ *
+ * Two files rather than one: `unicode-range` means the extended subset (85 kB) is only
+ * downloaded if the page actually shows a character belonging to it. SIL OFL 1.1
+ * licence, in `public/fonts/LICENSE.txt`.
+ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/inter-latin.woff2') format('woff2');
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+        U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+    --zs-font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+    font-family: var(--zs-font-family);
+    /* Tabular figures and a slashed zero: Vectispire's tables are full of counts, CVSS
+     * scores and identifiers, and variable-width digits make the columns dance from one
+     * row to the next. */
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings:
+        'tnum' 1,
+        'zero' 1;
+}
+
+/* Tables scroll inside their card, never the page.
+ *
+ * Without this rule, a seven-column table on a narrow screen widens the whole
+ * document: the horizontal scrollbar appears on `body`, the header and the menu shift
+ * with it, and every screen in the application goes crooked because of one table. The
+ * container scrolls, the rest of the page does not move.
+ *
+ * The `min-width` is what makes the difference between scrolling and crushing. Without
+ * it, the browser compresses the columns until it breaks words character by character
+ * — a table that is technically visible and unreadable. It applies only below 40rem,
+ * so it changes nothing on a workstation: that is exactly the width below which a data
+ * table stops fitting.
+ */
+.p-datatable-table-container {
+    overflow-x: auto;
+}
+
+.p-datatable-table {
+    min-width: 40rem;
+}
+
+/* A two- or three-column table has nothing to scroll: the class exempts it from the
+ * floor above. Put on the narrow tables rather than removed from the wide ones, because
+ * forgetting should err on the readable side. */
+.zs-table-narrow .p-datatable-table {
+    min-width: 0;
+}
+
+/* Printing a report screen — the weekly OWASP view's "Print / PDF", and the browser's own print on
+ * any page.
+ *
+ * The browser's "save as PDF" is the PDF here: no PDF library, which would be one more dependency
+ * whose licence and advisories somebody has to read, for a document the browser already lays out.
+ * What has to go is the shell — a printout whose first third is a menu and a top bar is a printout
+ * of the application, not of the figures. Screens hide their own controls with `print:hidden`.
+ */
+@media print {
+    .layout-topbar,
+    .layout-sidebar,
+    .layout-footer,
+    .layout-mask {
+        display: none !important;
+    }
+
+    .layout-main-container {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        min-height: 0;
+    }
+
+    .card {
+        box-shadow: none !important;
+    }
+}
+
+/* Secondary text readable in both themes (WCAG 2.2 AA, 1.4.3: 4.5:1).
+ *
+ * Templates write secondary text as `text-surface-400` or `text-surface-500`, often with no dark
+ * variant. In the light theme those are 2.6:1 and 4.3:1 on the page's surface-100 background; in the
+ * dark one, surface 500 is 3.7:1 on a card. Surface 600 and 400 pass, the same choice as the muted
+ * text token (`layout/readable-palette.ts`). Done here rather than in a hundred and forty templates,
+ * and in the utilities layer at the specificity of the utility itself, so that a `hover:` or `dark:`
+ * variant written beside it still wins.
+ */
+@layer utilities {
+    :where(html:not(.app-dark)) .text-surface-400,
+    :where(html:not(.app-dark)) .text-surface-500 {
+        color: var(--p-surface-600);
+    }
+
+    :where(html.app-dark) .text-surface-500:not([class*='dark:text-']) {
+        color: var(--p-surface-400);
+    }
+
+    /* Status colours, likewise: shade 600 of the warm hues and of the primary is under 4.5:1 on white
+       or on its own 50 tint, and shade 700 written with no dark variant is 2.5 to 3.7:1 on the dark
+       surfaces. */
+    :where(html:not(.app-dark)) .text-green-600 {
+        color: var(--p-green-700);
+    }
+    :where(html:not(.app-dark)) .text-amber-600 {
+        color: var(--p-amber-700);
+    }
+    :where(html:not(.app-dark)) .text-orange-600 {
+        color: var(--p-orange-700);
+    }
+    :where(html:not(.app-dark)) .text-red-600 {
+        color: var(--p-red-700);
+    }
+    :where(html:not(.app-dark)) .text-rose-600 {
+        color: var(--p-rose-700);
+    }
+    :where(html:not(.app-dark)) .text-primary-600 {
+        color: var(--p-primary-700);
+    }
+    /* Shade 500 is worse — green 500 on white is 2.2:1 — and most of these are only drawn when the
+       data says so (an overdue count, a freshness rate): axe on one estate's data passed what CI's
+       data failed. Every hue the templates write at 500 is held at 700, whatever turns it on. */
+    @each $hue in 'green', 'emerald', 'amber', 'yellow', 'orange', 'red', 'rose', 'blue', 'purple', 'indigo' {
+        :where(html:not(.app-dark)) .text-#{$hue}-500 {
+            color: var(--p-#{$hue}-700);
+        }
+    }
+    :where(html.app-dark) .text-red-700:not([class*='dark:text-']) {
+        color: var(--p-red-400);
+    }
+    :where(html.app-dark) .text-orange-700:not([class*='dark:text-']) {
+        color: var(--p-orange-400);
+    }
+    :where(html.app-dark) .text-amber-700:not([class*='dark:text-']) {
+        color: var(--p-amber-400);
+    }
+    :where(html.app-dark) .text-emerald-700:not([class*='dark:text-']) {
+        color: var(--p-emerald-400);
+    }
+    :where(html.app-dark) .text-green-700:not([class*='dark:text-']) {
+        color: var(--p-green-400);
+    }
+    :where(html.app-dark) .text-rose-700:not([class*='dark:text-']) {
+        color: var(--p-rose-400);
+    }
+}

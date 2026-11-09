@@ -1,0 +1,616 @@
+# A tagged release: built, signed, and verified before anything is published.
+#
+# **The signing identity changes with the forge, and every instruction that names it has to
+# follow.** This project has already shipped documentation telling users to verify against an
+# issuer that was not the one signing — an instruction that cannot succeed, which is worse than
+# none: it teaches its reader that the check passed the day they mistype it into passing.
+#
+#   GitLab   issuer https://gitlab.com
+#            identity ${CI_PROJECT_URL}//.gitlab-ci.yml@refs/tags/<tag>
+#   GitHub   issuer https://token.actions.githubusercontent.com
+#            identity https://github.com/<owner>/<repo>/.github/workflows/release.yml@refs/tags/<tag>
+#
+# **Renaming this file invalidates the identity of every signature made by it.** That is not a
+# reason to never rename it; it is a reason to know, and to say so in the release notes when it
+# happens.
+#
+# Every `uses:` here is pinned to a commit SHA. That matters more in this file than anywhere else:
+# what a consumer verifies is "this workflow, in this repository, on this tag", and an action
+# swapped under a mutable tag runs inside the job that holds `id-token: write`.
+#
+# **Two jobs, and the one that builds holds nothing.** Building runs the code of every Gradle
+# plugin and npm package the tree depends on; it used to run in the job holding `id-token`,
+# `packages`, `contents` and `attestations: write`, where any of that code could mint this
+# project's keyless signing identity, push an image or rewrite a release — and whatever it signed
+# would verify, because the certificate would be genuine. `build` now has read access to the
+# repository and nothing else, and hands its outputs over as an artifact with their checksums;
+# `publish` checks out nothing, builds nothing, verifies the checksums, and only then signs,
+# attests and publishes. Both are jobs of this file, so the certificate identity below does not
+# change: it names the workflow, not the job.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  # Exercises the whole path and publishes nothing — the rehearsal that catches a broken
+  # `id-token` permission before it breaks a real release.
+  workflow_dispatch:
+
+# Nothing by default: each job states what it holds, and only `publish` holds anything that writes.
+permissions: {}
+
+jobs:
+  build:
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      # No token left in `.git/config` for the build's own code to find.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # **A patch release carries no migration** (decision 0047). A migration on an older line takes
+      # either the next free number, which `develop` has already given to something else, or a number
+      # below what the newer minor ships, which Flyway refuses on an installation already on it. So a
+      # fix that needs a schema change goes into the next minor, and a `vX.Y.Z` tag with Z > 0 whose
+      # migration directories differ from `vX.Y.0`'s is refused here, before anything is built — a
+      # rule kept by memory is the one forgotten on the day of an urgent fix. A pre-release of a patch
+      # (`v1.0.1-rc.1`) is held to the same rule; a minor, a major and a rehearsal are not concerned.
+      # Only `vX.Y.0` is fetched, one commit deep: the diff compares two trees and needs no history.
+      - name: A patch release carries no migration
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          migrations=vectispire-java/vectispire-core/src/main/resources/db/migration/
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-.+)?$ ]]; then
+            echo "::error::$TAG is not vX.Y.Z[-pre]: which line it belongs to cannot be told, so it is not released."
+            exit 1
+          fi
+          if [ "${BASH_REMATCH[3]}" = 0 ]; then
+            echo "$TAG opens its line: migrations are allowed."
+            exit 0
+          fi
+          base="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+          if ! git fetch --quiet --no-tags --depth=1 origin "refs/tags/$base:refs/tags/$base"; then
+            echo "::error::$TAG is a patch release, and $base, the release it patches, cannot be fetched: nothing to compare its migrations with."
+            exit 1
+          fi
+          if ! git diff --quiet "refs/tags/$base" HEAD -- "$migrations"; then
+            echo "::error::$TAG is a patch release and changes the migrations of $base (decision 0047). A fix that needs a schema change goes into the next minor."
+            git diff --name-status "refs/tags/$base" HEAD -- "$migrations"
+            exit 1
+          fi
+          echo "$TAG carries the migrations of $base unchanged."
+
+      # **The wrapper is the first thing the build executes**, and a `gradle-wrapper.jar` swapped
+      # in a pull request runs before any plugin or dependency is resolved. Checked against the
+      # checksums Gradle publishes for every released wrapper; the distribution it then downloads
+      # is pinned by `distributionSha256Sum` in `gradle-wrapper.properties`, and every plugin and
+      # dependency it resolves after that by `gradle/verification-metadata.xml` — a signature by a
+      # key in `gradle/verification-keyring.keys`, or a recorded sha256 where nothing is signed.
+      - uses: gradle/actions/wrapper-validation@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      # **No cache, for Gradle or npm.** A tag can restore a cache the default branch wrote, and
+      # `main`'s nightly runs code no push job runs — the e2e devDependencies, the engine campaign's
+      # plugins and images. Whatever one of those left in `~/.gradle` (an extracted distribution, a
+      # compiled build script, a transform: none of them under dependency verification) or in the
+      # npm cache would run here and shape what `publish` signs with the genuine identity. The
+      # two-job split keeps this job from writing outward; this keeps it from reading inward. A
+      # release can afford a cold build.
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: the suites, on the tagged tree
+        # `strict` stated rather than inherited, for the reason `ci.yml`'s `jvm` job gives: what
+        # gets signed here is built only from artifacts that verified.
+        run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew build :vectispire-core:bootJar --dependency-verification=strict
+
+      # The control plane image serves the interface, so the interface has to exist before the
+      # image is built. `ci.yml` passes this between jobs as an artifact; here it is built in place.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      # **`--ignore-scripts`, still.** This job holds no token worth stealing any more, but a
+      # lifecycle script of any transitive package would run here and shape what gets signed; the
+      # interface builds without them — the Dockerfile has always installed this way.
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+
+      - name: name the artifacts after the tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          JAR="vectispire-${TAG#v}.jar"
+          echo "JAR=$JAR" >> "$GITHUB_ENV"
+          echo "SBOM=${JAR%.jar}.cdx.json" >> "$GITHUB_ENV"
+          cp vectispire-java/vectispire-core/build/libs/vectispire-core.jar "$JAR"
+
+      # **The SBOM of the jar that ships, not of the source tree.** `ci.yml` builds one on every
+      # push and throws it away after 30 days; a release needs its own, taken from the exact file
+      # being signed, at the same syft digest so the two are comparable. `GETTING_STARTED` §8 has
+      # promised this file since before it was produced — this is the step that makes the sentence
+      # true rather than the sentence that has to be corrected.
+      - name: the SBOM of the jar being signed
+        run: |
+          docker run --rm -v "$PWD:/work:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan "file:/work/${JAR}" -o cyclonedx-json > "$SBOM"
+          echo "components: $(grep -o '\"bom-ref\"' "$SBOM" | wc -l)"
+
+      # **The images as archives, pushed by `publish`.** Jib pushed them straight to GHCR, which
+      # needs `packages: write` in the job running Gradle; `jibBuildTar` writes the same image —
+      # same layers, same epoch creation time — to a file instead. Named for the registry path
+      # they will have, so `docker load` in `publish` restores the tags.
+      - name: the images, as archives
+        env:
+          NAMESPACE: ghcr.io/${{ github.repository_owner }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAMESPACE="$(echo "$NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+          cd vectispire-java
+          ./gradlew :vectispire-core:jibBuildTar :vectispire-agent:jibBuildTar \
+            :vectispire-report-demo:jibBuildTar -x test \
+            --dependency-verification=strict \
+            -PimageNamespace="$NAMESPACE" \
+            -PimageTag="$VERSION" \
+            -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
+          cp vectispire-core/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-image.tar"
+          cp vectispire-agent/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-agent-image.tar"
+          cp vectispire-report-demo/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-report-demo-image.tar"
+
+      # The SBOM each image will carry as an attestation, taken here from the archive: the
+      # contents are the image's, and the scanner does not run where the signing token lives.
+      - name: the SBOM of each image
+        run: |
+          for NAME in vectispire vectispire-agent vectispire-report-demo; do
+            docker run --rm -v "$PWD:/work:ro" \
+              anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+              scan "docker-archive:/work/${NAME}-image.tar" -o cyclonedx-json > "${NAME}-image.cdx.json"
+          done
+
+      # **The gate script, as a release asset, because other people's pipelines run it.** The
+      # GitLab template (`ci/gitlab/vectispire-gate.gitlab-ci.yml`) is included from a consumer's
+      # project, where `ci/vectispire-gate.sh` does not exist: it downloads this asset and runs it
+      # only if its SHA-256 is the one the template carries. A tag whose template pins another
+      # digest would ship a template that refuses to run everywhere, so that is checked first.
+      - name: the gate script the GitLab template pins
+        run: |
+          sh ci/gitlab/check-gate-pin.sh
+          cp ci/vectispire-gate.sh vectispire-gate.sh
+
+      # **The CLI, as a release asset, for the same reason.** The interface's CI/CD snippets and
+      # `CI_CD_INTEGRATION` used to fetch `scripts/vectispire-cli.sh` from the raw URL at the tag and
+      # run it unchecked: a file outside the release, unsigned, with no digest anybody had written
+      # down. The snippets now download this asset and compare it with the digest the interface pins
+      # before running it; a tag whose interface pins another digest would ship snippets that refuse
+      # to run, so that is checked first.
+      - name: the CLI the interface's snippets pin
+        run: |
+          sh ci/check-cli-pin.sh
+          cp scripts/vectispire-cli.sh vectispire-cli.sh
+
+      # **The demonstration report plugin's manifest, as a template** (decision 0035 §6). Its image's digest
+      # is the registry's, known once `publish` has pushed it, and its signing identity names this tag: both
+      # are filled there, from the digest that job signed and verified, and the filled manifest is signed
+      # like every other file. What is handed over is the template, covered by the checksums below; its
+      # shape is the registry's, held by `ManifestTemplateTest`.
+      - name: the demonstration plugin's manifest template
+        run: cp vectispire-java/vectispire-report-demo/manifest.template.json vectispire-report-demo.manifest.template.json
+
+      # What `publish` signs is checked against this list before anything is signed: the handover
+      # goes through artifact storage, and the job that holds the token trusts only what matches.
+      - name: checksums of everything handed over
+        run: |
+          sha256sum "$JAR" "$SBOM" vectispire-image.tar vectispire-agent-image.tar \
+            vectispire-report-demo-image.tar \
+            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-report-demo-image.cdx.json \
+            vectispire-gate.sh vectispire-cli.sh vectispire-report-demo.manifest.template.json > SHA256SUMS
+          cat SHA256SUMS
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-build
+          path: |
+            ${{ env.JAR }}
+            ${{ env.SBOM }}
+            vectispire-image.tar
+            vectispire-agent-image.tar
+            vectispire-report-demo-image.tar
+            vectispire-image.cdx.json
+            vectispire-agent-image.cdx.json
+            vectispire-report-demo-image.cdx.json
+            vectispire-gate.sh
+            vectispire-cli.sh
+            vectispire-report-demo.manifest.template.json
+            SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      # **The one job that writes.** Creating the release is what makes the verification
+      # procedure in `GETTING_STARTED` have a file to point at: before this, the artifacts lived in
+      # a 90-day workflow artifact that only a signed-in user who could find the run could fetch,
+      # while the documentation described a public download. Scoped to this job, which runs on a
+      # tag and on a manual rehearsal and on nothing else, and executes none of the tree's code.
+      contents: write
+      # Sigstore keyless signing needs the workflow's OIDC token, and so does the build provenance
+      # below, which is signed the same way. The only other holder is the `deploy` job of `docs.yml`,
+      # which `deploy-pages` needs; every other job is read-only.
+      id-token: write
+      # **Storing the build provenance** in GitHub's attestation API, where `gh attestation verify
+      # --repo` looks for it. Without this the attest step signs a statement and then fails to
+      # persist it — at publication time, on the one run nobody wants to debug.
+      #
+      # `artifact-metadata: write` is deliberately absent: it only serves the storage records that
+      # `create-storage-record` would emit, and those exist for organisation-owned repositories
+      # only. `asmolabs` is a user account, so the steps below turn them off rather than hold a
+      # permission for an API that would refuse the call.
+      attestations: write
+      # **Publishing the container images.** Before this, nothing this project built was reachable
+      # without compiling it: `jib.to.image` was the local tag `vectispire:latest`, so an internal
+      # deployment meant a JDK, a Gradle cache and a build on every host that wanted to run it.
+      # GHCR is the default because it authenticates with the token this job already holds — no
+      # secret to create, nothing to rotate, and it works on the first tag.
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-build
+
+      - name: name the artifacts after the tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          JAR="vectispire-${TAG#v}.jar"
+          echo "JAR=$JAR" >> "$GITHUB_ENV"
+          echo "SBOM=${JAR%.jar}.cdx.json" >> "$GITHUB_ENV"
+
+      - name: the files are the ones the build produced
+        run: sha256sum --check --strict SHA256SUMS
+
+      # **The signing tool is pinned and verified, like everything else that runs here.**
+      # The header of this file states the rule — a mutable reference runs inside the job
+      # that holds `id-token: write` — and this step used to be the one exception to it:
+      # `releases/latest/download`, no version, no digest, `chmod +x`, sign. The exception was
+      # the *worst* possible one. Signing here is keyless, so a substituted binary signs with
+      # this project's legitimate OIDC identity: the bundle it emits passes the exact
+      # `cosign verify-blob` command `GETTING_STARTED` §8 tells people to run, because the
+      # certificate really is authentic. A consumer cannot detect it. Nothing downstream can.
+      # All a signature ever proved is "this workflow signed"; leave the tool unpinned and that
+      # proof is worth precisely as much as the `curl`.
+      #
+      # v3.1.3 is what `latest` resolved to when this was pinned, so this changes no behaviour —
+      # it makes today's behaviour reproducible tomorrow. To upgrade, bump both values together
+      # from https://github.com/sigstore/cosign/releases (`cosign_checksums.txt`); never widen
+      # back to `latest` because a bump is inconvenient.
+      #
+      # Downloaded to /tmp and only `install`ed after the digest matches: writing straight to
+      # /usr/local/bin and checking afterwards leaves an unverified executable on PATH in the
+      # window between the two, which is the whole thing being defended against.
+      - name: install cosign, pinned and verified
+        env:
+          COSIGN_VERSION: v3.1.3
+          COSIGN_SHA256: 4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
+        run: |
+          curl -fsSL -o /tmp/cosign \
+            "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
+          echo "${COSIGN_SHA256}  /tmp/cosign" | sha256sum -c -
+          install -m 0755 /tmp/cosign /usr/local/bin/cosign
+          cosign version
+
+      - name: sign every file a consumer downloads
+        run: |
+          cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
+          # An unsigned SBOM is a list of components anybody can rewrite, which is the one thing
+          # a consumer reads to decide whether a CVE applies to them.
+          cosign sign-blob --yes --bundle "${SBOM}.cosign.bundle" "$SBOM"
+          # The GitLab template checks the gate script by digest; the bundle is for a consumer who
+          # fetches it some other way and wants the same proof the jar carries.
+          cosign sign-blob --yes --bundle vectispire-gate.sh.cosign.bundle vectispire-gate.sh
+          # The snippets check the CLI by the digest the interface pins; the bundle is what binds
+          # that file to this workflow and this tag, for whoever checks it with cosign instead.
+          cosign sign-blob --yes --bundle vectispire-cli.sh.cosign.bundle vectispire-cli.sh
+
+      # **Verified immediately, with the command a user will run.** A signature nobody has ever
+      # verified is a signature nobody knows the shape of — and this step is what makes the
+      # instruction in GETTING_STARTED a tested claim rather than a hopeful one.
+      - name: verify, before anything is published
+        run: |
+          for FILE in "$JAR" "$SBOM" vectispire-gate.sh vectispire-cli.sh; do
+            cosign verify-blob \
+              --bundle "${FILE}.cosign.bundle" \
+              --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              "$FILE"
+          done
+
+      # **Build provenance, next to the signature rather than instead of it.** The cosign bundle
+      # says "release.yml, on this tag, signed this file". The SLSA provenance says how: the
+      # repository, the **commit SHA** the tag pointed at when it ran, the workflow and its ref,
+      # the runner. A tag can be moved after the fact; the commit recorded here cannot, and it is
+      # what an auditor asks for when they want to rebuild or diff the source that shipped. The
+      # statement is generated by the action from the run's own OIDC claims, not from anything
+      # this workflow writes, so it states only what GitHub recorded.
+      #
+      # Only on a tag, like everything else that publishes. The attestation API is public and
+      # `gh attestation verify --repo` accepts whatever it finds there: a rehearsal from
+      # `develop` would leave a genuine provenance for a jar nobody released, and the only thing
+      # separating it from a release would be a `--source-ref` flag a reader may leave out.
+      #
+      # The SBOM is not attested here: what it asserts is its content, and its cosign bundle
+      # already binds that content to this run. The images get theirs further down, by digest.
+      - name: provenance of the jar
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ env.JAR }}
+
+      # ----------------------------------------------------------------------------------
+      # The container images: built, pushed, signed and verified by digest.
+      # ----------------------------------------------------------------------------------
+      #
+      # **This is what makes the software installable.** Everything above produces a jar, which
+      # is the right artifact for someone who already has a JDK and reads release notes. A team
+      # that wants to run this internally wants `docker pull` and a compose file — and until
+      # now there was none, because `jib.to.image` named a tag on the developer's own daemon.
+      #
+      # Only on a tag, for the same reason the release itself is: a rehearsal runs from a branch,
+      # where `GITHUB_REF_NAME` is the branch name, and publishing `:develop` to a public
+      # registry is not something anybody asked for.
+      - name: publish the images
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          # Lower-cased because a registry path must be, and `asmolabs/Vectispire` is a push
+          # error that only appears on the one run nobody wants to debug.
+          NAMESPACE: ghcr.io/${{ github.repository_owner }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAMESPACE="$(echo "$NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+          echo "NAMESPACE=$NAMESPACE" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          # **`latest` moves on a release, never on a candidate.** A tag with a suffix
+          # (`v0.11.0-rc.1`) is pushed under its version alone: `latest` is what someone pulls without
+          # choosing, and handing them a candidate is the opposite of what a candidate is for.
+          case "$VERSION" in *-*) MOVES_LATEST=false ;; *) MOVES_LATEST=true ;; esac
+          echo "MOVES_LATEST=$MOVES_LATEST" >> "$GITHUB_ENV"
+          echo "${{ github.token }}" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          # The archives `build` wrote and the checksums above vouched for, tagged as Jib named
+          # them. The digest is the registry's after the push, read back and signed below.
+          for NAME in vectispire vectispire-agent vectispire-report-demo; do
+            docker load --input "${NAME}-image.tar"
+            docker push "${NAMESPACE}/${NAME}:${VERSION}"
+            if [ "$MOVES_LATEST" = true ]; then
+              docker tag "${NAMESPACE}/${NAME}:${VERSION}" "${NAMESPACE}/${NAME}:latest"
+              docker push "${NAMESPACE}/${NAME}:latest"
+            fi
+          done
+
+      # **Signed by digest, never by tag.** A tag is a mutable pointer: signing `:0.9.0` says
+      # nothing about what `:0.9.0` resolves to tomorrow, which is the whole failure mode the
+      # jar signing above exists to prevent. The digest is the image.
+      - name: sign and verify the three images
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # **Paired explicitly rather than derived from the image name.** The first version of
+          # this loop wrote `${NAME}_DIGEST` into `$GITHUB_ENV`, which for the agent produces
+          # `vectispire-agent_DIGEST` — not a variable at all. A hyphen cannot appear in a shell
+          # identifier, so `${vectispire-agent_DIGEST}` is parameter expansion with a default:
+          # "if $vectispire is unset, use the string agent_DIGEST". It would not have failed. It
+          # would have put that literal into the release notes.
+          set -- "vectispire:CORE" "vectispire-agent:AGENT" "vectispire-report-demo:DEMO"
+          for PAIR in "$@"; do
+            NAME="${PAIR%%:*}"
+            SLOT="${PAIR##*:}"
+            REF="${NAMESPACE}/${NAME}:${VERSION}"
+            DIGEST="$(docker buildx imagetools inspect "$REF" --format '{{.Manifest.Digest}}')"
+            echo "$NAME -> $DIGEST"
+
+            cosign sign --yes "${NAMESPACE}/${NAME}@${DIGEST}"
+
+            # The same identity the jar carries, so one instruction verifies everything a
+            # release ships rather than two that drift apart.
+            cosign verify \
+              --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              "${NAMESPACE}/${NAME}@${DIGEST}" > /dev/null
+            echo "  signature verified"
+
+            # An SBOM of the image, attached to the image, signed with it — the components a
+            # consumer reads to decide whether an advisory concerns them. Attached as an
+            # attestation rather than a loose file: a loose SBOM beside an image is a file
+            # anybody can swap. Taken by `build` from the archive this job just pushed, and
+            # covered by the same checksums: no scanner runs in the job that holds the token.
+            cosign attest --yes --predicate "${NAME}-image.cdx.json" \
+              --type cyclonedx "${NAMESPACE}/${NAME}@${DIGEST}"
+            echo "  SBOM attested"
+
+            echo "${SLOT}_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
+          done
+
+      # **Provenance of each image, bound to the digest the loop above signed.** Two steps
+      # because the action takes one `subject-digest`; `subject-name` is the repository path
+      # without a tag, since the digest is what identifies the image and a tag would only be
+      # a second, mutable name for it. `push-to-registry` stores the attestation beside the
+      # image in GHCR as well as in GitHub's API, so an air-gapped mirror that copies the image
+      # with its referrers carries the evidence with it.
+      #
+      # The digests come from `$GITHUB_ENV`, written by the step above only after `cosign
+      # verify` passed on that digest. Provenance is therefore only ever issued for a digest
+      # this run has already signed and verified — never for one resolved again from a tag,
+      # which could have moved between the two steps.
+      - name: provenance of the control plane image
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.NAMESPACE }}/vectispire
+          subject-digest: ${{ env.CORE_DIGEST }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: provenance of the agent image
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.NAMESPACE }}/vectispire-agent
+          subject-digest: ${{ env.AGENT_DIGEST }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: provenance of the demonstration report plugin's image
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.NAMESPACE }}/vectispire-report-demo
+          subject-digest: ${{ env.DEMO_DIGEST }}
+          push-to-registry: true
+          create-storage-record: false
+
+      # **Verified with the command the documentation gives, before the release exists** — the
+      # same rule as the cosign step above: an attestation nobody has verified is one whose
+      # shape nobody knows. `--signer-workflow` and `--source-ref` are what the documentation
+      # tells a consumer to pin, and `--source-digest` checks here what a consumer cannot easily
+      # know in advance: that the provenance names the commit this job actually checked out.
+      - name: verify the provenance, before anything is published
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -- "$JAR" \
+            "oci://${NAMESPACE}/vectispire@${CORE_DIGEST}" \
+            "oci://${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}" \
+            "oci://${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}"
+          for SUBJECT in "$@"; do
+            gh attestation verify "$SUBJECT" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release.yml" \
+              --source-ref "$GITHUB_REF" \
+              --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners > /dev/null
+            echo "$SUBJECT: provenance verified"
+          done
+
+      # **The demonstration plugin's manifest, filled with what this run signed, then signed itself**
+      # (decision 0035 §6). The image is the digest the step above signed and verified — never one read
+      # again from a tag — and the identity is this tag's: the manifest an operator pastes into the
+      # registry names exactly the signature it will find. Signed like the CLI and the gate script, and
+      # verified with the command a consumer runs before it is published. A template left with a
+      # placeholder, or an image that is not that digest, stops the release here.
+      - name: the demonstration plugin's manifest, filled and signed
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          jq --arg image "${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}" --arg identity "$IDENTITY" \
+            '.image = $image | .signature.identity = $identity' \
+            vectispire-report-demo.manifest.template.json > vectispire-report-demo.manifest.json
+          if grep -q '{{' vectispire-report-demo.manifest.json; then
+            echo "the manifest still carries a placeholder"; exit 1
+          fi
+          [ "$(jq -r .image vectispire-report-demo.manifest.json)" = "${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}" ]
+          [ "$(jq -r .signature.identity vectispire-report-demo.manifest.json)" = "$IDENTITY" ]
+          cosign sign-blob --yes --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+            vectispire-report-demo.manifest.json
+          cosign verify-blob \
+            --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+            --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            vectispire-report-demo.manifest.json
+          cat vectispire-report-demo.manifest.json
+
+      # Kept for the rehearsal, which has no tag to publish against and must leave something a
+      # human can inspect.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: |
+            ${{ env.JAR }}
+            ${{ env.JAR }}.cosign.bundle
+            ${{ env.SBOM }}
+            ${{ env.SBOM }}.cosign.bundle
+            vectispire-gate.sh
+            vectispire-gate.sh.cosign.bundle
+            vectispire-cli.sh
+            vectispire-cli.sh.cosign.bundle
+          retention-days: 90
+
+      # **Only on a tag.** `workflow_dispatch` runs from a branch, where `GITHUB_REF_NAME` is the
+      # branch name: publishing there would create a release called `develop` signed with a
+      # branch identity, which is neither verifiable by the documented command nor something
+      # anybody asked for. The rehearsal exercises build, SBOM, sign and verify — everything that
+      # can break — and stops here, which is what "publishes nothing" has always meant.
+      - name: publish the release the documentation tells people to verify
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Named, because this job checks nothing out: `gh` has no repository to infer it from.
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # **A 0.x release is a pre-release, said by the workflow rather than by hand.** v0.10.0
+          # went out as a plain release and was flipped afterwards; until then GitHub showed a
+          # version that claims no stability as "Latest". From 1.0 on the flag
+          # drops by itself, which is the one moment it should.
+          # The digest a pipeline pins for the CLI, printed where a consumer reads the release: the
+          # file it names is the one `sha256sum --check` vouched for and `cosign verify-blob` above
+          # verified.
+          CLI_SHA256="$(sha256sum vectispire-cli.sh | cut -d' ' -f1)"
+          if [ "$MOVES_LATEST" = true ]; then TAGGED="\`${VERSION}\` and \`latest\`"; else TAGGED="\`${VERSION}\` only — a candidate does not move \`latest\`"; fi
+          prerelease=
+          case "$GITHUB_REF_NAME" in v0.*) prerelease=--prerelease ;; esac
+          gh release create "$GITHUB_REF_NAME" ${prerelease:+"$prerelease"} \
+            --title "$GITHUB_REF_NAME" \
+            --notes "$(cat <<NOTES
+          Verify before running anything — see \`docs/en/GETTING_STARTED.md\` §8. The certificate
+          identity is per-tag, and the same one for every artefact below:
+
+              https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}
+
+          **Container images** — signed and carrying an attested CycloneDX SBOM. Pull by digest to
+          get the bytes that were signed; the tag is a convenience, the digest is the image.
+
+              docker pull ${NAMESPACE}/vectispire@${CORE_DIGEST}
+              docker pull ${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}
+
+          Also tagged ${TAGGED}.
+
+          **Demonstration report plugin** — signed by the same identity, with its SBOM attested:
+
+              docker pull ${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}
+
+          Its manifest, \`vectispire-report-demo.manifest.json\`, is attached with its Sigstore bundle and
+          names that digest and the identity of this tag: verify it, then register it as the platform governor
+          (\`docs-site/administration/report-plugins.md\`).
+
+          **Jar** — attached below with its SBOM and a Sigstore bundle for each.
+
+          **CI gate script** — \`vectispire-gate.sh\`, attached with its Sigstore bundle. The GitLab
+          template at this tag downloads it and runs it only if its SHA-256 is the one the template
+          pins; set \`VECTISPIRE_GATE_VERSION: ${GITHUB_REF_NAME}\` beside the include.
+
+          **CLI** — \`vectispire-cli.sh\`, attached with its Sigstore bundle. Its SHA-256, the value a
+          pipeline checks before running it (\`docs/en/CI_CD_INTEGRATION.md\`):
+
+              ${CLI_SHA256}
+
+          **Build provenance** (SLSA, naming commit ${GITHUB_SHA}) for the jar and the three images:
+
+              gh attestation verify <file or oci://image@digest> --repo ${GITHUB_REPOSITORY} \\
+                --signer-workflow ${GITHUB_REPOSITORY}/.github/workflows/release.yml --source-ref ${GITHUB_REF}
+          NOTES
+          )" \
+            "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle" \
+            vectispire-gate.sh vectispire-gate.sh.cosign.bundle \
+            vectispire-cli.sh vectispire-cli.sh.cosign.bundle \
+            vectispire-report-demo.manifest.json vectispire-report-demo.manifest.json.cosign.bundle

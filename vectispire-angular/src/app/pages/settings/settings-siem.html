@@ -1,0 +1,173 @@
+@if (active()) {
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex items-center gap-2">
+                <i class="pi pi-shield text-primary text-xl"></i>
+                <span>{{ 'settings.siem_title' | translate }}</span>
+            </div>
+        </ng-template>
+
+        <form class="flex flex-col gap-4" (ngSubmit)="saveSiemConfig()">
+            @if (suspendedTransport(); as transport) {
+                <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="siem-suspended">
+                    {{ 'settings.siem_suspended' | translate: { integration: transport } }}
+                    <a [routerLink]="integrationsRoute" data-testid="siem-suspended-link">{{
+                        'integrations.open_screen' | translate
+                    }}</a>
+                </p-message>
+            }
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <div id="siem-enable-label" class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
+                    <small class="text-muted-color">{{ 'settings.siem_enable_desc' | translate }}</small>
+                </div>
+                <p-toggleswitch
+                    ariaLabelledBy="siem-enable-label"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="siemForm.enabled"
+                />
+            </div>
+
+            <div
+                class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4"
+                style="border-color: var(--surface-border)"
+            >
+                <div class="flex flex-col gap-2">
+                    <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
+                    <select
+                        id="siem-protocol"
+                        name="siem-protocol"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="siemForm.protocol"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
+                        <!-- The transports the platform governor has switched on, and the stored one (decision 0040). -->
+                        @for (protocol of protocols(); track protocol.value) {
+                            <option [value]="protocol.value">{{ protocol.label }}</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
+                    <select
+                        id="siem-min-sev"
+                        name="siem-min-sev"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="siemForm.minSeverity"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
+                        <option value="CRITICAL">{{ 'settings.siem_sev_critical' | translate }}</option>
+                        <option value="HIGH">{{ 'settings.siem_sev_high' | translate }}</option>
+                        <option value="MEDIUM">{{ 'settings.siem_sev_medium' | translate }}</option>
+                        <option value="LOW">{{ 'settings.siem_sev_all' | translate }}</option>
+                    </select>
+                    <small class="text-muted-color">{{ 'settings.siem_min_sev_hint' | translate }}</small>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label for="siem-endpoint" class="font-medium">{{ 'settings.siem_endpoint' | translate }}</label>
+                <input
+                    pInputText
+                    id="siem-endpoint"
+                    [required]="siemForm.enabled"
+                    name="siem-endpoint"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="siemForm.endpoint"
+                    [placeholder]="endpointPlaceholders[siemForm.protocol]"
+                />
+                @if (siemForm.protocol === 'WEBHOOK') {
+                    <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_webhook' | translate }}</small>
+                } @else {
+                    <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_syslog' | translate }}</small>
+                }
+            </div>
+
+            <!--
+                Webhook only: a syslog frame has nowhere to carry a header, and the server refuses
+                one sent with a syslog protocol rather than storing a credential it can never use.
+            -->
+            @if (siemForm.protocol === 'WEBHOOK') {
+                <div class="flex flex-col gap-2">
+                    <label for="siem-auth" class="font-medium">
+                        {{ 'settings.siem_auth' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+                        @if (siemConfig()?.hasAuthHeader) {
+                            <span class="text-green-600 text-sm font-normal"
+                                >— {{ 'settings.siem_auth_saved' | translate }}</span
+                            >
+                        }
+                    </label>
+                    <input
+                        pInputText
+                        id="siem-auth"
+                        type="password"
+                        name="siem-auth"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="siemForm.authHeader"
+                        [placeholder]="'settings.siem_auth_placeholder' | translate"
+                        autocomplete="off"
+                    />
+                    <small class="text-muted-color">{{ 'settings.siem_auth_hint' | translate }}</small>
+                </div>
+            }
+
+            <!--
+                Syslog over TLS only: the CA the collector's certificate must chain to, in place of
+                the server's trust store and for this connection alone. Hostname verification stays on.
+            -->
+            @if (siemForm.protocol === 'SYSLOG_TLS') {
+                <div class="flex flex-col gap-2">
+                    <label for="siem-ca" class="font-medium">
+                        {{ 'settings.siem_ca' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+                    </label>
+                    <textarea
+                        id="siem-ca"
+                        rows="6"
+                        name="siem-ca"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="siemForm.tlsCaPem"
+                        spellcheck="false"
+                        class="p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    ></textarea>
+                    @if (siemConfig()?.tlsCaSubject; as subject) {
+                        <small class="text-green-600" data-testid="siem-ca-pinned">{{
+                            'settings.siem_ca_pinned'
+                                | translate
+                                    : {
+                                          subject: subject,
+                                          date: (siemConfig()?.tlsCaNotAfter | date: 'dd/MM/yyyy' : 'UTC') ?? ''
+                                      }
+                        }}</small>
+                    }
+                    <small class="text-muted-color">{{ 'settings.siem_ca_hint' | translate }}</small>
+                </div>
+            }
+
+            @if (siemTestResult(); as res) {
+                <p-message [severity]="res.success ? 'success' : 'error'" [closable]="true" styleClass="w-full">
+                    {{ res.message }}
+                </p-message>
+            }
+
+            <div class="flex flex-wrap gap-3 pt-2">
+                <p-button
+                    [label]="'settings.siem_save_btn' | translate"
+                    icon="pi pi-save"
+                    type="submit"
+                    [loading]="savingSiem()"
+                />
+                <p-button
+                    [label]="'settings.siem_test_btn' | translate"
+                    icon="pi pi-bolt"
+                    severity="secondary"
+                    [outlined]="true"
+                    [loading]="testingSiem()"
+                    (onClick)="testSiem()"
+                />
+            </div>
+        </form>
+    </p-card>
+}

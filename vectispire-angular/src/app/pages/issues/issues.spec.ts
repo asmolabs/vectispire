@@ -1,0 +1,1386 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { aiAdvisorStatus } from '@/app/core/testing/intel.fixtures';
+import { useEnglish } from '@/app/core/testing/english';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { of } from 'rxjs';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { SessionStore } from '@/app/core/session.store';
+import { DebugElement } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { Issues } from './issues';
+import { IssuesPage } from './issues-page';
+import { TriageDialog } from './triage-dialog';
+import { AiAdvisorDialog } from './ai-advisor-dialog';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import type { BulkTriageRequest, Issue, TriageRequest } from '@/app/core/api.models';
+import { backlogEntry } from '@/app/core/testing/issues.fixtures';
+import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
+import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
+
+/** The screen's state, which its parts share: provided by the page, read through its injector. */
+const stateOf = (host: DebugElement) => host.injector.get(IssuesPage);
+/** The triage dialog, which keeps its own draft; the page's template opens it for a row or the ticks. */
+const triageOf = (host: DebugElement) => host.query(By.directive(TriageDialog)).componentInstance as TriageDialog;
+const advisorOf = (host: DebugElement) =>
+    host.query(By.directive(AiAdvisorDialog)).componentInstance as AiAdvisorDialog;
+
+/**
+ * The backlog.
+ *
+ * <p>The one screen with real volume, and therefore the one where paging is not decoration: it
+ * asks the server for a window and says which window it is showing. A page that silently
+ * displayed the first fifty of two hundred would read as a backlog of fifty.
+ */
+describe('the issue backlog', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    function issue(id: number, identifier: string): Issue {
+        return backlogEntry(id, {
+            repoId: 5,
+            targetName: 'Arm Libs Spring',
+            identifier,
+            packageName: 'openssl',
+            packageVersion: '3.0.1'
+        });
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+
+        // The filters offer target names, so the page fetches both target kinds.
+        http.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
+        http.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+
+        // And the model's availability, which decides whether the explain button exists. A model is
+        // configured by default in these runs: its absence has a case of its own.
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush(aiAdvisorStatus(true));
+    }, 20_000);
+
+    function firstPage(total: number): void {
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', {
+                items: [issue(1, 'CVE-2026-1234')],
+                total,
+                limit: 50,
+                offset: 0
+            })
+        );
+        fixture.detectChanges();
+    }
+
+    it('says which window of the backlog it is showing', () => {
+        firstPage(228);
+
+        // Without this, fifty rows out of two hundred read as a backlog of fifty.
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('1–50 of 228');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('1–50 of 228');
+    });
+
+    /**
+     * **Provenance is read on the row** (decision 0017): an auditor scanning the backlog must tell
+     * "analysed by Vectispire" from "declared by a CI" without opening each issue, and filter by it.
+     */
+    it('offers the plugin and imported types in the filter, and names where each row came from', () => {
+        const values = stateOf(fixture.debugElement)
+            .types()
+            .map((option) => option.value);
+        expect(values).toContain('plugin');
+        expect(values).toContain('imported');
+
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', {
+                items: [
+                    {
+                        ...issue(1, 'acme.no-internal-http'),
+                        type: 'plugin',
+                        tool: 'plugin:acme-lint',
+                        toolName: 'acme-lint',
+                        toolVersion: '1.4.0'
+                    },
+                    {
+                        ...issue(2, 'java:S2076'),
+                        type: 'imported',
+                        tool: 'import:payments-ci/sonarqube',
+                        toolName: 'SonarQube',
+                        toolVersion: '10.6',
+                        importSource: 'payments-ci'
+                    }
+                ].map((row) => asSchema('BacklogEntry', row)),
+                total: 2,
+                limit: 50,
+                offset: 0
+            })
+        );
+        fixture.detectChanges();
+
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="issue-provenance"]')
+        ).map((cell) => cell.textContent?.trim());
+        expect(rows).toEqual(['analysed by Vectispire · acme-lint', 'declared by payments-ci · SonarQube']);
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain('Plugin (analysed by Vectispire)');
+        expect(text).toContain('Imported (declared by CI)');
+    });
+
+    it('names every filter by what it filters, after a value is chosen too', async () => {
+        // Named by their placeholder alone, the selects lost their name once a value replaced it:
+        // a screen reader announced "High, combobox" with nothing saying which filter that was.
+        firstPage(1);
+        stateOf(fixture.debugElement).severity.set('high');
+        stateOf(fixture.debugElement).type.set('imported');
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        await fixture.whenStable();
+
+        const dom = fixture.nativeElement as HTMLElement;
+        const boxes = Array.from(dom.querySelectorAll('p-select [role="combobox"]'));
+        // The value shows where the placeholder was — the case where the name used to go.
+        const high = stateOf(fixture.debugElement)
+            .severities()
+            .find((option) => option.value === 'high')?.label;
+        expect(boxes[1].textContent?.trim()).toBe(high);
+        expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual([
+            'State',
+            'Severity',
+            'Type',
+            'Target',
+            'Triage'
+        ]);
+        const search = dom.querySelector('p-iconfield input');
+        expect(search?.getAttribute('aria-label')).toBe('Search the issues');
+    });
+
+    it('sends the chosen type to the server', () => {
+        firstPage(1);
+        stateOf(fixture.debugElement).type.set('imported');
+        stateOf(fixture.debugElement).reload(0);
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        expect(request.request.params.get('type')).toBe('imported');
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
+    });
+
+    it('asks the server for the next window rather than slicing what it holds', () => {
+        firstPage(228);
+
+        stateOf(fixture.debugElement).reload(50);
+        const next = http.expectOne((call) => call.url === '/api/v1/issues');
+        expect(next.request.urlWithParams).toContain('offset=50');
+        next.flush(asSchema('IssuePage', { items: [issue(2, 'CVE-2026-9999')], total: 228, limit: 50, offset: 50 }));
+        fixture.detectChanges();
+
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('51–100 of 228');
+    });
+
+    it('links each row to its detail', () => {
+        firstPage(1);
+
+        const link = (fixture.nativeElement as HTMLElement).querySelector('a[href="/issues/1"]');
+        expect(link).not.toBeNull();
+        expect(link!.textContent).toContain('CVE-2026-1234');
+    });
+
+    it('says "no result" rather than showing an empty frame', () => {
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
+        fixture.detectChanges();
+
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('No result');
+    });
+
+    it('stops loading when the request is refused', () => {
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
+        fixture.detectChanges();
+
+        // A spinner that never stops is how a failed page passes for a slow one.
+        expect(stateOf(fixture.debugElement).loading()).toBe(false);
+    });
+
+    /**
+     * The four filters the API has always accepted and this screen offered no way to set.
+     *
+     * What is asserted is the parameter, not the field: a control bound to a property nobody
+     * puts in the request is a switch that moves and does nothing, which is the defect these
+     * four were already an instance of.
+     */
+    it('sends each switch to the server as the parameter the API reads', () => {
+        firstPage(1);
+
+        const component = fixture.debugElement;
+        stateOf(component).onlyKev.set(true);
+        stateOf(component).overdue.set(true);
+        stateOf(component).unsettled.set(true);
+        stateOf(component).onlyDirect.set(true);
+        stateOf(component).triageFilter.set('affected');
+        stateOf(component).reload(0);
+
+        const url = http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams;
+        expect(url).toContain('is_kev=true');
+        expect(url).toContain('overdue=true');
+        expect(url).toContain('unsettled=true');
+        expect(url).toContain('only_direct=true');
+        expect(url).toContain('triage_status=affected');
+    });
+
+    it('reloads with is_kev when the switch on screen is thrown', async () => {
+        firstPage(1);
+
+        // Through the DOM and not through the field: a control wired to nothing looks identical
+        // from the component's side, and that is precisely the state this screen was in.
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#filter-kev')!.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(true);
+        expect(http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams).toContain('is_kev=true');
+    });
+
+    it('leaves the three switches out of the request while they are off', () => {
+        // `only_direct=false` says nothing the server does not already assume, and a URL full of
+        // false filters is a URL nobody can read back to see what was actually asked for.
+        const url = http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams;
+        expect(url).not.toContain('is_kev');
+        expect(url).not.toContain('overdue');
+        expect(url).not.toContain('unsettled');
+        expect(url).not.toContain('only_direct');
+        expect(url).not.toContain('triage_status');
+    });
+
+    it('does not offer the advisor when no model is configured', async () => {
+        // **An absent option must be absent, not present and refusing.** The button was offered to
+        // everybody; with no model it opened a dialog onto an unreachable service.
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        const offline = TestBed.createComponent(Issues);
+        const calls = TestBed.inject(HttpTestingController);
+        offline.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush(aiAdvisorStatus(false));
+        calls
+            .expectOne((call) => call.url === '/api/v1/issues')
+            .flush(asSchema('IssuePage', { items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 }));
+        offline.detectChanges();
+
+        expect(stateOf(offline.debugElement).aiEnabled()).toBe(false);
+    });
+
+    it('hides the advisor too when availability itself does not answer', async () => {
+        // A read failure is not an access: promising a button one does not know will work is
+        // exactly what this guard prevents.
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        const broken = TestBed.createComponent(Issues);
+        const calls = TestBed.inject(HttpTestingController);
+        broken.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status').error(new ProgressEvent('failed'));
+        calls
+            .expectOne((call) => call.url === '/api/v1/issues')
+            .flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
+        broken.detectChanges();
+
+        expect(stateOf(broken.debugElement).aiEnabled()).toBe(false);
+    });
+
+    it('says the model did not answer, instead of opening an empty dialog', () => {
+        firstPage(1);
+
+        const page = fixture.debugElement;
+        advisorOf(page).openAiAdvisor(stateOf(page).issues()[0]);
+        const explain = http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1');
+        expect(explain.request.params.get('language')).toBe('en');
+        explain.error(new ProgressEvent('failed'));
+        fixture.detectChanges();
+
+        // **The error was set in a signal the template did not use**: the dialog opened, the
+        // spinner stopped, and nothing was left. The message moreover promised a "local fallback
+        // generation" that this code never wrote.
+        expect(advisorOf(page).aiAdviceError()).toBeTruthy();
+        expect(advisorOf(page).aiAdviceError()).not.toContain('secours');
+        expect(advisorOf(page).aiAdviceLoading()).toBe(false);
+    });
+});
+
+/**
+ * The same decision on many issues.
+ *
+ * One CVE appears in forty repositories, and "not reachable in our configuration" is one judgement
+ * about one context, not forty. What is asserted here is the two things that make the feature safe
+ * rather than convenient: that the ids the user ticked are the ids the request carries, and that a
+ * refusal is reported as a refusal of the whole batch — the server writes nothing when one id is
+ * invisible, and a message that leaves a partial write plausible makes the reader stop instead of
+ * retrying.
+ */
+describe('triaging a selection', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    function row(id: number): Issue {
+        return backlogEntry(id);
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: [row(11), row(22), row(33)], total: 3, limit: 50, offset: 0 })
+                    : []
+            );
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('sends the ticked issues as `ids`, once', () => {
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[2]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).triageStatus = 'not_affected';
+        triageOf(component).triageJustification = 'vulnerable_code_not_in_execute_path';
+        triageOf(component).submitTriage();
+
+        const call = http.expectOne('/api/v1/issues/triage');
+        expect(call.request.method).toBe('POST');
+        // The ids, and not a request per row: forty requests would be forty audit entries and
+        // thirty-nine chances of a half-applied decision.
+        const body = call.request.body as BulkTriageRequest;
+        expect(body.ids).toEqual([11, 33]);
+        expect(body.status).toBe('not_affected');
+        expect(body.justification).toBe('vulnerable_code_not_in_execute_path');
+    });
+
+    it('reloads and drops the selection once the batch is written', () => {
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
+        // The route answers with the written issues, not with backlog rows: `targetKind` is the
+        // backlog's word and an `IssueView` does not carry it.
+        http.expectOne('/api/v1/issues/triage').flush(
+            asSchemaList('IssueView', [
+                {
+                    id: 11,
+                    type: 'vulnerability',
+                    severity: 'high',
+                    state: 'open',
+                    triageStatus: 'not_affected',
+                    isKev: false,
+                    timesSeen: 1,
+                    identifier: 'CVE-2026-11',
+                    ticketRef: null,
+                    ticketUrl: null
+                }
+            ])
+        );
+
+        // A selection outliving its rows is a decision about issues nobody is looking at any more.
+        expect(stateOf(component).selected()).toEqual([]);
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
+    });
+
+    it('drops the selection when the filters change under it', () => {
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
+        stateOf(component).severity.set('critical');
+        stateOf(component).reload(0);
+
+        expect(stateOf(component).selected()).toEqual([]);
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
+    });
+
+    it('says the whole batch was refused when one issue is not visible', () => {
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
+        // The server's own sentence for this case, which says nothing about the other rows.
+        http.expectOne('/api/v1/issues/triage').flush(
+            { detail: 'Issue not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        fixture.detectChanges();
+
+        const message = triageOf(component).triageError();
+        expect(message).toContain('None of the 2 selected issues were triaged');
+        expect(message).toContain('refused as a whole');
+        // And nothing was reloaded, so the ticks are still there to select again from.
+        http.expectNone((call) => call.url === '/api/v1/issues');
+    });
+
+    it("still shows the server's explanation when the refusal is not a visibility one", () => {
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
+        http.expectOne('/api/v1/issues/triage').flush(
+            { detail: 'Too many issues at once: 900, the limit is 500.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
+
+        // The sentence the server took care to write, kept — with the batch's fate stated first.
+        expect(triageOf(component).triageError()).toContain('Too many issues at once');
+        expect(triageOf(component).triageError()).toContain('The selected issue was not triaged');
+    });
+
+    /**
+     * Through the DOM, because a checkbox column bound to nothing looks identical from the
+     * component's side — and "select all, decide once" is the whole flow this feature exists for.
+     */
+    it('ticks the page from the header checkbox and sends what it ticked', async () => {
+        const header = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+            'p-tableheadercheckbox input[type="checkbox"]'
+        );
+        expect(header).not.toBeNull();
+        header!.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(
+            stateOf(fixture.debugElement)
+                .selected()
+                .map((issue) => issue.id)
+        ).toEqual([11, 22, 33]);
+
+        triageOf(fixture.debugElement).openBulkTriage();
+        triageOf(fixture.debugElement).submitTriage();
+        expect((http.expectOne('/api/v1/issues/triage').request.body as BulkTriageRequest).ids).toEqual([11, 22, 33]);
+    });
+
+    it('offers the action only once something is ticked, and says what it will do', () => {
+        const component = fixture.debugElement;
+        const session = TestBed.inject(SessionStore);
+        const as = (role: string) => session.user.set(sessionUser(role));
+
+        // **A test dictionary, because the label now goes through i18n.** It was hard-coded, in
+        // French, in a bilingual application — three times. What this case tests is unchanged: that
+        // the button's promise changes with the role. Whether the translation really exists is
+        // `check-i18n-keys.mjs`'s job.
+        TestBed.inject(I18nService).translations.set({
+            issues: { triage_action: 'Trier', triage_request: 'Envoyer pour approbation' }
+        });
+
+        as('CISO');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('(2)');
+
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
+        fixture.detectChanges();
+
+        // The count is on the button because "Save" looks the same for one row and for forty.
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Trier (2)');
+
+        // **The label is the promise.** An account without approval rights can triage, but its
+        // decision goes into a queue: the screen announced "Triage" to it as to the others, and it
+        // found out afterwards on seeing the tag turn to "Pending approval".
+        as('USER');
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Envoyer pour approbation (2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Trier (2)');
+
+        // An auditor observes and does not decide: the control is absent, not greyed out.
+        //
+        // **Asserted on the key and not on the sentence.** The label was hard-coded in French in an
+        // otherwise English template; it now goes through the bundles, and an assertion on the
+        // translated text would say which language the suite loaded rather than what the screen
+        // shows.
+        as('AUDITOR');
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('(2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('issues.reads_only');
+    });
+});
+
+/**
+ * The dashboard's links, and the controls they have to light up.
+ *
+ * The filter applied while every control on screen read "all" — that was the state this screen
+ * shipped in, and the reason it was wrong is not that the list was unfiltered but that the screen
+ * contradicted the URL that opened it: a short backlog with no filter showing reads as a backlog
+ * that lost most of its rows.
+ */
+describe('the backlog opened from a dashboard link', () => {
+    async function open(queryParams: Record<string, string>): Promise<ComponentFixture<Issues>> {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([]),
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: { queryParamMap: convertToParamMap(queryParams) },
+                        queryParamMap: of(convertToParamMap(queryParams))
+                    }
+                }
+            ]
+        });
+
+        useEnglish();
+        const fixture = TestBed.createComponent(Issues);
+        const http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+                    : []
+            );
+        }
+        fixture.detectChanges();
+        // `ngModel` writes the initial value into the control on a microtask, so a switch asserted
+        // synchronously reads as off however right the field is — and that would pass a screen
+        // whose controls never light up.
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('applies is_kev and shows the control as active', async () => {
+        const fixture = await open({ is_kev: 'true' });
+
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(true);
+        const control = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev');
+        expect(control).not.toBeNull();
+        expect(control!.checked).toBe(true);
+
+        // And it is still the filter the server was asked for, not only the box that is ticked.
+        const http = TestBed.inject(HttpTestingController);
+        stateOf(fixture.debugElement).reload(0);
+        expect(http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams).toContain('is_kev=true');
+    });
+
+    it('does the same for the deadline figure', async () => {
+        const fixture = await open({ overdue: 'true' });
+
+        expect(stateOf(fixture.debugElement).overdue()).toBe(true);
+        expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-overdue')!.checked).toBe(
+            true
+        );
+    });
+
+    it('and for the per-severity figures, which leave settled triage out', async () => {
+        // The dashboard links here with `unsettled=true`. Unread, "3 critical" opens a list of
+        // five — the figure looks wrong, and it is the list that is.
+        const fixture = await open({ severity: 'critical', state: 'open', unsettled: 'true' });
+
+        expect(stateOf(fixture.debugElement).unsettled()).toBe(true);
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-unsettled')!.checked
+        ).toBe(true);
+    });
+
+    it('shows nothing as active when the link carries no filter', async () => {
+        // The other half of the same contract: a control lit up without a filter behind it would
+        // be the same contradiction the other way round.
+        const fixture = await open({});
+
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(false);
+        expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev')!.checked).toBe(
+            false
+        );
+    });
+});
+
+/**
+ * The scope a link from the solutions tree applies (`project_id`, `solution_id`), through a real
+ * router, because what is being tested is the URL: the page read a snapshot of it, so a second link
+ * into the open page changed the address and left the list as it was.
+ */
+describe('the backlog narrowed to a project or a solution', () => {
+    let harness: RouterTestingHarness;
+    let http: HttpTestingController;
+
+    const TREE = asSchema('SolutionTree', {
+        solutions: [
+            {
+                id: 1,
+                name: 'Payments',
+                description: null,
+                createdAt: '2026-09-01T00:00:00Z',
+                partial: false,
+                repositoryCount: 1,
+                containerCount: 0,
+                openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
+                projects: [
+                    {
+                        id: 12,
+                        solutionId: 1,
+                        name: 'Ledger',
+                        description: null,
+                        createdAt: '2026-09-01T00:00:00Z',
+                        partial: false,
+                        checklistsVisible: true,
+                        detectedLanguages: [],
+                        languagesUnknownFor: [],
+                        repositoryCount: 1,
+                        containerCount: 0,
+                        openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
+                        repositories: [{ id: 10, name: 'ledger-core' }]
+                    }
+                ]
+            }
+        ],
+        unfiled: {
+            repositoryCount: 0,
+            containerCount: 0,
+            openIssues: { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 },
+            repositories: []
+        }
+    });
+
+    const EMPTY_PAGE = asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 });
+    const page = () => harness.routeNativeElement as HTMLElement;
+    const button = (name: string) =>
+        [...page().querySelectorAll('button')].find((candidate) => candidate.getAttribute('aria-label') === name);
+
+    /** Answers everything the page asks for on arrival, and returns the backlog request's parameters. */
+    async function open(url: string): Promise<URLSearchParams> {
+        await harness.navigateByUrl(url);
+        let issues: URLSearchParams | null = null;
+        for (const request of http.match(() => true)) {
+            const path = request.request.url;
+            if (path === '/api/v1/issues') {
+                issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+                request.flush(EMPTY_PAGE);
+            } else if (path === '/api/v1/solutions') request.flush(TREE);
+            else if (path === '/api/v1/ai-advisor/status') request.flush(aiAdvisorStatus(false));
+            else request.flush([]);
+        }
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        expect(issues).not.toBeNull();
+        return issues!;
+    }
+
+    /** The one backlog request a URL change should cause. */
+    async function nextRequest(): Promise<URLSearchParams> {
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        request.flush(EMPTY_PAGE);
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        return new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([{ path: 'issues', component: Issues }])
+            ]
+        });
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        harness = await RouterTestingHarness.create();
+    }, 20_000);
+
+    it('sends the project with the rest of the link, and names it in a chip that can be taken off', async () => {
+        const params = await open('/issues?project_id=12&severity=high&unsettled=true');
+
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('severity')).toBe('high');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.has('solution_id')).toBe(false);
+
+        expect(page().querySelector('[data-testid="scope-project"]')?.textContent).toContain(
+            'Project: Payments / Ledger'
+        );
+        expect(button('Remove the project filter Payments / Ledger')).toBeDefined();
+        expect(page().querySelector('[data-testid="scope-solution"]')).toBeNull();
+    });
+
+    it('sends a solution, and both when the link carries both, each with its chip', async () => {
+        const params = await open('/issues?solution_id=1&project_id=12');
+
+        expect(params.get('solution_id')).toBe('1');
+        expect(params.get('project_id')).toBe('12');
+        expect(page().querySelector('[data-testid="scope-solution"]')?.textContent).toContain('Solution: Payments');
+        expect(button('Remove the solution filter Payments')).toBeDefined();
+        expect(page().querySelector('[data-testid="scope-project"]')).not.toBeNull();
+    });
+
+    it('takes the project off the URL and the request, and leaves the rest of the link alone', async () => {
+        await open('/issues?project_id=12&severity=high&unsettled=true');
+
+        button('Remove the project filter Payments / Ledger')!.click();
+        const params = await nextRequest();
+
+        expect(params.has('project_id')).toBe(false);
+        expect(params.get('severity')).toBe('high');
+        expect(params.get('unsettled')).toBe('true');
+        const url = TestBed.inject(Router).url;
+        expect(url).not.toContain('project_id');
+        expect(url).toContain('severity=high');
+        expect(page().querySelector('[data-testid="scope-project"]')).toBeNull();
+    });
+
+    it('follows a second link into the open page instead of keeping the first one', async () => {
+        await open('/issues?project_id=12&severity=high&unsettled=true');
+        const before = harness.routeDebugElement!.componentInstance as Issues;
+
+        await harness.navigateByUrl('/issues?solution_id=1');
+        const params = await nextRequest();
+
+        // The same component, reused by the router: only the subscription can have seen the change.
+        expect(harness.routeDebugElement!.componentInstance).toBe(before);
+        expect(params.get('solution_id')).toBe('1');
+        expect(params.has('project_id')).toBe(false);
+        // A filter the new link does not carry is off, on screen and in the request — not left
+        // over from the link before it.
+        expect(params.has('severity')).toBe(false);
+        expect(params.has('unsettled')).toBe(false);
+        expect(stateOf(harness.routeDebugElement!).severity()).toBeNull();
+        expect(stateOf(harness.routeDebugElement!).unsettled()).toBe(false);
+        expect(page().querySelector('[data-testid="scope-project"]')).toBeNull();
+        expect(page().querySelector('[data-testid="scope-solution"]')).not.toBeNull();
+    });
+
+    it('writes a control into the URL, keeping the scope it was opened with', async () => {
+        await open('/issues?project_id=12');
+        const component = harness.routeDebugElement!;
+
+        stateOf(component).severity.set('critical');
+        stateOf(component).onlyKev.set(true);
+        stateOf(component).filtersChanged();
+        const params = await nextRequest();
+
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('severity')).toBe('critical');
+        const url = TestBed.inject(Router).url;
+        expect(url).toContain('project_id=12');
+        expect(url).toContain('severity=critical');
+        expect(url).toContain('is_kev=true');
+        // A default stays out of the address, so a plain visit reads `/issues`.
+        expect(url).not.toContain('state=');
+    });
+
+    it('shows a project it cannot name as the number the link carried, over the ordinary empty list', async () => {
+        const params = await open('/issues?project_id=99');
+
+        // The server answers a hidden project and a missing one alike, with an empty page; the
+        // screen must not tell them apart either.
+        expect(params.get('project_id')).toBe('99');
+        expect(page().querySelector('[data-testid="scope-project"]')?.textContent).toContain('Project: #99');
+        expect(page().textContent).toContain('No issue matches these filters');
+    });
+
+    it('sends the identifier a link carries as itself, never as a search, and names it in a chip', async () => {
+        const params = await open('/issues?identifier=CVE-2021-4428&repository_id=5');
+
+        expect(params.get('identifier')).toBe('CVE-2021-4428');
+        expect(params.has('search')).toBe(false);
+        expect(params.get('repository_id')).toBe('5');
+        expect(page().querySelector('[data-testid="scope-identifier"]')?.textContent).toContain(
+            'Identifier: CVE-2021-4428'
+        );
+        // The search box stays free text: the identifier is not written into it.
+        expect((page().querySelector('p-iconfield input') as HTMLInputElement).value).toBe('');
+        expect(button('Remove the identifier filter CVE-2021-4428')).toBeDefined();
+    });
+
+    it('takes the identifier off the URL and the request, and leaves the rest of the link alone', async () => {
+        await open('/issues?identifier=CVE-2021-4428&repository_id=5');
+
+        button('Remove the identifier filter CVE-2021-4428')!.click();
+        const params = await nextRequest();
+
+        expect(params.has('identifier')).toBe(false);
+        expect(params.get('repository_id')).toBe('5');
+        const url = TestBed.inject(Router).url;
+        expect(url).not.toContain('identifier');
+        expect(url).toContain('repository_id=5');
+        expect(page().querySelector('[data-testid="scope-identifier"]')).toBeNull();
+    });
+
+    it('keeps the identifier when another control moves, and a search beside it stays a search', async () => {
+        await open('/issues?identifier=CVE-2021-4428');
+        const component = harness.routeDebugElement!;
+
+        stateOf(component).search.set('log4j');
+        stateOf(component).filtersChanged();
+        const params = await nextRequest();
+
+        expect(params.get('identifier')).toBe('CVE-2021-4428');
+        expect(params.get('search')).toBe('log4j');
+        expect(TestBed.inject(Router).url).toContain('identifier=CVE-2021-4428');
+    });
+
+    it('does not read the tree when the link carries no scope', async () => {
+        await harness.navigateByUrl('/issues');
+        expect(http.match((call) => call.url === '/api/v1/solutions')).toEqual([]);
+        for (const request of http.match(() => true))
+            request.flush(request.request.url.endsWith('/issues') ? EMPTY_PAGE : []);
+    });
+});
+
+/**
+ * The weekly OWASP view's drill-down, read back from the URL its figures build. **The link is taken
+ * from the view's own rules** (`openLink`, `openedLink`), not retyped here: a spec that wrote the
+ * parameters by hand would pass while the two screens disagreed on the week's last day.
+ */
+describe('the backlog opened from a weekly OWASP figure', () => {
+    let harness: RouterTestingHarness;
+    let http: HttpTestingController;
+    const page = () => harness.routeNativeElement as HTMLElement;
+
+    function issueRow(id: number): Issue {
+        return backlogEntry(id, {
+            repoId: 5,
+            targetName: 'Arm Libs Spring',
+            packageName: 'openssl',
+            packageVersion: '3.0.1',
+            state: id % 2 === 0 ? 'resolved' : 'open',
+            firstSeenAt: '2026-09-03T08:00:00Z',
+            lastSeenAt: '2026-09-21T05:03:00Z'
+        });
+    }
+
+    async function open(url: string, total: number): Promise<URLSearchParams> {
+        await harness.navigateByUrl(url);
+        let issues: URLSearchParams | null = null;
+        for (const request of http.match(() => true)) {
+            const path = request.request.url;
+            if (path === '/api/v1/issues') {
+                issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+                request.flush(
+                    asSchema('IssuePage', {
+                        items: Array.from({ length: total }, (_, index) => issueRow(index + 1)),
+                        total,
+                        limit: 50,
+                        offset: 0
+                    })
+                );
+            } else if (path === '/api/v1/ai-advisor/status') request.flush(aiAdvisorStatus(false));
+            else if (path === '/api/v1/solutions') request.flush(EMPTY_TREE);
+            else request.flush([]);
+        }
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        expect(issues).not.toBeNull();
+        return issues!;
+    }
+
+    const url = (params: Record<string, string>) => `/issues?${new URLSearchParams(params).toString()}`;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([{ path: 'issues', component: Issues }])
+            ]
+        });
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        harness = await RouterTestingHarness.create();
+    }, 20_000);
+
+    it('asks exactly what an open count counts, every state, and says so in a banner with the count', async () => {
+        const week = threeWeeks().weeks[1];
+        const line = week.categories.find((candidate) => candidate.category === 'A06')!;
+        const params = await open(url(openLink(week, 'A06', { kind: 'project', id: 12 })), line.open);
+
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('open_at')).toBe('2026-09-27');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.get('project_id')).toBe('12');
+        // Every state: "open on that Sunday" is mostly resolved since, and `open` would hide them.
+        expect(params.get('state')).toBe('all');
+
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 open on 27/09/2026 — from the weekly OWASP view'
+        );
+        // The count the banner shows is the server's total for that filter — the figure clicked.
+        expect(banner.textContent).toContain(`1–${line.open} of ${line.open}`);
+        expect(banner.textContent).toContain('not settled by triage as it stands today');
+        // The state control says "all", not "open": the control agrees with the request.
+        expect(stateOf(harness.routeDebugElement!).state()).toBe('all');
+        // The way back names the week and the scope, and nothing the link could have smuggled in.
+        const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
+        expect(back.pathname).toBe('/owasp');
+        expect(Object.fromEntries(back.searchParams)).toEqual({ view: 'weekly', week: '2026-09-21', project_id: '12' });
+    });
+
+    it('reads a flow range, and keeps a state the link names', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(`${url(openedLink(week, 'A06', null))}&state=open`, 3);
+        expect(params.get('first_seen_from')).toBe('2026-09-28');
+        expect(params.get('first_seen_to')).toBe('2026-10-04');
+        expect(params.get('state')).toBe('open');
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 first seen from 28/09/2026 to 04/10/2026'
+        );
+    });
+
+    it('keeps the drill-down when another control moves', async () => {
+        const week = threeWeeks().weeks[1];
+        await open(url(openLink(week, 'A06', null)), 4);
+        const component = harness.routeDebugElement!;
+        stateOf(component).severity.set('critical');
+        stateOf(component).filtersChanged();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
+        expect(params.get('open_at')).toBe('2026-09-27');
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('severity')).toBe('critical');
+        const address = TestBed.inject(Router).url;
+        expect(address).toContain('open_at=2026-09-27');
+        expect(address).toContain('owasp_category=A06');
+        // The default for a date is every state: it stays out of the address, as `open` does without one.
+        expect(address).not.toContain('state=');
+    });
+
+    it('takes the drill-down off in one click, back to the open backlog, leaving the scope', async () => {
+        const week = threeWeeks().weeks[1];
+        await open(url(resolvedLink(week, 'A06', { kind: 'solution', id: 1 })), 5);
+        page().querySelector<HTMLButtonElement>('[data-testid="weekly-clear"] button')!.click();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+
+        for (const key of ['owasp_category', 'resolved_from', 'resolved_to']) expect(params.has(key)).toBe(false);
+        expect(params.get('state')).toBe('open');
+        expect(params.get('solution_id')).toBe('1');
+        expect(TestBed.inject(Router).url).toBe('/issues?solution_id=1');
+        expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
+    });
+
+    it('asks a total for every category at once, and says so in words rather than as a code', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(url(resolvedLink(week, null, { kind: 'project', id: 12 })), week.resolved);
+        expect(params.get('owasp_category')).toBe('any');
+        expect(params.get('resolved_from')).toBe('2026-09-28');
+        expect(params.get('resolved_to')).toBe('2026-10-04');
+        const text = page().querySelector('[data-testid="weekly-banner-text"]')?.textContent;
+        expect(text).toContain('Issues of any OWASP category resolved from 28/09/2026 to 04/10/2026');
+        expect(text).not.toContain('any resolved');
+    });
+
+    it('goes back to the week a reopened range starts in, even with no end', async () => {
+        await open('/issues?reopened_from=2026-09-30', 1);
+        const back = page().querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!;
+        expect(new URL(back.href).searchParams.get('week')).toBe('2026-09-28');
+        // The day as every date reads, the open end as an ellipsis rather than a formatted nothing.
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues reopened from 30/09/2026 to …'
+        );
+    });
+
+    it('names a lone any filter as the Top 10, not as a category called any', async () => {
+        await open('/issues?owasp_category=any', 2);
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues placed in an OWASP Top 10:2021 category'
+        );
+    });
+
+    /**
+     * A category with no date is the current grid's link, and the grid is where it goes back to: the
+     * banner used to say "from the weekly OWASP view" and offer a way back to a view never opened.
+     */
+    it('names the current grid as the origin of a dateless category, and goes back to it in its scope', async () => {
+        const params = await open('/issues?owasp_category=A06&unsettled=true&project_id=12', 4);
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('state')).toBe('open');
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues placed in A06 — from the OWASP grid'
+        );
+        const back = banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!;
+        expect(back.textContent?.trim()).toBe('Back to the OWASP grid');
+        const address = new URL(back.href);
+        expect(address.pathname).toBe('/owasp');
+        expect(Object.fromEntries(address.searchParams)).toEqual({ project_id: '12' });
+    });
+
+    it('asks a reopened bar its recorded reopenings over every state, and its way back is the week', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(url(reopenedLink(week, 'A06', null)!), 2);
+        expect(params.get('reopened_from')).toBe('2026-09-28');
+        expect(params.get('reopened_to')).toBe('2026-10-04');
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('state')).toBe('all');
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 reopened from 28/09/2026 to 04/10/2026'
+        );
+        const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
+        expect(back.searchParams.get('week')).toBe('2026-09-28');
+        expect(TestBed.inject(Router).url).toContain('reopened_to=2026-10-04');
+
+        page().querySelector<HTMLButtonElement>('[data-testid="weekly-clear"] button')!.click();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const cleared = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
+        for (const key of ['reopened_from', 'reopened_to', 'owasp_category']) expect(cleared.has(key)).toBe(false);
+    });
+
+    it('shows no banner, and asks no date, on an ordinary visit or a garbled one', async () => {
+        const params = await open('/issues?open_at=2026-13-40&owasp_category=A11', 0);
+        expect(params.has('open_at')).toBe(false);
+        expect(params.has('owasp_category')).toBe(false);
+        expect(params.get('state')).toBe('open');
+        expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
+    });
+});
+
+/**
+ * A risk accepted (`will_not_fix`, decision 0041).
+ *
+ * It is the one decision that has to carry a review date and must not carry a VEX justification:
+ * each of the five says the product is *not* exposed, and this one says it is. The server refuses
+ * both mistakes; what is asserted here is that the dialog cannot make them — a justification left
+ * from a `not_affected` chosen a moment earlier would otherwise ride along hidden and be refused.
+ */
+describe('accepting a risk', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const ROW = backlogEntry(7);
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        TestBed.inject(SessionStore).user.set(sessionUser('CISO'));
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: [ROW], total: 1, limit: 50, offset: 0 })
+                    : []
+            );
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('offers it in the one list, in words, and never in the colour of good news', () => {
+        const component = fixture.debugElement;
+        const option = stateOf(component)
+            .triageOptions()
+            .find((one) => one.value === 'will_not_fix');
+        expect(option?.label).toBe('Will not fix — risk accepted');
+        expect(stateOf(component).triageLabel('will_not_fix')).toBe('Will not fix — risk accepted');
+        // Settled for the gate, still exposed: amber, not the green of `fixed`.
+        expect(stateOf(component).triageColour('will_not_fix')).toBe('warn');
+    });
+
+    it('cannot be submitted without a review delay the server accepts', () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('will_not_fix');
+
+        for (const days of [null, 0, 3651, 1.5]) {
+            triageOf(component).triageExpiresInDays = days;
+            expect(triageOf(component).canSubmitTriage()).toBe(false);
+        }
+        triageOf(component).submitTriage();
+        http.expectNone('/api/v1/issues/7/triage');
+
+        triageOf(component).triageExpiresInDays = 90;
+        expect(triageOf(component).canSubmitTriage()).toBe(true);
+    });
+
+    it('clears a justification chosen before, and never sends one', () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('not_affected');
+        triageOf(component).triageJustification = 'inline_mitigations_already_exist';
+
+        triageOf(component).chooseTriageStatus('will_not_fix');
+        expect(triageOf(component).triageJustification).toBeNull();
+
+        // Even a value written behind the field's back stays home.
+        triageOf(component).triageJustification = 'inline_mitigations_already_exist';
+        triageOf(component).triageExpiresInDays = 90;
+        triageOf(component).submitTriage();
+
+        const body = http.expectOne('/api/v1/issues/7/triage').request.body as TriageRequest;
+        expect(body.status).toBe('will_not_fix');
+        expect(body.justification).toBeNull();
+        expect(body.expires_in_days).toBe(90);
+    });
+
+    it('shows no justification field, and says the delay is required, in the dialog', async () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('will_not_fix');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const delay = document.body.querySelector<HTMLInputElement>('#triage-expires');
+        expect(delay).not.toBeNull();
+        expect(delay!.required).toBe(true);
+        expect(document.body.querySelector('#triage-justification')).toBeNull();
+        expect(document.body.querySelector('#triage-expires-hint')?.textContent).toContain(
+            'Accepting a risk needs a review date'
+        );
+    });
+
+    it('keeps the justification and an optional delay for an argument that the product is not exposed', async () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('not_affected');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(document.body.querySelector('#triage-justification')).not.toBeNull();
+        expect(document.body.querySelector<HTMLInputElement>('#triage-expires')!.required).toBe(false);
+        expect(document.body.querySelector('#triage-expires-hint')?.textContent).toContain('Leave empty');
+    });
+});
+
+/**
+ * A request awaiting approval is answered as it was asked (decision 0041).
+ *
+ * <p>The dialog opened on `pending_approval` with the review date emptied: the approver chose a status
+ * of their own, and a tracker's "Won't Fix" could leave granted as "not affected" — a signed "not
+ * exposed" nobody had asked for. It now opens on the requested status and the proposed review date.
+ */
+describe('answering a request awaiting approval', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const DAY = 86_400_000;
+    const proposedReview = new Date(Date.now() + 30 * DAY - 60_000).toISOString();
+
+    function row(id: number, fields: Partial<Issue>): Issue {
+        return backlogEntry(id, fields);
+    }
+
+    const ROWS = [
+        row(8, {
+            triageStatus: 'pending_approval',
+            triageRequestedStatus: 'will_not_fix',
+            triageExpiresAt: proposedReview,
+            triageComment: 'Legacy module, retired next quarter.',
+            triagedBy: 'jira_webhook'
+        }),
+        // Queued before the request was recorded: nothing to offer, so nothing is invented.
+        row(9, {
+            triageStatus: 'pending_approval',
+            triageRequestedStatus: null,
+            triageJustification: 'inline_mitigations_already_exist'
+        }),
+        row(10, {
+            triageStatus: 'not_affected',
+            triageJustification: 'vulnerable_code_not_present',
+            triageExpiresAt: proposedReview
+        })
+    ];
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        TestBed.inject(SessionStore).user.set(sessionUser('CISO', { username: 'approver' }));
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: ROWS, total: ROWS.length, limit: 50, offset: 0 })
+                    : []
+            );
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('opens on the requested status and review date, and grants exactly that', () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+
+        expect(triageOf(component).triageStatus).toBe('will_not_fix');
+        expect(triageOf(component).triageRequested).toBe('will_not_fix');
+        expect(triageOf(component).triageJustification).toBeNull();
+        expect(triageOf(component).triageExpiresInDays).toBe(30);
+        expect(triageOf(component).triageComment).toBe('Legacy module, retired next quarter.');
+        expect(triageOf(component).canSubmitTriage()).toBe(true);
+
+        triageOf(component).submitTriage();
+        const body = http.expectOne('/api/v1/issues/8/triage').request.body as TriageRequest;
+        expect(body.status).toBe('will_not_fix');
+        expect(body.justification).toBeNull();
+        expect(body.expires_in_days).toBe(30);
+    });
+
+    it('says what the request asks for, in the row and in the dialog', async () => {
+        const requested = (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '[data-testid="issue-requested-status"]'
+        );
+        expect(requested.length).toBe(1);
+        expect(requested[0].textContent).toContain('Will not fix — risk accepted');
+
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(document.body.querySelector('[data-testid="triage-requested-hint"]')?.textContent).toContain(
+            'Will not fix — risk accepted'
+        );
+    });
+
+    it('invents nothing for a request that recorded no status, and keeps its proposed date', () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[1]);
+
+        expect(triageOf(component).triageStatus).toBe('pending_approval');
+        expect(triageOf(component).triageRequested).toBeNull();
+        expect(triageOf(component).triageJustification).toBe('inline_mitigations_already_exist');
+        expect(triageOf(component).triageExpiresInDays).toBeNull();
+    });
+
+    it('opens a settled decision as it stands, with the delay to choose again', () => {
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[2]);
+
+        expect(triageOf(component).triageStatus).toBe('not_affected');
+        expect(triageOf(component).triageRequested).toBeNull();
+        expect(triageOf(component).triageExpiresInDays).toBeNull();
+    });
+});
+
+/**
+ * The advisor's suggestion, applied as a triage the server accepts.
+ *
+ * <p>The advisor answers in VEX's vocabulary, and `under_investigation` — its answer for every finding
+ * not on the KEV list — is no triage status: the dialog's select showed nothing, and the server refused
+ * the decision for having no status.
+ */
+describe('applying the advisor suggestion', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const ROW = backlogEntry(11, { triageStatus: 'affected' });
+
+    function advise(status: string): void {
+        const component = fixture.debugElement;
+        advisorOf(component).openAiAdvisor(stateOf(component).issues()[0]);
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/11').flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2026-11',
+                title: '',
+                summaryExplanation: 'Remote code execution.',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status, justification: '', impactStatement: 'Reachable.', actionStatement: '' },
+                references: []
+            })
+        );
+        advisorOf(component).applySuggestedVex();
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            if (request.request.url.endsWith('/ai-advisor/status')) {
+                request.flush(aiAdvisorStatus(true));
+            } else {
+                request.flush(
+                    request.request.url.endsWith('/issues')
+                        ? asSchema('IssuePage', { items: [ROW], total: 1, limit: 50, offset: 0 })
+                        : []
+                );
+            }
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('reads an investigation as under review, which the dialog offers and the server accepts', () => {
+        advise('under_investigation');
+        const component = fixture.debugElement;
+
+        expect(triageOf(component).triageStatus).toBe('under_review');
+        expect(
+            stateOf(component)
+                .triageOptions()
+                .map((option) => option.value)
+        ).toContain(triageOf(component).triageStatus);
+
+        triageOf(component).submitTriage();
+        expect((http.expectOne('/api/v1/issues/11/triage').request.body as TriageRequest).status).toBe('under_review');
+    });
+
+    it('keeps a status the triage vocabulary shares', () => {
+        advise('affected');
+        expect(triageOf(fixture.debugElement).triageStatus).toBe('affected');
+    });
+});
