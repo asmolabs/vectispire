@@ -26,12 +26,18 @@ describe('the accounts screen', () => {
         username: string,
         role: string,
         isActive = true,
-        owes: { mustChangePassword?: boolean; federated?: boolean; mfaEnabled?: boolean } = {}
+        owes: {
+            mustChangePassword?: boolean;
+            federated?: boolean;
+            mfaEnabled?: boolean;
+            email?: string;
+            scimManaged?: boolean;
+        } = {}
     ) =>
         asSchema('UserAdminSummary', {
             id,
             username,
-            email: null,
+            email: owes.email ?? null,
             displayName: null,
             role,
             isActive,
@@ -39,7 +45,8 @@ describe('the accounts screen', () => {
             federated: owes.federated ?? false,
             createdAt: '2026-01-01T00:00:00Z',
             activeSessions: 0,
-            mfaEnabled: owes.mfaEnabled ?? false
+            mfaEnabled: owes.mfaEnabled ?? false,
+            scimManaged: owes.scimManaged ?? false
         });
 
     const LIST = asSchema('UserListing', {
@@ -133,6 +140,7 @@ describe('the accounts screen', () => {
         fixture.componentInstance.form = {
             username: 'erin',
             displayName: '',
+            email: '',
             role: 'USER',
             password: 'a long passphrase'
         };
@@ -456,6 +464,143 @@ describe('the accounts screen', () => {
             );
         });
     });
+    /**
+     * The address checklist contact reminders are mailed to (decision 0044). Until 1.0.0-rc.2 it could be
+     * typed nowhere on this screen: not at a creation, and not afterwards.
+     */
+    describe("an account's e-mail address", () => {
+        const ADDRESSED = asSchema('UserListing', {
+            users: [
+                account(1, 'admin', 'ADMIN'),
+                account(5, 'erin', 'USER', true, { email: 'erin@example.org' }),
+                account(6, 'provisioned', 'USER', true, { email: 'p@example.org', scimManaged: true })
+            ],
+            currentUserId: 1,
+            total: 3
+        });
+
+        const emailButton = (name: string) =>
+            document.querySelector<HTMLButtonElement>(`button[aria-label="Change the e-mail address of ${name}"]`);
+        const field = () => document.querySelector<HTMLInputElement>('#user-email');
+        const save = () => document.querySelector<HTMLButtonElement>('#user-email-save button');
+
+        async function showAddressed(): Promise<void> {
+            useEnglish();
+            fixture.autoDetectChanges();
+            fixture.componentInstance.reload();
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ADDRESSED);
+            http.expectOne((call) => call.url === '/api/v1/account-requests').flush(NO_REQUESTS);
+            await fixture.whenStable();
+        }
+
+        async function type(value: string): Promise<void> {
+            const input = field()!;
+            input.value = value;
+            input.dispatchEvent(new Event('input'));
+            await fixture.whenStable();
+        }
+
+        it('is a labelled, optional field of the creation form, sent trimmed and left out when blank', async () => {
+            useEnglish();
+            fixture.autoDetectChanges();
+            fixture.componentInstance.openForm();
+            await fixture.whenStable();
+            const email = document.querySelector<HTMLInputElement>('#email')!;
+            expect(document.querySelector('label[for="email"]')?.textContent).toContain('E-mail address');
+            expect(email.required).toBe(false);
+
+            const page = fixture.componentInstance;
+            page.form = {
+                username: 'erin',
+                displayName: '',
+                email: '  erin@example.org ',
+                role: 'USER',
+                password: 'p'
+            };
+            page.submit();
+            const created = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/users');
+            expect(created.request.body).toMatchObject({ email: 'erin@example.org' });
+            created.flush(ADDRESSED.users[1]);
+            http.expectOne((call) => call.url === '/api/v1/users').flush(ADDRESSED);
+            http.expectOne((call) => call.url === '/api/v1/account-requests').flush(NO_REQUESTS);
+
+            page.openForm();
+            page.form = { ...page.form, username: 'fred', email: '   ', password: 'p' };
+            page.submit();
+            const blank = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/users');
+            expect((blank.request.body as { email?: string }).email).toBeUndefined();
+        });
+
+        it('opens on the address the account holds, and sends the one typed, trimmed', async () => {
+            await showAddressed();
+
+            emailButton('erin')!.click();
+            await fixture.whenStable();
+            expect(field()!.value).toBe('erin@example.org');
+            expect(field()!.disabled).toBe(false);
+            http.expectNone((call) => call.method === 'PATCH');
+
+            await type(' erin.new@example.org ');
+            save()!.click();
+            await fixture.whenStable();
+            const patch = http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/5');
+            expect(patch.request.body).toEqual({ email: 'erin.new@example.org' });
+            patch.flush(asSchema('UserAdminSummary', { ...ADDRESSED.users[1], email: 'erin.new@example.org' }));
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ADDRESSED);
+            http.expectOne((call) => call.url === '/api/v1/account-requests').flush(NO_REQUESTS);
+
+            expect(fixture.componentInstance.emailVisible()).toBe(false);
+        });
+
+        it('clears the address with an empty field, which the server reads as clearing it', async () => {
+            await showAddressed();
+            emailButton('erin')!.click();
+            await fixture.whenStable();
+
+            await type('');
+            save()!.click();
+            await fixture.whenStable();
+            expect(
+                http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/5').request.body
+            ).toEqual({ email: '' });
+        });
+
+        it('keeps the dialog open on a refusal, with the reason the server gave', async () => {
+            await showAddressed();
+            emailButton('erin')!.click();
+            await fixture.whenStable();
+
+            await type('admin@example.org');
+            save()!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/5').flush(
+                {
+                    code: 'invalid-request',
+                    detail: 'The e-mail address admin@example.org is already used by another account.'
+                },
+                { status: 400, statusText: 'Bad Request' }
+            );
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.emailVisible()).toBe(true);
+            // The first dialog of the page is the creation form's: the refusal is read beside the field.
+            expect(field()!.closest('.p-dialog')?.textContent).toContain('already used by another account');
+        });
+
+        it('shows an account the directory writes read-only, says why, and sends nothing', async () => {
+            await showAddressed();
+
+            emailButton('provisioned')!.click();
+            await fixture.whenStable();
+            expect(field()!.disabled).toBe(true);
+            expect(document.querySelector('#user-email-hint')?.textContent).toContain('SCIM directory');
+            expect(save()!.disabled).toBe(true);
+
+            fixture.componentInstance.confirmEmail();
+            http.expectNone((call) => call.method === 'PATCH');
+        });
+    });
+
     describe('resetting a second factor', () => {
         /**
          * The current account (1) and another (5), both with a factor, and one without (6). Only the other
@@ -678,7 +823,7 @@ describe('the accounts screen', () => {
             fixture.autoDetectChanges();
             const page = fixture.componentInstance;
             page.openForm();
-            page.form = { username: 'erin', displayName: '', role: 'CISO', password: 'a long passphrase' };
+            page.form = { username: 'erin', displayName: '', email: '', role: 'CISO', password: 'a long passphrase' };
             page.submit();
 
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/users').flush(FILED, {

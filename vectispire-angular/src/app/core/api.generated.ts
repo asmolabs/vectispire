@@ -4597,6 +4597,7 @@ export interface paths {
         delete: operations["remove"];
         options?: never;
         head?: never;
+        /** @description Changes an account's role, activation, e-mail address or password; every field left out is left as it is. 409 with the type urn:vectispire:problem:managed-by-directory (code managed-by-directory) for a change of the e-mail address of an account the SCIM directory writes (scimManaged), which is changed in the directory; plain 409 when a change to the account is already waiting for approval. */
         patch: operations["update_3"];
         trace?: never;
     };
@@ -9435,6 +9436,7 @@ export interface components {
             mfaEnabled: boolean;
             mustChangePassword: boolean;
             role?: string;
+            scimManaged: boolean;
             username?: string;
         };
         UserCreateRequest: {
@@ -9464,6 +9466,8 @@ export interface components {
             kind?: string;
         };
         UserUpdateRequest: {
+            /** @description The address to set: absent or null leaves it, blank clears it, the one the account holds changes nothing. At most 255 characters, shaped like name@example.org, held by no other account. Refused with 409 managed-by-directory on an account the SCIM directory writes. */
+            email?: string;
             is_active?: boolean;
             password?: string;
             role?: string;
@@ -16892,7 +16896,7 @@ export interface operations {
                     "*/*": components["schemas"]["UserAdminSummary"];
                 };
             };
-            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied. */
+            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation, a deactivation or an e-mail address sent with it has been applied. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -16947,7 +16951,7 @@ export interface operations {
                     "*/*": components["schemas"]["UserAdminSummary"];
                 };
             };
-            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied. */
+            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation, a deactivation or an e-mail address sent with it has been applied. */
             202: {
                 headers: {
                     [name: string]: unknown;

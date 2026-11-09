@@ -182,6 +182,14 @@
                         (onClick)="openAccess(user)"
                     />
                     <p-button
+                        icon="pi pi-envelope"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'users.aria_edit_email' | translate: { name: user.username }"
+                        [disabled]="busy() === user.id"
+                        (onClick)="openEmail(user)"
+                    />
+                    <p-button
                         icon="pi pi-key"
                         [text]="true"
                         [rounded]="true"
@@ -254,6 +262,23 @@
             <input pInputText id="displayName" [ngModelOptions]="{ standalone: true }" [(ngModel)]="form.displayName" />
         </div>
         <div class="flex flex-col gap-2">
+            <label for="email" class="font-medium"
+                >{{ 'users.email' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="email"
+                type="email"
+                autocomplete="off"
+                maxlength="255"
+                aria-describedby="email-hint"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.email"
+            />
+            <small id="email-hint" class="text-muted-color">{{ 'users.email_hint' | translate }}</small>
+        </div>
+        <div class="flex flex-col gap-2">
             <label for="role" class="font-medium">{{ 'users.role' | translate }}</label>
             <p-select
                 id="role"
@@ -314,6 +339,53 @@
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="resetVisible.set(false)" />
         <p-button [label]="'users.reset' | translate" [loading]="saving()" (onClick)="confirmReset()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'users.email_header' | translate"
+    [(visible)]="emailVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+>
+    @if (pendingEmail(); as user) {
+        <form class="flex flex-col gap-4" (ngSubmit)="confirmEmail()">
+            <label for="user-email" class="font-medium">
+                {{ 'users.email' | translate }} — <span>{{ user.username }}</span>
+            </label>
+            <input
+                pInputText
+                id="user-email"
+                type="email"
+                autocomplete="off"
+                maxlength="255"
+                aria-describedby="user-email-hint"
+                [disabled]="user.scimManaged"
+                [ngModelOptions]="{ standalone: true }"
+                [ngModel]="emailDraft()"
+                (ngModelChange)="emailDraft.set($event)"
+            />
+            @if (user.scimManaged) {
+                <p-message id="user-email-hint" severity="info" [closable]="false">
+                    {{ 'users.email_managed_by_directory' | translate }}
+                </p-message>
+            } @else {
+                <small id="user-email-hint" class="text-muted-color">{{ 'users.email_change_hint' | translate }}</small>
+            }
+            @if (formError(); as message) {
+                <p-message severity="error" [closable]="false">{{ message }}</p-message>
+            }
+        </form>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="emailVisible.set(false)" />
+        <p-button
+            id="user-email-save"
+            [label]="'common.save' | translate"
+            [loading]="saving()"
+            [disabled]="pendingEmail()?.scimManaged ?? false"
+            (onClick)="confirmEmail()"
+        />
     </ng-template>
 </p-dialog>
 

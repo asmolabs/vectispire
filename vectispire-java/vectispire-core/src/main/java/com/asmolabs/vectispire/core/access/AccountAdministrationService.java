@@ -124,8 +124,12 @@ public class AccountAdministrationService {
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
 
-    /** Every field optional: absent means "leave it as it is". */
-    public record AccountChange(String role, Boolean isActive, String password) {}
+    /**
+     * Every field optional: absent means "leave it as it is".
+     *
+     * @param email the address to set; blank clears it
+     */
+    public record AccountChange(String role, Boolean isActive, String password, String email) {}
 
     /**
      * What became of a creation or a change: applied, or filed for a second administrator.
@@ -191,14 +195,15 @@ public class AccountAdministrationService {
 
         refuseIfInvalid(AccountRules.validateUsername(username));
         refuseIfInvalid(AccountRules.validatePassword(password));
-        NewAccount normalized = new NewAccount(username, null, role, request.email(), request.displayName());
+        String email = address(request.email());
+        NewAccount normalized = new NewAccount(username, null, role, email, request.displayName());
         refuseInvalidCreation(normalized, actingAccountId);
 
         if (needsSecondAdministrator(actingAccountId, Role.of(role).orElseThrow())) {
             AccountRequestEntity filed = new AccountRequestEntity();
             filed.setKind(CREATE);
             filed.setUsername(username);
-            filed.setEmail(BoundedText.optional(request.email(), BOUNDED_COLUMN, "The e-mail address"));
+            filed.setEmail(email);
             filed.setDisplayName(BoundedText.optional(request.displayName(), BOUNDED_COLUMN, "The display name"));
             filed.setRequestedRole(role);
             filed.setPasswordHash(PasswordHasher.hash(password));
@@ -229,6 +234,8 @@ public class AccountAdministrationService {
         if (users.findByUsername(request.username()).isPresent()) {
             throw new InvalidInputException("The username \"" + request.username() + "\" is already taken.");
         }
+        // Checked again when a filed creation is approved: another account may have taken it meanwhile.
+        refuseTakenAddress(request.email(), NO_ACCOUNT);
     }
 
     /**
@@ -243,9 +250,9 @@ public class AccountAdministrationService {
         Instant createdAt = clock.instant();
         UserEntity user = new UserEntity();
         user.setUsername(request.username());
-        // Bounded like every column a form writes: past 255 the database refused the row at the
-        // write, and the administrator got a 500 for a pasted signature block.
-        user.setEmail(BoundedText.optional(request.email(), BOUNDED_COLUMN, "The e-mail address"));
+        // Checked again although `create` normalised it: a creation filed under four-eyes by 1.0.0-rc.1
+        // stored the address with its length checked only, and is applied by this method when approved.
+        user.setEmail(address(request.email()));
         user.setDisplayName(BoundedText.optional(request.displayName(), BOUNDED_COLUMN, "The display name"));
         user.setPassword(passwordHash);
         user.setRole(request.role());
@@ -263,15 +270,16 @@ public class AccountAdministrationService {
     }
 
     /**
-     * Role, activation and password reset — or, under four-eyes, the role or the password filed for a second
-     * administrator when the change makes an approver.
+     * Role, activation, e-mail address and password reset — or, under four-eyes, the role or the password filed
+     * for a second administrator when the change makes an approver.
      *
      * <p>The three carry the same guard rails, so there is one entry point rather than three to
      * keep in step.
      *
      * <p><b>Activation is never held back.</b> A change filed for approval that also activates or
      * deactivates the account applies that part at once: deactivating is how an administrator stops an
-     * account, and a stop that waits for a second person is no stop.
+     * account, and a stop that waits for a second person is no stop. An e-mail address sent with it applies at
+     * once too: it grants nothing — no sign-in and no link reads it — and is only where reminders are mailed.
      *
      * @param actingAccountId the account making the change, or null for a caller that is not one —
      *     used to recognise a change to one's own account. Apart from the audit identity, because
@@ -289,6 +297,8 @@ public class AccountAdministrationService {
         if (password != null) {
             refuseIfInvalid(AccountRules.validatePassword(password));
         }
+        // Before anything is applied or filed, so a refusal of the address leaves nothing half done.
+        String email = emailChange(user, change.email());
 
         boolean roleChanges = !role.equals(user.getRole());
         // A reset waits for the pending change to be decided first: applied at once beside a pending raise, it
@@ -304,7 +314,7 @@ public class AccountAdministrationService {
             String alone = makesAnApprover ? appliedAlone(actingAccountId, Role.of(role).orElseThrow()) : "";
             Written written = transaction.execute(status -> writeChange(
                     id, change.role() == null ? null : role, change.isActive(),
-                    password == null ? null : PasswordHasher.hash(password),
+                    password == null ? null : PasswordHasher.hash(password), email,
                     actingAccountId, actingAccountId == null ? List.of() : List.of(actingAccountId), alone, actor));
             written.entries().forEach(audit::record);
             return new Outcome.Applied(written.account());
@@ -325,8 +335,10 @@ public class AccountAdministrationService {
             throw new ConflictException("A change to " + user.getUsername()
                     + " is already waiting for approval: have it approved or rejected first.");
         }
-        if (change.isActive() != null && change.isActive() != user.getIsActive()) {
-            update(id, new AccountChange(null, change.isActive(), null), actingAccountId, actor);
+        boolean activationChanges = change.isActive() != null && change.isActive() != user.getIsActive();
+        if (activationChanges || email != null) {
+            update(id, new AccountChange(null, activationChanges ? change.isActive() : null, null, email),
+                    actingAccountId, actor);
         }
         AccountRequestEntity filed = new AccountRequestEntity();
         filed.setKind(CHANGE);
@@ -367,15 +379,20 @@ public class AccountAdministrationService {
      * @param role the role to set, or null to keep it
      * @param isActive the activation to set, or null to keep it
      * @param passwordHash the hash of the password to set, or null to keep it
+     * @param email the e-mail address to set, the empty string to clear it, or null to keep it — as
+     *     {@link #emailChange} returns it
      * @param administrators every account behind the change, for {@link ApproverIndependence}
      * @param provenance appended to the audit sentence: empty, or who asked for and approved it
      */
-    Written writeChange(long id, String role, Boolean isActive, String passwordHash, Long actingAccountId,
-            List<Long> administrators, String provenance, RequestActor actor) {
+    Written writeChange(long id, String role, Boolean isActive, String passwordHash, String email,
+            Long actingAccountId, List<Long> administrators, String provenance, RequestActor actor) {
         UserEntity user = requireAccount(id);
         String nextRole = role == null ? user.getRole() : role;
         boolean nextActive = isActive == null ? user.getIsActive() : isActive;
         refuseInvalidChange(user, nextRole, nextActive, actingAccountId);
+        // Again inside the transaction: the directory may have claimed the account, or another account taken
+        // the address, since the request was read.
+        String nextEmail = email == null ? null : emailChange(user, email);
 
         List<String> changes = new ArrayList<>();
         String previousRole = user.getRole();
@@ -387,6 +404,13 @@ public class AccountAdministrationService {
         }
         if (passwordHash != null) {
             changes.add("password reset");
+        }
+        if (nextEmail != null) {
+            // Never the address itself: the audit log is read by people who are not the account's owner, and
+            // exported to a SIEM that keeps it longer than the account.
+            changes.add(nextEmail.isEmpty() ? "e-mail address cleared"
+                    : user.getEmail() == null ? "e-mail address set" : "e-mail address changed");
+            user.setEmail(nextEmail.isEmpty() ? null : nextEmail);
         }
 
         if (role != null && user.getScimLoweredFrom() != null) {
@@ -753,6 +777,54 @@ public class AccountAdministrationService {
 
         accounts.delete(id);
         record(actor, id, "Account deleted: " + user.getUsername());
+    }
+
+    /** The id no account holds, for an address checked at a creation. */
+    private static final long NO_ACCOUNT = -1;
+
+    /**
+     * An address as typed: trimmed, null when blank, bounded by its column and shaped like one.
+     *
+     * <p>Past 255 the database refused the row at the write, and the administrator got a 500 for a pasted
+     * signature block; a malformed one went where no reminder could follow it.
+     */
+    private static String address(String typed) {
+        String email = BoundedText.optional(typed, BOUNDED_COLUMN, "The e-mail address");
+        if (email != null) {
+            refuseIfInvalid(AccountRules.validateEmail(email));
+        }
+        return email;
+    }
+
+    /**
+     * What a change does to the account's address: null when it leaves it as it is — absent, or the address
+     * it already holds — the empty string when it clears it, the address otherwise.
+     *
+     * <p><b>Resending the current address is no change</b>, so a screen that sends the whole form is not
+     * refused on an account the directory writes, and writes no audit entry for nothing.
+     *
+     * @throws DirectoryManagedException a real change on an account the SCIM directory writes
+     */
+    private String emailChange(UserEntity user, String typed) {
+        if (typed == null) {
+            return null;
+        }
+        String email = address(typed);
+        if (java.util.Objects.equals(email, user.getEmail())) {
+            return null;
+        }
+        if (user.getScimManaged()) {
+            throw new DirectoryManagedException(user.getUsername());
+        }
+        refuseTakenAddress(email, user.getId());
+        return email == null ? "" : email;
+    }
+
+    /** Refused as a taken username is, rather than left to the unique key, whose violation was a 500. */
+    private void refuseTakenAddress(String email, long accountId) {
+        if (email != null && users.existsByEmailIgnoreCaseAndIdNot(email, accountId)) {
+            throw new InvalidInputException("The e-mail address " + email + " is already used by another account.");
+        }
     }
 
     UserEntity requireAccount(long id) {

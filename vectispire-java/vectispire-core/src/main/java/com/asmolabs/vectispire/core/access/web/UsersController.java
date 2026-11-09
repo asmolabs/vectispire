@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.Outcome;
 import com.asmolabs.vectispire.core.access.AccountRequestView;
+import com.asmolabs.vectispire.core.access.DirectoryManagedException;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -13,6 +14,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -57,6 +59,8 @@ public class UsersController {
      *
      * @param federated bound to an identity provider's subject: it signs in through the provider, and
      *     only such an account may have its password-change requirement lifted by somebody else
+     * @param scimManaged written by the SCIM directory, which replaces its e-mail address on every
+     *     synchronisation: a change to it is refused here, and the screen says so before it is tried
      */
     public record UserAdminSummary(
             Long id,
@@ -70,7 +74,8 @@ public class UsersController {
             Instant createdAt,
             long activeSessions,
             // Whether a local second factor is enrolled: the screen offers to reset it only then.
-            boolean mfaEnabled) {}
+            boolean mfaEnabled,
+            boolean scimManaged) {}
 
     /**
      * @param total every account the list holds — {@code users}' length unless a page was asked for, as the
@@ -95,8 +100,20 @@ public class UsersController {
             String email,
             @JsonProperty("display_name") String displayName) {}
 
-    /** Every field optional: absent means "leave it as it is", which is what PATCH means. */
-    public record UserUpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
+    /**
+     * Every field optional: absent means "leave it as it is", which is what PATCH means.
+     *
+     * @param email the address to set — blank clears it, the one the account holds changes nothing
+     */
+    public record UserUpdateRequest(
+            String role,
+            @JsonProperty("is_active") Boolean isActive,
+            String password,
+            @Schema(description = "The address to set: absent or null leaves it, blank clears it, the one the "
+                    + "account holds changes nothing. At most 255 characters, shaped like name@example.org, held "
+                    + "by no other account. Refused with 409 managed-by-directory on an account the SCIM "
+                    + "directory writes.")
+            String email) {}
 
     @GetMapping
     public UserListing list(
@@ -136,12 +153,21 @@ public class UsersController {
     }
 
     /**
-     * Role, activation and password reset — and which of them close the account's sessions,
-     * which is decided in {@link AccountAdministrationService#update}. Under four-eyes, a role raised to
-     * one that approves, or a password reset of an account holding one, is filed for a second
+     * Role, activation, e-mail address and password reset — and which of them close the account's
+     * sessions, which is decided in {@link AccountAdministrationService#update}. Under four-eyes, a role
+     * raised to one that approves, or a password reset of an account holding one, is filed for a second
      * administrator: 202 and the request.
+     *
+     * <p>409 with the type {@code urn:vectispire:problem:managed-by-directory} (code {@code managed-by-directory})
+     * for a change of the e-mail address of an account the SCIM directory writes, which is changed in the
+     * directory; plain 409 when a change to the account is already waiting for approval.
      */
     @PatchMapping("/{id}")
+    @Operation(description = "Changes an account's role, activation, e-mail address or password; every field left "
+            + "out is left as it is. 409 with the type urn:vectispire:problem:" + DirectoryManagedException.CAUSE
+            + " (code " + DirectoryManagedException.CAUSE + ") for a change of the e-mail address of an account the "
+            + "SCIM directory writes (scimManaged), which is changed in the directory; plain 409 when a change to the "
+            + "account is already waiting for approval.")
     @ApiResponse(responseCode = "200", description = "The account, changed",
             content = @Content(schema = @Schema(implementation = UserAdminSummary.class)))
     @ApiResponse(responseCode = "202", description = FILED,
@@ -153,7 +179,7 @@ public class UsersController {
             HttpServletRequest request) {
         return answer(accounts.update(
                 id,
-                new AccountAdministrationService.AccountChange(body.role(), body.isActive(), body.password()),
+                new AccountAdministrationService.AccountChange(body.role(), body.isActive(), body.password(), body.email()),
                 actingAccountId(principal),
                 RequestActors.of(principal, request)));
     }
@@ -233,7 +259,7 @@ public class UsersController {
     /** What a 202 of the create and update routes says. */
     private static final String FILED = "Four-eyes: the change makes an approver and waits for another "
             + "administrator's approval. Nothing has changed yet; the body is the request, decided under "
-            + "/api/v1/account-requests. An activation or deactivation sent with it has been applied.";
+            + "/api/v1/account-requests. An activation, a deactivation or an e-mail address sent with it has been applied.";
 
     /** An applied change answers the account, a filed one the request. */
     private static ResponseEntity<Object> answer(Outcome outcome) {
@@ -265,6 +291,7 @@ public class UsersController {
                 user.keycloakId() != null,
                 user.createdAt(),
                 view.activeSessions(),
-                user.mfaEnabled());
+                user.mfaEnabled(),
+                user.scimManaged());
     }
 }

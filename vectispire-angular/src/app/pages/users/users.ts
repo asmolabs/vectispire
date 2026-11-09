@@ -95,6 +95,13 @@ export class Users {
     readonly pendingLift = signal<UserSummary | null>(null);
     readonly secondFactorVisible = signal(false);
     readonly pendingSecondFactor = signal<UserSummary | null>(null);
+    readonly emailVisible = signal(false);
+    readonly pendingEmail = signal<UserSummary | null>(null);
+    /**
+     * A signal like the dialog's flag: the field is filled when the dialog opens, and a plain field the
+     * template binds is not redrawn by a write that comes from code in a zoneless application.
+     */
+    readonly emailDraft = signal('');
     readonly isEmpty = computed(() => this.users().length === 0);
 
     /**
@@ -124,7 +131,7 @@ export class Users {
      */
     readonly notice = signal<string | null>(null);
 
-    form = { username: '', displayName: '', role: 'USER', password: '' };
+    form = { username: '', displayName: '', email: '', role: 'USER', password: '' };
     resetPassword = '';
 
     /**
@@ -377,7 +384,7 @@ export class Users {
     }
 
     openForm(): void {
-        this.form = { username: '', displayName: '', role: 'USER', password: '' };
+        this.form = { username: '', displayName: '', email: '', role: 'USER', password: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -392,7 +399,10 @@ export class Users {
                 username: this.form.username.trim(),
                 password: this.form.password,
                 role: this.form.role,
-                display_name: this.form.displayName.trim() || undefined
+                display_name: this.form.displayName.trim() || undefined,
+                // Where checklist contact reminders are mailed (decision 0044): an account created without
+                // one could not be given one afterwards until 1.0.0-rc.2.
+                email: this.form.email.trim() || undefined
             })
             .subscribe({
                 next: (change) => {
@@ -492,6 +502,41 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.formError.set(messageOf(response, this.i18n.t('users.error_second_factor')));
+            }
+        });
+    }
+
+    /**
+     * Opens the address dialog on what the account holds. An account the SCIM directory writes opens it
+     * too, read-only, with the reason: the server refuses the change (409 `managed-by-directory`), and a
+     * button that is simply absent leaves the administrator looking for the way to do it.
+     */
+    openEmail(user: UserSummary): void {
+        this.pendingEmail.set(user);
+        this.emailDraft.set(user.email ?? '');
+        this.formError.set(null);
+        this.emailVisible.set(true);
+    }
+
+    /**
+     * Sends the field as typed: blank clears the address, which the server stores as none. The server
+     * trims it, checks its shape and that no other account holds it, and says which in `detail`.
+     */
+    confirmEmail(): void {
+        const user = this.pendingEmail();
+        if (!user || user.scimManaged || this.saving()) return;
+        this.saving.set(true);
+        this.notice.set(null);
+        this.accountsApi.updateUser(user.id, { email: this.emailDraft().trim() }).subscribe({
+            next: (change) => {
+                this.announce(change);
+                this.saving.set(false);
+                this.emailVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_email')));
             }
         });
     }

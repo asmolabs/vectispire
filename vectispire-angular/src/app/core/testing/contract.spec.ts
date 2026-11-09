@@ -133,7 +133,8 @@ describe('the fixture checker', () => {
                         federated: false,
                         createdAt: '2026-01-01T00:00:00Z',
                         activeSessions: 0,
-                        mfaEnabled: false
+                        mfaEnabled: false,
+                        scimManaged: false
                     }
                 ],
                 currentUserId: 1,

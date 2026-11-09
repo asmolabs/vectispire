@@ -1,0 +1,17 @@
+-- Whether the SCIM directory writes this account: set by every provisioning write (create, replace, patch),
+-- and read by the account administration to refuse what the directory would overwrite.
+--
+-- An administrator may set an account's e-mail address (`AccountAdministrationService#update`), and the
+-- directory replaces that same column on every `PUT` it sends — an address typed in Vectispire on an
+-- account the directory owns lasted until the next synchronisation, and nothing said it had gone. The
+-- change is refused on such an account instead, with the sentence that the directory owns it. Nothing
+-- marked a provisioned account until now: `keycloak_id` is set by the directory's `externalId` and by a
+-- single sign-on's binding alike, and an account the directory created without one carried nothing at all.
+--
+-- False for every account the upgrade finds, as V93 and V100 leave theirs empty: the audit log holds the
+-- directory's past writes as sentences, and a mark read back from sentences is a guess. An account the
+-- directory provisioned before this version is marked by its next write; until then its address can be
+-- changed here and is overwritten then, which is what every version before this one did to it.
+--
+-- Written once, in common: a column of a type the placeholders spell.
+alter table t_user add column scim_managed ${bool} not null default ${false};
