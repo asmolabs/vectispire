@@ -39,6 +39,13 @@ fail() { printf '\033[31mFAILED: %s\033[0m\n' "$*" >&2; exit 1; }
 cd "$(git rev-parse --show-toplevel)"
 
 BASE_TAG="${BASE_TAG:-$(git -c versionsort.suffix=-rc tag -l 'v*' --merged HEAD --sort=-v:refname | head -n 1)}"
+# **A full history with no tag in it is the 1.0 reset**, not a broken checkout: main and develop
+# restarted from a root commit on 2026-11-09, and the v0.x tags kept their own history beside it.
+# Until the first tag on the new history, the release a commit follows is the newest tag of all.
+# A shallow clone stays refused: there, no reachable tag says nothing about which release is last.
+if [ -z "$BASE_TAG" ] && [ "$(git rev-parse --is-shallow-repository)" = false ]; then
+  BASE_TAG="$(git -c versionsort.suffix=-rc tag -l 'v*' --sort=-v:refname | head -n 1)"
+fi
 # No tag is not "nothing to compare": it is a shallow clone or a fetch without tags, and a green
 # run over it would have read nothing.
 [ -n "$BASE_TAG" ] || fail "no v* tag reachable from HEAD — the checkout needs its history and tags (fetch-depth: 0)"

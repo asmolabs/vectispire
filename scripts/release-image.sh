@@ -47,6 +47,11 @@ TAG="${TAG:-}"
 IMAGE="${IMAGE:-}"
 if [ -z "$IMAGE" ]; then
   [ -n "$TAG" ] || TAG="$(git -c versionsort.suffix=-rc tag -l 'v*' --merged HEAD --sort=-v:refname | head -n 1)"
+  # A full history with no tag in it is the 1.0 reset of 2026-11-09 (see ci/openapi/compat.sh): the
+  # newest tag of all is the release it follows. A shallow clone still fails below.
+  if [ -z "$TAG" ] && [ "$(git rev-parse --is-shallow-repository)" = false ]; then
+    TAG="$(git -c versionsort.suffix=-rc tag -l 'v*' --sort=-v:refname | head -n 1)"
+  fi
   [ -n "$TAG" ] || fail "no v* tag reachable from HEAD — the checkout needs its tags (fetch-depth: 0)"
   digest="$(docker buildx imagetools inspect "$REGISTRY/$NAME:${TAG#v}" --format '{{json .Manifest}}' \
     | python3 -c 'import json, sys; print(json.load(sys.stdin).get("digest", ""))')" \
