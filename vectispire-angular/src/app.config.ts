@@ -16,6 +16,7 @@ import { readablePreset } from './app/layout/readable-palette';
 import { I18nService } from './app/core/i18n/i18n.service';
 import { BrandingService } from './app/core/branding.service';
 import { TranslatedTitleStrategy } from './app/core/i18n/translated-title.strategy';
+import { OVERLAY_OPTIONS } from './app/core/overlay-options';
 
 export const appConfig: ApplicationConfig = {
     providers: [
@@ -37,7 +38,9 @@ export const appConfig: ApplicationConfig = {
             theme: {
                 preset: definePreset(Aura, readablePreset(Aura.primitive?.emerald)),
                 options: { darkModeSelector: '.app-dark' }
-            }
+            },
+            // An open drop-down list follows a resize — browser zoom is one — instead of closing.
+            overlayOptions: OVERLAY_OPTIONS
         }),
         provideAppInitializer(async () => {
             const i18n = inject(I18nService);
