@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## 1.0.0-rc.1
+## 1.0.0-rc.1 — 9 novembre 2026
 
 La version qui précède la 1.0, et son essai : ce que la 1.0 promettra
 ([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md))

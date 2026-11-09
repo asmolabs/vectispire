@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 1.0.0-rc.1
+## 1.0.0-rc.1 — 2026-11-09
 
 The release before 1.0, and a trial of it: what 1.0 will promise
 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md))
