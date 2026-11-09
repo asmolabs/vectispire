@@ -561,14 +561,17 @@ jobs:
           # **A 0.x release is a pre-release, said by the workflow rather than by hand.** v0.10.0
           # went out as a plain release and was flipped afterwards; until then GitHub showed a
           # version that claims no stability as "Latest". From 1.0 on the flag
-          # drops by itself, which is the one moment it should.
+          # drops by itself, which is the one moment it should — **but not for a candidate.** A
+          # `-rc.N` (any version with a suffix) is a pre-release whatever its major: v1.0.0-rc.1
+          # went out as a plain release, and GitHub showed the candidate as "Latest", the very
+          # thing the images' `latest` tag is withheld from it for (MOVES_LATEST above).
           # The digest a pipeline pins for the CLI, printed where a consumer reads the release: the
           # file it names is the one `sha256sum --check` vouched for and `cosign verify-blob` above
           # verified.
           CLI_SHA256="$(sha256sum vectispire-cli.sh | cut -d' ' -f1)"
           if [ "$MOVES_LATEST" = true ]; then TAGGED="\`${VERSION}\` and \`latest\`"; else TAGGED="\`${VERSION}\` only — a candidate does not move \`latest\`"; fi
           prerelease=
-          case "$GITHUB_REF_NAME" in v0.*) prerelease=--prerelease ;; esac
+          case "$GITHUB_REF_NAME" in v0.* | *-*) prerelease=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" ${prerelease:+"$prerelease"} \
             --title "$GITHUB_REF_NAME" \
             --notes "$(cat <<NOTES
