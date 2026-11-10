@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## 1.0.0-rc.2 — non publiée
+## 1.0.0-rc.2 — 10 novembre 2026
 
 Ce qui suit se compare à 1.0.0-rc.1.
 
@@ -51,6 +51,16 @@ Ce qui suit se compare à 1.0.0-rc.1.
   recevoir aucun rappel. Un compte que l'annuaire écrit affiche son adresse en lecture seule. Le
   changement est enregistré comme `USER_UPDATED`, sans l'adresse. Voir
   [Utilisateurs et équipes](../administration/users-and-teams.md#the-e-mail-address).
+
+### Corrigé {#corrige-100-rc2}
+
+- **Une liste déroulante ouverte reste ouverte quand le navigateur zoome.** Zoomer (Cmd+ / Ctrl+)
+  redimensionne la fenêtre, et chaque liste, choix multiple et sélecteur de date se fermait alors, dans tous
+  les navigateurs : ouvrir une liste puis zoomer pour la lire la faisait disparaître. Elle suit désormais
+  son champ et reste ouverte ; Échap et un clic à l'extérieur la ferment toujours. La valeur choisie n'a
+  jamais été touchée.
+- **Une release candidate est publiée comme pré-version sur GitHub**, quelle que soit sa majeure ;
+  1.0.0-rc.1 avait dû être marquée à la main.
 
 ## 1.0.0-rc.1 — 9 novembre 2026
 
