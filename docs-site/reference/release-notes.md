@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 1.0.0-rc.2 — unreleased
+## 1.0.0-rc.2 — 2026-11-10
 
 What follows is against 1.0.0-rc.1.
 
@@ -49,6 +49,15 @@ What follows is against 1.0.0-rc.1.
   single sign-on, so an account made on the **Users** screen could never receive a reminder. An account
   the directory writes shows its address read-only. The change is recorded as `USER_UPDATED` without the
   address. See [Users and teams](../administration/users-and-teams.md#the-e-mail-address).
+
+### Fixed {#fixed-100-rc2}
+
+- **An open drop-down list stays open when the browser zooms.** Zooming in (Cmd+ / Ctrl+) is a resize of
+  the window, and every list, multiple choice and date picker closed on one, in every browser: opening a
+  list and zooming in to read it lost it. It now moves with its field and stays open; Escape and a click
+  outside still close it. The selected value was never affected.
+- **A release candidate is published as a pre-release on GitHub**, whatever its major; 1.0.0-rc.1 had to be
+  marked by hand.
 
 ## 1.0.0-rc.1 — 2026-11-09
 
