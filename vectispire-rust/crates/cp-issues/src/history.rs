@@ -324,6 +324,7 @@ fn observed_of(
                 scan_id: event.scan_id,
                 version,
                 previous_resolved_at: event.previous_resolved_at,
+                requested_status: event.requested_status,
             }
         })
         .collect();

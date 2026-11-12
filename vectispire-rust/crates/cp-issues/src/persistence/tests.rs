@@ -570,9 +570,9 @@ async fn the_triage_history_is_written_and_read_in_both_orders(tx: &mut Tx) -> C
         (Some("why"), Some("alice"), Some(at(110)), Some(at(1)), None),
         "the optional columns"
     );
-    let descending = TriageEventRepository::find_for_issues(tx, &[one.id, two.id]).await.map_err(|e| e.to_string())?;
-    let order: Vec<i64> = descending.iter().map(|e| e.occurred_at.unix_timestamp() - 1_760_000_000).collect();
-    ensure_eq!(order, vec![30, 20, 15, 10], "newest first, across issues");
+    let across = TriageEventRepository::find_for_issues(tx, &[one.id, two.id]).await.map_err(|e| e.to_string())?;
+    let order: Vec<i64> = across.iter().map(|e| e.occurred_at.unix_timestamp() - 1_760_000_000).collect();
+    ensure_eq!(order, vec![10, 15, 20, 30], "oldest first, across issues, as Java's findForIssues reads them");
     ensure_eq!(
         TriageEventRepository::count_for_repository(tx, REPO_A, "scan").await.map_err(|e| e.to_string())?,
         2,

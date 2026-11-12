@@ -468,12 +468,11 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         let database = Migrated::start(engine).await;
         let db = database.connect().await;
         let schema = Schema::read(&db, &recording.id_bases).await.unwrap();
-        let pristine = rows::snapshot(&db, &schema).await.unwrap();
-        // **One signing key per engine, as `vectispire.signing.key` configures it, and its record written once.** Java's
-        // context made its key and sealed the record of known keys before the recorded tests ran, and the database was
-        // cleaned between them: no recording holds the record's insertion. A key per test would write it at each test's
-        // first signature — an insertion Java never made. Signed once here, after the snapshot, the record is in this
-        // service's hands and absent from every test's database, as it was from Java's.
+        // **One signing key per engine, as `vectispire.signing.key` configures it, and its record written once, before
+        // the snapshot.** Java's context made its key and sealed the record of known keys before the recorded tests ran,
+        // and the record survived the cleaning between them: no recording holds its insertion, and the published keys'
+        // `activeFrom` is read from it in every test. A key per test would write it at each test's first signature — an
+        // insertion Java never made; written after the snapshot, every test's database would lack it.
         let signing = Arc::new(
             vectispire_cp_crypto::SigningKeys::new(
                 &signing_key_pem(),
@@ -483,6 +482,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
             .unwrap(),
         );
         signing.key_id().await.unwrap();
+        let pristine = rows::snapshot(&db, &schema).await.unwrap();
         let replayer = Replayer {
             recording: &recording,
             db: &db,

@@ -132,6 +132,10 @@ pub struct DecisionView {
     pub version: Option<String>,
     #[serde(default, with = "time::serde::rfc3339::option")]
     pub previous_resolved_at: Option<OffsetDateTime>,
+    /// On an entry that queued a decision for approval (`toStatus` `pending_approval`): the status it asked for, which
+    /// the approval grants or refuses (V88). Without it the trail showed a request and an approval and not what was
+    /// asked. Null on every other entry.
+    pub requested_status: Option<String>,
 }
 
 // The conversions live here, not beside the rows: a row is the layer below and names nothing above it.
@@ -201,6 +205,7 @@ impl TriageEventRow {
             scan_id: self.scan_id,
             version: None,
             previous_resolved_at: self.previous_resolved_at,
+            requested_status: self.requested_status.clone(),
         }
     }
 }

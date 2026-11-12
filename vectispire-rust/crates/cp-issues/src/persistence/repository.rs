@@ -619,8 +619,10 @@ impl IssueRepository {
         for chunk in issue_ids.chunks(IN_LIST_BATCH) {
             let select = TriageEvents::find()
                 .filter(TriageEventColumn::IssueId.is_in(chunk.iter().copied()))
-                .order_by_desc(TriageEventColumn::OccurredAt)
-                .order_by_desc(TriageEventColumn::Id);
+                // Oldest first, as Java's `findForIssues` reads them: a trail read top to bottom is the order things
+                // happened in, and an issue's detail, its history and the exceptions register all show it so.
+                .order_by_asc(TriageEventColumn::OccurredAt)
+                .order_by_asc(TriageEventColumn::Id);
             results.extend(event_rows(tx, select).await?);
         }
         Ok(results)
