@@ -103,7 +103,8 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 - [x] `GET /git-tokens`, `/repositories/duplicates`, `/ssh-keys` take `limit` and `offset`. Red: `cp-targets --test contract`.
 - [ ] `ScanningProperties` binds `bundledRules`, `hostSsh`, `pluginRegistry`, `pluginSignatureRequired`,
       `vulnerabilityDbDir`, `images` (the property table already says `bundled-rules` is a record).
-- [ ] Checklists: NO_DATA reason `forge_integration_disabled`. Red: `cp-checklists --test reference_set`.
+- [x] Checklists: NO_DATA reason `forge_integration_disabled`, and the suspended reading checked first. Nothing feeds
+      `ReviewFacts::Suspended` yet: the facts reader learns it with the integrations registry (decision 0040). Red: `cp-checklists --test reference_set`.
 - [ ] `GET /owasp/coverage/export.csv`. Not-yet-ported list.
 
 ## The golden replay of Java 1.0's traffic

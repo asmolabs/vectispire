@@ -46,6 +46,9 @@ impl MeasurementOutcome {
 pub enum NoDataReason {
     NoRepository,
     NeverExamined,
+    /// A change-review rule on a repository whose forge's integration the governor disabled (decision 0040 §2):
+    /// before the forge's own reasons, since it is the installation's decision and the one to undo first.
+    ForgeIntegrationDisabled,
     ForgeUnlinked,
     ForgeUnreadable,
     StepAbsent,
@@ -70,9 +73,10 @@ pub enum NoDataReason {
 }
 
 impl NoDataReason {
-    pub const ALL: [NoDataReason; 22] = [
+    pub const ALL: [NoDataReason; 23] = [
         NoDataReason::NoRepository,
         NoDataReason::NeverExamined,
+        NoDataReason::ForgeIntegrationDisabled,
         NoDataReason::ForgeUnlinked,
         NoDataReason::ForgeUnreadable,
         NoDataReason::StepAbsent,
@@ -99,6 +103,7 @@ impl NoDataReason {
         match self {
             NoDataReason::NoRepository => "no_repository",
             NoDataReason::NeverExamined => "never_examined",
+            NoDataReason::ForgeIntegrationDisabled => "forge_integration_disabled",
             NoDataReason::ForgeUnlinked => "forge_unlinked",
             NoDataReason::ForgeUnreadable => "forge_unreadable",
             NoDataReason::StepAbsent => "step_absent",

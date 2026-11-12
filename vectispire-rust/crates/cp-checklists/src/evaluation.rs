@@ -881,6 +881,14 @@ fn change_review(
                 None,
                 Some("no reading of its forge yet: the change-review measurement runs hourly".to_owned()),
             ),
+            // Before the stored reading's own state: a reading that passed before the switch must not pass now.
+            Some(ReviewFacts::Suspended { look, why }) => collector.missing(
+                repository,
+                None,
+                NoDataReason::ForgeIntegrationDisabled,
+                look.clone(),
+                Some(why.clone()),
+            ),
             Some(ReviewFacts::Unlinked { look, why }) => {
                 collector.missing(repository, None, NoDataReason::ForgeUnlinked, Some(look.clone()), Some(why.clone()));
             }
@@ -1106,7 +1114,8 @@ fn counts(by_repository: Option<&BTreeMap<i64, Vec<IssueCount>>>, included: &[i6
 // ------------------------------------------------------------------ gathering the evidence
 
 /// The headlines whose summary carries the first repository's own sentence.
-const EXPLAINED: [NoDataReason; 10] = [
+const EXPLAINED: [NoDataReason; 11] = [
+    NoDataReason::ForgeIntegrationDisabled,
     NoDataReason::ForgeUnlinked,
     NoDataReason::ForgeUnreadable,
     NoDataReason::ReviewIncomplete,

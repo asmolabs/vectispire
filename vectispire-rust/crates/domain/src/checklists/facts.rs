@@ -215,6 +215,10 @@ impl Component {
 /// What the forges recorded of one repository for the change-review rule.
 #[derive(Debug, Clone)]
 pub enum ReviewFacts {
+    /// The repository's forge connection is suspended: the platform governor disabled its forge's integration
+    /// (decision 0040 §2). Checked before the stored reading's own state, which must not pass nor fail a line on a
+    /// forge the installation no longer talks to. `look` is the reading taken before the switch, if any.
+    Suspended { look: Option<Look>, why: String },
     /// No forge connection imported the repository and no discovered repository has its URL: nothing to ask.
     Unlinked { look: Look, why: String },
     /// The forge would not answer about the project — the token refused, the project gone from its view.
