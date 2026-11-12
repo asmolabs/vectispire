@@ -42,6 +42,8 @@ pub struct UserView {
     pub updated_at: OffsetDateTime,
     pub must_change_password: bool,
     pub mfa_enabled: bool,
+    /// Written by the SCIM directory, which then owns the e-mail address: see V102.
+    pub scim_managed: bool,
 }
 
 impl UserView {
@@ -60,6 +62,7 @@ impl UserView {
             updated_at: user.updated_at,
             must_change_password: user.must_change_password,
             mfa_enabled: user.mfa_enabled,
+            scim_managed: user.scim_managed,
         }
     }
 
@@ -175,11 +178,20 @@ impl Clock for std::sync::Arc<dyn crate::credentials::Clock> {
 }
 
 /// The account's password budget — `AuthService.reservePassword` and `clearPasswordFailures` (task 1.3 owns the
-/// counters). A reservation not released is a failure counted.
+/// counters). A reservation not released is a failure counted. Both are keyed on the client too: the low ceiling is the
+/// account's from this client, and a right password clears that one only.
 pub trait PasswordAttempts {
     /// `Ok(())` when admitted, otherwise the wait, in whole seconds as Java's `retryAfter().toSeconds()`.
-    fn reserve(&self, account_id: i64) -> impl std::future::Future<Output = Result<(), StoreOr<u64>>> + Send;
-    fn clear(&self, account_id: i64) -> impl std::future::Future<Output = Result<(), StoreError>> + Send;
+    fn reserve(
+        &self,
+        account_id: i64,
+        ip_address: Option<&str>,
+    ) -> impl std::future::Future<Output = Result<(), StoreOr<u64>>> + Send;
+    fn clear(
+        &self,
+        account_id: i64,
+        ip_address: Option<&str>,
+    ) -> impl std::future::Future<Output = Result<(), StoreError>> + Send;
 }
 
 /// Either the store failed, or the answer is a refusal carrying `T`.
@@ -502,7 +514,7 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
             user_agent: user_agent.map(str::to_owned),
             signal,
         };
-        match attempts.reserve(user.id).await {
+        match attempts.reserve(user.id, ip_address).await {
             Ok(()) => {}
             Err(StoreOr::Store(error)) => return Err(error.into()),
             Err(StoreOr::Refused(retry_after_seconds)) => {
@@ -528,7 +540,7 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
             return Ok(PasswordChange::CurrentPasswordWrong);
         }
         // The password was right: whatever the new one turns out to be, this was not a guess.
-        attempts.clear(user.id).await?;
+        attempts.clear(user.id, ip_address).await?;
         refuse_if(validate_password(new_password))?;
         let new_password = new_password.unwrap_or("");
         if Some(new_password) == current_password {

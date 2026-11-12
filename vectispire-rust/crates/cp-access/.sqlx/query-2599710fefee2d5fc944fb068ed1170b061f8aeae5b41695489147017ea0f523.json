@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_sign_in_client set last_signed_in_at = $1 where client_key = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2599710fefee2d5fc944fb068ed1170b061f8aeae5b41695489147017ea0f523"
+}

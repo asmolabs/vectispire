@@ -1,8 +1,8 @@
 //! Purging the authentication tables — `SessionCleanupService.prune`, the `SESSION_CLEANUP` maintenance task.
 //!
 //! **This is not a security control, and saying so matters.** An expired session is already refused on read, an
-//! attempt outside the window is already not counted, a closed rate window is never read again. This only stops four
-//! tables accumulating rows nobody will read — so it may fail, skip a turn or not run at all with nothing bad
+//! attempt outside the window is already not counted, a closed rate window is never read again, a client known past
+//! its retention is not exempted. This only stops five tables accumulating rows nobody will read — so it may fail, skip a turn or not run at all with nothing bad
 //! happening, which is exactly why it never fails the tick that calls it: each purge is tried on its own, a failure is
 //! logged at warn and counted as nothing purged, and the others still run.
 
@@ -14,7 +14,7 @@ use vectispire_cp_maintenance::{MaintenanceTask, Sequence, TaskRun};
 
 use crate::accounts::StoreError;
 use crate::credentials::CredentialService;
-use crate::login_throttle::WINDOW;
+use crate::login_throttle::{SignInLimits, WINDOW};
 use crate::persistence::sign_in::{RateWindowStore, SignInStore, SqlSignInStore};
 use crate::rate_windows::RateWindows;
 use crate::sign_in::SessionDoor;
@@ -34,6 +34,9 @@ pub struct CleanupResult {
     pub challenges: u64,
     /// The closed windows of the limits counted across instances — one row per address and window.
     pub rate_windows: u64,
+    /// The clients that have not signed in to their account for the retention. A client known past it is not
+    /// exempted anyway, since the read asks for the retention too: this purge, as the rest, only bounds the table.
+    pub known_clients: u64,
 }
 
 /// `SessionCleanupService`.
@@ -43,11 +46,24 @@ pub struct SessionCleanup<D, T, W> {
     store: T,
     windows: RateWindows<W>,
     clock: SharedClock,
+    known_client_retention: Duration,
 }
 
 impl<D: SessionDoor, T: SignInStore, W: RateWindowStore> SessionCleanup<D, T, W> {
+    /// Under the shipped retention of known clients.
     pub fn new(sessions: D, store: T, windows: W, clock: SharedClock) -> SessionCleanup<D, T, W> {
-        SessionCleanup { sessions, store, windows: RateWindows::new(windows, clock.clone()), clock }
+        SessionCleanup {
+            sessions,
+            store,
+            windows: RateWindows::new(windows, clock.clone()),
+            clock,
+            known_client_retention: SignInLimits::default().known_client_retention,
+        }
+    }
+
+    /// Under the retention `vectispire.sign-in.known-client-retention` sets.
+    pub fn with_limits(self, limits: SignInLimits) -> SessionCleanup<D, T, W> {
+        SessionCleanup { known_client_retention: limits.known_client_retention, ..self }
     }
 
     /// Never fails: see the module's note. No transaction: each statement carries its own, so one failing rolls back
@@ -61,6 +77,12 @@ impl<D: SessionDoor, T: SignInStore, W: RateWindowStore> SessionCleanup<D, T, W>
             ),
             challenges: skipped(self.store.delete_expired_challenges(self.clock.now()).await, "MFA challenge purge"),
             rate_windows: skipped(self.windows.purge_closed().await, "Rate window purge"),
+            known_clients: skipped(
+                self.store
+                    .delete_known_clients_before(self.clock.now().saturating_sub(self.known_client_retention))
+                    .await,
+                "Known sign-in client purge",
+            ),
         }
     }
 }
@@ -96,12 +118,22 @@ where
 }
 
 /// The module's maintenance task, as the binary composes it: the sessions through the credentials, the rest on the
-/// database.
+/// database — under the shipped retention of known clients.
 pub fn session_cleanup_task(
     credentials: Arc<CredentialService>,
     db: Db,
     clock: SharedClock,
 ) -> Arc<dyn MaintenanceTask> {
+    session_cleanup_task_with_limits(credentials, db, clock, SignInLimits::default())
+}
+
+/// The same, under the retention `vectispire.sign-in.known-client-retention` sets.
+pub fn session_cleanup_task_with_limits(
+    credentials: Arc<CredentialService>,
+    db: Db,
+    clock: SharedClock,
+    limits: SignInLimits,
+) -> Arc<dyn MaintenanceTask> {
     let store = SqlSignInStore::new(db);
-    Arc::new(SessionCleanupTask(SessionCleanup::new(credentials, store.clone(), store, clock)))
+    Arc::new(SessionCleanupTask(SessionCleanup::new(credentials, store.clone(), store, clock).with_limits(limits)))
 }

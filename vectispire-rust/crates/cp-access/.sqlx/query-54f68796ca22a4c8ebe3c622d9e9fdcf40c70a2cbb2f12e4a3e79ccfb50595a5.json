@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_user (username, email, password, display_name, keycloak_id, role, is_active, created_at, updated_at, must_change_password, mfa_enabled, scim_managed) values (?, ?, ?, ?, ?, ?, ?, ?, ?, false, false, true)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "54f68796ca22a4c8ebe3c622d9e9fdcf40c70a2cbb2f12e4a3e79ccfb50595a5"
+}

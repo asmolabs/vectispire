@@ -216,12 +216,21 @@ mod tests {
     fn the_session_header_is_the_scheme_in_any_case_then_whitespace_then_one_token() {
         assert_eq!(bearer_token(Some("Bearer abc123")), Some("abc123"));
         assert_eq!(bearer_token(Some("  Bearer abc123 \u{1}")), Some("abc123"));
-        for accepted in ["bearer abc123", "BEARER abc123", "Bearer  abc123", "Bearer\tabc123", "bEaReR \t\u{0B}abc123"] {
+        for accepted in ["bearer abc123", "BEARER abc123", "Bearer  abc123", "Bearer\tabc123", "bEaReR \t\u{0B}abc123"]
+        {
             assert_eq!(bearer_token(Some(accepted)), Some("abc123"), "{accepted:?}");
         }
-        for refused in
-            ["", "   ", "abc123", "Bearer ", "Bearer a b", "Basic abc123", "Bearerabc", "\u{a0}Bearer abc", "Bearer\u{a0}abc"]
-        {
+        for refused in [
+            "",
+            "   ",
+            "abc123",
+            "Bearer ",
+            "Bearer a b",
+            "Basic abc123",
+            "Bearerabc",
+            "\u{a0}Bearer abc",
+            "Bearer\u{a0}abc",
+        ] {
             assert_eq!(bearer_token(Some(refused)), None, "{refused:?}");
         }
         assert_eq!(bearer_token(None), None);

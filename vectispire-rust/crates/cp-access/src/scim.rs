@@ -318,6 +318,9 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
         }
         user.is_active = now_active;
         user.role = role.clone();
+        // Marked by any write, not only a creation: an account made in Vectispire and then claimed by the directory has
+        // its address replaced from now on all the same (V102). The statement writes it too.
+        user.scim_managed = true;
         user.updated_at = self.clock.now();
         store::update_account(&mut tx, &user).await?;
 
@@ -356,6 +359,9 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
         for operation in operations.unwrap_or_default() {
             apply_patch(&mut user, operation)?;
         }
+        // A patch writes no address, but the directory that sends it knows the account, and its next replacement will
+        // (V102).
+        user.scim_managed = true;
         user.updated_at = self.clock.now();
         store::update_account(&mut tx, &user).await?;
         let deactivated = was_active && !user.is_active;
@@ -605,6 +611,7 @@ fn view(account: &AccountRow) -> UserView {
         updated_at: account.updated_at,
         must_change_password: account.must_change_password,
         mfa_enabled: account.mfa_enabled,
+        scim_managed: account.scim_managed,
     }
 }
 

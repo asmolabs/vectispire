@@ -15,6 +15,7 @@ use vectispire_domain::java;
 use vectispire_domain::secret::Secret;
 
 use crate::accounts::{AccountStore, Audit, AuditOperation, AuditRecord, StoreError, User};
+use crate::login_throttle::SignInLimits;
 pub use crate::persistence::sign_in::Enrolled;
 use crate::persistence::sign_in::SignInStore;
 use crate::throttle::{SharedClock, Throttle};
@@ -119,6 +120,12 @@ where
     pub fn new(users: S, audit: A, store: T, seal: V, clock: SharedClock) -> SecondFactor<S, A, T, V> {
         let throttle = Throttle::new(store.clone(), clock.clone());
         SecondFactor { users, audit, store, throttle, seal, clock }
+    }
+
+    /// The same counters under the ceilings `vectispire.sign-in.*` sets.
+    pub fn with_limits(self, limits: SignInLimits) -> SecondFactor<S, A, T, V> {
+        let throttle = Throttle::with_limits(self.store.clone(), self.clock.clone(), limits);
+        SecondFactor { throttle, ..self }
     }
 
     /// How far the local second factor reaches. Two statements, which no isolation level reads from one snapshot: an

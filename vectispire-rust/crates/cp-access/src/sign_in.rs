@@ -16,10 +16,11 @@
 //!
 //! The federated sign-in (`completeFederatedSignIn`) is task 1.4's and is not here.
 
+use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use time::Duration;
+use time::{Duration, OffsetDateTime};
 use vectispire_cp_crypto::EncryptionError;
 use vectispire_domain::secret::Secret;
 
@@ -28,11 +29,11 @@ use crate::accounts::{
     User, UserView, verify_sign_in,
 };
 use crate::credentials::{CredentialService, IssuedSession, SessionView, hash_of};
-use crate::login_throttle::{self, MAX_ATTEMPTS_PER_CLIENT, MAX_ATTEMPTS_PER_USER};
+use crate::login_throttle::{self, SignInLimits};
 pub use crate::persistence::sign_in::Challenge;
 use crate::persistence::sign_in::SignInStore;
 use crate::second_factor::{SecondFactor, SecondFactorError, SecretSeal};
-use crate::throttle::{SharedClock, Throttle};
+use crate::throttle::{SharedClock, Throttle, client};
 
 /// **A TOTP code is six digits, so the number of tries is the whole security of the second factor.** Three, then the
 /// challenge is destroyed and the password exchange starts again.
@@ -187,6 +188,10 @@ pub enum LoginOutcome {
     /// The password was right and the account owes a code. No session exists yet.
     SecondFactorRequired(Box<User>),
     Blocked(Duration),
+    /// Refused by the account's budget across every client — `account-throttled`, not [`LoginOutcome::Blocked`]'s
+    /// code: the remedy is not to wait but to sign in from a usual place, or with the second factor. It says nothing
+    /// about the password, which may not have been tried.
+    AccountThrottled(Duration),
 }
 
 /// A login's outcome and the entry the caller writes — `AuthService.LoginResult`.
@@ -202,6 +207,8 @@ pub enum SignIn {
     /// The deployment accepts single sign-on only. Recorded before returning.
     PasswordDisabled,
     Throttled(Duration),
+    /// The account's budget across every client is spent and this client is not one it signs in from.
+    AccountThrottled(Duration),
     Refused,
     /// The password was right and the account owes a code; the token is the only copy.
     ChallengeIssued(Secret),
@@ -304,6 +311,30 @@ pub struct SignInFlow<S, A, T, D, V> {
     methods: SignInMethodPolicy,
     provider_label: Option<String>,
     clock: SharedClock,
+    /// When each spent budget was last warned about, so a guess spread over a thousand addresses is one warning a
+    /// window rather than one per refusal — each refusal still has its audit entry. In memory and bounded: a restart,
+    /// or an attacker cycling through names, costs a warning repeated, never one lost.
+    warned: Mutex<HashMap<String, OffsetDateTime>>,
+}
+
+/// How many budgets [`SignInFlow`] remembers warning about before it forgets them all.
+const WARNED_MAX: usize = 10_000;
+
+/// `AuthService.PAST_BUDGET_DEADLINE`: how long a refusal past the account's budget, with a code sent, takes. A second:
+/// an Argon2id derivation at the shipped cost and the code's few queries take a fraction of it.
+pub const PAST_BUDGET_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// Waits out what is left of `deadline` since `started` — so a refusal's timing does not tell a right password, which
+/// goes on to check the code, from a wrong one.
+async fn await_deadline(started: std::time::Instant, deadline: std::time::Duration) {
+    match deadline.checked_sub(started.elapsed()) {
+        Some(remaining) if !remaining.is_zero() => tokio::time::sleep(remaining).await,
+        _ => tracing::warn!(
+            "A refusal past an account's sign-in budget took longer than its {} ms deadline: raise it, or its timing \
+             may tell a right password from a wrong one.",
+            deadline.as_millis()
+        ),
+    }
 }
 
 impl<S, A, T, D, V> SignInFlow<S, A, T, D, V>
@@ -325,6 +356,7 @@ where
             methods,
             provider_label,
             clock,
+            warned: Mutex::new(HashMap::new()),
         }
     }
 
@@ -337,25 +369,65 @@ where
         self.totp.throttle()
     }
 
-    /// `AuthService.login`: the throttle, one derivation, then a session or a challenge owed.
+    /// The same flows under the ceilings `vectispire.sign-in.*` sets.
+    pub fn with_limits(self, limits: SignInLimits) -> SignInFlow<S, A, T, D, V> {
+        SignInFlow { totp: self.totp.with_limits(limits), ..self }
+    }
+
+    /// `AuthService.login` with no code sent: the throttle, one derivation, then a session or a challenge owed.
+    pub async fn login(&self, request: &LoginRequest<'_>) -> Result<LoginResult, SignInError> {
+        self.login_with(request, None).await
+    }
+
+    /// `AuthService.login(request, secondFactor)`.
     ///
     /// **The account is looked up before the throttle** — a query and no hashing — because the account is what the
     /// counter protects and the name typed is not the account: the collation opens `alice` for `Alice`, so each
     /// spelling would have been five tries of its own. The folded name is counted as well, for an existing account
-    /// and an unknown one alike, and the client's address beside them; the strictest decides.
-    pub async fn login(&self, request: &LoginRequest<'_>) -> Result<LoginResult, SignInError> {
+    /// and an unknown one alike.
+    ///
+    /// **Each is counted twice**: from this client at the low ceiling, and from every client at one ten times higher;
+    /// the client's address across accounts beside them. **The ceiling from everywhere is a budget, not a lock**:
+    /// past it, a client known to the account goes on to the password, held to its own ceilings only; any other is
+    /// answered `account-throttled` before any hashing, its rows taken back — unless it sent the second factor with the
+    /// password. Then both are verified and the answer is a session, or the same refusal whatever was wrong, at the
+    /// same deadline. An unknown name has no known client, so past the budget it meets the refusal an existing
+    /// account's does from a new place.
+    ///
+    /// `second_factor` is the code sent with the password, if any — read only past the budget from an unknown
+    /// client; otherwise the code is asked for afterwards, by the challenge.
+    pub async fn login_with(
+        &self,
+        request: &LoginRequest<'_>,
+        second_factor: Option<&str>,
+    ) -> Result<LoginResult, SignInError> {
+        let started = std::time::Instant::now();
         let user = self.accounts.sign_in_lookup(Some(request.username)).await?;
-        let name_key = login_throttle::user_key(request.username);
         // `String.valueOf(ipAddress)`: an absent address is counted under the four letters.
-        let client_key = login_throttle::client_key(request.ip_address.unwrap_or("null"));
-        let mut ceilings = Vec::with_capacity(3);
+        let ip_address = client(request.ip_address);
+        let client_key = login_throttle::client_key(ip_address);
+        let limits = self.throttle().limits();
+        let mut ceilings = Vec::with_capacity(5);
+        let (mut from_this_client, mut everywhere) = (Vec::with_capacity(2), Vec::with_capacity(2));
         if let Some(found) = &user {
-            ceilings.push((login_throttle::account_key(found.id), MAX_ATTEMPTS_PER_USER));
+            from_this_client.push(login_throttle::account_key_from_client(found.id, ip_address));
+            ceilings.push((
+                login_throttle::account_key_from_client(found.id, ip_address),
+                limits.failures_per_account_from_client,
+            ));
+            everywhere.push(login_throttle::account_key(found.id));
+            ceilings.push((login_throttle::account_key(found.id), limits.failures_per_account));
         }
-        ceilings.push((name_key, MAX_ATTEMPTS_PER_USER));
-        ceilings.push((client_key.clone(), MAX_ATTEMPTS_PER_CLIENT));
+        from_this_client.push(login_throttle::user_key_from_client(request.username, ip_address));
+        ceilings.push((
+            login_throttle::user_key_from_client(request.username, ip_address),
+            limits.failures_per_account_from_client,
+        ));
+        everywhere.push(login_throttle::user_key(request.username));
+        ceilings.push((login_throttle::user_key(request.username), limits.failures_per_account));
+        ceilings.push((client_key, limits.failures_per_client));
 
-        let throttle = self.throttle().reserve(&ceilings).await?;
+        let throttle = self.throttle().reserve_with_soft(&ceilings, &everywhere).await?;
         if !throttle.admitted() {
             // Refused before any hashing: that is the point of checking first.
             return Ok(LoginResult {
@@ -372,7 +444,40 @@ where
             });
         }
 
-        let Some(found) = verify_sign_in(user, Some(request.password)) else {
+        // Asked for an unknown name too — see `Throttle::is_known_client`.
+        let over_budget = !throttle.budget_retry_after.is_zero()
+            && !self
+                .throttle()
+                .is_known_client(user.as_ref().map(|found| found.id), Some(request.username), Some(ip_address))
+                .await?;
+        if over_budget && second_factor.is_none() {
+            self.throttle().release(&throttle).await?;
+            return Ok(self.account_throttled(request, user.as_ref(), throttle.budget_retry_after));
+        }
+
+        // **One key derivation whatever the name**, so the answer's timing says nothing.
+        let account = user.clone();
+        let authenticated = verify_sign_in(user, Some(request.password));
+
+        // Past the budget, a right password is not enough and is answered as a wrong one is — the rows stay, nothing is
+        // cleared — or the refusal would say which passwords were right. Only the code the owner sent with it, verified
+        // now that the password is known to be theirs, opens the way. **And at a deadline**: a right password goes on
+        // to reserve, check and audit the code, round trips a wrong one never makes, so every refusal on this path
+        // waits out the same deadline from the start of the attempt.
+        if over_budget {
+            let opened = match (&authenticated, second_factor) {
+                (Some(found), Some(code)) if found.mfa_enabled => {
+                    self.code_sent_with_password(found, code, request).await?
+                }
+                _ => false,
+            };
+            if !opened {
+                await_deadline(started, PAST_BUDGET_DEADLINE).await;
+                return Ok(self.account_throttled(request, account.as_ref(), throttle.budget_retry_after));
+            }
+        }
+
+        let Some(found) = authenticated else {
             // The reservation's rows stay: they are this failure.
             return Ok(LoginResult {
                 outcome: LoginOutcome::Invalid,
@@ -387,16 +492,19 @@ where
             });
         };
 
-        // **A success clears what it proves, and the address is not among it**: the account and the name start again,
-        // the address keeps its failures — one sign-in to one's own account every nineteen tries used to wipe what the
-        // address had tried against others — and this attempt's own rows go, a success not being a failure.
+        // **A success clears what it proves, and only that**: the account and the name start again from this client —
+        // five mistypes then the right password is not an attack on them — while the address and the account's global
+        // counter keep their failures, which other clients may have made; this attempt's own rows go, a success not
+        // being a failure.
         self.throttle().release(&throttle).await?;
-        for (key, _) in ceilings.iter().filter(|(key, _)| *key != client_key) {
+        for key in &from_this_client {
             self.throttle().clear(key).await?;
         }
 
         self.accounts.rehash_if_stale(&found, Some(request.password)).await;
-        if found.mfa_enabled {
+        // Past the budget the code has just been verified: asking for it again would be a challenge the owner already
+        // answered.
+        if found.mfa_enabled && !over_budget {
             // **No session yet**: it is opened when the code is verified, and not before.
             let audit = entry(
                 AuditOperation::LoginSuccess,
@@ -407,14 +515,119 @@ where
             );
             return Ok(LoginResult { outcome: LoginOutcome::SecondFactorRequired(Box::new(found)), audit });
         }
-        let issued = self.sessions.open(found.id, request.user_agent, request.ip_address).await?;
-        let audit =
-            entry(AuditOperation::LoginSuccess, &found.username, "Login succeeded".to_owned(), &found.username, None);
+        let issued = self.open_session(found.id, request.user_agent, request.ip_address).await?;
+        let description = if over_budget {
+            "Login succeeded with password and second factor, past the account's spent budget"
+        } else {
+            "Login succeeded"
+        };
+        let audit = entry(AuditOperation::LoginSuccess, &found.username, description.to_owned(), &found.username, None);
         Ok(LoginResult { outcome: LoginOutcome::Success { issued, user: Box::new(found) }, audit })
     }
 
-    /// A password presented for exchange.
+    /// `AuthService.openSession`: a session, and the client it was opened for remembered — every session, the
+    /// password's, the challenge's and the hand-off's alike, as Java's one `openSession` does.
+    async fn open_session(
+        &self,
+        user_id: i64,
+        user_agent: Option<&str>,
+        ip_address: Option<&str>,
+    ) -> Result<IssuedSession, StoreError> {
+        let issued = self.sessions.open(user_id, user_agent, ip_address).await?;
+        self.throttle().remember_client(user_id, ip_address).await;
+        Ok(issued)
+    }
+
+    /// `AuthService.accountThrottled`: the refusal by the account's budget across clients, signalled as every
+    /// throttle's is, and a warning in the log once a window per budget — the operator's first sign that an account is
+    /// being guessed at from many places, which no single address's ceiling shows.
+    fn account_throttled(&self, request: &LoginRequest<'_>, user: Option<&User>, retry_after: Duration) -> LoginResult {
+        let budget = user
+            .map_or_else(|| login_throttle::user_key(request.username), |found| login_throttle::account_key(found.id));
+        let now = self.clock.now();
+        let first_this_window = self.warned.lock().map_or(true, |mut warned| {
+            let due = warned.get(&budget).is_none_or(|last| last.saturating_add(login_throttle::WINDOW) <= now);
+            if due {
+                if warned.len() >= WARNED_MAX {
+                    warned.clear();
+                }
+                warned.insert(budget, now);
+            }
+            due
+        });
+        if first_this_window {
+            // The account's id, or no name at all: the typed name is the caller's text, and an unknown one has no
+            // business in the operator's log beyond the audit entry that already holds it.
+            tracing::warn!(
+                "Sign-in budget across clients spent for {}: attempts from clients that have not signed in to it are \
+                 refused for {}s. Several addresses are guessing its password.",
+                user.map_or_else(|| "a name no account holds".to_owned(), |found| format!("account {}", found.id)),
+                retry_after.whole_seconds()
+            );
+        }
+        LoginResult {
+            outcome: LoginOutcome::AccountThrottled(retry_after),
+            audit: entry(
+                AuditOperation::LoginBlocked,
+                request.username,
+                format!(
+                    "Attempt refused: the account's sign-in budget across clients is spent ({}s to wait)",
+                    retry_after.whole_seconds()
+                ),
+                request.username,
+                Some("SIGN_IN_THROTTLED"),
+            ),
+        }
+    }
+
+    /// `codeSentWithPassword`: a code sent with the password past the account's spent budget, asked only once the
+    /// password is right — against the account's budget of wrong codes, as a challenge's code is, and audited the same
+    /// way. The caller answers the same refusal whatever went wrong.
+    async fn code_sent_with_password(
+        &self,
+        account: &User,
+        code: &str,
+        attempt: &LoginRequest<'_>,
+    ) -> Result<bool, SignInError> {
+        let reserved = self.throttle().reserve_second_factor(account.id).await?;
+        if !reserved.admitted() {
+            return Ok(false);
+        }
+        if self.totp.verify(account, Some(code)).await? {
+            self.throttle().release(&reserved).await?;
+            self.throttle().clear_second_factor_failures(account.id).await?;
+            return Ok(true);
+        }
+        let locked = !self.throttle().second_factor_lockout(account.id).await?.is_zero();
+        self.audit
+            .record(AuditRecord {
+                operation: AuditOperation::LoginFailure,
+                resource: account.username.clone(),
+                description: format!(
+                    "Invalid MFA verification code sent with the password{}",
+                    if locked { "; second factor locked for this account" } else { "" }
+                ),
+                username: Some(account.username.clone()),
+                ip_address: attempt.ip_address.map(str::to_owned),
+                user_agent: attempt.user_agent.map(str::to_owned),
+                signal: locked.then_some("MFA_FAILURE_CEILING"),
+            })
+            .await;
+        Ok(false)
+    }
+
+    /// A password presented for exchange, with no code sent.
     pub async fn sign_in(&self, attempt: &LoginRequest<'_>) -> Result<SignIn, SignInError> {
+        self.sign_in_with(attempt, None).await
+    }
+
+    /// A password presented for exchange, and the second-factor code sent with it if any — `Attempt.secondFactorCode`,
+    /// a blank one read as none.
+    pub async fn sign_in_with(
+        &self,
+        attempt: &LoginRequest<'_>,
+        second_factor_code: Option<&str>,
+    ) -> Result<SignIn, SignInError> {
         if !self.methods.password_allowed() {
             self.audit
                 .record(AuditRecord {
@@ -430,7 +643,8 @@ where
             return Ok(SignIn::PasswordDisabled);
         }
 
-        let result = self.login(attempt).await?;
+        let code = second_factor_code.filter(|code| !vectispire_domain::java::is_blank(code));
+        let result = self.login_with(attempt, code).await?;
         // Carried across with its signal: rebuilt without it, the throttle's entry reached the log and the SOC never
         // heard of it.
         self.audit
@@ -443,6 +657,7 @@ where
 
         Ok(match result.outcome {
             LoginOutcome::Blocked(retry_after) => SignIn::Throttled(retry_after),
+            LoginOutcome::AccountThrottled(retry_after) => SignIn::AccountThrottled(retry_after),
             LoginOutcome::Invalid => SignIn::Refused,
             LoginOutcome::SecondFactorRequired(owed) => {
                 // A locked second factor issues no challenge.
@@ -578,7 +793,7 @@ where
         self.store.discard_challenge(&key).await?;
         self.throttle().clear_second_factor_failures(user.id).await?;
         let issued =
-            self.sessions.open(user.id, challenge.user_agent.as_deref(), challenge.ip_address.as_deref()).await?;
+            self.open_session(user.id, challenge.user_agent.as_deref(), challenge.ip_address.as_deref()).await?;
         self.audit
             .record(AuditRecord {
                 operation: AuditOperation::LoginSuccess,
@@ -604,7 +819,11 @@ where
             return Ok(Handoff::AccountMissing);
         };
         Ok(match self.sessions.exchange_once(&handoff).await? {
-            Some(issued) => Handoff::Exchanged { issued, user: Box::new(UserView::of(&user)) },
+            Some(issued) => {
+                // The session opened for the hand-off's address, remembered as every session's is.
+                self.throttle().remember_client(user.id, handoff.ip_address.as_deref()).await;
+                Handoff::Exchanged { issued, user: Box::new(UserView::of(&user)) }
+            }
             None => Handoff::Expired,
         })
     }

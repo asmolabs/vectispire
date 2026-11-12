@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as \"is_active: bool\",\n               github_id, keycloak_id, created_at as \"created_at: _\", updated_at as \"updated_at: _\",\n               must_change_password as \"must_change_password: bool\", mfa_enabled as \"mfa_enabled: bool\"\n               from t_user where id = ?",
+  "query": "/* mysql */ select id, username, email, password, display_name, avatar_url, role,\n               is_active as \"is_active: bool\", github_id, keycloak_id, created_at as \"created_at: UtcInstant\",\n               updated_at as \"updated_at: UtcInstant\", must_change_password as \"must_change_password: bool\",\n               mfa_enabled as \"mfa_enabled: bool\", scim_managed as \"scim_managed: bool\", totp_secret,\n               mfa_backup_codes, totp_last_step\n               from t_user where username = ?",
   "describe": {
     "columns": [
       {
@@ -53,6 +53,22 @@
       },
       {
         "ordinal": 3,
+        "name": "password",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "password"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "display_name",
         "type_info": {
           "type": "VarString",
@@ -68,7 +84,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "avatar_url",
         "type_info": {
           "type": "VarString",
@@ -84,7 +100,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "role",
         "type_info": {
           "type": "VarString",
@@ -100,7 +116,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "is_active: bool",
         "type_info": {
           "type": "Bit",
@@ -116,7 +132,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "github_id",
         "type_info": {
           "type": "VarString",
@@ -132,7 +148,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "keycloak_id",
         "type_info": {
           "type": "VarString",
@@ -148,8 +164,8 @@
         }
       },
       {
-        "ordinal": 9,
-        "name": "created_at: _",
+        "ordinal": 10,
+        "name": "created_at: UtcInstant",
         "type_info": {
           "type": "Datetime",
           "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
@@ -164,8 +180,8 @@
         }
       },
       {
-        "ordinal": 10,
-        "name": "updated_at: _",
+        "ordinal": 11,
+        "name": "updated_at: UtcInstant",
         "type_info": {
           "type": "Datetime",
           "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
@@ -180,7 +196,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "must_change_password: bool",
         "type_info": {
           "type": "Bit",
@@ -196,7 +212,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "mfa_enabled: bool",
         "type_info": {
           "type": "Tiny",
@@ -210,6 +226,70 @@
             "name": "mfa_enabled"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "scim_managed: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "scim_managed"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "totp_secret",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 262140
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "totp_secret"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "mfa_backup_codes",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 262140
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "mfa_backup_codes"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "totp_last_step",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "totp_last_step"
+          }
+        }
       }
     ],
     "parameters": {
@@ -221,6 +301,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       true,
@@ -228,8 +309,12 @@
       false,
       false,
       false,
-      false
+      false,
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "848d41670c8930e395841ec15d4d8eef8825b4927944bbf8b6a26f496d414701"
+  "hash": "11f656f67113294026063904f9226b0a57bda9eed678098e2e0890f2f85f1072"
 }

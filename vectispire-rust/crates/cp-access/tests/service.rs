@@ -90,6 +90,7 @@ impl AccountStore for Memory {
             updated_at: user.created_at,
             must_change_password: user.must_change_password,
             mfa_enabled: false,
+            scim_managed: false,
             totp_secret: None,
             mfa_backup_codes: None,
             totp_last_step: None,
@@ -190,14 +191,14 @@ struct Budget {
 }
 
 impl PasswordAttempts for Budget {
-    async fn reserve(&self, account_id: i64) -> Result<(), StoreOr<u64>> {
+    async fn reserve(&self, account_id: i64, _: Option<&str>) -> Result<(), StoreOr<u64>> {
         self.reserved.lock().unwrap().push(account_id);
         match self.refused {
             Some(seconds) => Err(StoreOr::Refused(seconds)),
             None => Ok(()),
         }
     }
-    async fn clear(&self, account_id: i64) -> Result<(), StoreError> {
+    async fn clear(&self, account_id: i64, _: Option<&str>) -> Result<(), StoreError> {
         self.cleared.lock().unwrap().push(account_id);
         Ok(())
     }
@@ -219,6 +220,7 @@ fn account(id: i64, username: &str, role: &str) -> User {
         updated_at: NOW,
         must_change_password: false,
         mfa_enabled: false,
+        scim_managed: false,
         totp_secret: None,
         mfa_backup_codes: None,
         totp_last_step: None,

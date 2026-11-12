@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_sign_in_client (client_key, account_id, last_signed_in_at) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "fec9300bc83851b5229936654818437fc98c7aab20a5ba3c3068a7906d4fe445"
+}

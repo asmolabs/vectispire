@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_sign_in_client (client_key, account_id, last_signed_in_at) values ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5d1cfb3d8386e4a79622eabde25ed4498e6c73bc6c87278eefa64150f68881fc"
+}

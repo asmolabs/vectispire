@@ -232,7 +232,7 @@ rather than `role in (…)` built from the flags.
 | Here | Java |
 |---|---|
 | `totp` — Base32 both ways, RFC 6238 over HMAC-SHA1, the matching step within ±1, the enrolment URI, secrets and backup codes | `common.domain.auth.Totp` |
-| `login_throttle` — the two counters' decision, the sliding window, the user, account, second-factor and client keys | `common.domain.auth.LoginThrottle` |
+| `login_throttle` — the counters' decision, the sliding window, `SignInLimits`, the user, account, from-client, known-client, second-factor and client keys | `common.domain.auth.LoginThrottle`, `SignInLimits` |
 | `vectispire_cp_http::address::client_bucket` | `common.domain.auth.ClientBuckets` |
 | `vectispire_domain::team_rules` (in the domain: the targets module reads the kinds) | `common.domain.teams.TeamRules` |
 
@@ -267,7 +267,7 @@ so the user key folds exactly as Java folds (the final sigma by `java::to_lower_
 
 | Here | Java |
 |---|---|
-| `throttle` — `Throttle`, `Reservation` (`reserve`, `release`, `reserve_second_factor`, `reserve_password`, `clear_password_failures`, `second_factor_lockout`, `clear_second_factor_failures`), and `PasswordAttempts` for `Accounts::change_own_password` | `AuthService`'s throttle half |
+| `throttle` — `Throttle`, `Reservation` (`reserve`, `reserve_with_soft`, `release`, `reserve_second_factor`, `is_known_client`, `remember_client`, `reserve_password`, `clear_password_failures`, `second_factor_lockout`, `clear_second_factor_failures`), and `PasswordAttempts` for `Accounts::change_own_password` | `AuthService`'s throttle half |
 | `sign_in` — `SignInFlow::login` | `AuthService.login` |
 | `sign_in` — `SignInFlow::{sign_in, verify, exchange, options, change_password}`, `SignInMethodPolicy` | `AuthenticationFlowService` (minus `completeFederatedSignIn`), `SignInMethodPolicy` |
 | `second_factor` — `SecondFactor::{setup, enable, disable, verify, enrolment}`, the contexts (`cp-crypto`'s `totp_secret_context`, `backup_codes_context`) | `TotpService` |
