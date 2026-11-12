@@ -27,9 +27,9 @@ apacheHttpCore5 = "5.4.4"
 # that is a change of its own, not part of a weekly bump. The BOMs rather than databind alone: core, annotations and the
 # datatype modules are released together, and raising one leaves a skew nothing reconciles.
 # Drop both lines when the Spring Boot BOM catches up.
-jackson2 = "2.22.4"
+jackson2 = "2.23.0"
 jackson3 = "3.1.8"
-jgit = "7.8.0.202609011348-r"
+jgit = "7.8.1.202611041320-r"
 # **Raised above what docker-java-core asks for, for a named advisory.** docker-java 3.7.1 brings
 # guava 33.4.8-jre, against which GHSA-xxph-c9ww-hj94 (High, fixed in 33.7.2) made the
 # `vulnerabilities` job fail on every branch on 2026-10-28. A constraint, not a dependency: nothing
