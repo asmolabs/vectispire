@@ -66,8 +66,8 @@ test's database (`current_database()`, `database()`).
 
 A suite that loops over the engines asks `testing::runs_on(engine)` first — `VECTISPIRE_TEST_ENGINES`, unset
 meaning both, a misspelt value failing the run — and `TestDatabase::empty` refuses an engine left out, so a
-loop that forgets to ask fails rather than running it anyway. Pull requests run on MySQL alone; PostgreSQL
-is the nightly's (`rust-engines`, `rust-replay`). Code is still written for both engines: a new engine loop
+loop that forgets to ask fails rather than running it anyway. Every job, and `check.sh` by default, runs on
+MySQL alone: PostgreSQL left 1.0's promise (decision 0043 §3) and no job runs it. Code is still written for both engines: a new engine loop
 asks `runs_on`, and the PostgreSQL half of a query is written and cached in the same diff.
 
 ## Defects already made here

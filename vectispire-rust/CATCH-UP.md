@@ -79,4 +79,5 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 
 - [ ] The recorder's golden recordings regenerated from Java 1.0 and replayed (`.claude/skills/golden-replay`), and
       `fix/golden-signatures` (232b8e62f) applied first.
-- [ ] Whether the nightly keeps the port's PostgreSQL jobs: ADR 0043 dropped PostgreSQL from 1.0's promise.
+- [x] PostgreSQL left the port's jobs (2026-11-12, decision 0043 §3): `rust-engines` deleted, the nightly replay and
+      `check.sh` on MySQL; the code for both engines kept.

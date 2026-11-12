@@ -1600,11 +1600,10 @@ jobs:
   # `Engine.java`). The host port is the daemon's choice, read from the job's context. A server that does not answer
   # fails the suites — the variables are set, so nothing falls back and nothing skips.
   #
-  # **MySQL only on a pull request; PostgreSQL every night** (decided 2026-10-29). `VECTISPIRE_TEST_ENGINES=mysql`
-  # narrows every suite on a database — the tests, the Flyway oracle, the queries' caches — to MySQL, each PostgreSQL
-  # case saying it was left out (cp-db's `testing`); nightly.yml's `rust-engines` and `rust-replay` run both. The
-  # code is still written for both engines: a PostgreSQL break lands on `develop` and is red within a day, which is
-  # the trade `engines` makes for the Java campaign.
+  # **MySQL only** (2026-10-29 for pull requests; 2026-11-12 everywhere, as PostgreSQL left 1.0's promise, decision
+  # 0043 §3). `VECTISPIRE_TEST_ENGINES=mysql` narrows every suite on a database — the tests, the Flyway oracle — to
+  # MySQL, each PostgreSQL case saying it was left out (cp-db's `testing`). The port's PostgreSQL code is kept, as the
+  # Java side's is, and no job runs it.
   rust:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
@@ -1646,7 +1645,7 @@ jobs:
         run: |
           [ -n "$MYSQL_PORT" ] || { echo "::error::the database service published no port"; exit 1; }
           echo "VECTISPIRE_TEST_MYSQL_URL=jdbc:mysql://127.0.0.1:$MYSQL_PORT" >> "$GITHUB_ENV"
-          echo "::notice::VECTISPIRE_TEST_ENGINES=$VECTISPIRE_TEST_ENGINES: PostgreSQL is left out of this job and checked by the nightly (rust-engines)"
+          echo "::notice::VECTISPIRE_TEST_ENGINES=$VECTISPIRE_TEST_ENGINES: PostgreSQL is left out: outside 1.0, its code kept and not run (decision 0043 §3)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The whole history: the migration runner is also held to Flyway on the 0.11.1 line's migrations, which
@@ -1722,8 +1721,9 @@ jobs:
       - name: the migration runner, held to Flyway
         run: ./crates/migrate/oracle/check-oracle.sh
       # **The checked queries' offline caches** are the committed ones: MySQL's half regenerated against a throwaway
-      # server and compared here, PostgreSQL's in the nightly, then the whole cache compiled offline with both engines
-      # on (crates/cp-db/README.md). One script for every crate
+      # server and compared here; PostgreSQL's is written by `prepare` with the query that changed and compared by no job
+      # since 2026-11-12 (decision 0043 §3) — the whole cache is still compiled offline with both engines
+      # on, so a query changed without it fails to build (crates/cp-db/README.md). One script for every crate
       # with checked statements — cp-db and each module's persistence, its `crates_with_queries` — each crate's
       # cache beside it.
       - name: the queries' caches are current
@@ -1771,7 +1771,7 @@ jobs:
   # not served yet is covered by a line of vectispire-rust/golden/deferred/ saying why (one file per module whose
   # port ends the line, each at its own ceiling), and each of a served route is replayed — seed, request, answer and
   # rows — on MySQL (`replay-goldens.sh`, which finds every `crates/*/tests/golden.rs` replay; nightly.yml's
-  # `rust-replay` replays on both engines, decided 2026-10-29). The recordings
+  # `rust-replay` replays every night, whatever changed). The recordings
   # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
   # carry no credential but the one invented value the export test plants, allowed by name.
   rust-replay:
@@ -1838,7 +1838,7 @@ jobs:
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
       # The plan (every recording of a route not served covered by golden/deferred/), then every replay test the
       # script finds (crates/*/tests/golden.rs) on MySQL: a recording of a served route replays green, or is listed
-      # with why; the replay says PostgreSQL was left out, and the nightly replays on both. No module is named here: a
+      # with why; the replay says PostgreSQL was left out (decision 0043 §3). No module is named here: a
       # port adds nothing to this job.
       - name: the recordings replayed against the served routes, on MySQL
         working-directory: vectispire-rust

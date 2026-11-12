@@ -81,7 +81,7 @@ These are what the rest of the port follows.
     unset means both, otherwise `mysql`, `postgresql` or both comma-separated; a misspelt or empty value fails
     the run, every engine loop asks `testing::runs_on` and prints `left out: …` for a case it skips, and
     `TestDatabase::empty` refuses an engine not selected. CI's `rust` job runs on pull requests with
-    `mysql` and one MySQL server as a job service; the nightly's `rust-engines` runs one server of each engine.
+    `mysql` and one MySQL server as a job service, and no job runs PostgreSQL since 2026-11-12 (decision 0043 §3).
     Locally:
 
     ```sh

@@ -119,9 +119,11 @@ offline caches regenerated and compared (`crates/cp-db/scripts/sqlx-prepare.sh c
 two tests are expected to fail under the recorder, and no others), scans the recordings for credentials, and
 reads them with `cp-contract replay-plan` — a recording of a route that has left the list of routes not yet
 ported, with nothing replaying it, fails the step. **On a pull request both jobs run on MySQL alone** (`VECTISPIRE_TEST_ENGINES=mysql`, which
-every engine loop of the port asks through `cp-db`'s `testing::runs_on`); PostgreSQL is the nightly's
-`rust-engines` — the tests, the oracle and the query caches on both engines — and its `rust-replay`, which
-records afresh and replays on both. The code is still written and cached for both engines. `rust-image` builds the image twice from nothing and refuses two different digests, writes
+every engine loop of the port asks through `cp-db`'s `testing::runs_on`); PostgreSQL left the port's
+jobs on 2026-11-12 as it left 1.0's promise (decision 0043 §3): its code is still written and cached for both
+engines, and nothing runs it. The nightly's `rust-replay` records afresh and replays on MySQL every night, whatever
+changed — the check that a Java change to a route the port serves is seen the next morning, not the next time
+someone touches the port. `rust-image` builds the image twice from nothing and refuses two different digests, writes
 the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
 too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each

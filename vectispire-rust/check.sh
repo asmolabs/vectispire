@@ -6,9 +6,9 @@
 # The reference sets are read as committed; regenerate them on purpose, never to make this pass
 # (README.md, "The reference sets").
 #
-# **Both engines, unless told otherwise.** `VECTISPIRE_TEST_ENGINES=mysql ./check.sh` is the gate a port's pull
-# request may run (decided 2026-10-29): every suite on a database runs on MySQL, each PostgreSQL case says it was
-# left out, and the nightly runs both. The code is still written for both engines; a misspelt value fails the tests.
+# **MySQL, unless told otherwise** (since 2026-11-12, as PostgreSQL left 1.0's promise, decision 0043 §3): every
+# suite on a database runs on MySQL and each PostgreSQL case says it was left out. The code is still written for both
+# engines; `VECTISPIRE_TEST_ENGINES=mysql,postgresql ./check.sh` runs both, and a misspelt value fails the tests.
 set -eu
 cd "$(dirname "$0")"
 # **No incremental state unless asked for.** The gate is mostly run once per worktree by a session that then
@@ -16,9 +16,9 @@ cd "$(dirname "$0")"
 # written and never read. Someone iterating in one worktree keeps it with `CARGO_INCREMENTAL=1 ./check.sh`.
 : "${CARGO_INCREMENTAL:=0}"
 export CARGO_INCREMENTAL
-if [ -n "${VECTISPIRE_TEST_ENGINES+set}" ]; then
-  echo "check.sh: VECTISPIRE_TEST_ENGINES=$VECTISPIRE_TEST_ENGINES — the engines it leaves out are the nightly's"
-fi
+: "${VECTISPIRE_TEST_ENGINES:=mysql}"
+export VECTISPIRE_TEST_ENGINES
+echo "check.sh: VECTISPIRE_TEST_ENGINES=$VECTISPIRE_TEST_ENGINES"
 # cargo-deny and cargo-vet at the versions CI runs, built once per machine (security/install-tools.sh):
 # a worktree without them used to stop the gate halfway, or be run without its last steps.
 ./security/install-tools.sh cargo-deny cargo-vet

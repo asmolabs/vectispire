@@ -132,11 +132,10 @@ lowered when a use goes away, never raised.
 `testing::runs_on`): unset means both, otherwise a comma-separated list of `mysql` and `postgresql` — a misspelt
 or empty value fails the run rather than selecting nothing. A port branch may run its local gate with
 `VECTISPIRE_TEST_ENGINES=mysql ./check.sh`, as CI's `rust` and `rust-replay` jobs do on pull requests; each
-PostgreSQL case left out says so on stderr (`left out: PostgreSQL …`). **PostgreSQL is the nightly's**
-(`nightly.yml`'s `rust-engines` and `rust-replay`: the tests, the Flyway oracle, the query caches and the
-replay on both engines) — and the code is still written, checked and cached for both: a query with only
-its `/* mysql */` half does not compile, and `sqlx-prepare.sh prepare` refuses a narrowed selection, since
-it would drop the PostgreSQL half of the cache. A nightly red on PostgreSQL is the port branch's to fix.
+PostgreSQL case left out says so on stderr (`left out: PostgreSQL …`). **No job runs PostgreSQL** since
+2026-11-12, as it left 1.0's promise (decision 0043 §3) — and the code is still written and cached for both: a
+query with only its `/* mysql */` half does not compile, and `sqlx-prepare.sh prepare` refuses a narrowed
+selection, since it would drop the PostgreSQL half of the cache.
 
 When the image changed: `security/reproducible-image.sh linux/arm64` (or `linux/amd64`, as CI) must say
 `reproducible`.
