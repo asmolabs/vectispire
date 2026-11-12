@@ -155,6 +155,11 @@ causes rather than one by one. Counts are recordings.
 - [ ] **The published keys' list in the read-cost sweep** — 2: an export Rust does not serve wrote the key record in
       Java's run, and the replay cannot rebuild its `«sealed»` value; ends with the compliance exports.
 
+- [ ] **Why `AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing` takes over a second in the replay** — 1: its
+      activity reads a scan queued "1" second ago where Java read 0 (whole seconds of wall clock). Listed in
+      `_recording.txt`; find what the eight requests before it wait on — the built-in worker's Docker check is the
+      first suspect — and remove the line.
+
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.
 

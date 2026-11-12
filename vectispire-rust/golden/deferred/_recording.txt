@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 105
+ceiling 106
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--007-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
@@ -116,3 +116,4 @@ golden api.ListPagingEstateRoutesTest/refusesWhatItCannotServe--035-GET-api_v1_r
 golden api.ListPagingEstateRoutesTest/refusesWhatItCannotServe--036-GET-api_v1_repositories_duplicates | POST /plugins, not served and played in Java's place, seeds a t_audit_log.description past its 255 characters once the recorder's placeholders are made concrete: the test's later requests cannot be rebuilt — the replay's, not the port's
 golden api.ListPagingEstateRoutesTest/refusesWhatItCannotServe--037-GET-api_v1_repositories_duplicates | POST /plugins, not served and played in Java's place, seeds a t_audit_log.description past its 255 characters once the recorder's placeholders are made concrete: the test's later requests cannot be rebuilt — the replay's, not the port's
 golden api.ListPagingEstateRoutesTest/refusesWhatItCannotServe--038-GET-api_v1_repositories_duplicates | POST /plugins, not served and played in Java's place, seeds a t_audit_log.description past its 255 characters once the recorder's placeholders are made concrete: the test's later requests cannot be rebuilt — the replay's, not the port's
+golden api.AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing--009-GET-api_v1_admin_agents_activity | waitDurationSeconds is whole seconds of wall clock since the seeded scan was queued: Java reached this request within the second (0), the Rust replay of the eight before it takes longer (1) — the same computation; why the replay is slower here is owed (CATCH-UP.md)
