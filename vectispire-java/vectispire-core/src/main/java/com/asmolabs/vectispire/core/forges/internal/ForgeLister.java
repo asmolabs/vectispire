@@ -75,7 +75,29 @@ public interface ForgeLister {
 
         /** A repository's main language, or {@code null} when the forge would not say. */
         void language(String forgeId, String language);
+
+        /** The branch names this run asks about ({@link TrackedBranches}); read through {@link TrackedBranches#read}. */
+        List<String> trackedBranches();
+
+        /**
+         * The repositories, among those this run listed, whose tracked branches are worth asking about: new ones,
+         * those active or given another default branch since their branches were last read, and those never read
+         * under the names tracked now.
+         */
+        List<BranchQuestion> branchesWanted();
+
+        /**
+         * Which tracked branches a repository has — the default branch among them when it is tracked — or {@code
+         * null} when the forge did not answer for every one: unknown, never none.
+         */
+        void branches(String forgeId, List<String> present);
+
+        /** The reading of branches stopped with {@code left} repositories unread, which keep what they had. */
+        void branchesLeft(int left, String why);
     }
+
+    /** A repository whose tracked branches are to be read: its id, the path some forges address it by, and its default. */
+    record BranchQuestion(String forgeId, String fullPath, String defaultBranch) {}
 
     /** The run's repository bound was reached. */
     final class RepositoryBoundReached extends RuntimeException {

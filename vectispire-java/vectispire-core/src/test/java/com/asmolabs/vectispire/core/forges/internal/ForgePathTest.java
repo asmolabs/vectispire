@@ -102,6 +102,42 @@ class ForgePathTest {
     }
 
     @Nested
+    @DisplayName("the tracked branches")
+    class TrackedBranchNames {
+
+        @Test
+        @DisplayName("GitLab: the project's id and the branch's name, each one segment")
+        void gitLab() {
+            forge.on(GITLAB + GitLabLister.GROUPS, json("[]"));
+            forge.on(GITLAB + GitLabLister.PROJECTS, json("[]"));
+            Listing listing = new Listing(ForgeKind.GITLAB, "https://gitlab.example.org", null, List.of());
+            listing.branchQuestions = List.of(new ForgeLister.BranchQuestion("7/../users", "acme/api", "main"));
+
+            new GitLabLister().list(listing);
+
+            assertThat(forge.urls()).containsExactly(GITLAB + GitLabLister.GROUPS, GITLAB + GitLabLister.PROJECTS,
+                    GITLAB + "/projects/7%2F..%2Fusers/repository/branches/release%2F2.x%3Fa%23b");
+        }
+
+        @Test
+        @DisplayName("GitHub: the owner, the name and the branch, each one segment; a dot segment asks nothing")
+        void gitHub() {
+            forge.on(GITHUB + GitHubLister.USER, json("{\"login\":\"someone\",\"id\":7,\"type\":\"User\"}"));
+            forge.on(GITHUB + "/orgs/acme/repos?type=all&sort=full_name&per_page=100", json("[]"));
+            Listing listing = new Listing(ForgeKind.GITHUB, "https://github.com", "acme", List.of());
+            listing.branchQuestions = List.of(new ForgeLister.BranchQuestion("101", "ac me?/api#x", "main"),
+                    new ForgeLister.BranchQuestion("102", "../api", "main"));
+
+            new GitHubLister().list(listing);
+
+            assertThat(forge.urls()).containsExactly(GITHUB + GitHubLister.USER,
+                    GITHUB + "/orgs/acme/repos?type=all&sort=full_name&per_page=100",
+                    GITHUB + "/repos/ac%20me%3F/api%23x/branches/release%2F2.x%3Fa%23b");
+            assertThat(listing.branches).as("no request, no answer: unknown").containsEntry("102", null);
+        }
+    }
+
+    @Nested
     @DisplayName("GitLab's review reader")
     class GitLabReview {
 
@@ -222,6 +258,8 @@ class ForgePathTest {
     private final class Listing implements ForgeLister.Listing {
 
         final Map<String, String> languages = new LinkedHashMap<>();
+        final Map<String, List<String>> branches = new LinkedHashMap<>();
+        List<ForgeLister.BranchQuestion> branchQuestions = List.of();
         private final List<String> wanted;
         private final ForgeClient.Target target;
 
@@ -267,5 +305,23 @@ class ForgePathTest {
         public void language(String forgeId, String language) {
             languages.put(forgeId, language);
         }
+
+        @Override
+        public List<String> trackedBranches() {
+            return List.of("main", "release/2.x?a#b");
+        }
+
+        @Override
+        public List<ForgeLister.BranchQuestion> branchesWanted() {
+            return branchQuestions;
+        }
+
+        @Override
+        public void branches(String forgeId, List<String> present) {
+            branches.put(forgeId, present);
+        }
+
+        @Override
+        public void branchesLeft(int left, String why) {}
     }
 }

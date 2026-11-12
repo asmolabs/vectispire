@@ -28,6 +28,8 @@ public final class ForgeImports {
      * @param path {@code acme/payments/*} — {@code *} any run of characters, {@code ?} one; without either, a search
      * @param personal {@code show} (default), {@code hide} or {@code only}: repositories in a user's own namespace
      * @param present {@code show} (default), {@code hide} or {@code only}: repositories already a target
+     * @param branches tracked branch names: only repositories having any one of them; a repository whose branches the
+     *     forge did not say is left out, and counted unjudged ({@code branch})
      */
     public record ForgeSelectionFilters(
             String archived,
@@ -38,10 +40,12 @@ public final class ForgeImports {
             String namespace,
             String path,
             String personal,
-            String present) {
+            String present,
+            List<String> branches) {
 
         /** The table as it first opens. */
-        public static final ForgeSelectionFilters DEFAULT = new ForgeSelectionFilters(null, null, null, null, null, null, null, null, null);
+        public static final ForgeSelectionFilters DEFAULT =
+                new ForgeSelectionFilters(null, null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -50,7 +54,9 @@ public final class ForgeImports {
      * @param presentAs the targets whose URL has the identity of this repository's HTTPS or SSH clone URL, whatever
      *     their branch and sub-path — "present (3 targets)" for a monorepo already split; empty when none
      * @param importedAs the target an earlier import from this connection created for it, recognised by the forge's
-     *     id even after a rename; null when none
+     *     id even after a rename — the first one, when an import made one per branch; null when none
+     * @param importedTargets every target the imports from this connection created for it, one per branch imported;
+     *     empty when none
      * @param selectable whether it may be ticked; {@code notSelectable} says why not
      * @param offered whether the selection proposes it ticked: selectable, matching the default filters, and not in a
      *     personal namespace — those are offered unticked (answer 7)
@@ -62,6 +68,7 @@ public final class ForgeImports {
             ForgeRepositoryView repository,
             List<Long> presentAs,
             Long importedAs,
+            List<Long> importedTargets,
             boolean selectable,
             ImportSkip notSelectable,
             boolean offered,
@@ -75,11 +82,14 @@ public final class ForgeImports {
      * @param listed how many the discovery listed, whatever the filters
      * @param unjudged per filter ({@code archived}, {@code fork}, {@code activity}, {@code language}, {@code
      *     visibility}), how many repositories it met with a value the forge did not give and could not judge —
-     *     kept by a filter that hides, left out by one that requires; only filters that met one are named
+     *     kept by a filter that hides, left out by one that requires; only filters that met one are named — {@code
+     *     branch} for a repository whose branches the forge did not say
+     * @param trackedBranches the branch names discoveries read on this installation, which the branch filter and an
+     *     import's {@code branches} may name
      */
     public record ForgeCandidatePage(
             long discoveryId, List<ForgeCandidate> items, long total, int limit, int offset, long listed,
-            Map<String, Long> unjudged) {}
+            Map<String, Long> unjudged, List<String> trackedBranches) {}
 
     /**
      * A change to the selection.
@@ -116,6 +126,10 @@ public final class ForgeImports {
      * @param firstScan queue a first scan of each new target, staggered; off by default
      * @param spacingSeconds between two first scans, 10 to 600; 60 by default
      * @param requiredAgentLabel copied onto every new target
+     * @param branches the branches to import of each repository, one target per branch: {@code default} for its
+     *     default branch whatever it is called, or a tracked name; one it does not have is skipped {@code
+     *     branch_absent}, one the forge did not say {@code branch_unknown}. Absent or empty: one target on the default
+     *     branch, as before branches could be named
      */
     public record ForgeImportRequest(
             Long discoveryId,
@@ -124,7 +138,8 @@ public final class ForgeImports {
             List<ForgeCredentialChoice> credentials,
             Boolean firstScan,
             Integer spacingSeconds,
-            String requiredAgentLabel) {}
+            String requiredAgentLabel,
+            List<String> branches) {}
 
     /**
      * A change to the proposed mapping (decision 0037 §4): for a namespace and everything below it, or for one
@@ -182,8 +197,14 @@ public final class ForgeImports {
             Instant firstScanNotBefore,
             String warning) {}
 
-    /** A repository asked for and not imported, and why; {@code repositoryIds} the targets it already is. */
-    public record ForgeSkippedImport(String forgeId, String fullPath, ImportSkip reason, List<Long> repositoryIds) {}
+    /**
+     * A repository asked for and not imported, and why; {@code repositoryIds} the targets it already is.
+     *
+     * @param branch the branch skipped, when the import named branches and judged this one apart; null when the
+     *     whole repository is skipped
+     */
+    public record ForgeSkippedImport(
+            String forgeId, String fullPath, ImportSkip reason, List<Long> repositoryIds, String branch) {}
 
     /** A repository the import would refuse — the form's refusal, or a mapping it cannot apply. */
     public record ForgeRefusedImport(String forgeId, String fullPath, String refusal) {}
@@ -226,10 +247,10 @@ public final class ForgeImports {
             String visibilityMode,
             ForgeFirstScans firstScans) {}
 
-    /** One target an import created. */
+    /** One target an import created, on {@code branch}. */
     public record ForgeImportedTarget(
             String forgeId, String fullPath, long repositoryId, String url, String solution, String project,
-            Long firstScanId, Instant firstScanNotBefore) {}
+            Long firstScanId, Instant firstScanNotBefore, String branch) {}
 
     /**
      * What an import did.

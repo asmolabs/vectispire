@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.forges.BranchPresence;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveredRepository;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
@@ -29,6 +30,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -88,6 +90,7 @@ public class DiscoveryExecution {
     private final OutboundJson outbound;
     private final Map<ForgeKind, ForgeLister> listers = new EnumMap<>(ForgeKind.class);
     private final DiscoveryBounds bounds;
+    private final TrackedBranches tracked;
     private final ForgeIntegrations integrations;
     private final AuditLogService audit;
     private final Clock clock;
@@ -101,6 +104,7 @@ public class DiscoveryExecution {
             OutboundJson outbound,
             List<ForgeLister> listers,
             DiscoveryBounds bounds,
+            TrackedBranches tracked,
             ForgeIntegrations integrations,
             AuditLogService audit,
             Clock clock,
@@ -112,6 +116,7 @@ public class DiscoveryExecution {
         this.outbound = outbound;
         listers.forEach(lister -> this.listers.put(lister.kind(), lister));
         this.bounds = bounds;
+        this.tracked = tracked;
         this.integrations = integrations;
         this.audit = audit;
         this.clock = clock;
@@ -217,6 +222,10 @@ public class DiscoveryExecution {
         private final Set<String> namespaces = new HashSet<>();
         private final Set<String> listed = new HashSet<>();
         private final Set<String> languages = new LinkedHashSet<>();
+        /** The repositories whose branches are to be read, with the activity the reading will be recorded at. */
+        private final Map<String, ForgeLister.BranchQuestion> branchQuestions = new LinkedHashMap<>();
+        private final Map<String, Instant> branchActivity = new HashMap<>();
+        private String branchesLeft;
         /** By lower-case path: GitHub's logins are case-insensitive, and an owner may be typed in either case. */
         private final Map<String, UnreadableNamespace> unreadable = new LinkedHashMap<>();
         private final List<UnreadableNamespace> withheld = new ArrayList<>();
@@ -344,6 +353,41 @@ public class DiscoveryExecution {
             repositories.setLanguage(connectionId, forgeId, value);
         }
 
+        @Override
+        public List<String> trackedBranches() {
+            return tracked.names();
+        }
+
+        @Override
+        public List<ForgeLister.BranchQuestion> branchesWanted() {
+            return List.copyOf(branchQuestions.values());
+        }
+
+        @Override
+        public void branches(String forgeId, List<String> present) {
+            repositories.setTrackedBranches(connectionId, forgeId, BranchPresence.encode(present), tracked.asked(),
+                    branchActivity.get(forgeId));
+        }
+
+        @Override
+        public void branchesLeft(int left, String why) {
+            branchesLeft = "The tracked branches of " + left + (left == 1 ? " repository were" : " repositories were")
+                    + " not read (" + why + "); the next discovery asks them.";
+        }
+
+        /**
+         * Whether a repository's tracked branches are worth reading again: never read under the names tracked now,
+         * active since — a branch is created by a push — or given another default branch, which the reading counts
+         * without a request. A repository whose activity the forge does not state is asked every run: there is no
+         * other sign that a branch appeared.
+         */
+        private boolean branchesStale(ForgeRepositoryEntity row, DiscoveredRepository repository) {
+            return !Objects.equals(row.getBranchesAsked(), tracked.asked())
+                    || repository.lastActivityAt() == null
+                    || !Objects.equals(row.getBranchesReadActivityAt(), repository.lastActivityAt())
+                    || !Objects.equals(row.getDefaultBranch(), repository.defaultBranch());
+        }
+
         /** The page's repositories into the snapshot, each compared with what the snapshot knew. */
         private void write(List<DiscoveredRepository> page) {
             List<DiscoveredRepository> storable = new ArrayList<>();
@@ -375,6 +419,7 @@ public class DiscoveryExecution {
                     row.setFirstSeenBy(id);
                     row.setFirstSeenAt(now);
                     languages.add(repository.forgeId());
+                    wantBranches(repository);
                 } else {
                     // Compared with the previous run's reading — not with this run's own, which a resumed attempt
                     // already wrote: its changes were counted then.
@@ -391,6 +436,9 @@ public class DiscoveryExecution {
                             || (row.getLastSeenBy() == id && row.getLanguage() == null)) {
                         languages.add(repository.forgeId());
                     }
+                    if (branchesStale(row, repository)) {
+                        wantBranches(repository);
+                    }
                 }
                 listed.add(repository.forgeId());
                 apply(row, repository);
@@ -401,6 +449,12 @@ public class DiscoveryExecution {
                 rows.add(row);
             }
             repositories.saveAll(rows);
+        }
+
+        private void wantBranches(DiscoveredRepository repository) {
+            branchQuestions.put(repository.forgeId(), new ForgeLister.BranchQuestion(repository.forgeId(),
+                    repository.fullPath(), repository.defaultBranch()));
+            branchActivity.put(repository.forgeId(), repository.lastActivityAt());
         }
 
         /**
@@ -466,9 +520,9 @@ public class DiscoveryExecution {
             }
             List<UnreadableNamespace> all = recorded();
             if (all.isEmpty()) {
-                return null;
+                return branchesLeft;
             }
-            return all.size() + (all.size() == 1 ? " namespace" : " namespaces") + " could not be read with this "
+            return (branchesLeft == null ? "" : branchesLeft + " ") + all.size() + (all.size() == 1 ? " namespace" : " namespaces") + " could not be read with this "
                     + "token, and none of their repositories is marked gone: " + all.stream()
                             .map(namespace -> namespace.path() == null ? namespace.reason()
                                     : namespace.path() + " — " + namespace.reason())

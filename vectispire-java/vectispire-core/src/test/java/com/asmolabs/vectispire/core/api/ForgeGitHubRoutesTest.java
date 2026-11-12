@@ -210,8 +210,10 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
         assertThat(run.at("/state").asText()).isEqualTo("completed");
         assertThat(run.at("/namespacesSeen").asInt()).as("acme, globex and ada's own").isEqualTo(3);
         assertThat(run.at("/repositoriesSeen").asInt()).isEqualTo(5);
-        assertThat(run.at("/requestsMade").asInt()).as("the user, the organisations, three pages, the user's own")
-                .isEqualTo(6);
+        assertThat(run.at("/requestsMade").asInt()).as("the user, the organisations, three pages, the user's own — "
+                + "and master and develop of each of the five, main being their default").isEqualTo(16);
+        assertThat(github.count(API + "/repos/acme/api/branches/develop")).isOne();
+        assertThat(github.count(API + "/repos/acme/api/branches/main")).as("the default branch is never asked").isZero();
         assertThat(run.at("/unreadableNamespaces")).isEmpty();
         assertThat(run.at("/detail").isNull()).isTrue();
         assertThat(github.seen).allSatisfy(seen -> {
@@ -227,6 +229,8 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
         assertThat(row("401").getPersonal()).isTrue();
         assertThat(row("401").getNamespacePath()).isEqualTo("ada");
         assertThat(row("101").getPersonal()).isFalse();
+        assertThat(row("101").getTrackedBranches()).as("master and develop answered 404: the default alone")
+                .isEqualTo("main");
     }
 
     @Test

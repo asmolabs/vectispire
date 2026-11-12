@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges.persistence;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -66,6 +67,21 @@ public class ForgeRepositoryEntity {
 
     @Column(name = "size_bytes")
     private Long sizeBytes;
+
+    /**
+     * The tracked branches the last reading found, {@code BranchPresence.encode}d: empty for none of them, null when
+     * the forge did not answer for every one — or when they were never read.
+     */
+    @Column(name = "tracked_branches", length = 2600)
+    private String trackedBranches;
+
+    /** The tracked names that reading asked about, encoded likewise; null when the branches were never read. */
+    @Column(name = "branches_asked", length = 2600)
+    private String branchesAsked;
+
+    /** The repository's last activity as it stood when its branches were read: a later one asks them again. */
+    @Column(name = "branches_read_activity_at")
+    private Instant branchesReadActivityAt;
 
     @Column(name = "http_url", length = 1024)
     private String httpUrl;
@@ -204,6 +220,33 @@ public class ForgeRepositoryEntity {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getTrackedBranches() {
+        return trackedBranches;
+    }
+
+    public void setTrackedBranches(String trackedBranches) {
+        this.trackedBranches = trackedBranches;
+    }
+
+    /** Bookkeeping of the discovery: when to read the branches again. Not published; the presence it qualifies is. */
+    @JsonIgnore
+    public String getBranchesAsked() {
+        return branchesAsked;
+    }
+
+    public void setBranchesAsked(String branchesAsked) {
+        this.branchesAsked = branchesAsked;
+    }
+
+    @JsonIgnore
+    public Instant getBranchesReadActivityAt() {
+        return branchesReadActivityAt;
+    }
+
+    public void setBranchesReadActivityAt(Instant branchesReadActivityAt) {
+        this.branchesReadActivityAt = branchesReadActivityAt;
     }
 
     public Long getSizeBytes() {

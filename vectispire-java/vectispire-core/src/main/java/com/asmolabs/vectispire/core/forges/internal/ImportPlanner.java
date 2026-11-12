@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.forges.internal;
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.forges.BranchPresence;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveredRepository;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
@@ -52,6 +53,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
@@ -67,6 +69,14 @@ import org.springframework.stereotype.Component;
  * repository's HTTPS <em>or</em> SSH clone URL equals that of an existing target's URL, whatever the target's
  * branch and sub-path ({@link TargetImports#presentByIdentity}). Once imported, the provenance link recognises a
  * repository by the forge's id, so a repository renamed on the forge is still the target it was.
+ *
+ * <p><b>One target per branch, when the request names branches</b> ({@code branches}: {@code default} or a tracked
+ * name). Each branch of each repository is then judged apart: created when the discovery saw it ({@link
+ * BranchPresence}) and no target of the repository scans it yet; skipped {@code already_imported} or {@code
+ * already_present} when one does, {@code branch_absent} when the discovery found it missing, {@code branch_unknown}
+ * when the forge did not say — never a target on a branch nobody saw. A repository imported or present on one branch
+ * may so gain another. Without {@code branches}, one target on the default branch and the repository judged whole,
+ * as before branches could be named.
  */
 @Component
 public class ImportPlanner {
@@ -97,6 +107,7 @@ public class ImportPlanner {
     private final SshKeyAdministrationService keys;
     private final TargetSchedules schedules;
     private final ForgeIntegrations integrations;
+    private final TrackedBranches tracked;
     private final Clock clock;
 
     public ImportPlanner(
@@ -109,6 +120,7 @@ public class ImportPlanner {
             SshKeyAdministrationService keys,
             TargetSchedules schedules,
             ForgeIntegrations integrations,
+            TrackedBranches tracked,
             Clock clock) {
         this.connections = connections;
         this.discoveries = discoveries;
@@ -119,6 +131,7 @@ public class ImportPlanner {
         this.keys = keys;
         this.schedules = schedules;
         this.integrations = integrations;
+        this.tracked = tracked;
         this.clock = clock;
     }
 
@@ -184,7 +197,9 @@ public class ImportPlanner {
      * One repository of the discovery, as the selection judges it.
      *
      * @param presentAs the targets filing it by identity, sorted
-     * @param importedAs the target an earlier import from this connection made of it
+     * @param importedAs the target an earlier import from this connection made of it — the first, when it made one
+     *     per branch
+     * @param importedTargets every target the imports from this connection made of it, sorted
      * @param notSelectable why it cannot be ticked; empty when it can
      * @param proposed where the forge's layout suggests filing it
      */
@@ -192,8 +207,16 @@ public class ImportPlanner {
             ForgeRepositoryEntity repository,
             List<Long> presentAs,
             Long importedAs,
+            List<Long> importedTargets,
             Optional<ImportSkip> notSelectable,
-            Placement proposed) {}
+            Placement proposed) {
+
+        /** Which tracked branches the repository has, as its discovery read them. */
+        public BranchPresence branches() {
+            return BranchPresence.stored(repository.getDefaultBranch(), repository.getBranchesAsked(),
+                    repository.getTrackedBranches());
+        }
+    }
 
     /** Every repository the discovery listed, by full path. */
     public List<Row> rows(Source source) {
@@ -202,8 +225,9 @@ public class ImportPlanner {
     }
 
     private List<Row> rows(Source source, List<ForgeRepositoryEntity> listed, List<ForgeImportLinkEntity> linked) {
-        Map<String, Long> importedAs = new HashMap<>();
-        linked.forEach(link -> importedAs.put(link.getForgeId(), link.getRepositoryId()));
+        Map<String, Set<Long>> importedAs = new HashMap<>();
+        linked.forEach(link -> importedAs.computeIfAbsent(link.getForgeId(), ignored -> new TreeSet<>())
+                .add(link.getRepositoryId()));
         Set<String> identities = new HashSet<>();
         listed.forEach(row -> identitiesOf(row).forEach(identities::add));
         Map<String, List<Long>> present = targets.presentByIdentity(identities);
@@ -215,13 +239,14 @@ public class ImportPlanner {
                     List<Long> presentAs = identitiesOf(row).stream()
                             .flatMap(identity -> present.getOrDefault(identity, List.of()).stream())
                             .collect(Collectors.toCollection(TreeSet::new)).stream().toList();
-                    Long imported = importedAs.get(row.getForgeId());
+                    List<Long> importedTargets = List.copyOf(importedAs.getOrDefault(row.getForgeId(), Set.of()));
+                    Long imported = importedTargets.isEmpty() ? null : importedTargets.getFirst();
                     Optional<ImportSkip> skip = imported != null ? Optional.of(ImportSkip.ALREADY_IMPORTED)
                             : !presentAs.isEmpty() ? Optional.of(ImportSkip.ALREADY_PRESENT)
                             : row.getDefaultBranch() == null ? Optional.of(ImportSkip.NO_DEFAULT_BRANCH)
                             : row.getHttpUrl() == null && row.getSshUrl() == null ? Optional.of(ImportSkip.NO_CLONE_URL)
                             : Optional.empty();
-                    return new Row(row, presentAs, imported, skip, ImportMapping.proposed(
+                    return new Row(row, presentAs, imported, importedTargets, skip, ImportMapping.proposed(
                             source.kind(), row.getNamespacePath(), row.getName(), row.getPersonal()));
                 })
                 .toList();
@@ -264,6 +289,7 @@ public class ImportPlanner {
      * What an import would do.
      *
      * @param spacing between two first scans; empty when none is asked for
+     * @param perBranch the request named branches, each judged apart
      */
     public record Plan(
             Source source,
@@ -276,7 +302,8 @@ public class ImportPlanner {
             List<ForgeHostCredential> credentials,
             Optional<Duration> spacing,
             Duration defaultInterval,
-            VisibilityMode visibilityMode) {
+            VisibilityMode visibilityMode,
+            boolean perBranch) {
 
         /**
          * What the plan creates, as a set a second reading compares: the repositories, and the solutions and
@@ -285,7 +312,8 @@ public class ImportPlanner {
          */
         public Set<String> creations() {
             Set<String> creations = new TreeSet<>();
-            targets.forEach(target -> creations.add("repository " + target.repository().getForgeId()));
+            targets.forEach(target -> creations.add("repository " + target.repository().getForgeId() + " on "
+                    + target.changes().branch()));
             solutions.stream().filter(solution -> solution.existing().isEmpty())
                     .forEach(solution -> creations.add("solution " + solution.name().toLowerCase(Locale.ROOT)));
             projects.stream().filter(project -> project.existing().isEmpty()).forEach(project -> creations.add(
@@ -344,6 +372,7 @@ public class ImportPlanner {
                 : request.mapping().stream().map(rule -> rule == null ? null : rule.rule()).toList());
         Optional<Duration> spacing = spacing(request.firstScan(), request.spacingSeconds());
         Map<String, Choice> choices = choices(request.credentials());
+        List<String> branches = branches(request.branches());
 
         List<ForgeRepositoryEntity> listed = snapshot.listedBy(source.connectionId(), source.discoveryId()).stream()
                 .filter(row -> wanted.contains(row.getForgeId()))
@@ -356,6 +385,10 @@ public class ImportPlanner {
                     + (wanted.size() - listed.size() > missing.size() ? ", …" : "") + ".");
         }
         List<Row> rows = rows(source, listed, links.findByConnectionIdAndForgeIdIn(source.connectionId(), wanted));
+        // The branch each target already filing a repository scans: read only when branches are judged apart.
+        Map<Long, Optional<String>> scanned = branches.isEmpty() ? Map.of() : targets.branches(rows.stream()
+                .flatMap(row -> Stream.concat(row.presentAs().stream(), row.importedTargets().stream()))
+                .toList());
 
         Instant at = clock.instant();
         List<Target> planned = new ArrayList<>();
@@ -370,15 +403,20 @@ public class ImportPlanner {
 
         for (Row row : rows) {
             ForgeRepositoryEntity repository = row.repository();
-            if (row.notSelectable().isPresent()) {
+            // Named branches are judged one by one against the targets already there, below; the repository whole
+            // only for what no branch changes.
+            Optional<ImportSkip> whole = branches.isEmpty() ? row.notSelectable() : row.notSelectable()
+                    .filter(skip -> skip != ImportSkip.ALREADY_IMPORTED && skip != ImportSkip.ALREADY_PRESENT);
+            if (whole.isPresent()) {
                 skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(),
-                        row.notSelectable().get(), row.importedAs() != null ? List.of(row.importedAs()) : row.presentAs()));
+                        whole.get(), whole.get() == ImportSkip.ALREADY_IMPORTED ? row.importedTargets()
+                                : whole.get() == ImportSkip.ALREADY_PRESENT ? row.presentAs() : List.of(), null));
                 continue;
             }
             List<String> own = identitiesOf(repository);
             if (own.stream().anyMatch(identities::contains)) {
                 skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(),
-                        ImportSkip.DUPLICATE_IN_SELECTION, List.of()));
+                        ImportSkip.DUPLICATE_IN_SELECTION, List.of(), null));
                 continue;
             }
             identities.addAll(own);
@@ -388,7 +426,7 @@ public class ImportPlanner {
             String url = choice.sshKeyId() != null ? repository.getSshUrl() : repository.getHttpUrl();
             if (url == null) {
                 skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(),
-                        ImportSkip.NO_CLONE_URL, List.of()));
+                        ImportSkip.NO_CLONE_URL, List.of(), null));
                 continue;
             }
             Optional<String> elsewhere = elsewhere(url, forgeHost);
@@ -397,22 +435,32 @@ public class ImportPlanner {
                 continue;
             }
             ForgeCredentialView credential = credentialView(choice, keyNames, tokensByHost);
-            hosts.computeIfAbsent(host, ignored -> new HostUse(choice, credential)).count++;
+            HostUse use = hosts.computeIfAbsent(host, ignored -> new HostUse(choice, credential));
 
             ImportMapping.Outcome placed = mapping.place(source.kind(), repository.getForgeId(),
                     repository.getNamespacePath(), repository.getName(), repository.getPersonal());
-            Changes changes = new Changes(url, repository.getDefaultBranch(),
-                    repository.getFullPath().length() <= TARGET_NAME_LENGTH ? repository.getFullPath() : null,
-                    null, null, null, request.requiredAgentLabel(),
-                    choice.sshKeyId() == null ? null : choice.sshKeyId().toString(), null,
-                    choice.httpsTokenId() == null ? null : choice.httpsTokenId().toString(), null);
-            Optional<String> refusal = placed.refusal().or(() -> targets.refusal(changes));
-            if (refusal.isPresent()) {
-                refused.add(new ForgeRefusedImport(repository.getForgeId(), repository.getFullPath(), refusal.get()));
-                continue;
+            List<String> onto = branches.isEmpty() ? List.of(repository.getDefaultBranch())
+                    : branchesOf(row, branches, scanned, skipped);
+            if (branches.isEmpty()) {
+                // Counted before the refusal, as it always was: a refused repository refuses the whole import.
+                use.count++;
             }
-            planned.add(new Target(repository, changes, credential, placed.placement(), null,
-                    warning(repository, choice)));
+            for (String branch : onto) {
+                Changes changes = new Changes(url, branch, targetName(repository, branch, !branches.isEmpty()),
+                        null, null, null, request.requiredAgentLabel(),
+                        choice.sshKeyId() == null ? null : choice.sshKeyId().toString(), null,
+                        choice.httpsTokenId() == null ? null : choice.httpsTokenId().toString(), null);
+                Optional<String> refusal = placed.refusal().or(() -> targets.refusal(changes));
+                if (refusal.isPresent()) {
+                    refused.add(new ForgeRefusedImport(repository.getForgeId(), repository.getFullPath(), refusal.get()));
+                    break;
+                }
+                if (!branches.isEmpty()) {
+                    use.count++;
+                }
+                planned.add(new Target(repository, changes, credential, placed.placement(), null,
+                        warning(repository, choice)));
+            }
         }
 
         List<PlannedSolution> solutions = new ArrayList<>();
@@ -430,12 +478,13 @@ public class ImportPlanner {
         }
 
         List<ForgeHostCredential> credentials = hosts.entrySet().stream()
+                .filter(entry -> branches.isEmpty() || entry.getValue().count > 0)
                 .map(entry -> new ForgeHostCredential(entry.getKey(), entry.getValue().credential,
                         entry.getValue().choice.proposed(), entry.getValue().count))
                 .toList();
         return new Plan(source, at, List.copyOf(scheduled), List.copyOf(skipped), List.copyOf(refused),
                 List.copyOf(solutions), List.copyOf(projects), credentials, spacing, schedules.defaultInterval(),
-                targets.visibilityMode());
+                targets.visibilityMode(), !branches.isEmpty());
     }
 
     /**
@@ -478,6 +527,99 @@ public class ImportPlanner {
                             .orElse(new TargetImports.ProjectReach(0, 0)),
                     counts.get(entry.getKey())));
         }
+    }
+
+    /**
+     * The branches a request names, distinct and in its order: {@code default} (case aside) or a tracked name; empty
+     * when it names none, which is the import of one target on the default branch.
+     */
+    private List<String> branches(List<String> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        Set<String> names = new LinkedHashSet<>();
+        for (String value : raw) {
+            String name = value == null ? "" : value.trim();
+            if (name.equalsIgnoreCase(BranchPresence.DEFAULT_WORD)) {
+                names.add(BranchPresence.DEFAULT_WORD);
+            } else if (tracked.names().contains(name)) {
+                names.add(name);
+            } else {
+                throw new InvalidInputException("\"" + BoundedText.clip(name, 60) + "\" is not a branch an import can "
+                        + "name: " + BranchPresence.DEFAULT_WORD + ", or one of the branches discoveries read — "
+                        + String.join(", ", tracked.names()) + ".");
+            }
+        }
+        return List.copyOf(names);
+    }
+
+    /**
+     * The branches of one repository to create a target on, each requested one judged apart — the rest skipped into
+     * {@code skipped} with its reason and its branch. {@code default} and the default branch named are one branch.
+     *
+     * @param scanned the branch each target already filing a repository scans; empty for the remote's default
+     */
+    private static List<String> branchesOf(
+            Row row, List<String> requested, Map<Long, Optional<String>> scanned, List<ForgeSkippedImport> skipped) {
+        ForgeRepositoryEntity repository = row.repository();
+        BranchPresence presence = row.branches();
+        Set<String> seen = new HashSet<>();
+        List<String> onto = new ArrayList<>();
+        for (String wanted : requested) {
+            String branch = wanted.equals(BranchPresence.DEFAULT_WORD) ? repository.getDefaultBranch() : wanted;
+            if (branch == null) {
+                skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(),
+                        ImportSkip.NO_DEFAULT_BRANCH, List.of(), BranchPresence.DEFAULT_WORD));
+                continue;
+            }
+            if (!seen.add(branch)) {
+                continue;
+            }
+            Optional<ImportSkip> skip = switch (presence.of(branch)) {
+                case ABSENT -> Optional.of(ImportSkip.BRANCH_ABSENT);
+                case UNKNOWN -> Optional.of(ImportSkip.BRANCH_UNKNOWN);
+                case PRESENT -> Optional.empty();
+            };
+            List<Long> already = List.of();
+            if (skip.isEmpty()) {
+                List<Long> imported = scanning(row.importedTargets(), branch, repository, scanned);
+                List<Long> present = scanning(row.presentAs(), branch, repository, scanned);
+                if (!imported.isEmpty()) {
+                    skip = Optional.of(ImportSkip.ALREADY_IMPORTED);
+                    already = imported;
+                } else if (!present.isEmpty()) {
+                    skip = Optional.of(ImportSkip.ALREADY_PRESENT);
+                    already = present;
+                }
+            }
+            if (skip.isPresent()) {
+                skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(), skip.get(), already,
+                        branch));
+            } else {
+                onto.add(branch);
+            }
+        }
+        return onto;
+    }
+
+    /** Those of the targets that scan {@code branch}: by name, or by naming none when it is the default branch. */
+    private static List<Long> scanning(
+            List<Long> ids, String branch, ForgeRepositoryEntity repository, Map<Long, Optional<String>> scanned) {
+        return ids.stream()
+                .filter(id -> scanned.containsKey(id)
+                        && branch.equals(scanned.get(id).orElse(repository.getDefaultBranch())))
+                .toList();
+    }
+
+    /**
+     * A new target's name: the repository's full path — with its branch beside it for a branch other than the
+     * default when the import names branches, so that a project's two targets of one repository read apart. Null,
+     * leaving the name to the URL, past the column's width.
+     */
+    private static String targetName(ForgeRepositoryEntity repository, String branch, boolean branchesNamed) {
+        String name = !branchesNamed || branch.equals(repository.getDefaultBranch()) ? repository.getFullPath()
+                : repository.getFullPath() + " (" + branch + ")";
+        return name.length() <= TARGET_NAME_LENGTH ? name : null;
     }
 
     /**

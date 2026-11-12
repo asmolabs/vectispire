@@ -62,6 +62,11 @@ import org.springframework.stereotype.Service;
  * repository form and the import apply) — by the forge's id, which a rename keeps. Neither: the reading says
  * {@code unlinked}, and the line why.
  *
+ * <p><b>Which branch, when the line names none.</b> The one the target scans, and the default branch the forge names
+ * only for a target that names none. An import may make one target per branch of a repository (§5), filed in one
+ * project and so measured by the same line: reading the default branch for each would vouch for {@code develop} with
+ * the reviews of {@code master}. The row stays keyed by the line's branch, as the checklists' port asks it.
+ *
  * <p><b>One instance reads each.</b> Every instance runs the maintenance turn; a reading is claimed by a conditional
  * update first ({@link ForgeReviewReadingRepository#claim}), and only the instance that changed the row calls the
  * forge. The row is created beforehand if it does not exist, and an insert refused for any reason — another
@@ -160,6 +165,7 @@ public class ForgeReviewService {
         }
         // Only once a reading is due: matching by URL walks every snapshot, and most turns read nothing.
         Map<Long, Link> linked = null;
+        Map<Long, String> scanned = null;
         // The forges found switched off: named once, at the turn's end.
         Set<ForgeKind> suspended = EnumSet.noneOf(ForgeKind.class);
         int written = 0;
@@ -177,8 +183,11 @@ public class ForgeReviewService {
             }
             if (linked == null) {
                 linked = links(wanted.stream().map(ChangeReviewDemand.Wanted::repositoryId).distinct().toList());
+                scanned = scannedBranches(wanted);
             }
-            switch (read(claimed.get(), want, Optional.ofNullable(linked.get(want.repositoryId())), suspended,
+            Optional<String> branch = want.branch().isPresent() ? want.branch()
+                    : Optional.ofNullable(scanned.get(want.repositoryId()));
+            switch (read(claimed.get(), want, branch, Optional.ofNullable(linked.get(want.repositoryId())), suspended,
                     turnEnds)) {
                 case WRITTEN -> written++;
                 case SUSPENDED -> skipped++;
@@ -238,6 +247,21 @@ public class ForgeReviewService {
         return linked;
     }
 
+    /** The branch each target asked about with no branch of the line's scans, for those that name one. */
+    private Map<Long, String> scannedBranches(List<ChangeReviewDemand.Wanted> wanted) {
+        List<Long> ids = wanted.stream().filter(want -> want.branch().isEmpty())
+                .map(ChangeReviewDemand.Wanted::repositoryId).distinct().toList();
+        Map<Long, String> scanned = new HashMap<>();
+        for (List<Long> batch : Batches.of(ids, BATCH)) {
+            for (RepositoryView repository : targets.repositories(batch)) {
+                if (repository.branch() != null && !repository.branch().isBlank()) {
+                    scanned.put(repository.id(), repository.branch());
+                }
+            }
+        }
+        return scanned;
+    }
+
     /** The row, created if it is not there, and claimed if it is due and free; empty when another instance has it. */
     private Optional<ForgeReviewReadingEntity> claim(ChangeReviewDemand.Wanted want, Instant now) {
         String branch = want.branch().orElse(ForgeReviewReadingEntity.DEFAULT_BRANCH);
@@ -270,8 +294,13 @@ public class ForgeReviewService {
 
     // ------------------------------------------------------------------ one reading
 
-    /** Reads one claimed row and writes what was read, or lets the claim go. */
-    private Outcome read(ForgeReviewReadingEntity row, ChangeReviewDemand.Wanted want, Optional<Link> link,
+    /**
+     * Reads one claimed row and writes what was read, or lets the claim go.
+     *
+     * @param branch the branch to read: the line's, else the target's, else empty for the forge's default
+     */
+    private Outcome read(ForgeReviewReadingEntity row, ChangeReviewDemand.Wanted want, Optional<String> branch,
+            Optional<Link> link,
             Set<ForgeKind> suspended, Instant turnEnds) {
         Instant now = clock.instant();
         if (link.isEmpty()) {
@@ -320,7 +349,7 @@ public class ForgeReviewService {
                 bounds.maxRateLimitWait(), OutboundJson.TIMEOUT, null), clock, OutboundPager.Sleeper.REAL);
         ReviewReader.Reading reading;
         try {
-            reading = reader.read(pager, target.address().apiRoot(), link.get().forgeId(), want.branch(),
+            reading = reader.read(pager, target.address().apiRoot(), link.get().forgeId(), branch,
                     now.minus(Duration.ofDays(want.windowDays())), want.windowDays(), bounds.maxChanges());
         } catch (UnsafeUrlException | OutboundPager.CrossOriginPageException refused) {
             write(row, want, now, link, ReviewState.UNREADABLE, refused.getMessage(), null);

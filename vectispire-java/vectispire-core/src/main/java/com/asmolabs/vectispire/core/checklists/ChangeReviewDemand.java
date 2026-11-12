@@ -31,7 +31,7 @@ public class ChangeReviewDemand {
     /**
      * One repository and branch to read.
      *
-     * @param branch empty for the default branch the forge names
+     * @param branch the line's; empty for the branch each target scans (the forges' reading resolves it)
      * @param windowDays the widest window any line bound to it asks
      */
     public record Wanted(long repositoryId, Optional<String> branch, int windowDays) {}

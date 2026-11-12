@@ -102,8 +102,13 @@ class GitHubListerTest {
     // ---- The listing.
 
     private Listed list(String typed, String owner) {
+        return list(typed, owner, List.of());
+    }
+
+    private Listed list(String typed, String owner, List<ForgeLister.BranchQuestion> questions) {
         ForgeAddress address = ForgeAddress.of(ForgeKind.GITHUB, typed);
         Listed listed = new Listed(new ForgeClient.Target(address, owner, OutboundPolicy.PUBLIC_ONLY, Optional.empty()));
+        listed.branchQuestions = questions;
         new GitHubLister().list(listed);
         return listed;
     }
@@ -272,6 +277,64 @@ class GitHubListerTest {
         assertThat(forge.urls()).noneMatch(url -> url.contains("example.net"));
     }
 
+    @Test
+    @DisplayName("tracked branches: asked of the repositories wanted, the default without a request; 404 absent, 403 unknown")
+    void trackedBranches() {
+        forge.on(API + "/user", user("ada"));
+        forge.on(orgRepos(API, "acme"), json("[" + repository(101, "acme/api", "private", false, false) + ","
+                + repository(102, "acme/portal", "private", false, false) + "]"));
+        forge.on(API + "/repos/acme/api/branches/master", status(404));
+        forge.on(API + "/repos/acme/api/branches/develop", json("{\"name\":\"develop\"}"));
+        forge.on(API + "/repos/acme/portal/branches/master", status(403));
+        forge.on(API + "/repos/acme/legacy/branches/main", json("{\"name\":\"main\"}"));
+        forge.on(API + "/repos/acme/legacy/branches/develop", status(404));
+
+        Listed listed = list("", "acme", List.of(new ForgeLister.BranchQuestion("101", "acme/api", "main"),
+                new ForgeLister.BranchQuestion("102", "acme/portal", "main"),
+                new ForgeLister.BranchQuestion("103", "acme/legacy", "master")));
+
+        assertThat(forge.urls()).as("the default branch is never asked; an unknown answer ends that repository's reading")
+                .containsExactly(API + "/user", orgRepos(API, "acme"),
+                        API + "/repos/acme/api/branches/master", API + "/repos/acme/api/branches/develop",
+                        API + "/repos/acme/portal/branches/master",
+                        API + "/repos/acme/legacy/branches/main", API + "/repos/acme/legacy/branches/develop");
+        assertThat(forge.seen.subList(2, forge.seen.size())).allSatisfy(request ->
+                assertThat(request.headers()).containsEntry("Authorization", "Bearer " + TOKEN));
+        assertThat(listed.branches).containsEntry("101", List.of("develop", "main"))
+                .containsEntry("102", null)
+                .containsEntry("103", List.of("main", "master"));
+        assertThat(listed.branchesLeft).isEmpty();
+    }
+
+    @Test
+    @DisplayName("tracked branches: a 401 is the token's; a long rate limit leaves the rest unread, the listing kept")
+    void trackedBranchesStopped() {
+        forge.on(API + "/user", user("ada"));
+        forge.on(orgRepos(API, "acme"), json("[" + repository(101, "acme/api", "private", false, false) + "]"));
+        forge.on(API + "/repos/acme/api/branches/master", status(401));
+
+        assertThatThrownBy(() -> list("", "acme", List.of(new ForgeLister.BranchQuestion("101", "acme/api", "main"))))
+                .isInstanceOfSatisfying(ForgeListingException.class,
+                        refused -> assertThat(refused.reason()).isEqualTo(DiscoveryReason.TOKEN_REJECTED));
+
+        forge = new Recorded();
+        forge.on(API + "/user", user("ada"));
+        forge.on(orgRepos(API, "acme"), json("[" + repository(101, "acme/api", "private", false, false) + "]"));
+        forge.on(API + "/repos/acme/api/branches/master", json("{\"name\":\"master\"}"));
+        forge.on(API + "/repos/acme/api/branches/develop", json("{\"name\":\"develop\"}"));
+        forge.on(API + "/repos/acme/web/branches/master", status(403, "X-RateLimit-Remaining", "0",
+                "X-RateLimit-Reset", String.valueOf(clock.instant().plusSeconds(3600).getEpochSecond())));
+
+        Listed listed = list("", "acme", List.of(new ForgeLister.BranchQuestion("101", "acme/api", "main"),
+                new ForgeLister.BranchQuestion("104", "acme/web", "main"),
+                new ForgeLister.BranchQuestion("105", "acme/docs", "main")));
+
+        assertThat(listed.repositories).hasSize(1);
+        assertThat(listed.branches).as("what was read before the limit is kept; the rest is not written at all")
+                .containsOnlyKeys("101").containsEntry("101", List.of("develop", "main", "master"));
+        assertThat(listed.branchesLeft).singleElement().asString().startsWith("2 ").contains("rate limit");
+    }
+
     // ---- The recorded door.
 
     /** One request as sent: where, the headers, and the addresses the guard let it reach. */
@@ -316,6 +379,10 @@ class GitHubListerTest {
         final List<DiscoveredRepository> repositories = new ArrayList<>();
         final Map<String, String> unreadable = new LinkedHashMap<>();
         final List<String> incomplete = new ArrayList<>();
+        final Map<String, List<String>> branches = new LinkedHashMap<>();
+        final List<String> branchesLeft = new ArrayList<>();
+        List<String> tracked = List.of("main", "master", "develop");
+        List<ForgeLister.BranchQuestion> branchQuestions = List.of();
         private final ForgeClient.Target target;
 
         Listed(ForgeClient.Target target) {
@@ -376,6 +443,26 @@ class GitHubListerTest {
         @Override
         public void language(String forgeId, String language) {
             throw new AssertionError("GitHub's listing carries the language: no request per repository");
+        }
+
+        @Override
+        public List<String> trackedBranches() {
+            return tracked;
+        }
+
+        @Override
+        public List<ForgeLister.BranchQuestion> branchesWanted() {
+            return branchQuestions;
+        }
+
+        @Override
+        public void branches(String forgeId, List<String> present) {
+            branches.put(forgeId, present);
+        }
+
+        @Override
+        public void branchesLeft(int left, String why) {
+            branchesLeft.add(left + " " + why);
         }
     }
 

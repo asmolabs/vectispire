@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.forges;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,10 @@ import java.util.UUID;
  * @param changedBy the last discovery that found it renamed or moved, re-branched, archived or back; {@code
  *     changeSummary} says what
  * @param goneBy the completed discovery that no longer listed it; null while it is listed
+ * @param trackedBranches which of the tracked branches ({@code main}, {@code master}, {@code develop} unless the
+ *     installation names others) the last reading found, sorted; empty when it found none of them, null when the
+ *     forge did not answer for every one or they were never read — unknown, never none. The default branch is
+ *     present whatever this says
  */
 public record ForgeRepositoryView(
         long id,
@@ -30,6 +35,7 @@ public record ForgeRepositoryView(
         String visibility,
         Instant lastActivityAt,
         String language,
+        List<String> trackedBranches,
         Long sizeBytes,
         String httpUrl,
         String sshUrl,

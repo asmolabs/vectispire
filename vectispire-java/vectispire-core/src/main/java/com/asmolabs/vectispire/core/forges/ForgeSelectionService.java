@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Plan;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Row;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Source;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner;
+import com.asmolabs.vectispire.core.forges.internal.TrackedBranches;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -70,10 +71,12 @@ public class ForgeSelectionService {
     }
 
     private final ImportPlanner planner;
+    private final TrackedBranches tracked;
     private final Clock clock;
 
-    public ForgeSelectionService(ImportPlanner planner, Clock clock) {
+    public ForgeSelectionService(ImportPlanner planner, TrackedBranches tracked, Clock clock) {
         this.planner = planner;
+        this.tracked = tracked;
         this.clock = clock;
     }
 
@@ -102,7 +105,7 @@ public class ForgeSelectionService {
         unjudged.forEach((judged, count) -> counted.put(judged.wireName(), count));
         return new ForgeCandidatePage(source.discoveryId(), window.of(matching), matching.size(), window.limit(),
                 window.offset(), rows.size(),
-                counted);
+                counted, tracked.names());
     }
 
     /**
@@ -245,18 +248,29 @@ public class ForgeSelectionService {
         return new SelectionFilter.Candidate(repository.getArchived(), repository.getFork(), repository.getLastActivityAt(),
                 repository.getLanguage(), repository.getVisibility(), repository.getNamespacePath(),
                 repository.getFullPath(), repository.getPersonal(), row.notSelectable().isPresent()
-                        && (row.importedAs() != null || !row.presentAs().isEmpty()));
+                        && (row.importedAs() != null || !row.presentAs().isEmpty()), row.branches());
     }
 
     private static ForgeCandidate view(Row row, boolean offered) {
         return new ForgeCandidate(ForgeDiscoveryService.view(row.repository()), row.presentAs(), row.importedAs(),
-                row.notSelectable().isEmpty(), row.notSelectable().orElse(null), offered,
+                row.importedTargets(), row.notSelectable().isEmpty(), row.notSelectable().orElse(null), offered,
                 row.proposed().solution(), row.proposed().project());
     }
 
-    private static SelectionFilter filterOf(ForgeSelectionFilters filters) {
+    /**
+     * The filters as the request spells them. A branch the installation does not track is refused rather than
+     * matched against nothing: no discovery reads it, and "no repository has trunk" would be the filter's answer.
+     */
+    private SelectionFilter filterOf(ForgeSelectionFilters filters) {
         ForgeSelectionFilters raw = filters == null ? ForgeSelectionFilters.DEFAULT : filters;
-        return SelectionFilter.parse(raw.archived(), raw.forks(), raw.inactiveDays(), raw.language(), raw.visibility(),
-                raw.namespace(), raw.path(), raw.personal(), raw.present());
+        SelectionFilter filter = SelectionFilter.parse(raw.archived(), raw.forks(), raw.inactiveDays(), raw.language(),
+                raw.visibility(), raw.namespace(), raw.path(), raw.personal(), raw.present(), raw.branches());
+        for (String branch : filter.branches()) {
+            if (!tracked.names().contains(branch)) {
+                throw new InvalidInputException("\"" + BoundedText.clip(branch, 60) + "\" is not a tracked branch: "
+                        + "discoveries read " + String.join(", ", tracked.names()) + ".");
+            }
+        }
+        return filter;
     }
 }

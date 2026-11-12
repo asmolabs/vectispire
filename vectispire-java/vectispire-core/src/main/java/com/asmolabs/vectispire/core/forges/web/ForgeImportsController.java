@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.forges.ForgeSelectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,7 +53,12 @@ public class ForgeImportsController {
             + "no_default_branch, no_clone_url), offered (proposed ticked: selectable, not archived, not a fork, not in a "
             + "personal namespace) and the proposed solution and project. Filters: archived and forks hide (default), "
             + "show or only; inactiveDays hides a last activity older than that; language, visibility; namespace (and "
-            + "below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only. "
+            + "below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only; "
+            + "branches, tracked branch names (repeated or comma-separated, 400 for one not tracked): repositories "
+            + "having any one of them, the default branch counting without a reading — each repository's own reading "
+            + "is repository.trackedBranches, null when the forge did not say, and trackedBranches names what the "
+            + "installation reads (main, master, develop by default). importedTargets lists every target an import made "
+            + "of it, one per branch. "
             + "A filter that meets a value the forge did not give keeps it when it hides and leaves it out when it "
             + "requires; unjudged counts them per filter. limit 1 to 500 (100), offset a multiple of it. The discovery is "
             + "the connection's latest that completed or ended partial: 409 forge-discovery-not-selectable (state) for a "
@@ -70,10 +76,11 @@ public class ForgeImportsController {
             @RequestParam(required = false) String path,
             @RequestParam(required = false) String personal,
             @RequestParam(required = false) String present,
+            @RequestParam(required = false) List<String> branches,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) Integer offset) {
         return selection.candidates(connectionId, discoveryId, new ForgeSelectionFilters(archived, forks, inactiveDays,
-                language, visibility, namespace, path, personal, present), limit, offset);
+                language, visibility, namespace, path, personal, present, branches), limit, offset);
     }
 
     @Operation(summary = "Change forge import selection", description = "Applies one operation to the selection — a "
@@ -98,7 +105,11 @@ public class ForgeImportsController {
             + "proposed when the request names none — the one HTTPS token bound to the host, or none; the default "
             + "schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), "
             + "mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId "
-            + "or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.")
+            + "or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel, branches — default "
+            + "or tracked names (400 for another), one target per branch each repository has: then every branch of "
+            + "every repository is judged apart, and a skip names its branch — already_imported or already_present "
+            + "when a target scans it already, branch_absent when the discovery found it missing, branch_unknown when "
+            + "the forge did not say. Without branches, one target on the default branch, the repository judged whole.")
     @PostMapping("/imports/preview")
     public ForgeImportPreview previewForgeImport(
             @PathVariable UUID connectionId, @RequestBody(required = false) ForgeImportRequest body) {
@@ -110,7 +121,8 @@ public class ForgeImportsController {
             + "same refusals (400 naming the first repositories refused; the preview lists them all), the same audit "
             + "entries, one per target, solution and project created, with where each target came from. Planned again "
             + "inside the transaction: whatever became a target since the preview is skipped, so replaying an import "
-            + "creates nothing. Branch: the default branch at discovery; no schedule of its own, so the installation's "
+            + "creates nothing. Branch: the default branch at discovery, or with branches one target per branch named "
+            + "the repository has, each created target naming its branch; no schedule of its own, so the installation's "
             + "default applies at each target's own slot; no grant. First scans when asked, one every spacingSeconds "
             + "(not_before). The body is the preview's. One FORGE_IMPORT_APPLIED entry summarises the import, signalled "
             + "VECTI-SEC-035 once when it created something.")

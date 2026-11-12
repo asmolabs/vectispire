@@ -69,6 +69,19 @@ public interface ForgeRepositoryRepository extends JpaRepository<ForgeRepository
             @Param("language") String language);
 
     /**
+     * The tracked branches a run read after listing ({@code present} null when the forge did not answer for every
+     * name), with what the reading asked and the activity it was read at.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ForgeRepositoryEntity r set r.trackedBranches = :present, r.branchesAsked = :asked,
+                   r.branchesReadActivityAt = :activity
+             where r.connectionId = :connectionId and r.forgeId = :forgeId""")
+    int setTrackedBranches(@Param("connectionId") UUID connectionId, @Param("forgeId") String forgeId,
+            @Param("present") String present, @Param("asked") String asked, @Param("activity") Instant activity);
+
+    /**
      * Every repository the discovery listed and no later completed run has marked gone: first seen by it or
      * before, last seen by it or after — a run still going may have listed it again since. Bounded by the
      * discovery's own bound, twenty thousand.

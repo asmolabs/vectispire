@@ -109,6 +109,20 @@ public class TargetImports {
         return present;
     }
 
+    /**
+     * The branch each of these targets scans — empty for one that names none and clones the remote's default — so that
+     * an import naming branches skips only the branches a target already scans. A target missing from the answer no
+     * longer exists. Batched: the ids are a selection's, up to a thousand repositories' targets.
+     */
+    public Map<Long, Optional<String>> branches(Collection<Long> repositoryIds) {
+        Map<Long, Optional<String>> branches = new HashMap<>();
+        for (List<Long> batch : Batches.of(repositoryIds.stream().distinct().toList(), LOOKUP_BATCH)) {
+            rows.findAllById(batch).forEach(row -> branches.put(row.getId(),
+                    Optional.ofNullable(row.getBranch()).filter(branch -> !branch.isBlank())));
+        }
+        return branches;
+    }
+
     /** The solution of that name, case aside — reused by an import rather than created twice. */
     public Optional<SolutionView> solutionNamed(String name) {
         return solutions.solutionNamed(name);

@@ -47,7 +47,7 @@ class ForgeImportRetryTest {
     private static final UUID CONNECTION = UUID.randomUUID();
     private static final RequestActor ACTOR = new RequestActor("ada", null, null);
     private static final ForgeImportRequest REQUEST =
-            new ForgeImportRequest(1L, List.of("1"), null, null, null, null, null);
+            new ForgeImportRequest(1L, List.of("1"), null, null, null, null, null, null);
 
     private final ImportPlanner planner = mock(ImportPlanner.class);
     private final TargetImports targets = mock(TargetImports.class);
@@ -76,7 +76,7 @@ class ForgeImportRetryTest {
     private Plan plan(boolean solutionExists) {
         Optional<SolutionView> existing = solutionExists ? Optional.of(new SolutionView(7L, "acme", null, AT)) : Optional.empty();
         return new Plan(source, AT, List.of(), List.of(), List.of(), List.of(new PlannedSolution("acme", existing)),
-                List.of(), List.of(), Optional.empty(), Duration.ofDays(7), VisibilityMode.EVERYONE);
+                List.of(), List.of(), Optional.empty(), Duration.ofDays(7), VisibilityMode.EVERYONE, false);
     }
 
     @Test

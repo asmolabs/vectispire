@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.forges;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.forges.BranchPresence;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
@@ -244,7 +245,10 @@ public class ForgeDiscoveryService {
     static ForgeRepositoryView view(ForgeRepositoryEntity row) {
         return new ForgeRepositoryView(row.getId(), row.getConnectionId(), row.getForgeId(), row.getFullPath(),
                 row.getNamespacePath(), row.getPersonal(), row.getName(), row.getDefaultBranch(), row.getArchived(),
-                row.getFork(), row.getVisibility(), row.getLastActivityAt(), row.getLanguage(), row.getSizeBytes(),
+                row.getFork(), row.getVisibility(), row.getLastActivityAt(), row.getLanguage(),
+                Optional.ofNullable(BranchPresence.decode(row.getTrackedBranches())).map(names -> names.stream().sorted()
+                        .toList()).orElse(null),
+                row.getSizeBytes(),
                 row.getHttpUrl(), row.getSshUrl(), row.getWebUrl(), row.getFirstSeenBy(), row.getFirstSeenAt(),
                 row.getLastSeenBy(), row.getLastSeenAt(), row.getChangedBy(), row.getChangeSummary(), row.getGoneBy(),
                 row.getGoneAt());

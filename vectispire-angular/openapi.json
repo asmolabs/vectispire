@@ -4251,8 +4251,15 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "importedTargets" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
           "notSelectable" : {
-            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection" ],
+            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection", "branch_absent", "branch_unknown" ],
             "type" : "string"
           },
           "offered" : {
@@ -4308,6 +4315,12 @@
           "total" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "trackedBranches" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "unjudged" : {
             "additionalProperties" : {
@@ -4667,6 +4680,12 @@
       },
       "ForgeImportRequest" : {
         "properties" : {
+          "branches" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "credentials" : {
             "items" : {
               "$ref" : "#/components/schemas/ForgeCredentialChoice"
@@ -4745,6 +4764,9 @@
       },
       "ForgeImportedTarget" : {
         "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
           "firstScanId" : {
             "format" : "int64",
             "type" : "integer"
@@ -4956,6 +4978,12 @@
           "sshUrl" : {
             "type" : "string"
           },
+          "trackedBranches" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "visibility" : {
             "type" : "string"
           },
@@ -5020,6 +5048,12 @@
           "archived" : {
             "type" : "string"
           },
+          "branches" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "forks" : {
             "type" : "string"
           },
@@ -5050,6 +5084,9 @@
       },
       "ForgeSkippedImport" : {
         "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
           "forgeId" : {
             "type" : "string"
           },
@@ -5057,7 +5094,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection" ],
+            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection", "branch_absent", "branch_unknown" ],
             "type" : "string"
           },
           "repositoryIds" : {
@@ -15596,7 +15633,7 @@
     },
     "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection" : {
       "get" : {
-        "description" : "The repositories a discovery listed, as the selection table shows them, by full path: each with presentAs (the targets whose URL has the identity of its HTTPS or SSH clone URL, whatever their branch and sub-path), importedAs (the target an earlier import from this connection made of it), selectable and notSelectable (already_imported, already_present, no_default_branch, no_clone_url), offered (proposed ticked: selectable, not archived, not a fork, not in a personal namespace) and the proposed solution and project. Filters: archived and forks hide (default), show or only; inactiveDays hides a last activity older than that; language, visibility; namespace (and below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only. A filter that meets a value the forge did not give keeps it when it hides and leaves it out when it requires; unjudged counts them per filter. limit 1 to 500 (100), offset a multiple of it. The discovery is the connection's latest that completed or ended partial: 409 forge-discovery-not-selectable (state) for a pending, running or failed one, 409 forge-discovery-superseded (latestDiscoveryId) for an older one.",
+        "description" : "The repositories a discovery listed, as the selection table shows them, by full path: each with presentAs (the targets whose URL has the identity of its HTTPS or SSH clone URL, whatever their branch and sub-path), importedAs (the target an earlier import from this connection made of it), selectable and notSelectable (already_imported, already_present, no_default_branch, no_clone_url), offered (proposed ticked: selectable, not archived, not a fork, not in a personal namespace) and the proposed solution and project. Filters: archived and forks hide (default), show or only; inactiveDays hides a last activity older than that; language, visibility; namespace (and below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only; branches, tracked branch names (repeated or comma-separated, 400 for one not tracked): repositories having any one of them, the default branch counting without a reading — each repository's own reading is repository.trackedBranches, null when the forge did not say, and trackedBranches names what the installation reads (main, master, develop by default). importedTargets lists every target an import made of it, one per branch. A filter that meets a value the forge did not give keeps it when it hides and leaves it out when it requires; unjudged counts them per filter. limit 1 to 500 (100), offset a multiple of it. The discovery is the connection's latest that completed or ended partial: 409 forge-discovery-not-selectable (state) for a pending, running or failed one, 409 forge-discovery-superseded (latestDiscoveryId) for an older one.",
         "operationId" : "listForgeImportCandidates",
         "parameters" : [ {
           "in" : "path",
@@ -15680,6 +15717,16 @@
           }
         }, {
           "in" : "query",
+          "name" : "branches",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
           "name" : "limit",
           "required" : false,
           "schema" : {
@@ -15757,7 +15804,7 @@
     },
     "/api/v1/forge-connections/{connectionId}/imports" : {
       "post" : {
-        "description" : "Creates the selected repositories as targets, in one transaction — everything or nothing — through the repository and solution forms' own gestures: the same refusals (400 naming the first repositories refused; the preview lists them all), the same audit entries, one per target, solution and project created, with where each target came from. Planned again inside the transaction: whatever became a target since the preview is skipped, so replaying an import creates nothing. Branch: the default branch at discovery; no schedule of its own, so the installation's default applies at each target's own slot; no grant. First scans when asked, one every spacingSeconds (not_before). The body is the preview's. One FORGE_IMPORT_APPLIED entry summarises the import, signalled VECTI-SEC-035 once when it created something.",
+        "description" : "Creates the selected repositories as targets, in one transaction — everything or nothing — through the repository and solution forms' own gestures: the same refusals (400 naming the first repositories refused; the preview lists them all), the same audit entries, one per target, solution and project created, with where each target came from. Planned again inside the transaction: whatever became a target since the preview is skipped, so replaying an import creates nothing. Branch: the default branch at discovery, or with branches one target per branch named the repository has, each created target naming its branch; no schedule of its own, so the installation's default applies at each target's own slot; no grant. First scans when asked, one every spacingSeconds (not_before). The body is the preview's. One FORGE_IMPORT_APPLIED entry summarises the import, signalled VECTI-SEC-035 once when it created something.",
         "operationId" : "importForgeRepositories",
         "parameters" : [ {
           "in" : "path",
@@ -15795,7 +15842,7 @@
     },
     "/api/v1/forge-connections/{connectionId}/imports/preview" : {
       "post" : {
-        "description" : "What importing the selected repositories would do, nothing written (409 integration-disabled for a suspended connection, as the import): the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.",
+        "description" : "What importing the selected repositories would do, nothing written (409 integration-disabled for a suspended connection, as the import): the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel, branches — default or tracked names (400 for another), one target per branch each repository has: then every branch of every repository is judged apart, and a skip names its branch — already_imported or already_present when a target scans it already, branch_absent when the discovery found it missing, branch_unknown when the forge did not say. Without branches, one target on the default branch, the repository judged whole.",
         "operationId" : "previewForgeImport",
         "parameters" : [ {
           "in" : "path",
