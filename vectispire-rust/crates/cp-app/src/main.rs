@@ -281,9 +281,11 @@ async fn serve() -> ExitCode {
     };
 
     let configured_signing_key = settings.signing_key.as_ref().map(|s| s.expose()).unwrap_or("");
-    // As `SigningKeyService`'s constructor: the configured key checked, a revoked one refused, the record of published
-    // keys re-sealed and the vouched-for keys adopted — before anything is served.
-    let signing = match vectispire_cp_crypto::SigningKeys::start(
+    // As `SigningKeyService`'s constructor, but **needing no database**: the configured key checked and a revoked one
+    // refused now; the record of published keys re-sealed, the vouched-for keys adopted and a revoked stored key
+    // refused before the first key is used (`SigningKeys::start_lazily` says why). This binary starts without a
+    // database, and one that does not answer must not hold the start or the stop.
+    let signing = match vectispire_cp_crypto::SigningKeys::start_lazily(
         vectispire_cp_crypto::SigningConfig {
             key: configured_signing_key,
             revoked_keys: &settings.signing_revoked_keys,
@@ -292,9 +294,7 @@ async fn serve() -> ExitCode {
         vectispire_cp_settings::Settings::new(db.clone()),
         encryption.clone(),
         vectispire_cp_crypto::Clock::system(),
-    )
-    .await
-    {
+    ) {
         Ok(signing) => Arc::new(signing),
         Err(error) => {
             tracing::error!("The document signing key is refused: {error}");

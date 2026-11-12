@@ -370,6 +370,10 @@ pub struct SigningKeys<S: KeyStore = Settings> {
     warned_lines: Mutex<HashSet<String>>,
     /// The stored record last refused whole and warned about; warned again only when it changes.
     warned_record: Mutex<Option<String>>,
+    /// Whether the start's work on the stored rows is still owed ([`SigningKeys::start_lazily`]): done once, before the
+    /// first key is loaded or the record read, and tried again after a failure.
+    deferred: bool,
+    started: tokio::sync::OnceCell<()>,
     /// The record last opened, by the stored value it was opened from: the list is served to anyone, and opening it
     /// at every request would be a decryption — a call to Vault, with Transit — whose rate an anonymous caller chooses.
     opened: Mutex<Option<(String, Option<Read>)>>,
@@ -398,12 +402,46 @@ impl<S: KeyStore> SigningKeys<S> {
         clock: Clock,
     ) -> Result<SigningKeys<S>, SigningError> {
         let keys = SigningKeys::configured(config, store, encryption, clock)?;
-        if !keys.configured && !keys.revoked.is_empty() {
-            keys.refuse_revoked_stored_key().await?;
-        }
-        keys.reseal_record().await?;
-        keys.adopt_vouched_keys().await?;
+        keys.start_work().await?;
         Ok(keys)
+    }
+
+    /// The start as the binary runs it, **which needs no database**: the configured key checked and refused when
+    /// revoked now, as Java's constructor does — a deployment error is found at start — and the work on the stored
+    /// rows (the generated key refused when revoked, the record re-sealed, the vouched-for keys adopted) done once,
+    /// before the first key is loaded or the record read, and tried again after a failure.
+    ///
+    /// Java does that work in its constructor and cannot start without a database. The Rust control plane starts
+    /// without one (its pool connects lazily, and a database that does not answer must not hold a stop), so the work
+    /// waits for the first use instead: nothing is signed, verified or published before it has run. The cost is when a
+    /// revoked *stored* key is found — at the first signature or the first read of the published keys, refused there
+    /// with the same sentence, rather than at start.
+    pub fn start_lazily(
+        config: SigningConfig<'_>,
+        store: S,
+        encryption: Arc<Encryption>,
+        clock: Clock,
+    ) -> Result<SigningKeys<S>, SigningError> {
+        let mut keys = SigningKeys::configured(config, store, encryption, clock)?;
+        keys.deferred = true;
+        Ok(keys)
+    }
+
+    /// The start's work on the stored rows, in Java's order.
+    async fn start_work(&self) -> Result<(), SigningError> {
+        if !self.configured && !self.revoked.is_empty() {
+            self.refuse_revoked_stored_key().await?;
+        }
+        self.reseal_record().await?;
+        self.adopt_vouched_keys().await
+    }
+
+    /// Runs [`SigningKeys::start_work`] once when it was deferred; a failure is not kept, so the next use tries again.
+    async fn started(&self) -> Result<(), SigningError> {
+        if !self.deferred {
+            return Ok(());
+        }
+        self.started.get_or_try_init(|| self.start_work()).await.map(|_| ())
     }
 
     fn configured(
@@ -436,6 +474,8 @@ impl<S: KeyStore> SigningKeys<S> {
             warned_unavailable: AtomicBool::new(false),
             warned_lines: Mutex::new(HashSet::new()),
             warned_record: Mutex::new(None),
+            deferred: false,
+            started: tokio::sync::OnceCell::new(),
             opened: Mutex::new(None),
         })
     }
@@ -590,6 +630,7 @@ impl<S: KeyStore> SigningKeys<S> {
     /// Loaded once and kept, then recorded as the active key before anything is signed with it; a failure is not
     /// kept, so the next call tries again — as Java's lazy field.
     async fn material(&self) -> Result<&KeyMaterial, SigningError> {
+        self.started().await?;
         let key = self
             .material
             .get_or_try_init(|| async {
@@ -641,6 +682,7 @@ impl<S: KeyStore> SigningKeys<S> {
     }
 
     async fn known(&self) -> Result<Vec<Known>, SigningError> {
+        self.started().await?;
         let stored = self.sealed_record().await?;
         Ok(self.open_record(stored.as_deref()).await.map(|read| read.keys).unwrap_or_default())
     }

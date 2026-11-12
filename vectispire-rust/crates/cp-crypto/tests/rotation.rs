@@ -502,6 +502,40 @@ async fn the_keys_sealed_under_a_previous_encryption_key_are_resealed(engine: En
     assert_eq!(without_it.key_id().await.unwrap(), id(&generated));
 }
 
+/// The binary's start: nothing of the database at start, the same refusal at the first use — and the start's work
+/// tried again once the database answers (`SigningKeys::start_lazily`).
+async fn a_lazy_start_refuses_a_revoked_generated_key_at_its_first_use(engine: Engine) {
+    let server = Migrated::start(engine).await;
+    let settings = Settings::new(server.connect().await);
+    let generated_id = keys(&settings, "", "").await.key_id().await.unwrap();
+
+    let lazy = SigningKeys::start_lazily(
+        SigningConfig { revoked_keys: &generated_id, ..SigningConfig::default() },
+        settings.clone(),
+        encryption(),
+        Clock::system(),
+    )
+    .unwrap();
+    let refused = lazy.sign(PAYLOAD).await.unwrap_err();
+    assert!(refused.to_string().contains("vectispire.signing.revoked-keys"), "{refused}");
+    let refused_again = lazy.published_keys().await.unwrap_err();
+    assert!(refused_again.to_string().contains("vectispire.signing.revoked-keys"), "{refused_again}");
+}
+
+/// A database that does not answer does not stop the lazy start; the first use fails, and is tried again.
+async fn a_lazy_start_needs_no_database(_engine: Engine) {
+    let unreachable = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let settings = Settings::new(vectispire_cp_db::Db::connect_lazy(&unreachable).unwrap());
+    let lazy = SigningKeys::start_lazily(SigningConfig::default(), settings, encryption(), Clock::system()).unwrap();
+    assert!(lazy.sign(PAYLOAD).await.is_err(), "nothing is signed before the start's work has run");
+}
+
 macro_rules! on_both_engines {
     ($($name:ident),* $(,)?) => {
         mod mysql {
@@ -520,6 +554,8 @@ on_both_engines!(
     a_configured_key_replaced_stays_published_with_its_dates,
     a_revoked_key_verifies_nothing_and_cannot_sign,
     a_revoked_generated_key_is_refused_at_start,
+    a_lazy_start_refuses_a_revoked_generated_key_at_its_first_use,
+    a_lazy_start_needs_no_database,
     a_rolling_restart_publishes_one_list,
     publishes_without_its_own_key,
     a_rotation_rolled_back,
