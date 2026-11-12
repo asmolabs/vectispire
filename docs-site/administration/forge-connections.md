@@ -284,6 +284,16 @@ Reporter, no language when the language request is refused, no default branch fo
 *fork* only when GitLab names the source project (it names it only when the token can read it). A repository
 in a user's own namespace is listed and flagged `personal`: the selection will offer it unticked.
 
+**Which of the tracked branches it has** (`trackedBranches`): `main`, `master` and `develop` unless
+`vectispire.forges.discovery.tracked-branches` names others (at most ten). Like the language, they are asked only
+of a repository that is new, active since they were last read, given another default branch, or read under
+other names: one request per name — `GET /projects/:id/repository/branches/:name` on GitLab, `GET
+/repos/:owner/:repo/branches/:name` on GitHub — and none for the default branch, which is there by definition.
+A 404 is *absent*; any other refusal leaves the repository's branches **unknown**, never *none*. **A rate limit,
+the run's deadline or a forge that stops answering ends only the branch reading**: the run is not made partial
+for it, the repositories not reached keep what an earlier run read and are asked at the next, and `detail` says
+so.
+
 **Its states.**
 
 | State | Meaning |
@@ -344,7 +354,8 @@ listed whole, and nothing is inferred from what it did not reach.
   a duplicate by. `git@git.example.org:Acme/API.git` and `https://git.example.org/acme/api` are one repository,
   and a monorepo split into three sub-path targets shows three ids.
 - `importedAs`: the target an earlier import from this connection made of it — recognised by the forge's id, so a
-  repository renamed on the forge is still that target.
+  repository renamed on the forge is still that target; `importedTargets` lists them all when it was imported on
+  several branches.
 - `selectable`, and `notSelectable` when it is not: `already_imported`, `already_present`, `no_default_branch`
   (an empty repository: nothing to clone yet), `no_clone_url`.
 - `offered`: whether the selection proposes it ticked — selectable, not archived, not a fork, and **not in a
@@ -352,7 +363,8 @@ listed whole, and nothing is inferred from what it did not reach.
 - `proposedSolution` and `proposedProject`, below.
 
 **Filters**: `archived` and `forks` (`hide` by default, `show`, `only`), `inactiveDays` (hides a last activity
-older than that), `language`, `visibility`, `namespace` (that group and everything below it), `path` (a pattern —
+older than that), `language`, `visibility`, `branches` (one or more tracked names: a repository that has **any** of
+them, its default branch counting), `namespace` (that group and everything below it), `path` (a pattern —
 `acme/payments/*`, `*` any run of characters, `?` one — or, without either, a search), `personal` and `present`
 (`show` by default, `hide`, `only`). **A filter never judges what GitLab did not say**: one that hides keeps a
 repository it cannot judge, one that requires leaves it out, and `unjudged` counts them per filter — GitLab
@@ -407,6 +419,12 @@ host, the default schedule and the first scans.
   imports over HTTPS; add such a repository by hand to clone it over SSH.
 - **Branch**: the forge's default branch at the discovery. A later change of default branch shows as *changed* in the
   next discovery; the target is not altered.
+- **Several branches, one target each** (`branches`: `default` and tracked names). The import makes a target per
+  branch the repository has — `default` being its default branch, named once when it is also named outright — and
+  names a target on another branch after it: `acme/backend/payments/api (develop)`. A branch the repository lacks
+  is skipped `branch_absent`, one the discovery could not read `branch_unknown`: no target is made on a branch
+  nobody saw. Each branch is judged on its own, so a repository already imported **gains** the branches it does
+  not have a target for yet, and keeps the others. Without `branches`, the import is the one described above.
 - **Schedule**: none of its own, so the installation's default applies — and each new target takes it **at its own
   slot in the coming week**, not all of them at the next tick.
 - **First scan**: off by default. With `firstScan`, each new target's first scan is queued and held back so that
@@ -418,15 +436,18 @@ host, the default schedule and the first scans.
 The result lists what was created — each target's id, URL, solution, project and first scan — and what was
 skipped. The connection's `importedTargets` counts the targets imported through it that still exist.
 
-**Provenance.** Each imported target is linked to its connection and the forge's id. Deleting the target deletes the
-link — the repository is offered again; deleting the connection deletes every link and no target.
+**Provenance.** Each imported target is linked to its connection and the forge's id — a repository imported on
+several branches has one link per target. Deleting a target deletes its link — the repository is offered again once
+none is left; deleting the connection deletes every link and no target.
 
 ## Change reviews: what the checklists ask the forge
 
 A checklist line bound to a [`change_review` rule](checklist-templates.md#change-review-how-changes-reach-a-branch)
 — *every merge request is approved by a peer* — is measured from the forge, through the connection that
 imported the repository, or one whose discovery listed a repository with the same URL. Nobody asks for
-it on screen: an hourly maintenance turn reads the repositories and branches such lines ask about, each
+it on screen. **A line that names no branch reads the branch the target scans** — a target on `develop` is
+judged on the changes that reach `develop` — and the forge's default branch only for a target that names none.
+An hourly maintenance turn reads the repositories and branches such lines ask about, each
 again once its reading is six hours old, as far back as the widest window bound to it, and keeps what it
 read for the line. A checklist read on screen calls no forge.
 

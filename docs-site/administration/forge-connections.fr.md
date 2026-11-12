@@ -297,6 +297,16 @@ branche par défaut pour un dépôt vide, et *fork* seulement quand GitLab nomme
 nomme que si le jeton peut le lire). Un dépôt dans l'espace personnel d'un utilisateur est listé et marqué
 `personal` : la sélection le proposera décoché.
 
+**Les branches suivies qu'il porte** (`trackedBranches`) : `main`, `master` et `develop`, à moins que
+`vectispire.forges.discovery.tracked-branches` n'en nomme d'autres (dix au plus). Comme le langage, elles ne sont
+demandées que pour un dépôt nouveau, actif depuis leur dernière lecture, doté d'une autre branche par défaut, ou lu
+sous d'autres noms : une requête par nom — `GET /projects/:id/repository/branches/:name` sur GitLab, `GET
+/repos/:owner/:repo/branches/:name` sur GitHub — et aucune pour la branche par défaut, présente par définition.
+Un 404 vaut *absente* ; tout autre refus laisse les branches du dépôt **inconnues**, jamais *aucune*. **Une limite
+de débit, l'échéance de l'exécution ou une forge qui ne répond plus n'arrêtent que la lecture des branches** :
+l'exécution n'en devient pas partielle, les dépôts non atteints gardent ce qu'une exécution précédente a lu et
+sont interrogés à la suivante, et `detail` le dit.
+
 **Ses états.**
 
 | État | Signification |
@@ -360,7 +370,8 @@ qu'elle n'a pas atteint.
   `https://git.example.org/acme/api` sont un seul dépôt, et un monorepo découpé en trois cibles de sous-chemin
   montre trois identifiants.
 - `importedAs` : la cible qu'un import précédent depuis cette connexion en a faite — reconnue par l'identifiant de
-  la forge, si bien qu'un dépôt renommé sur la forge reste cette cible.
+  la forge, si bien qu'un dépôt renommé sur la forge reste cette cible ; `importedTargets` les liste toutes quand
+  il a été importé sur plusieurs branches.
 - `selectable`, et `notSelectable` quand il ne l'est pas : `already_imported`, `already_present`,
   `no_default_branch` (un dépôt vide : rien à cloner encore), `no_clone_url`.
 - `offered` : si la sélection le propose coché — sélectionnable, ni archivé, ni fork, et **pas dans un espace de
@@ -368,7 +379,8 @@ qu'elle n'a pas atteint.
 - `proposedSolution` et `proposedProject`, ci-dessous.
 
 **Filtres** : `archived` et `forks` (`hide` par défaut, `show`, `only`), `inactiveDays` (masque une dernière
-activité plus ancienne), `language`, `visibility`, `namespace` (ce groupe et tout ce qui est en dessous), `path` (un
+activité plus ancienne), `language`, `visibility`, `branches` (un ou plusieurs noms suivis : un dépôt qui en porte
+**l'un ou l'autre**, sa branche par défaut comptant), `namespace` (ce groupe et tout ce qui est en dessous), `path` (un
 motif — `acme/payments/*`, `*` une suite quelconque de caractères, `?` un seul — ou, sans l'un ni l'autre, une
 recherche), `personal` et `present` (`show` par défaut, `hide`, `only`). **Un filtre ne juge jamais ce que GitLab
 n'a pas dit** : celui qui masque garde un dépôt qu'il ne peut juger, celui qui exige l'écarte, et `unjudged` les
@@ -425,6 +437,13 @@ défaut et les premiers scans.
   à part importe en HTTPS ; ajoutez un tel dépôt à la main pour le cloner en SSH.
 - **Branche** : la branche par défaut de la forge à la découverte. Un changement ultérieur de branche par défaut
   apparaît comme *changed* à la découverte suivante ; la cible n'est pas modifiée.
+- **Plusieurs branches, une cible chacune** (`branches` : `default` et des noms suivis). L'import crée une cible
+  par branche que le dépôt porte — `default` étant sa branche par défaut, comptée une fois quand elle est aussi
+  nommée en toutes lettres — et nomme une cible sur une autre branche d'après elle :
+  `acme/backend/payments/api (develop)`. Une branche que le dépôt n'a pas est écartée `branch_absent`, une que la
+  découverte n'a pas pu lire `branch_unknown` : aucune cible n'est créée sur une branche que personne n'a vue.
+  Chaque branche est jugée à part, si bien qu'un dépôt déjà importé **gagne** les branches qui n'ont pas encore de
+  cible, et garde les autres. Sans `branches`, l'import est celui décrit plus haut.
 - **Planification** : aucune qui lui soit propre, la planification par défaut de l'installation s'applique donc — et
   chaque nouvelle cible la prend **à son propre créneau dans la semaine qui vient**, pas toutes au tic suivant.
 - **Premier scan** : désactivé par défaut. Avec `firstScan`, le premier scan de chaque nouvelle cible est mis en file
@@ -437,15 +456,18 @@ Le résultat liste ce qui a été créé — l'identifiant, l'URL, la solution, 
 cible — et ce qui a été écarté. `importedTargets` de la connexion compte les cibles importées par elle qui
 existent encore.
 
-**Provenance.** Chaque cible importée est liée à sa connexion et à l'identifiant de la forge. Supprimer la cible
-supprime le lien — le dépôt est de nouveau proposé ; supprimer la connexion supprime chaque lien et aucune cible.
+**Provenance.** Chaque cible importée est liée à sa connexion et à l'identifiant de la forge — un dépôt importé sur
+plusieurs branches a un lien par cible. Supprimer une cible supprime son lien — le dépôt est de nouveau proposé
+quand il n'en reste aucun ; supprimer la connexion supprime chaque lien et aucune cible.
 
 ## Revues des changements : ce que les checklists demandent à la forge
 
 Une ligne de checklist liée à une [règle `change_review`](checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche)
 — *toute merge request est approuvée par un pair* — est mesurée depuis la forge, par la connexion qui a
 importé le dépôt, ou par une connexion dont la découverte a listé un dépôt à la même URL. Personne ne la
-demande à l'écran : un tour de maintenance horaire lit les dépôts et les branches que ces lignes
+demande à l'écran. **Une ligne qui ne nomme pas de branche lit la branche que la cible analyse** — une cible sur
+`develop` est jugée sur les changements qui atteignent `develop` — et la branche par défaut de la forge seulement
+pour une cible qui n'en nomme aucune. Un tour de maintenance horaire lit les dépôts et les branches que ces lignes
 demandent, chacun à nouveau dès que sa lecture a six heures, aussi loin que la plus large fenêtre qui lui
 est liée, et garde ce qu'il a lu pour la ligne. Une checklist lue à l'écran n'appelle aucune forge.
 

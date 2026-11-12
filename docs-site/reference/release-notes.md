@@ -20,6 +20,39 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
+## 1.0.0-rc.3 — unreleased
+
+What follows is against 1.0.0-rc.2.
+
+### Before you upgrade {#before-you-upgrade-100-rc3}
+
+- **Two migrations.** V103 adds three nullable columns to `t_forge_repository`, the branch reading of each
+  discovered repository; V104 drops the unique key that allowed one import link per forge repository, so that a
+  repository can be imported on several branches. Neither rewrites a row.
+- **A change review naming no branch now reads the branch the target scans**, and the forge's default branch only
+  for a target that names none. A target added by hand is cloned on `main` when no branch was typed, so its
+  reading moves to `main` too — what is scanned.
+
+### Changes an integration can see {#changes-an-integration-can-see-100-rc3}
+
+- **The import takes `branches`** (`default` and tracked names), and its preview and result say per branch what
+  was created or skipped: `ForgeImportedTarget.branch`, `ForgeSkippedImport.branch`, and the skip reasons
+  `branch_absent` and `branch_unknown`.
+- **The selection filters on `branches`** (any of the names); `unjudged` may count `branch`.
+- **A discovered repository carries `trackedBranches`** (null when the forge did not say), a candidate
+  `importedTargets`, and the candidates page the configured `trackedBranches`.
+
+### New {#new-100-rc3}
+
+- **One target per branch from a forge import.** Discovery reads which of `main`, `master` and `develop` each
+  repository has (`VECTISPIRE_FORGES_DISCOVERY_TRACKEDBRANCHES` names others), the selection shows and filters
+  them, and the import makes a target on each branch chosen — `acme/api` and `acme/api (develop)`, each with its
+  own findings. See [Forge connections](../administration/forge-connections.md#selecting-and-importing).
+
+### Fixed {#fixed-100-rc3}
+
+- **The header shows the instance's name with its own case**: `CloudSecElection`, no longer `CLOUDSECELECTION`.
+
 ## 1.0.0-rc.2 — 2026-11-12
 
 What follows is against 1.0.0-rc.1.
