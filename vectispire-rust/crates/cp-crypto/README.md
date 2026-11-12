@@ -17,6 +17,8 @@ A shared foundation module (`edges.toml`: `crypto → outbound, settings`): ever
 | Rotation | `LocalKmsProvider` | the current key first, then the previous ones, a key listed twice tried once |
 | Vault Transit | `VaultKmsProvider` | `internal::vault`, through `vectispire-cp-outbound` only (policy `INTERNAL_ALLOWED`, label `Vault KMS`, 5 s) |
 | The signing key | `SigningKeyService` | `SigningKeys` over a `KeyStore` (`Settings` in the product), row `internal.document_signing_key`, context `internal:document_signing_key` |
+| The published keys (rotation) | `SigningKeyService` (1.0) | `SigningKeys::start` — the record `internal.document_signing_keys.sealed`, context `internal:document_signing_keys`, lines `keyId;activeFrom;retiredAt;base64 DER`; `revoked-keys`, `adopt-unsealed-keys`; `tests/rotation.rs` is `SigningKeyServiceTest`'s rotation cases |
+| The weak current key | `EncryptionService.refuseAWeakCurrentKey` | `Encryption::new` (`refusal_as_current_key`): a placeholder after NFKC with only `\p{L}\p{N}` kept, a passphrase under 20 code points; `with_random`, the reference set's door, does not refuse |
 | The contexts | `SecretCipher.*Context` | `private_key_context`, `git_token_context`, `forge_connection_context` |
 
 **Where the key comes from is `vectispire-cp-runtime`'s.** `ENCRYPTION_KEY`, `ENCRYPTION_KEY_FILE`, the previous
@@ -55,6 +57,8 @@ Decided 2026-10-17, task 2.3:
   The reference set records Java's answer and this side's refusal.
 - **ECDSA is deterministic here** (RFC 6979); Java draws `k` at random. Either verifies against the same key, and
   the reference set checks both ways.
+- **A Vault ciphertext of the record that does not open is not remembered** as refused: Vault answers an unreachable
+  Transit as an unreadable value here, where Java throws, and a refused record is otherwise cached until it changes.
 - **A supplied public key must be P-256** to verify a signature (`verify_with`); Java also reads a P-384 or P-521
   key a reviewer pastes. Such a key is refused as `InvalidPublicKey` (400): Vectispire signs with P-256 only, so
   the case is a third party's signature checked on Vectispire's form.

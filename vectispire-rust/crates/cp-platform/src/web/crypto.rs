@@ -1,6 +1,18 @@
 //! The signing key's public half, signature verification, and the commands that check an export — `CryptoController`:
 //!
-//! - `GET /api/v1/crypto/public-key.pub` (`getPublicKey`): anonymous — publishing the key is the point;
+//! - `GET /api/v1/crypto/public-key.pub` (`getPublicKey`): anonymous — publishing the key is the point; the key the
+//!   record calls active, so that every instance serves the same one through a rolling restart;
+//!
+//! Written and tested, **not routed yet** (both stay in `not-yet-ported/platform.txt`), for two reasons in `cp-http`:
+//! its chain opens only `public-key.pub` to an anonymous caller (Java's `SecurityConfiguration` opens
+//! `/api/v1/crypto/public-keys` and `/public-keys/*` too, and served here they would answer 401), and its route
+//! builder hands the documented path to axum as it is, whose router (matchit 0.8.4) takes no parameter followed by a
+//! suffix in one segment:
+//!
+//! - `GET /api/v1/crypto/public-keys` (`listPublicKeys`) — [`public_keys`]: anonymous, every key this deployment has
+//!   signed with, the active one first, retired and revoked ones after it (`docs/en/KEY_ROTATION.md`);
+//! - `GET /api/v1/crypto/public-keys/{keyId}.pub` (`getPublicKeyById`) — [`public_key_by_id`]: anonymous, one of them,
+//!   as the PEM file `cosign verify-blob --key` reads.
 //! - `POST /api/v1/crypto/verify` (`verifySignature`): any account — the answer names the key it checked against, and
 //!   says whether that key is Vectispire's;
 //! - `GET /api/v1/crypto/cosign-cli-helper` (`getCosignCliHelper`): any account — the key's id and the commands.
@@ -12,30 +24,60 @@ use axum::response::{IntoResponse, Response};
 use http::{HeaderValue, StatusCode, header};
 use serde::Serialize;
 use serde_json::Value;
-use vectispire_cp_crypto::{KeyStore, SigningError, SigningKeys};
+use vectispire_cp_crypto::{KeyStore, PublishedKey, SigningError, SigningKeys};
 use vectispire_cp_http::access::Access;
 use vectispire_cp_http::extract::UNREADABLE;
 use vectispire_cp_http::routes::{Route, RouteEntry};
 use vectispire_cp_http::{JsonBody, Problem};
+use vectispire_domain::instant::Instant;
 
 use super::{bad_request, ok, unexpected};
 
 pub(super) const PUBLIC_KEY: &str = "/api/v1/crypto/public-key.pub";
+#[allow(dead_code)] // Routed once `cp-http` opens it: the module's header says why.
+pub(super) const PUBLIC_KEYS: &str = "/api/v1/crypto/public-keys";
+#[allow(dead_code)] // Routed once `cp-http` opens it and routes a suffixed parameter: the module's header says why.
+pub(super) const PUBLIC_KEY_BY_ID: &str = "/api/v1/crypto/public-keys/{keyId}.pub";
 pub(super) const VERIFY: &str = "/api/v1/crypto/verify";
 pub(super) const COSIGN_HELPER: &str = "/api/v1/crypto/cosign-cli-helper";
 
 /// `CosignSigner.ALGORITHM`.
 const ALGORITHM: &str = "SHA256withECDSA";
 
-/// `VerifyResponse`: `keyId` is `null` when nothing was checked.
+/// `VerifyResponse`: `keyId` is `null` when nothing was checked or nothing matched, `keyStatus` when the key is not
+/// one of Vectispire's.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct VerifyResponse {
     valid: bool,
     key_id: Option<String>,
     vectispire_key: bool,
+    key_status: Option<&'static str>,
     algorithm: &'static str,
     message: String,
+}
+
+/// `PublishedKeyResponse`: the dates as `Instant.toString`, `null` when not known or not retired.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct PublishedKeyResponse {
+    key_id: String,
+    status: &'static str,
+    public_key: String,
+    active_from: Option<String>,
+    retired_at: Option<String>,
+}
+
+impl PublishedKeyResponse {
+    fn of(key: PublishedKey) -> PublishedKeyResponse {
+        PublishedKeyResponse {
+            status: key.status.name(),
+            active_from: key.active_from.and_then(Instant::to_java_string),
+            retired_at: key.retired_at.and_then(Instant::to_java_string),
+            key_id: key.key_id,
+            public_key: key.public_key_pem,
+        }
+    }
 }
 
 impl VerifyResponse {
@@ -45,6 +87,7 @@ impl VerifyResponse {
             valid: false,
             key_id: None,
             vectispire_key: false,
+            key_status: None,
             algorithm: ALGORITHM,
             message: "Payload and signature are required.".to_owned(),
         }
@@ -131,21 +174,48 @@ struct CosignHelper {
 
 /// The public key as a download: `application/x-pem-file`, named as every export's commands name it.
 fn pem_download(pem: String) -> Response {
+    pem_named(pem, "vectispire-signing-key.pub")
+}
+
+fn pem_named(pem: String, filename: &str) -> Response {
     let mut response = Response::new(Body::from(pem));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/x-pem-file;charset=UTF-8"));
-    headers.insert(
-        header::CONTENT_DISPOSITION,
-        HeaderValue::from_static("attachment; filename=\"vectispire-signing-key.pub\""),
-    );
+    // The name is ours — a fixed prefix and twelve hex digits of a key id the record recomputed — never the caller's.
+    if let Ok(disposition) = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\"")) {
+        headers.insert(header::CONTENT_DISPOSITION, disposition);
+    }
     response
 }
 
-/// `getPublicKey`.
+/// `getPublicKey`: the key the published list calls active.
 async fn public_key<S: KeyStore>(signing: &SigningKeys<S>) -> Response {
-    match signing.public_key_pem().await {
+    match signing.active_public_key_pem().await {
         Ok(pem) => pem_download(pem),
         Err(failure) => refuse("GET", PUBLIC_KEY, failure),
+    }
+}
+
+/// `listPublicKeys`.
+#[allow(dead_code)] // Routed once `cp-http` opens it: the module's header says why.
+async fn public_keys<S: KeyStore>(signing: &SigningKeys<S>) -> Response {
+    match signing.published_keys().await {
+        Ok(keys) => ok(&keys.into_iter().map(PublishedKeyResponse::of).collect::<Vec<_>>()),
+        Err(failure) => refuse("GET", PUBLIC_KEYS, failure),
+    }
+}
+
+/// `getPublicKeyById`: 404 "Signing key not found." for an id no published key has — the case of the id ignored.
+#[allow(dead_code)] // Routed once `cp-http` opens it and routes a suffixed parameter: the module's header says why.
+async fn public_key_by_id<S: KeyStore>(signing: &SigningKeys<S>, key_id: &str) -> Response {
+    match signing.published_key(key_id).await {
+        Ok(Some(key)) => {
+            // A published id is sixty-four hex digits; `substring(0, 12)`.
+            let short: String = key.key_id.chars().take(12).collect();
+            pem_named(key.public_key_pem, &format!("vectispire-signing-key-{short}.pub"))
+        }
+        Ok(None) => Problem::handler(StatusCode::NOT_FOUND, "Signing key not found.").into_response(),
+        Err(failure) => refuse("GET", PUBLIC_KEY_BY_ID, failure),
     }
 }
 
@@ -162,8 +232,9 @@ async fn verify<S: KeyStore>(signing: &SigningKeys<S>, body: Value) -> Response 
     match signing.verify_with(payload.as_bytes(), &signature, request.public_key.as_deref()).await {
         Ok(result) => ok(&VerifyResponse {
             valid: result.valid,
-            key_id: Some(result.key_id),
+            key_id: result.key_id,
             vectispire_key: result.vectispire_key,
+            key_status: result.key_status.map(|status| status.name()),
             algorithm: ALGORITHM,
             message: result.message,
         }),
@@ -215,20 +286,28 @@ mod tests {
 
     use super::*;
 
-    /// The internal row, in memory: each store generates and keeps a key of its own.
+    /// The internal rows, in memory: each store generates and keeps a key of its own, and its record.
     #[derive(Debug, Default)]
-    struct Memory(Mutex<Option<String>>);
+    struct Memory(Mutex<std::collections::HashMap<String, String>>);
 
     impl KeyStore for Memory {
-        async fn internal_value(&self, _key: &str) -> Result<Option<String>, SettingsError> {
-            Ok(self.0.lock().unwrap().clone())
+        async fn internal_value(&self, key: &str) -> Result<Option<String>, SettingsError> {
+            Ok(self.0.lock().unwrap().get(key).cloned())
         }
-        async fn store_internal_if_absent(&self, _key: &str, value: &str) -> Result<bool, SettingsError> {
-            let mut row = self.0.lock().unwrap();
-            if row.is_some() {
+        async fn store_internal_if_absent(&self, key: &str, value: &str) -> Result<bool, SettingsError> {
+            let mut rows = self.0.lock().unwrap();
+            if rows.contains_key(key) {
                 return Ok(false);
             }
-            *row = Some(value.to_owned());
+            rows.insert(key.to_owned(), value.to_owned());
+            Ok(true)
+        }
+        async fn reseal_internal(&self, key: &str, expected: &str, value: &str) -> Result<bool, SettingsError> {
+            let mut rows = self.0.lock().unwrap();
+            if rows.get(key).map(String::as_str) != Some(expected) {
+                return Ok(false);
+            }
+            rows.insert(key.to_owned(), value.to_owned());
             Ok(true)
         }
     }
@@ -353,7 +432,7 @@ mod tests {
     fn a_request_without_payload_or_signature_is_answered_not_refused() {
         assert_eq!(
             vectispire_domain::wire::to_wire_string(&VerifyResponse::incomplete()),
-            r#"{"valid":false,"keyId":null,"vectispireKey":false,"algorithm":"SHA256withECDSA","message":"Payload and signature are required."}"#
+            r#"{"valid":false,"keyId":null,"vectispireKey":false,"keyStatus":null,"algorithm":"SHA256withECDSA","message":"Payload and signature are required."}"#
         );
     }
 
@@ -392,6 +471,39 @@ mod tests {
         assert_eq!(status(SigningError::MissingKey), StatusCode::PRECONDITION_FAILED);
         assert_eq!(status(SigningError::Unreadable), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(status(SigningError::Vanished), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn every_published_key_is_listed_and_served_by_its_id() {
+        let signing = generated();
+        let id = signing.key_id().await.unwrap();
+        let (status, json) = answer(public_keys(&signing).await).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json.as_array().unwrap().len(), 1);
+        assert_eq!(json[0]["keyId"], id.as_str());
+        assert_eq!(json[0]["status"], "ACTIVE");
+        assert_eq!(json[0]["publicKey"], signing.public_key_pem().await.unwrap().as_str());
+        assert_eq!(json[0]["retiredAt"], Value::Null);
+        assert!(json[0]["activeFrom"].as_str().unwrap().ends_with('Z'), "recorded when it first signed");
+        let members: Vec<&String> = json[0].as_object().unwrap().keys().collect();
+        assert_eq!(
+            members,
+            ["keyId", "status", "publicKey", "activeFrom", "retiredAt"],
+            "PublishedKeyResponse's order"
+        );
+
+        let response = public_key_by_id(&signing, &id.to_uppercase()).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_DISPOSITION],
+            format!("attachment; filename=\"vectispire-signing-key-{}.pub\"", &id[..12]).as_str()
+        );
+        let pem = axum::body::to_bytes(response.into_body(), 1 << 20).await.unwrap();
+        assert_eq!(std::str::from_utf8(&pem).unwrap(), signing.public_key_pem().await.unwrap());
+
+        let (status, json) = answer(public_key_by_id(&signing, &"0".repeat(64)).await).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(json["detail"], "Signing key not found.");
     }
 
     #[test]

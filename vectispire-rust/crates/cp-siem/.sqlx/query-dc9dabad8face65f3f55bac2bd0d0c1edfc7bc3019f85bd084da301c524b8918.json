@@ -1,0 +1,48 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select enabled as `enabled: bool`, protocol from t_siem_config where id = ? for share",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled: bool",
+        "type_info": {
+          "type": "Tiny",
+          "flags": "NOT_NULL",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_siem_config",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "protocol",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "collation": 255,
+          "max_size": 64
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_siem_config",
+            "name": "protocol"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "dc9dabad8face65f3f55bac2bd0d0c1edfc7bc3019f85bd084da301c524b8918"
+}

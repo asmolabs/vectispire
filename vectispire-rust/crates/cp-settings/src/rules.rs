@@ -8,7 +8,11 @@ use regex::Regex;
 use vectispire_domain::repository_url::java_uri;
 
 use crate::catalog::Setting;
-use crate::types::{Section, Sensitivity, SettingType};
+use crate::types::{Section, Sensitivity, SettingType, parse_int};
+use vectispire_domain::java;
+
+/// `Setting.MAX_INDEPENDENCE_DAYS`: ten years, the longest approver independence window a governor may set.
+pub const MAX_INDEPENDENCE_DAYS: i32 = 3_650;
 
 /// `RepositoryUrl.USER_INFO`.
 static USER_INFO: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new("^([A-Za-z][A-Za-z0-9+.-]*://)([^/]*)@").ok());
@@ -54,13 +58,15 @@ impl Setting {
     }
 
     /// Whether only an administrator may change it: a setting that decides where a credential is sent, the
-    /// switches that open the internal network to the SIEM export and to the notification channels, and the
-    /// tracker token's declared expiry, which describes a credential only an administrator sets.
+    /// switches that open the internal network to the SIEM export and to the notification channels, the tracker
+    /// token's declared expiry, which describes a credential only an administrator sets — and the Ollama address,
+    /// which decides where every finding a review reads is sent, though it carries no key.
     pub const fn administrator_only(self) -> bool {
         self.directs_credential().is_some()
             || matches!(
                 self,
-                Setting::TicketTokenExpiresOn
+                Setting::AiReviewOllamaUrl
+                    | Setting::TicketTokenExpiresOn
                     | Setting::SiemAllowPrivateDestination
                     | Setting::NotificationAllowPrivateUrl
             )
@@ -71,9 +77,28 @@ impl Setting {
     /// **The tracker's address carries no credential**: a user name or a token typed into it is a second,
     /// unencrypted copy of the token, in a column the token's own route never reaches, shown back on the screen.
     pub fn validate(self, value: Option<&str>) -> Option<String> {
+        // Bounded above as well: a window of two billion days reaches past the first instant there is, and the
+        // approval reading it would fail with a 500 rather than refuse anything in words.
+        if self == Setting::FourEyesIndependenceDays
+            && self.setting_type().validate(value).is_none()
+            && value.and_then(|value| parse_int(java::trim(value))).is_some_and(|days| days > MAX_INDEPENDENCE_DAYS)
+        {
+            return Some(format!("at most {MAX_INDEPENDENCE_DAYS} days."));
+        }
         if self == Setting::TicketBaseUrl && value.is_some_and(carries_user_info) {
             return Some(
                 "the address carries a user name or a token: type the address alone, the token has a field of its own."
+                    .to_owned(),
+            );
+        }
+        // **A model endpoint is an API root, and a path is appended to it** (`AiReview.isApiRoot`): a query or a
+        // fragment in the root would take that path into itself, and the call would not reach the API path it names.
+        if matches!(self, Setting::AiReviewOllamaUrl | Setting::AiReviewOpenaiUrl)
+            && value.is_some_and(|value| value.contains(['?', '#']))
+        {
+            return Some(
+                "the API root carries a query or a fragment (\"?\" or \"#\"): type the address alone, the path of \
+                 each call is appended to it."
                     .to_owned(),
             );
         }

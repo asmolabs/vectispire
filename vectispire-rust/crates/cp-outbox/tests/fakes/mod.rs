@@ -157,6 +157,8 @@ impl OutboxStore for Recording {
 pub enum Answer {
     Delivered,
     Gone(String),
+    /// A destination switched off for now: `HeldDeliveryException`.
+    Held(String),
     Fails(String, Option<String>),
     /// `panic!("{text}")`: a `String` payload.
     Panics(&'static str),
@@ -171,6 +173,7 @@ fn answer(answers: &Answers, id: Uuid) -> Result<(), DeliveryError> {
     match answers.get(&id).cloned().unwrap_or(Answer::Delivered) {
         Answer::Delivered => Ok(()),
         Answer::Gone(reason) => Err(DeliveryError::Gone(reason)),
+        Answer::Held(reason) => Err(DeliveryError::Held(reason)),
         Answer::Fails(kind, message) => Err(DeliveryError::Failed { kind, message }),
         Answer::Panics(text) => panic!("{text}"),
         Answer::PanicsLiterally => panic!("a literal panic"),

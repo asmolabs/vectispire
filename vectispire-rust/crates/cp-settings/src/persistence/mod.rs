@@ -11,6 +11,7 @@ mod mysql;
 #[cfg(feature = "postgres-queries")]
 mod postgres;
 
+use time::OffsetDateTime;
 use vectispire_cp_db::{Db, Tx};
 
 /// A database failure, kept in this layer: a service names this type and never the driver's.
@@ -91,4 +92,62 @@ pub async fn replace_value(tx: &mut Tx, key: &str, expected: &str, value: &str) 
 /// `deleteById`.
 pub async fn delete(tx: &mut Tx, key: &str) -> Result<u64, DbError> {
     on!(tx, Tx, |t| mysql::delete(t, key).await, postgres::delete(t, key).await)
+}
+
+/// A row of `t_integration` — `IntegrationEntity`: `updated_at` and `updated_by` are null until a governor changes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntegrationRow {
+    pub key: String,
+    pub enabled: bool,
+    pub updated_at: Option<OffsetDateTime>,
+    pub updated_by: Option<String>,
+}
+
+/// Every row of the registry, keys no integration has any more included: the caller asks for the ones it knows.
+pub async fn integrations(db: &Db) -> Result<Vec<IntegrationRow>, DbError> {
+    on!(db, Db, |pool| mysql::integrations(pool).await, postgres::integrations(pool).await)
+}
+
+/// One integration's row, outside any transaction.
+pub async fn integration(db: &Db, key: &str) -> Result<Option<IntegrationRow>, DbError> {
+    on!(db, Db, |pool| mysql::integration(pool, key).await, postgres::integration(pool, key).await)
+}
+
+/// One integration's row, in the caller's transaction — the switch's read-back.
+pub async fn integration_in(tx: &mut Tx, key: &str) -> Result<Option<IntegrationRow>, DbError> {
+    on!(tx, Tx, |t| mysql::integration(&mut **t, key).await, postgres::integration(&mut **t, key).await)
+}
+
+/// `lockForSwitch`: `select … for update` on one row, held until the caller's transaction ends — the governor's switch
+/// takes it before it asks whether the integration is in use. `None` for a key without a row.
+pub async fn lock_integration_for_switch(tx: &mut Tx, key: &str) -> Result<Option<bool>, DbError> {
+    on!(tx, Tx, |t| mysql::lock_for_switch(t, key).await, postgres::lock_for_switch(t, key).await)
+}
+
+/// `lockForUse`: `select … for share` — what a configuration that starts using an integration takes, so that two saves
+/// do not wait for each other and the governor's switch waits for both.
+pub async fn lock_integration_for_use(tx: &mut Tx, key: &str) -> Result<Option<bool>, DbError> {
+    on!(tx, Tx, |t| mysql::lock_for_use(t, key).await, postgres::lock_for_use(t, key).await)
+}
+
+/// `switchTo`: switches a row not already in the wanted state, and says whether it did — conditional, so two governors
+/// switching the same integration the same way at once change it once.
+pub async fn switch_integration(
+    tx: &mut Tx,
+    key: &str,
+    enabled: bool,
+    at: OffsetDateTime,
+    by: &str,
+) -> Result<u64, DbError> {
+    on!(
+        tx,
+        Tx,
+        |t| mysql::switch_integration(t, key, enabled, at, by).await,
+        postgres::switch_integration(t, key, enabled, at, by).await
+    )
+}
+
+/// The first enabling of an integration that arrived after V94 and has no row.
+pub async fn insert_integration(tx: &mut Tx, key: &str, at: OffsetDateTime, by: &str) -> Result<u64, DbError> {
+    on!(tx, Tx, |t| mysql::insert_integration(t, key, at, by).await, postgres::insert_integration(t, key, at, by).await)
 }

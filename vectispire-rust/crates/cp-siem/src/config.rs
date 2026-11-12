@@ -3,16 +3,23 @@
 //! Events do not pass here: [`crate::SiemEvents`] queues them in the transaction that caused them and
 //! [`crate::SiemDelivery`] sends them after it commits. What does leave from here, synchronously, is the stop notice
 //! to a collector being left and the connection test's health check.
+//!
+//! **Each transport is an integration** (decision 0040, `siem.<protocol>`): an enabled export is not saved over a
+//! disabled one, nor is one tested, and the governor cannot switch off the one an enabled export uses
+//! ([`crate::SiemTransportInUse`]). The two checks meet on the registry's row, which the save holds until it commits
+//! ([`Integrations::hold_enabled`]).
 
 use std::sync::Arc;
 
 use time::OffsetDateTime;
 use vectispire_cp_audit::{AuditLog, AuditOperation, Clock, RequestActor, Signal};
 use vectispire_cp_crypto::Encryption;
+use vectispire_cp_db::Tx;
 use vectispire_cp_db::{Db, Mode};
-use vectispire_cp_settings::THRESHOLDS;
+use vectispire_cp_settings::{Integrations, THRESHOLDS};
 use vectispire_domain::bounded_text;
 use vectispire_domain::instant::Instant;
+use vectispire_domain::integrations::Integration;
 use vectispire_domain::java;
 use vectispire_domain::secret::Secret;
 use vectispire_domain::siem::{CefEvent, CollectorCa, SecurityEventType, SiemEndpoint, SiemProtocol, endpoint};
@@ -118,6 +125,21 @@ impl TestResult {
     }
 }
 
+/// A save's fields once every one of them has been checked: nothing is written before this exists.
+struct Checked {
+    enabled: bool,
+    transport: Integration,
+    protocol: SiemProtocol,
+    threshold: String,
+    /// Trimmed, as it was checked.
+    endpoint: Option<String>,
+    header: Option<Secret>,
+    /// A blank CA was sent: the pinned one is removed.
+    ca_cleared: bool,
+    pinned: Option<CollectorCa>,
+    now: OffsetDateTime,
+}
+
 /// The collector a stored configuration exports to, with what it takes to reach it.
 struct Collector {
     protocol: SiemProtocol,
@@ -135,9 +157,17 @@ impl Collector {
     }
 }
 
+/// The registry over the export's database, for the module's own questions — enabled, held: whether anything is in use
+/// is asked of the registry the governor switches with, which the composition gives every module's answer.
+pub(crate) fn registry(db: &Db, clock: &Arc<dyn Clock>) -> Integrations {
+    let clock = clock.clone();
+    Integrations::new(db.clone(), Vec::new(), Arc::new(move || clock.now()))
+}
+
 /// The service.
 pub struct SiemExporterService {
     db: Db,
+    integrations: Integrations,
     transport: Arc<dyn Transport>,
     encryption: Arc<Encryption>,
     audit: AuditLog,
@@ -158,7 +188,8 @@ impl SiemExporterService {
         audit: AuditLog,
         clock: Arc<dyn Clock>,
     ) -> SiemExporterService {
-        SiemExporterService { db, transport, encryption, audit, clock }
+        let integrations = registry(&db, &clock);
+        SiemExporterService { db, integrations, transport, encryption, audit, clock }
     }
 
     /// The stored configuration, or `None` before the first save.
@@ -187,6 +218,13 @@ impl SiemExporterService {
             None => SiemProtocol::Webhook,
             Some(value) => parse_protocol(value)?,
         };
+        // **A disabled export is saved over any protocol**: it sends over none, and switching the export off must never
+        // be what a disabled transport prevents. An enabled one is asked first, so the refusal comes before the form's
+        // other words — and asked again, and held, in the transaction that writes the row.
+        let transport = Integration::of_siem(protocol);
+        if update.enabled {
+            self.integrations.require_enabled(transport).await?;
+        }
         let threshold = match update.min_severity.as_deref().filter(|value| !java::is_blank(value)) {
             None => "HIGH".to_owned(),
             Some(value) => threshold(value)?,
@@ -233,51 +271,35 @@ impl SiemExporterService {
             None => None,
         };
 
-        let stored = persistence::find(&self.db).await?;
-        let exists = stored.is_some();
-        let mut row = stored.unwrap_or_else(|| ConfigRow {
-            id: SINGLETON_ID,
-            enabled: false,
-            protocol: SiemProtocol::Webhook.name().to_owned(),
-            endpoint: None,
-            auth_header: None,
-            tls_ca_pem: None,
-            min_severity: "HIGH".to_owned(),
-            created_at: now,
-            updated_at: now,
-        });
-        // Read before the row changes: the collector being left is the one configured now.
-        let leaving = self.collector_of(&row).await;
-        // **A new destination does not inherit the old credential.** A header is issued for one collector; pointing
-        // the export elsewhere — the security lead's own host included — requires typing it again.
-        let previous = java::trim(row.endpoint.as_deref().unwrap_or("")).to_owned();
-        let next = java::trim(endpoint_text.unwrap_or("")).to_owned();
-        if previous != next && header_given.is_none() {
-            row.auth_header = None;
-        }
-        row.enabled = update.enabled;
-        row.protocol = protocol.name().to_owned();
-        // Stored as it was checked: trimmed (the Java fix of the same day — it was checked trimmed and stored as typed).
-        row.endpoint = endpoint_text.map(|text| java::trim(text).to_owned());
-        // **Blank keeps the stored header**: the response never sends it back, so the form cannot resubmit it.
-        // **Encrypted like every other credential**, bound to its column.
-        if let Some(header) = header_given {
-            row.auth_header = Some(self.encryption.encrypt(java::trim(header.expose()), AUTH_HEADER_CONTEXT).await?);
-        }
-        if protocol != SiemProtocol::SyslogTls || update.tls_ca_pem.as_deref().is_some_and(java::is_blank) {
-            // Leaving TLS drops the CA with it: kept, it would come back unannounced the day the protocol is set to TLS
-            // again, for a collector it was perhaps never issued for.
-            row.tls_ca_pem = None;
-        } else if let Some(pinned) = &pinned {
-            row.tls_ca_pem = Some(pinned.pem().to_owned());
-        }
-        row.min_severity = threshold;
-        row.updated_at = now;
-        self.write(&row, exists).await?;
+        let checked = Checked {
+            enabled: update.enabled,
+            transport,
+            protocol,
+            threshold,
+            endpoint: endpoint_text.map(|text| java::trim(text).to_owned()),
+            header: header_given.cloned(),
+            ca_cleared: update.tls_ca_pem.as_deref().is_some_and(java::is_blank),
+            pinned,
+            now,
+        };
+        // **One transaction**, the transport held, the row read and written in it — it was a read, then a write in a
+        // transaction of its own, and a governor's switch could fall between them.
+        let mut tx = self.db.begin(Mode::ReadWrite).await.map_err(|error| SiemError::Database(error.to_string()))?;
+        let (row, leaving) = match self.write(&mut tx, checked).await {
+            Ok(written) => {
+                tx.commit().await.map_err(|error| SiemError::Database(error.to_string()))?;
+                written
+            }
+            Err(refused) => {
+                let _ = tx.rollback().await;
+                return Err(refused);
+            }
+        };
 
         // The collector being left hears it, before the silence: a feed that stops is otherwise read by a SOC as an
-        // outage — or not noticed at all — when it was a decision. Sent after the save, so it announces a change that
-        // happened, and before the audit entry, which records whether it arrived.
+        // outage — or not noticed at all — when it was a decision. Sent after the save has committed — no outbound
+        // call holds the row — so it announces a change that happened, and before the audit entry, which records
+        // whether it arrived.
         let notice = match leaving.filter(|previous| !row.enabled || !previous.same_destination_as(&row)) {
             Some(previous) => self.announce_stop(&previous, row.enabled, actor).await,
             None => String::new(),
@@ -302,18 +324,62 @@ impl SiemExporterService {
         Ok(SiemConfigView::of(&row))
     }
 
-    /// The row, in a transaction of its own: inserted the first time, updated after.
-    async fn write(&self, row: &ConfigRow, exists: bool) -> Result<(), SiemError> {
-        let mut tx = self.db.begin(Mode::ReadWrite).await.map_err(|error| SiemError::Database(error.to_string()))?;
-        let written =
-            if exists { persistence::update(&mut tx, row).await } else { persistence::insert(&mut tx, row).await };
-        match written {
-            Ok(_) => tx.commit().await.map_err(|error| SiemError::Database(error.to_string())),
-            Err(failed) => {
-                let _ = tx.rollback().await;
-                Err(failed.into())
-            }
+    /// Writes the checked configuration onto the row, inside the save's transaction, and says which collector it was
+    /// exporting to before.
+    async fn write(&self, tx: &mut Tx, checked: Checked) -> Result<(ConfigRow, Option<Collector>), SiemError> {
+        let Checked { enabled, transport, protocol, threshold, endpoint, header, ca_cleared, pinned, now } = checked;
+        if enabled {
+            // **Held until the row commits.** Checked and not held, a governor's switch could read "not in use" between
+            // the check and the commit, and the export would stand on a transport that is off — its events held in the
+            // outbox until somebody noticed.
+            self.integrations.hold_enabled(tx, transport).await?;
         }
+        let stored = persistence::find_in(tx).await?;
+        let exists = stored.is_some();
+        let mut row = stored.unwrap_or_else(|| ConfigRow {
+            id: SINGLETON_ID,
+            enabled: false,
+            protocol: SiemProtocol::Webhook.name().to_owned(),
+            endpoint: None,
+            auth_header: None,
+            tls_ca_pem: None,
+            min_severity: "HIGH".to_owned(),
+            created_at: now,
+            updated_at: now,
+        });
+        // Read before the row changes: the collector being left is the one configured now.
+        let leaving = self.collector_of(&row).await;
+        // **A new destination does not inherit the old credential.** A header is issued for one collector; pointing
+        // the export elsewhere — the security lead's own host included — requires typing it again.
+        let previous = java::trim(row.endpoint.as_deref().unwrap_or("")).to_owned();
+        let next = endpoint.clone().unwrap_or_default();
+        if previous != next && header.is_none() {
+            row.auth_header = None;
+        }
+        row.enabled = enabled;
+        row.protocol = protocol.name().to_owned();
+        // Stored as it was checked: trimmed (the Java fix of the same day — it was checked trimmed and stored as typed).
+        row.endpoint = endpoint;
+        // **Blank keeps the stored header**: the response never sends it back, so the form cannot resubmit it.
+        // **Encrypted like every other credential**, bound to its column.
+        if let Some(header) = header {
+            row.auth_header = Some(self.encryption.encrypt(java::trim(header.expose()), AUTH_HEADER_CONTEXT).await?);
+        }
+        if protocol != SiemProtocol::SyslogTls || ca_cleared {
+            // Leaving TLS drops the CA with it: kept, it would come back unannounced the day the protocol is set to TLS
+            // again, for a collector it was perhaps never issued for.
+            row.tls_ca_pem = None;
+        } else if let Some(pinned) = &pinned {
+            row.tls_ca_pem = Some(pinned.pem().to_owned());
+        }
+        row.min_severity = threshold;
+        row.updated_at = now;
+        if exists {
+            persistence::update(tx, &row).await?;
+        } else {
+            persistence::insert(tx, &row).await?;
+        }
+        Ok((row, leaving))
     }
 
     /// The collector a stored configuration exports to — or `None` when it exports nowhere, or its row can no longer
@@ -354,7 +420,26 @@ impl SiemExporterService {
     /// longer names this collector. **Not filtered by the minimum severity**: it is about the channel. **Best effort**:
     /// a collector that is down does not stop the export being switched off; the detail goes to the server log. The
     /// new destination is not named: the collector being left has no business learning where the feed went.
+    ///
+    /// **Not over a disabled transport.** The governor cannot switch off the one an enabled export uses, so this is a
+    /// row written by hand; nothing of a disabled integration runs, and the audit entry says the notice was not sent
+    /// and why. A registry that cannot be read sends nothing either, and the entry says it was not delivered.
     async fn announce_stop(&self, previous: &Collector, redirected: bool, actor: &RequestActor) -> String {
+        let transport = Integration::of_siem(previous.protocol);
+        match self.integrations.is_enabled(transport).await {
+            Ok(true) => {}
+            Ok(false) => {
+                return format!(
+                    "; stop notice NOT sent to the previous collector: its transport {} is disabled",
+                    transport.key()
+                );
+            }
+            Err(unreadable) => {
+                tracing::warn!("The SIEM stop notice was not sent: the integrations could not be read: {unreadable}");
+                return "; stop notice NOT delivered to the previous collector (the cause is in the server log)"
+                    .to_owned();
+            }
+        }
         let message = if redirected {
             "The SIEM export was pointed at another collector: this one will receive no further events."
         } else {
@@ -420,6 +505,9 @@ impl SiemExporterService {
                 known.unwrap_or(SiemProtocol::Webhook)
             }
         };
+        // **Refused, not reported**: a disabled transport is not an answer about the collector, and a test that said
+        // "not delivered" would send the security lead to look at a network that is fine. Nothing is sent.
+        self.integrations.require_enabled(Integration::of_siem(parsed)).await?;
         let destination = match endpoint::parse(parsed, endpoint_text) {
             Ok(destination) => destination,
             Err(refused) => return Ok(TestResult::refused(refused.0)),

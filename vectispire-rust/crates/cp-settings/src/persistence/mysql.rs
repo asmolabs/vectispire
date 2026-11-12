@@ -3,8 +3,10 @@
 
 use sqlx::mysql::MySqlPool;
 use sqlx::{Executor, MySql};
+use time::OffsetDateTime;
+use vectispire_cp_db::types::UtcInstant;
 
-use super::DbError;
+use super::{DbError, IntegrationRow};
 
 pub async fn all(pool: &MySqlPool) -> Result<Vec<(String, Option<String>)>, DbError> {
     Ok(sqlx::query!("/* mysql */ select `key`, value from t_setting")
@@ -58,4 +60,99 @@ pub async fn replace_value(
 
 pub async fn delete(conn: &mut sqlx::MySqlConnection, key: &str) -> Result<u64, DbError> {
     Ok(sqlx::query!("/* mysql */ delete from t_setting where `key` = ?", key).execute(conn).await?.rows_affected())
+}
+
+// ── t_integration ──
+
+pub async fn integrations(pool: &MySqlPool) -> Result<Vec<IntegrationRow>, DbError> {
+    Ok(sqlx::query!(
+        "/* mysql */ select integration_key, enabled as `enabled: bool`, updated_at as `updated_at: UtcInstant`, \
+         updated_by from t_integration"
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| IntegrationRow {
+        key: row.integration_key,
+        enabled: row.enabled,
+        updated_at: row.updated_at.map(|at| at.0),
+        updated_by: row.updated_by,
+    })
+    .collect())
+}
+
+/// On a pool or in a transaction.
+pub async fn integration<'c>(
+    executor: impl Executor<'c, Database = MySql>,
+    key: &str,
+) -> Result<Option<IntegrationRow>, DbError> {
+    Ok(sqlx::query!(
+        "/* mysql */ select integration_key, enabled as `enabled: bool`, updated_at as `updated_at: UtcInstant`, \
+         updated_by from t_integration where integration_key = ?",
+        key
+    )
+    .fetch_optional(executor)
+    .await?
+    .map(|row| IntegrationRow {
+        key: row.integration_key,
+        enabled: row.enabled,
+        updated_at: row.updated_at.map(|at| at.0),
+        updated_by: row.updated_by,
+    }))
+}
+
+pub async fn lock_for_switch(conn: &mut sqlx::MySqlConnection, key: &str) -> Result<Option<bool>, DbError> {
+    Ok(sqlx::query_scalar!(
+        "/* mysql */ select enabled as `enabled: bool` from t_integration where integration_key = ? for update",
+        key
+    )
+    .fetch_optional(conn)
+    .await?)
+}
+
+pub async fn lock_for_use(conn: &mut sqlx::MySqlConnection, key: &str) -> Result<Option<bool>, DbError> {
+    Ok(sqlx::query_scalar!(
+        "/* mysql */ select enabled as `enabled: bool` from t_integration where integration_key = ? for share",
+        key
+    )
+    .fetch_optional(conn)
+    .await?)
+}
+
+pub async fn switch_integration(
+    conn: &mut sqlx::MySqlConnection,
+    key: &str,
+    enabled: bool,
+    at: OffsetDateTime,
+    by: &str,
+) -> Result<u64, DbError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_integration set enabled = ?, updated_at = ?, updated_by = ? \
+         where integration_key = ? and enabled <> ?",
+        enabled,
+        UtcInstant(at),
+        by,
+        key,
+        enabled
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn insert_integration(
+    conn: &mut sqlx::MySqlConnection,
+    key: &str,
+    at: OffsetDateTime,
+    by: &str,
+) -> Result<u64, DbError> {
+    Ok(sqlx::query!(
+        "/* mysql */ insert into t_integration (integration_key, enabled, updated_at, updated_by) values (?, true, ?, ?)",
+        key,
+        UtcInstant(at),
+        by
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
 }

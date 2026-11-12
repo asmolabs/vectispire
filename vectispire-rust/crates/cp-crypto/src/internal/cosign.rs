@@ -140,6 +140,12 @@ pub fn key_id(key: &VerifyingKey) -> String {
     Sha256::digest(der).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+/// `Base64.getEncoder().encodeToString(publicKey.getEncoded())`: the standard base64 of the key's
+/// `SubjectPublicKeyInfo`, as the record of published keys holds it.
+pub fn public_der_base64(key: &VerifyingKey) -> String {
+    BASIC.encode(key.to_public_key_der().map(|der| der.into_vec()).unwrap_or_default())
+}
+
 /// `SHA256withECDSA`, DER, base64. Deterministic (RFC 6979) where Java draws `k` at random: either verifies.
 pub fn sign(payload: &[u8], key: &SigningKey) -> String {
     let signature: DerSignature = key.sign(payload);

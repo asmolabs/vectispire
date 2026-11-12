@@ -19,6 +19,7 @@ pub mod fingerprint;
 pub mod git_host_allowlist;
 pub mod image_reference;
 pub mod instant;
+pub mod integrations;
 pub mod java;
 pub mod language;
 pub mod list_window;

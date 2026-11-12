@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_integration set enabled = $1, updated_at = $2, updated_by = $3 where integration_key = $4 and enabled <> $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Timestamptz",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe045334a5c41409cfb8e3afc6bbc7af1202f2b5f456114593a302b36f1b929b"
+}

@@ -281,14 +281,21 @@ async fn serve() -> ExitCode {
     };
 
     let configured_signing_key = settings.signing_key.as_ref().map(|s| s.expose()).unwrap_or("");
-    let signing = match vectispire_cp_crypto::SigningKeys::new(
-        configured_signing_key,
+    // As `SigningKeyService`'s constructor: the configured key checked, a revoked one refused, the record of published
+    // keys re-sealed and the vouched-for keys adopted — before anything is served. `vectispire.signing.revoked-keys` and
+    // `adopt-unsealed-keys` are not bound by `cp-runtime`'s property table yet (CATCH-UP.md, platform): until they are,
+    // none is revoked or adopted here, which is the default of both.
+    let signing = match vectispire_cp_crypto::SigningKeys::start(
+        vectispire_cp_crypto::SigningConfig { key: configured_signing_key, revoked_keys: "", adopted_keys: "" },
         vectispire_cp_settings::Settings::new(db.clone()),
         encryption.clone(),
-    ) {
+        vectispire_cp_crypto::Clock::system(),
+    )
+    .await
+    {
         Ok(signing) => Arc::new(signing),
         Err(error) => {
-            tracing::error!("Invalid signing key: {error}");
+            tracing::error!("The document signing key is refused: {error}");
             return ExitCode::FAILURE;
         }
     };
@@ -557,7 +564,11 @@ async fn serve() -> ExitCode {
         issues.clone(),
         gate.clone(),
         siem_service,
-        vectispire_cp_app::registry::Platform { trail: trail.clone(), signing },
+        vectispire_cp_app::registry::Platform {
+            trail: trail.clone(),
+            signing,
+            integrations: vectispire_cp_app::registry::integration_administration(&db, (*audit).clone()),
+        },
     ) {
         routes = routes.route(entry);
     }

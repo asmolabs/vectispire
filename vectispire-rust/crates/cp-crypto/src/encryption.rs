@@ -5,7 +5,7 @@ use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
 use vectispire_domain::java;
 use vectispire_domain::secret::Secret;
 
-use crate::internal::cipher::{EncryptionKey, FORMAT_PREFIX, LocalKms, SecretCipher};
+use crate::internal::cipher::{EncryptionKey, FORMAT_PREFIX, LocalKms, SecretCipher, refusal_as_current_key};
 use crate::internal::vault::{CIPHERTEXT_PREFIX, VaultKms};
 
 /// `MissingEncryptionKeyException`'s sentence — answered 412, not 500: a deployment with no key is misconfigured,
@@ -119,6 +119,22 @@ enum Kms {
     Vault(Box<VaultKms>),
 }
 
+/// `EncryptionService.refuseAWeakCurrentKey`: the reason, and what to do — rotate rather than replace, since an
+/// installation that started on the refused value has sealed its secrets under it.
+pub fn refuse_a_weak_current_key(secret: &str) -> Result<(), StartupRefusal> {
+    match refusal_as_current_key(secret) {
+        None => Ok(()),
+        Some(reason) => Err(StartupRefusal(format!(
+            "ENCRYPTION_KEY is refused: {reason}. Every secret Vectispire stores is sealed under this key. Generate one \
+             with `openssl rand -base64 32`. If this installation already stores secrets under the refused value, \
+             rotate rather than replace it: set the generated key as ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE), the \
+             refused value in VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS (or VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE), \
+             restart, and follow the key rotation procedure (docs/en/KEY_ROTATION.md) until /actuator/encryption \
+             reports the rotation finished."
+        ))),
+    }
+}
+
 /// Encryption at rest — `EncryptionService`.
 #[derive(Debug)]
 pub struct Encryption {
@@ -128,13 +144,22 @@ pub struct Encryption {
 impl Encryption {
     /// From the resolved configuration, nonces from the operating system. Passphrase keys are stretched here,
     /// once: call it at start and keep the result.
+    ///
+    /// **A current key anyone could compute is refused** — a template's placeholder, or a passphrase shorter than
+    /// [`MIN_PASSPHRASE_LENGTH`](crate::MIN_PASSPHRASE_LENGTH) — at start rather than warned about: the composition's template shipped `CHANGE_ME`
+    /// here, and a warning is read after the first secret is sealed under it. The previous keys are not held to it.
     pub fn new(config: &EncryptionConfig, door: VaultDoor) -> Result<Encryption, StartupRefusal> {
+        if let Some(key) = config.key.as_ref().map(Secret::expose).filter(|key| !java::is_blank(key)) {
+            refuse_a_weak_current_key(key)?;
+        }
         Encryption::with_random(config, door, Box::new(rand_core::OsRng))
     }
 
     /// The same, the nonces drawn from `random` — `new SecretCipher(SecureRandom)`. Only a reference set has a
     /// reason to pass anything but the operating system's generator: a nonce that repeats under one key gives
-    /// away GCM's authentication key.
+    /// away GCM's authentication key. **Without the weak-key refusal** of [`Encryption::new`]: the reference set
+    /// derives, as current keys, the passphrases Java's `EncryptionKey.derive` reads (it refuses none), and a start
+    /// goes through [`Encryption::new`].
     pub fn with_random(
         config: &EncryptionConfig,
         door: VaultDoor,

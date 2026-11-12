@@ -137,6 +137,18 @@ impl Settings {
         Ok(persistence::replace_value(tx, key, expected, value).await? == 1)
     }
 
+    /// [`Settings::replace_internal`] **in a transaction of its own** — `resealInternal`: a value re-sealed under
+    /// the current `ENCRYPTION_KEY`, or the record of published signing keys rewritten, from a caller that may be
+    /// inside a read-only transaction (a document is signed in one). Conditional on `expected` still being what is
+    /// stored, so two instances re-sealing together write once; says whether this call wrote.
+    pub async fn reseal_internal(&self, key: &str, expected: &str, value: &str) -> Result<bool, SettingsError> {
+        refuse_catalog_key(key, "written through set(Setting, …)")?;
+        let mut tx = self.db.begin(vectispire_cp_db::Mode::ReadWrite).await.map_err(DbError::from)?;
+        let moved = persistence::replace_value(&mut tx, key, expected, value).await? == 1;
+        tx.commit().await.map_err(DbError::from)?;
+        Ok(moved)
+    }
+
     /// Deletes a row no [`Setting`] names: the state kept for something that no longer exists.
     pub async fn remove_internal(&self, tx: &mut Tx, key: &str) -> Result<(), SettingsError> {
         refuse_catalog_key(key, "and is not deleted")?;

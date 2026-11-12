@@ -89,6 +89,58 @@ impl EncryptionKey {
     }
 }
 
+/// The shortest passphrase taken as the key new secrets are sealed under — `MIN_PASSPHRASE_LENGTH`. The scrypt salt
+/// is fixed and public, so a passphrase is worth what an attacker holding a copy of the database must guess offline;
+/// twenty characters is the length below which nothing but a human choice fits.
+pub const MIN_PASSPHRASE_LENGTH: usize = 20;
+
+/// The words a template puts where a secret goes, compared once case, separators and spacing are gone — contained,
+/// not equal, so that `CHANGE_ME_generate_with_openssl_rand` is caught past the length floor too.
+const PLACEHOLDERS: [&str; 4] = ["changeme", "replaceme", "yourkeyhere", "putyourkeyhere"];
+
+/// Why `secret` must not be the key new secrets are sealed under, or `None` when it may —
+/// `EncryptionKey.refusalAsCurrentKey`. **Not applied by [`EncryptionKey::derive`]**: a previous key is the one an
+/// operator rotates away from, and refusing it would strand what it sealed. The answer never quotes the secret.
+pub fn refusal_as_current_key(secret: &str) -> Option<String> {
+    use unicode_general_category::{GeneralCategory as C, get_general_category};
+    let candidate = java::trim(secret);
+    // NFKC, then `toLowerCase(Locale.ROOT)`, then every character that is not a letter or a number (by its general
+    // category, as `\p{L}` and `\p{N}` read it) removed.
+    let letters: String = candidate
+        .nfkc()
+        .collect::<String>()
+        .to_lowercase()
+        .chars()
+        .filter(|c| {
+            matches!(
+                get_general_category(*c),
+                C::UppercaseLetter
+                    | C::LowercaseLetter
+                    | C::TitlecaseLetter
+                    | C::ModifierLetter
+                    | C::OtherLetter
+                    | C::DecimalNumber
+                    | C::LetterNumber
+                    | C::OtherNumber
+            )
+        })
+        .collect();
+    if PLACEHOLDERS.iter().any(|placeholder| letters.contains(placeholder)) {
+        return Some("it is a template's placeholder, published with the template".to_owned());
+    }
+    if decode_exact_key(candidate).is_some() {
+        return None;
+    }
+    // `codePointCount`: characters, not bytes nor UTF-16 units.
+    let length = candidate.chars().count();
+    (length < MIN_PASSPHRASE_LENGTH).then(|| {
+        format!(
+            "it is a passphrase of {length} characters, and one shorter than {MIN_PASSPHRASE_LENGTH} is a guess away \
+             for whoever holds a copy of the database"
+        )
+    })
+}
+
 /// The 32 bytes of a key written as base64, or `None` for a passphrase — `decodeExactKey`.
 ///
 /// The shape is checked first (`^[A-Za-z0-9+/_-]{43,44}={0,2}$` on the `String.trim`med text), then the length

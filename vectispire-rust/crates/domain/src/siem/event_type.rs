@@ -243,6 +243,10 @@ pub const SIGNALLING: &[(&str, SecurityEventType)] = &[
     ("USER_DELETED", E::AccountChanged),
     ("USER_PASSWORD_RESET", E::AccountChanged),
     ("PASSWORD_CHANGED", E::AccountChanged),
+    // Who may sign in, asked for and decided: an account is being made, or refused.
+    ("ACCOUNT_REQUEST_FILED", E::AccountChanged),
+    ("ACCOUNT_REQUEST_APPROVED", E::AccountChanged),
+    ("ACCOUNT_REQUEST_REJECTED", E::AccountChanged),
     // Filing or moving a repository or an image moves it in or out of every project grant at once (decision
     // 0023): who may see it changes, with no grant row touched.
     ("TEAM_ACCESS_CHANGED", E::AccessGrantChanged),
@@ -258,6 +262,9 @@ pub const SIGNALLING: &[(&str, SecurityEventType)] = &[
     ("AGENT_RESULT_REFUSED", E::AgentResultRefused),
     ("AGENT_SEALING_KEY_REFUSED", E::AgentSealingKeyRefused),
     ("GATE_POLICY_UPDATED", E::SecuritySettingChanged),
+    // What the installation may reach widened or narrowed (decision 0040 §4): a security setting change, either
+    // way — a disabled SIEM transport is a SOC's own feed being cut.
+    ("INTEGRATION_ENABLED_CHANGED", E::SecuritySettingChanged),
     ("PLUGIN_REGISTERED", E::PluginChanged),
     ("PLUGIN_UPDATED", E::PluginChanged),
     ("PLUGIN_ENABLED_CHANGED", E::PluginChanged),

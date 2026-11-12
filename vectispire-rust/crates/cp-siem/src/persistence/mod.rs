@@ -74,6 +74,11 @@ pub async fn find_in(tx: &mut Tx) -> Result<Option<ConfigRow>, DbError> {
 }
 
 /// The first save: the row does not exist yet.
+/// `readLocked`: the configuration read `for share`, in the registry's switch — a save still open is read as it commits.
+pub async fn find_locked(tx: &mut Tx) -> Result<Option<(bool, String)>, DbError> {
+    on!(tx, Tx, |t| mysql::find_locked(t).await, postgres::find_locked(t).await)
+}
+
 pub async fn insert(tx: &mut Tx, row: &ConfigRow) -> Result<u64, DbError> {
     on!(tx, Tx, |t| mysql::insert(t, row).await, postgres::insert(t, row).await)
 }

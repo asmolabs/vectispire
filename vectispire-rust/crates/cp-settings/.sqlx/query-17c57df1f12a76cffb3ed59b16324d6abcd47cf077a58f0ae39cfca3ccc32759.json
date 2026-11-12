@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select enabled from t_integration where integration_key = $1 for share",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_integration",
+            "name": "enabled"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "17c57df1f12a76cffb3ed59b16324d6abcd47cf077a58f0ae39cfca3ccc32759"
+}

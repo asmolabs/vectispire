@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_integration set enabled = ?, updated_at = ?, updated_by = ? where integration_key = ? and enabled <> ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "344bcb3b9b7dae6809d93a9e4bb3c506964dcb84c2685c7a1e5dd7972af56e71"
+}

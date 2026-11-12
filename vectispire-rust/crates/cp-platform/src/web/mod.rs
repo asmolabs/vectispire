@@ -15,6 +15,7 @@ use vectispire_cp_http::routes::RouteEntry;
 
 mod audit_log;
 mod crypto;
+mod integrations;
 mod read;
 
 /// The six routes: the audit trail's three, and the signing key's three.
@@ -22,6 +23,13 @@ pub fn routes(trail: Arc<AuditLogQuery>, signing: Arc<SigningKeys>) -> Vec<Route
     let mut entries = Vec::new();
     audit_log::routes(trail, &mut entries);
     crypto::routes(signing, &mut entries);
+    entries
+}
+
+/// The integrations' two routes, over the registry the binary composes with every module's answer to "is it in use".
+pub fn integration_routes(administration: Arc<crate::IntegrationAdministration>) -> Vec<RouteEntry> {
+    let mut entries = Vec::new();
+    integrations::routes(administration, &mut entries);
     entries
 }
 

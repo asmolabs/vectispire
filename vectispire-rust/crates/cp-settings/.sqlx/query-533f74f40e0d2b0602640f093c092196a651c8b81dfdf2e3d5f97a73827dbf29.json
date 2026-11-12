@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select enabled as `enabled: bool` from t_integration where integration_key = ? for share",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_integration",
+            "name": "enabled"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "533f74f40e0d2b0602640f093c092196a651c8b81dfdf2e3d5f97a73827dbf29"
+}

@@ -26,6 +26,8 @@ const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("GET", "/api/v1/crypto/public-key.pub", "getPublicKey", &[]),
     ("POST", "/api/v1/crypto/verify", "verifySignature", &[]),
     ("GET", "/api/v1/crypto/cosign-cli-helper", "getCosignCliHelper", &[]),
+    ("GET", "/api/v1/integrations", "listIntegrations", &[]),
+    ("PUT", "/api/v1/integrations/{key}/enabled", "setIntegrationEnabled", &[]),
 ];
 
 fn unreachable_db() -> vectispire_cp_db::Db {
@@ -48,6 +50,7 @@ async fn the_routes_are_the_documented_ones() {
         Arc::new(vectispire_cp_audit::SystemClock),
         Vec::new(),
     );
+    let audit_for_switches = audit.clone();
     let trail = Arc::new(vectispire_cp_audit::AuditLogQuery::new(
         audit,
         Arc::new(vectispire_cp_audit::SystemClock),
@@ -58,8 +61,14 @@ async fn the_routes_are_the_documented_ones() {
         guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
     };
     let encryption = Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap());
-    let signing = Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db), encryption).unwrap());
-    let entries = vectispire_cp_platform::routes(trail, signing);
+    let signing =
+        Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db.clone()), encryption).unwrap());
+    let integrations =
+        vectispire_cp_settings::Integrations::new(db.clone(), Vec::new(), Arc::new(time::OffsetDateTime::now_utc));
+    let administration =
+        Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations, audit_for_switches));
+    let mut entries = vectispire_cp_platform::routes(trail, signing);
+    entries.extend(vectispire_cp_platform::integration_routes(administration));
     assert_eq!(entries.len(), DECLARED.len());
     // The controllers' markers: governance read on `AuditLogController`'s class; on `CryptoController`'s methods, the
     // public key open to anybody and the two others an account's. Any marker passes the registry's rules, so the one
@@ -78,6 +87,8 @@ async fn the_routes_are_the_documented_ones() {
             route("GET", "/api/v1/crypto/public-key.pub", Access::Anonymous),
             route("POST", "/api/v1/crypto/verify", Access::Account),
             route("GET", "/api/v1/crypto/cosign-cli-helper", Access::Account),
+            route("GET", "/api/v1/integrations", Access::Account),
+            route("PUT", "/api/v1/integrations/{key}/enabled", Access::PlatformGovernor),
         ]
     );
     assert!(entries.iter().all(|entry| entry.decl().accepts_api_key.is_none()), "no route here invites an API key");

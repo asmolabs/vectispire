@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select integration_key, enabled, updated_at as \"updated_at: UtcInstant\", updated_by\n           from t_integration",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "integration_key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_integration",
+            "name": "integration_key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_integration",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "updated_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_integration",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "updated_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_integration",
+            "name": "updated_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "8188f635ab736b05fffcae0624da17f5d853ca63afebd82ce84dba0c30f90fd3"
+}

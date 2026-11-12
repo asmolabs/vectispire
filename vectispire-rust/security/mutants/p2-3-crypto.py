@@ -73,10 +73,10 @@ MUTANTS = [
     ("DSSE lengths swapped", CO, 'payload_type.len(), payload.len()', 'payload.len(), payload_type.len()', T),
     ("another row context", SI, 'const CONTEXT: &str = "internal:document_signing_key";', 'const CONTEXT: &str = "internal:signing_key";', T),
     ("another row", SI, 'pub const STORED_KEY: &str = "internal.document_signing_key";', 'pub const STORED_KEY: &str = "internal.signing_key";', T),
-    ("the configured key untrimmed", SI, "let configured = java::trim(configured);", "let configured = configured;", T),
-    ("an unreadable row parsed", SI, "        if secret.state() == SecretState::Unreadable {\n            return Err(SigningError::Unreadable);", "        if false {\n            return Err(SigningError::Unreadable);", T),
+    ("the configured key untrimmed", SI, "let configured = java::trim(config.key);", "let configured = config.key;", T),
+    ("an unreadable row parsed", SI, "        if secret.state() == SecretState::Unreadable {\n            return Err(SigningError::Unreadable);\n        }\n        let key =", "        if false {\n            return Err(SigningError::Unreadable);\n        }\n        let key =", T),
     ("no key is a Vault failure", SI, "EncryptionError::MissingKey => SigningError::MissingKey,", "EncryptionError::MissingKey => SigningError::Encryption(EncryptionError::MissingKey),", T),
-    ("a supplied key is never ours", SI, "let is_ours = key_id == ours.key_id;", "let is_ours = false;", T),
+    ("a supplied key is never ours", SI, "let known = self.published_key(&key_id).await?;", "let known: Option<PublishedKey> = None;", T),
     ("the generated key, not the stored one", SI, "let key = self.decrypt(java::trim(&kept)).await?;", "let _ = kept; let key = KeyMaterial::of(generated.clone());", TE),
     ("the row overwritten", SI, "let inserted = self.store.store_internal_if_absent(STORED_KEY, &encrypted).await?;", "let inserted = true;", TE),
     # ── seal, in the shared crate ──

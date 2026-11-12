@@ -29,6 +29,13 @@ pub enum DeliveryError {
     /// `getMessage()` as it is.
     #[error("{0}")]
     Gone(String),
+    /// A destination that exists and that this installation may not reach for now — a SIEM transport or a
+    /// notification channel the platform governor switched off (decision 0040) — Java's `HeldDeliveryException`.
+    /// **Neither a failure nor gone**: either would lose a security event to a switch a governor may turn back in a
+    /// minute. The row stays pending, its attempts unchanged, with this reason as its last error, and is offered again
+    /// after [`crate::retry::HOLD_INTERVAL`], for as long as it takes.
+    #[error("{0}")]
+    Held(String),
     /// Anything else: retried on the backoff, then abandoned. `kind` is the simple name of the exception the Java
     /// sender of the same destination throws (`OutboundFailureException`…), so that `last_error` reads the same
     /// whichever control plane wrote it; `message` is its message, `None` where Java's is `null`.
