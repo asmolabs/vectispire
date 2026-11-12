@@ -102,6 +102,7 @@ export function repository(forgeId: string, fullPath: string, changes: Partial<F
         lastSeenAt: '2026-10-03T08:01:00Z',
         lastSeenBy: 12,
         changeSummary: null,
+        trackedBranches: ['main', 'develop'],
         ...changes
     });
 }
@@ -114,6 +115,7 @@ export function candidate(repo: ForgeRepository, changes: Partial<ForgeCandidate
         offered: true,
         presentAs: [],
         importedAs: null,
+        importedTargets: [],
         proposedSolution: repo.namespacePath.split('/')[0],
         proposedProject: repo.namespacePath.split('/').slice(1).join('/') || repo.namespacePath.split('/')[0],
         ...changes
@@ -142,7 +144,8 @@ export const CANDIDATE_PAGE: ForgeCandidatePage = asSchema('ForgeCandidatePage',
     offset: 0,
     listed: 37,
     total: 4,
-    unjudged: { fork: 30 }
+    unjudged: { fork: 30 },
+    trackedBranches: ['main', 'master', 'develop']
 });
 
 export const PREVIEW: ForgeImportPreview = asSchema('ForgeImportPreview', {
@@ -175,7 +178,13 @@ export const PREVIEW: ForgeImportPreview = asSchema('ForgeImportPreview', {
         }
     ],
     skipped: [
-        { forgeId: '103', fullPath: 'acme/frontend/portal', reason: 'already_present', repositoryIds: [7, 8, 9] }
+        {
+            forgeId: '103',
+            fullPath: 'acme/frontend/portal',
+            reason: 'already_present',
+            repositoryIds: [7, 8, 9],
+            branch: null
+        }
     ],
     refused: [],
     solutions: [{ name: 'acme', existingId: 4 }],
@@ -205,7 +214,8 @@ export const RESULT: ForgeImportResult = asSchema('ForgeImportResult', {
             solution: 'acme',
             project: 'backend/payments',
             firstScanId: 900,
-            firstScanNotBefore: '2026-10-03T09:01:00Z'
+            firstScanNotBefore: '2026-10-03T09:01:00Z',
+            branch: 'main'
         },
         {
             repositoryId: 42,
@@ -215,11 +225,18 @@ export const RESULT: ForgeImportResult = asSchema('ForgeImportResult', {
             solution: null,
             project: null,
             firstScanId: null,
-            firstScanNotBefore: null
+            firstScanNotBefore: null,
+            branch: 'main'
         }
     ],
     skipped: [
-        { forgeId: '103', fullPath: 'acme/frontend/portal', reason: 'already_present', repositoryIds: [7, 8, 9] }
+        {
+            forgeId: '103',
+            fullPath: 'acme/frontend/portal',
+            reason: 'already_present',
+            repositoryIds: [7, 8, 9],
+            branch: null
+        }
     ],
     solutionsCreated: [],
     projectsCreated: [],

@@ -429,6 +429,7 @@
                     [connectionId]="connectionId()"
                     [discoveryId]="discoveryId"
                     [(selected)]="selected"
+                    [(trackedBranches)]="trackedBranches"
                     (superseded)="onSuperseded($event)"
                     (proceed)="goTo('import')"
                 />
@@ -440,6 +441,7 @@
                     [connectionId]="connectionId()"
                     [discoveryId]="discoveryId"
                     [forgeIds]="selected()"
+                    [trackedBranches]="trackedBranches()"
                     [result]="imported()"
                     (imported)="onImported($event)"
                     (back)="backToSelection()"

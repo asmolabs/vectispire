@@ -95,6 +95,19 @@ describe('the forge client', () => {
         change.flush(asSchema('ForgeSelection', { discoveryId: 12, count: 1, selected: ['101'], dropped: null }));
     });
 
+    it('repeats a list filter once per value in the query, and sends none for an empty list', () => {
+        api.importCandidates(ID, 12, { branches: ['main', 'develop'] }, 50, 0).subscribe();
+        http.expectOne({
+            method: 'GET',
+            url: `${BASE}/discoveries/12/selection?limit=50&offset=0&branches=main&branches=develop`
+        }).flush(CANDIDATE_PAGE);
+
+        api.importCandidates(ID, 12, { branches: [] }, 50, 0).subscribe();
+        http.expectOne({ method: 'GET', url: `${BASE}/discoveries/12/selection?limit=50&offset=0` }).flush(
+            CANDIDATE_PAGE
+        );
+    });
+
     it('previews and imports with the same body', () => {
         const body = { discoveryId: 12, forgeIds: ['101'], firstScan: false, spacingSeconds: 60 };
 

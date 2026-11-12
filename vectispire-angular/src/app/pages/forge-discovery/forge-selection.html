@@ -116,6 +116,24 @@
             }}</label>
             <input pInputText id="filter-namespace" name="namespace" [(ngModel)]="form.namespace" />
         </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-branches" class="text-sm font-medium">{{
+                'forges.selection.branches' | translate
+            }}</label>
+            <p-multiselect
+                inputId="filter-branches"
+                name="branches"
+                [options]="trackedBranches()"
+                [(ngModel)]="form.branches"
+                [placeholder]="'common.all' | translate"
+                display="chip"
+                appendTo="body"
+                styleClass="w-full"
+            />
+            <small id="filter-branches-hint" class="text-muted-color">{{
+                'forges.selection.branches_hint' | translate
+            }}</small>
+        </div>
         <div class="flex flex-col gap-1 sm:col-span-2">
             <label for="filter-path" class="text-sm font-medium">{{ 'forges.selection.path' | translate }}</label>
             <input
@@ -241,7 +259,7 @@
                         <th class="py-2 pr-3">{{ 'forges.repository.traits' | translate }}</th>
                         <th class="py-2 pr-3">{{ 'forges.repository.language' | translate }}</th>
                         <th class="py-2 pr-3">{{ 'forges.repository.activity' | translate }}</th>
-                        <th class="py-2 pr-3">{{ 'forges.repository.branch' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.branches' | translate }}</th>
                         <th class="py-2 pr-3">{{ 'forges.selection.state' | translate }}</th>
                         <th class="py-2 pr-3">{{ 'forges.selection.proposed_placement' | translate }}</th>
                     </tr>
@@ -318,8 +336,32 @@
                                     {{ 'common.unknown' | translate }}
                                 }
                             </td>
-                            <td class="py-2 pr-3">
-                                {{ row.candidate.repository.defaultBranch ?? ('common.unknown' | translate) }}
+                            <td class="py-2 pr-3" data-testid="candidate-branches">
+                                <div class="flex flex-wrap gap-1">
+                                    @if (row.candidate.repository.defaultBranch; as name) {
+                                        <p-tag
+                                            data-testid="default-branch"
+                                            severity="info"
+                                            [value]="'forges.repository.default_branch_tag' | translate: { name: name }"
+                                        />
+                                    } @else {
+                                        <span class="text-muted-color">{{ 'common.unknown' | translate }}</span>
+                                    }
+                                    @if (row.otherBranches; as others) {
+                                        @for (name of others; track name) {
+                                            <p-tag data-testid="tracked-branch" severity="secondary" [value]="name" />
+                                        }
+                                    } @else {
+                                        <!-- Unknown is not none: a branch filter leaves this one out, and an import
+                                             naming a branch skips it. -->
+                                        <p-tag
+                                            data-testid="branches-unknown"
+                                            severity="warn"
+                                            icon="pi pi-question-circle"
+                                            [value]="'forges.repository.branches_unknown' | translate"
+                                        />
+                                    }
+                                </div>
                             </td>
                             <td class="py-2 pr-3" data-testid="candidate-state">
                                 @if (row.candidate.notSelectable === 'already_present') {
@@ -328,10 +370,17 @@
                                             | translate: { count: row.candidate.presentAs?.length ?? 0 }
                                     }}
                                 } @else if (row.candidate.notSelectable === 'already_imported') {
-                                    {{
-                                        'forges.selection.imported_as'
-                                            | translate: { id: row.candidate.importedAs ?? '' }
-                                    }}
+                                    @if (row.candidate.importedTargets.length > 1) {
+                                        {{
+                                            'forges.selection.imported_as_targets'
+                                                | translate: { ids: row.candidate.importedTargets.join(', ') }
+                                        }}
+                                    } @else {
+                                        {{
+                                            'forges.selection.imported_as'
+                                                | translate: { id: row.candidate.importedAs ?? '' }
+                                        }}
+                                    }
                                 } @else if (row.skipKey; as key) {
                                     {{ key | translate }}
                                 } @else if (row.candidate.notSelectable) {

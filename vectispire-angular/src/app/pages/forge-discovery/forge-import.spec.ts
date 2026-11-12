@@ -7,7 +7,7 @@ import { ForgeImportStep, type ImportDone } from './forge-import';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { CONNECTION_ID, PREVIEW, RESULT } from '@/app/core/testing/forges.fixtures';
-import type { ForgeImportPreview } from '@/app/core/api.models';
+import type { ForgeImportPreview, ForgeImportRequest } from '@/app/core/api.models';
 import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 
 const TOKEN_ID = '3b1f0c2e-6d4a-4e8b-9f10-2a7c5d9e1b44'; // gitleaks:allow — an invented token id, not a token
@@ -46,11 +46,16 @@ describe('the import step', () => {
         return http.expectOne({ method: 'POST', url: `${BASE}/preview` });
     }
 
-    async function open(preview: ForgeImportPreview = PREVIEW, result: object | null = null): Promise<void> {
+    async function open(
+        preview: ForgeImportPreview = PREVIEW,
+        result: object | null = null,
+        trackedBranches: string[] = ['main', 'master', 'develop']
+    ): Promise<void> {
         fixture = TestBed.createComponent(ForgeImportStep);
         fixture.componentRef.setInput('connectionId', CONNECTION_ID);
         fixture.componentRef.setInput('discoveryId', 12);
         fixture.componentRef.setInput('forgeIds', ['101', '102']);
+        fixture.componentRef.setInput('trackedBranches', trackedBranches);
         fixture.componentRef.setInput('result', result);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -365,6 +370,125 @@ describe('the import step', () => {
         expect(text('[data-testid="result-skipped"]')).toBe('acme/frontend/portal — Already a target');
         expect(text('[data-testid="audit-hint"]')).toContain('"Repositories imported from a forge"');
         http.expectNone({ method: 'POST', url: `${BASE}/preview` });
+    });
+
+    describe('the branches to scan', () => {
+        const option = (value: string) =>
+            dom().querySelector<HTMLInputElement>(`[data-testid="branch-option"][data-branch="${value}"]`)!;
+        const body = (request: TestRequest) => request.request.body as ForgeImportRequest;
+
+        async function tick(value: string): Promise<void> {
+            option(value).click();
+            await settle();
+        }
+
+        /** Two branches of the API, the worker's default alone: it has no develop. */
+        const PER_BRANCH: ForgeImportPreview = asSchema('ForgeImportPreview', {
+            ...PREVIEW,
+            targets: [
+                PREVIEW.targets[0],
+                { ...PREVIEW.targets[0], branch: 'develop' },
+                { ...PREVIEW.targets[1], warning: null }
+            ],
+            skipped: [
+                {
+                    forgeId: '102',
+                    fullPath: 'acme/backend/payments/worker',
+                    reason: 'branch_absent',
+                    repositoryIds: null,
+                    branch: 'develop'
+                }
+            ]
+        });
+
+        it('offers the default branch and each tracked name, the default alone ticked and nothing sent for it', async () => {
+            await open();
+
+            const labels = Array.from(dom().querySelectorAll('[data-testid="branch-option"]')).map((input) =>
+                (input.closest('label')?.textContent ?? '').replace(/\s+/g, ' ').trim()
+            );
+            expect(labels).toEqual(['Default branch', 'main', 'master', 'develop']);
+            expect(option('default').checked).toBe(true);
+            expect(option('develop').checked).toBe(false);
+            // Naming "default" would judge each branch apart: an untouched form must import as before.
+            expect(fixture.componentInstance.request().branches).toBeUndefined();
+        });
+
+        it('names the branches ticked, one target per branch, and says which branch a skip is for', async () => {
+            await open();
+
+            await tick('develop');
+            expect(text('[data-testid="stale"]')).toContain('preview again');
+            await click('preview');
+            const both = previewRequest();
+            expect(body(both).branches).toEqual(['default', 'develop']);
+            both.flush(PER_BRANCH);
+            await settle();
+
+            expect(all('[data-testid="planned-branch"]')).toEqual(['main', 'develop', 'main']);
+            expect(text('[data-testid="skipped"]')).toBe(
+                'acme/backend/payments/worker (branch develop) — Branch not found in the repository'
+            );
+            // Placed once per repository, however many branches it brings.
+            expect(all('[data-testid="placement"]')).toEqual(['acme/backend/payments 2 repositories']);
+
+            await click('import');
+            const imported = http.expectOne({ method: 'POST', url: BASE });
+            expect(body(imported).branches).toEqual(['default', 'develop']);
+            imported.flush(RESULT);
+            await settle();
+        });
+
+        it('sends the default branch by name once it is not alone, and nothing at all when none is ticked', async () => {
+            await open();
+
+            await tick('master');
+            await tick('default');
+            await click('preview');
+            const master = previewRequest();
+            expect(body(master).branches).toEqual(['master']);
+            master.flush(PREVIEW);
+            await settle();
+
+            await tick('master');
+            expect(text('[data-testid="branches-none"]')).toBe('Tick at least one branch.');
+            await click('preview');
+            http.expectNone({ method: 'POST', url: `${BASE}/preview` });
+            expect(button('import').disabled).toBe(true);
+        });
+
+        it('words the branch skips in the reader language, with their branch, in the result too', async () => {
+            const unknown = {
+                forgeId: '102',
+                fullPath: 'acme/backend/payments/worker',
+                repositoryIds: null,
+                branch: 'develop'
+            };
+            await open(
+                PREVIEW,
+                asSchema('ForgeImportResult', {
+                    ...RESULT,
+                    created: [{ ...RESULT.created[0], branch: 'develop' }],
+                    skipped: [
+                        { ...unknown, reason: 'branch_unknown' },
+                        { ...unknown, forgeId: '101', fullPath: 'acme/backend/payments/api', reason: 'branch_absent' }
+                    ]
+                })
+            );
+
+            expect(all('[data-testid="created-branch"]')).toEqual(['develop']);
+            expect(all('[data-testid="result-skip"]')).toEqual([
+                'acme/backend/payments/worker (branch develop) — Branches unknown: the forge did not say which it has',
+                'acme/backend/payments/api (branch develop) — Branch not found in the repository'
+            ]);
+
+            useFrench();
+            await settle();
+            expect(all('[data-testid="result-skip"]')).toEqual([
+                "acme/backend/payments/worker (branche develop) — Branches inconnues : la forge n'a pas dit lesquelles il a",
+                'acme/backend/payments/api (branche develop) — Branche absente du dépôt'
+            ]);
+        });
     });
 
     it('imports at most a thousand at a time, and says so', async () => {

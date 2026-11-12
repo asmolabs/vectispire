@@ -102,7 +102,13 @@ export class ForgesApi {
     ): Observable<ForgeCandidatePage> {
         let params = new HttpParams().set('limit', limit).set('offset', offset);
         for (const [key, value] of Object.entries(filters)) {
-            if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
+            // A list is repeated, one parameter per value, as the document declares it; an empty one sends
+            // nothing, which is the filter left off.
+            if (Array.isArray(value)) {
+                for (const item of value as unknown[]) params = params.append(key, String(item));
+            } else if (value !== undefined && value !== null && value !== '') {
+                params = params.set(key, String(value));
+            }
         }
         return this.http.get<ForgeCandidatePage>(`${this.discoveriesOf(connectionId)}/${discoveryId}/selection`, {
             params
