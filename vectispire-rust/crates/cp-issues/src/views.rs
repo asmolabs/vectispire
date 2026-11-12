@@ -4,10 +4,6 @@ use crate::persistence::{IssueRow, TriageEventRow};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-fn default_reachability() -> String {
-    "UNKNOWN".to_owned()
-}
-
 /// An issue crossing the API boundary — matches OpenAPI schema `IssueView`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -65,9 +61,8 @@ pub struct IssueView {
     pub ticket_ref: Option<String>,
     pub ticket_attached_by: Option<String>,
     pub ticket_url: Option<String>,
-    #[serde(default = "default_reachability")]
-    pub reachability: String,
-    pub reachable_symbols: Option<String>,
+    // `reachability` and `reachableSymbols` left the view in Java 1.0: no analyser ever filled them — every row read
+    // UNKNOWN and null — and a member a client may read as "not reachable" is worse than no member. The columns stay.
 }
 
 /// An issue with target names and SLA tracking — matches OpenAPI schema `BacklogEntry`.
@@ -188,8 +183,6 @@ impl IssueRow {
             ticket_ref: self.ticket_ref.clone(),
             ticket_attached_by: self.ticket_attached_by.clone(),
             ticket_url: self.ticket_url.clone(),
-            reachability: self.reachability.clone(),
-            reachable_symbols: self.reachable_symbols.clone(),
         }
     }
 }

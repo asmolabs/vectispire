@@ -118,7 +118,8 @@ causes rather than one by one. Counts are recordings.
       `cross-origin-resource-policy` (same-origin) — 4,505. One layer in `cp-http`.
 - [ ] **Problem details carry a `code`** (`authentication-required`, …) — 432; and a few refusals' `type`, `title`,
       `status`, `instance`, `detail` where Rust answered differently.
-- [ ] **Inventory components carry `reachability` and `reachableSymbols`** — 58.
+- [x] **`IssueView` no longer carries `reachability` and `reachableSymbols`** (Java 1.0 dropped the two, always UNKNOWN and
+      null) — 58, on `POST /issues/triage` mostly; the columns stay.
 - [ ] **Agents**: `executors`, `executorsReportedAt` on the agent views — 33; `t_scan.examined_types` written by a
       result — 33; the outbox rows a result writes — 34; status differences on `GET /agent/jobs`,
       `POST /agent/sealing-key`, `PUT /admin/agents/{id}/signing-key`, `POST /agent/jobs/{id}/failure`,
