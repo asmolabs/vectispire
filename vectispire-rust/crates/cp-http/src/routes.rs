@@ -312,7 +312,25 @@ impl<V: Clone + Send + Sync + 'static> Routes<V> {
                         }
                     });
                 }
-                router = router.route(&path, merged);
+                // A segment that is a parameter with a static suffix (`{keyId}.pub`, as Spring maps it): the router
+                // matches one parameter per whole segment only — matchit panics on the suffix — so the route is
+                // registered with the bare parameter, and a request whose segment lacks the suffix is what Spring
+                // answers it, no route. The handler reads the segment with its suffix ([`suffixed`]).
+                let (routed, suffix) = router_path(&path);
+                if let Some((index, suffix)) = suffix {
+                    merged = merged.route_layer(middleware::from_fn(move |request: Request, next: Next| {
+                        let suffix = suffix.clone();
+                        async move {
+                            let segment = request.uri().path().split('/').nth(index).unwrap_or_default().to_owned();
+                            if segment.ends_with(suffix.as_str()) && segment.len() > suffix.len() {
+                                next.run(request).await
+                            } else {
+                                not_found().await.into_response()
+                            }
+                        }
+                    }));
+                }
+                router = router.route(&routed, merged);
             }
         }
         let router = match interface {
@@ -321,6 +339,31 @@ impl<V: Clone + Send + Sync + 'static> Routes<V> {
         };
         Ok(chain.apply(router))
     }
+}
+
+/// The path the router is given for a declared `path`, and the position and suffix of its suffixed parameter segment —
+/// `/a/{keyId}.pub` is routed as `/a/{keyId}`, the suffix `.pub` checked at segment 2.
+fn router_path(path: &str) -> (String, Option<(usize, String)>) {
+    let mut suffix = None;
+    let segments: Vec<String> = path
+        .split('/')
+        .enumerate()
+        .map(|(index, segment)| match segment.strip_prefix('{').and_then(|rest| rest.split_once('}')) {
+            Some((name, rest)) if !rest.is_empty() => {
+                suffix = Some((index, rest.to_owned()));
+                format!("{{{name}}}")
+            }
+            _ => segment.to_owned(),
+        })
+        .collect();
+    (segments.join("/"), suffix)
+}
+
+/// The parameter of a suffixed segment without its suffix: `suffixed("sha256-ab.pub", ".pub")` is `sha256-ab`. The
+/// route builder has already refused a segment without it, so `None` is not expected of a routed request.
+#[must_use]
+pub fn suffixed<'a>(segment: &'a str, suffix: &str) -> Option<&'a str> {
+    segment.strip_suffix(suffix).filter(|value| !value.is_empty())
 }
 
 /// An unmapped path, in Vectispire's words — not Spring's "No static resource api/v1/…".

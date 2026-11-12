@@ -282,11 +282,13 @@ async fn serve() -> ExitCode {
 
     let configured_signing_key = settings.signing_key.as_ref().map(|s| s.expose()).unwrap_or("");
     // As `SigningKeyService`'s constructor: the configured key checked, a revoked one refused, the record of published
-    // keys re-sealed and the vouched-for keys adopted — before anything is served. `vectispire.signing.revoked-keys` and
-    // `adopt-unsealed-keys` are not bound by `cp-runtime`'s property table yet (CATCH-UP.md, platform): until they are,
-    // none is revoked or adopted here, which is the default of both.
+    // keys re-sealed and the vouched-for keys adopted — before anything is served.
     let signing = match vectispire_cp_crypto::SigningKeys::start(
-        vectispire_cp_crypto::SigningConfig { key: configured_signing_key, revoked_keys: "", adopted_keys: "" },
+        vectispire_cp_crypto::SigningConfig {
+            key: configured_signing_key,
+            revoked_keys: &settings.signing_revoked_keys,
+            adopted_keys: &settings.signing_adopted_keys,
+        },
         vectispire_cp_settings::Settings::new(db.clone()),
         encryption.clone(),
         vectispire_cp_crypto::Clock::system(),

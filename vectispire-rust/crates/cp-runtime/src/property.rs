@@ -178,6 +178,10 @@ pub const PROPERTIES: &[Property] = &[
     record("vectispire.encryption.vault-key-name", None),
     record("vectispire.encryption.vault-mount-path", None),
     secret(value("vectispire.signing.key", Some(""))),
+    // Java 1.0's rotation (`SigningKeyService`): ids revoked, refused at start if configured; ids of keys found in the
+    // unsealed record that the operator vouches for, adopted into the sealed one. Comma-separated, empty by default.
+    value("vectispire.signing.revoked-keys", Some("")),
+    value("vectispire.signing.adopt-unsealed-keys", Some("")),
     // SCIM.
     record("vectispire.scim.enabled", Some("false")),
     secret(record("vectispire.scim.token", None)),

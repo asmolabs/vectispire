@@ -169,7 +169,7 @@ async fn answering(
 
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
-fn router(db: &Db) -> axum::Router {
+fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Router {
     let siem = Siem::over(db);
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let targets = Arc::new(Targets::new(TargetsConfig {
@@ -200,7 +200,7 @@ fn router(db: &Db) -> axum::Router {
         runner: None,
         scanned: Vec::new(),
     }));
-    let modules = phase_three(db, targets.clone(), audit.clone(), &siem);
+    let modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing);
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
@@ -304,6 +304,7 @@ fn phase_three(
     targets: Arc<Targets>,
     audit: Arc<AuditLog>,
     siem: &Siem,
+    signing: Arc<vectispire_cp_crypto::SigningKeys>,
 ) -> Vec<vectispire_cp_http::routes::RouteEntry> {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
     let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
@@ -340,14 +341,13 @@ fn phase_three(
         Arc::new(AuditClock),
         vec![siem.events.clone() as Arc<dyn vectispire_cp_audit::ChainBrokenListener>],
     ));
-    // **The signing key as `vectispire.signing.key` configures it**, not generated into `t_setting` on first use: the
-    // Java suite's context made its key before the recorded tests ran, so no recording holds the row or its insertion,
-    // and a key generated here would be an insertion Java never made — or, over a row a test seeded under Java's
-    // `ENCRYPTION_KEY`, a key this replay cannot read. The stored-key path is `cp-crypto`'s tests'.
-    let signing = Arc::new(
-        vectispire_cp_crypto::SigningKeys::new(&signing_key_pem(), Settings::new(db.clone()), support::encryption())
-            .unwrap(),
-    );
+    // The integrations' registry and its routes, as `cp-app`'s registry composes them: the SIEM's transport is the use
+    // that refuses a switch-off.
+    let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)];
+    let integrations =
+        vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc));
+    let integration_administration =
+        Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations, (*audit).clone()));
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -363,6 +363,7 @@ fn phase_three(
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
     routes.extend(vectispire_cp_platform::routes(trail, signing));
+    routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes
 }
 
@@ -375,7 +376,12 @@ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
     let composed = support::compose(&db, support::system_clock());
     let siem = Siem::over(&db);
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
-    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem);
+    // Only the routes are read here, never served: a key over the unreachable database is never asked for its record.
+    let signing = Arc::new(
+        vectispire_cp_crypto::SigningKeys::new(&signing_key_pem(), Settings::new(db.clone()), support::encryption())
+            .unwrap(),
+    );
+    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem, signing);
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))
@@ -463,6 +469,20 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         let db = database.connect().await;
         let schema = Schema::read(&db, &recording.id_bases).await.unwrap();
         let pristine = rows::snapshot(&db, &schema).await.unwrap();
+        // **One signing key per engine, as `vectispire.signing.key` configures it, and its record written once.** Java's
+        // context made its key and sealed the record of known keys before the recorded tests ran, and the database was
+        // cleaned between them: no recording holds the record's insertion. A key per test would write it at each test's
+        // first signature — an insertion Java never made. Signed once here, after the snapshot, the record is in this
+        // service's hands and absent from every test's database, as it was from Java's.
+        let signing = Arc::new(
+            vectispire_cp_crypto::SigningKeys::new(
+                &signing_key_pem(),
+                Settings::new(db.clone()),
+                support::encryption(),
+            )
+            .unwrap(),
+        );
+        signing.key_id().await.unwrap();
         let replayer = Replayer {
             recording: &recording,
             db: &db,
@@ -475,7 +495,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         };
         let mut outcomes = Vec::new();
         for test in &tests {
-            outcomes.extend(replayer.test(test, router(&db)).await);
+            outcomes.extend(replayer.test(test, router(&db, signing.clone())).await);
         }
         let green = outcomes.iter().filter(|replayed| replayed.served && replayed.outcome == Outcome::Green).count();
         let owed = outcomes.iter().filter(|replayed| replayed.served).count();

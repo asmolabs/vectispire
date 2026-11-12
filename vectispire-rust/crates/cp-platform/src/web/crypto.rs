@@ -2,13 +2,6 @@
 //!
 //! - `GET /api/v1/crypto/public-key.pub` (`getPublicKey`): anonymous — publishing the key is the point; the key the
 //!   record calls active, so that every instance serves the same one through a rolling restart;
-//!
-//! Written and tested, **not routed yet** (both stay in `not-yet-ported/platform.txt`), for two reasons in `cp-http`:
-//! its chain opens only `public-key.pub` to an anonymous caller (Java's `SecurityConfiguration` opens
-//! `/api/v1/crypto/public-keys` and `/public-keys/*` too, and served here they would answer 401), and its route
-//! builder hands the documented path to axum as it is, whose router (matchit 0.8.4) takes no parameter followed by a
-//! suffix in one segment:
-//!
 //! - `GET /api/v1/crypto/public-keys` (`listPublicKeys`) — [`public_keys`]: anonymous, every key this deployment has
 //!   signed with, the active one first, retired and revoked ones after it (`docs/en/KEY_ROTATION.md`);
 //! - `GET /api/v1/crypto/public-keys/{keyId}.pub` (`getPublicKeyById`) — [`public_key_by_id`]: anonymous, one of them,
@@ -20,6 +13,7 @@
 use std::sync::Arc;
 
 use axum::body::Body;
+use axum::extract::Path;
 use axum::response::{IntoResponse, Response};
 use http::{HeaderValue, StatusCode, header};
 use serde::Serialize;
@@ -197,7 +191,6 @@ async fn public_key<S: KeyStore>(signing: &SigningKeys<S>) -> Response {
 }
 
 /// `listPublicKeys`.
-#[allow(dead_code)] // Routed once `cp-http` opens it: the module's header says why.
 async fn public_keys<S: KeyStore>(signing: &SigningKeys<S>) -> Response {
     match signing.published_keys().await {
         Ok(keys) => ok(&keys.into_iter().map(PublishedKeyResponse::of).collect::<Vec<_>>()),
@@ -206,7 +199,6 @@ async fn public_keys<S: KeyStore>(signing: &SigningKeys<S>) -> Response {
 }
 
 /// `getPublicKeyById`: 404 "Signing key not found." for an id no published key has — the case of the id ignored.
-#[allow(dead_code)] // Routed once `cp-http` opens it and routes a suffixed parameter: the module's header says why.
 async fn public_key_by_id<S: KeyStore>(signing: &SigningKeys<S>, key_id: &str) -> Response {
     match signing.published_key(key_id).await {
         Ok(Some(key)) => {
@@ -261,6 +253,26 @@ pub(super) fn routes<S: KeyStore + 'static>(signing: Arc<SigningKeys<S>>, entrie
         let signing = public.clone();
         async move { public_key(&signing).await }
     }));
+
+    let listing = signing.clone();
+    entries.push(Route::get(PUBLIC_KEYS).requires(Access::Anonymous).names_no_target().handler(move || {
+        let signing = listing.clone();
+        async move { public_keys(&signing).await }
+    }));
+
+    // `{keyId}.pub`: the builder routes the bare segment and refuses one without the suffix; the id is what precedes it.
+    let one = signing.clone();
+    entries.push(Route::get(PUBLIC_KEY_BY_ID).requires(Access::Anonymous).names_no_target().handler(
+        move |Path(file): Path<String>| {
+            let signing = one.clone();
+            async move {
+                match vectispire_cp_http::routes::suffixed(&file, ".pub") {
+                    Some(key_id) => public_key_by_id(&signing, key_id).await,
+                    None => Problem::handler(StatusCode::NOT_FOUND, "Signing key not found.").into_response(),
+                }
+            }
+        },
+    ));
 
     let checking = signing.clone();
     entries.push(Route::post(VERIFY).requires(Access::Account).names_no_target().handler(

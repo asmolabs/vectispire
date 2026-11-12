@@ -55,6 +55,10 @@ pub struct Settings {
     pub audit_mirror_path: Option<String>,
     pub encryption: Encryption,
     pub signing_key: Option<Secret>,
+    /// `vectispire.signing.revoked-keys`, as written: `SigningKeys::start` parses it as Java does.
+    pub signing_revoked_keys: String,
+    /// `vectispire.signing.adopt-unsealed-keys`, as written.
+    pub signing_adopted_keys: String,
     pub scim: Scim,
     pub queue: Queue,
     pub leader_lease: Duration,
@@ -512,6 +516,8 @@ impl Settings {
             r.present("vectispire.audit.mirror-path").map(|path| path.trim_matches(|c: char| c <= ' ').to_owned());
         let encryption = Settings::encryption(&mut r);
         let signing_key = r.secret("vectispire.signing.key");
+        let signing_revoked_keys = r.string("vectispire.signing.revoked-keys");
+        let signing_adopted_keys = r.string("vectispire.signing.adopt-unsealed-keys");
         let scim = Settings::scim(&mut r);
         let queue = Queue {
             retry_delays: Settings::retry_delays(&mut r),
@@ -588,6 +594,8 @@ impl Settings {
             audit_mirror_path,
             encryption,
             signing_key,
+            signing_revoked_keys,
+            signing_adopted_keys,
             scim,
             queue,
             leader_lease,

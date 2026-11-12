@@ -153,9 +153,9 @@ fn the_agent_is_isolated_from_the_control_plane() {
 }
 
 #[test]
-fn the_anonymous_routes_are_the_java_seven() {
+fn the_anonymous_routes_are_the_java_nine() {
     let anonymous = routes::parse_anonymous(routes::ANONYMOUS).unwrap();
-    assert_eq!(anonymous.len(), 7);
+    assert_eq!(anonymous.len(), 9, "Java 1.0 opens the published keys beside the current one: nine");
 }
 
 /// `edges/` against the module model Spring Modulith reads, as Java writes it (`ModulesReferenceSetTest`,

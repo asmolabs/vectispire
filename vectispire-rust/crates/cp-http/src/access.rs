@@ -122,7 +122,13 @@ pub fn gate(method: &str, path: &str, anonymous_api_docs: bool) -> Gate {
         let badge = path
             .strip_prefix("/api/v1/scorecards/badges/")
             .is_some_and(|name| name.ends_with(".svg") && !name.contains('/'));
-        if path == "/api/v1/crypto/public-key.pub" || badge {
+        // Java 1.0 publishes every key this deployment signed with — `/public-keys` and one segment under it — beside
+        // the current one: a verifier holds no account here.
+        let published_key = path == "/api/v1/crypto/public-keys"
+            || path
+                .strip_prefix("/api/v1/crypto/public-keys/")
+                .is_some_and(|name| !name.is_empty() && !name.contains('/'));
+        if path == "/api/v1/crypto/public-key.pub" || published_key || badge {
             return Gate::Open;
         }
         // The interface itself is not behind the token: it is the files that ask for one.
@@ -181,6 +187,8 @@ mod tests {
             ("GET", "/actuator/health"),
             ("GET", "/actuator/health/liveness"),
             ("GET", "/api/v1/crypto/public-key.pub"),
+            ("GET", "/api/v1/crypto/public-keys"),
+            ("GET", "/api/v1/crypto/public-keys/sha256-abc.pub"),
             ("GET", "/api/v1/scorecards/badges/abc.svg"),
             ("GET", "/"),
             ("GET", "/index.html"),

@@ -19,7 +19,7 @@ fn target_route(path: &str, requirement: Requirement, scope: Scope) -> RouteDesc
     RouteDescriptor { names_target: true, scope, ..route(path, Some(requirement)) }
 }
 
-/// A registry that holds what the real one will: the seven open routes, and routes of every kind.
+/// A registry that holds what the real one will: the nine open routes, and routes of every kind.
 fn clean() -> Vec<RouteDescriptor> {
     let anonymous = parse_anonymous(ANONYMOUS).unwrap();
     let mut routes: Vec<RouteDescriptor> =
@@ -46,9 +46,9 @@ fn the_clean_registry_has_no_violation() {
 }
 
 #[test]
-fn the_anonymous_list_is_the_seven_of_the_java_control_plane_each_with_a_reason() {
+fn the_anonymous_list_is_the_nine_of_the_java_control_plane_each_with_a_reason() {
     let anonymous = parse_anonymous(ANONYMOUS).unwrap();
-    assert_eq!(anonymous.len(), 7);
+    assert_eq!(anonymous.len(), 9, "Java 1.0 opens the published keys beside the current one: nine");
     assert!(anonymous.contains_key("/api/v1/auth/login"));
     assert!(anonymous.contains_key("/api/v1/tickets/webhook/{provider}"));
     assert!(parse_anonymous("/a | no\n").is_err(), "a reason that is not one");
