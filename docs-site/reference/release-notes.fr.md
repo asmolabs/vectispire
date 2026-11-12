@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## 1.0.0-rc.2 — 10 novembre 2026
+## 1.0.0-rc.2 — 12 novembre 2026
 
 Ce qui suit se compare à 1.0.0-rc.1.
 
