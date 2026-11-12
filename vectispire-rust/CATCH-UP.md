@@ -54,8 +54,8 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       not pass `settings.sign_in` to the sign-in flow and the session cleanup (`with_limits`); an e-mail change on a
       directory-managed account → 409 `managed-by-directory` (V102; `AccountChange` has no e-mail yet) and SCIM's
       `scimLoweredFrom`; `POST /auth/mfa/enable` asks the current password again (`MfaEnableRequest.password`);
-      `TrustedProxies` reads every `X-Forwarded-For` line through `AddressLiterals`, and a hop that is no address
-      answers the nearest trusted proxy (cp-http).
+      ~~`TrustedProxies` reads every `X-Forwarded-For` line through `AddressLiterals`, and a hop that is no address
+      answers the nearest trusted proxy (cp-http)~~ — done 2026-11-12, as are the address buckets.
 
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 

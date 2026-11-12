@@ -313,7 +313,7 @@ async fn firewall(State(chain): State<Arc<Chain>>, request: Request, next: Next)
 async fn client_address(State(chain): State<Arc<Chain>>, mut request: Request, next: Next) -> Response {
     chain.visit("client-address");
     let peer = request.extensions().get::<ConnectInfo<SocketAddr>>().map(|info| info.0.ip().to_string());
-    let forwarded = request.headers().get("x-forwarded-for").and_then(|value| value.to_str().ok());
+    let forwarded = request.headers().get_all("x-forwarded-for").iter().filter_map(|value| value.to_str().ok());
     let resolved = chain.config.trusted_proxies.client_address(peer.as_deref(), forwarded);
     request.extensions_mut().insert(ClientAddress(resolved));
     next.run(request).await

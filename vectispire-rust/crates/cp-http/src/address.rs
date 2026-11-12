@@ -44,31 +44,47 @@ impl TrustedProxies {
         self.nets.is_empty()
     }
 
-    /// Whether `address` is one of the proxies. A value that is not an address matches nothing.
+    /// Whether `address` is one of the proxies, read as [`address_literal`] reads a hop — a port dropped, brackets
+    /// holding IPv6 only. A value that is not an address matches nothing.
     pub fn is_trusted(&self, address: &str) -> bool {
-        match address.trim().parse::<IpAddr>() {
-            Ok(address) => self.nets.iter().any(|net| net.contains(&address)),
-            Err(_) => false,
-        }
+        address_literal(address).is_some_and(|literal| self.matches(&literal))
+    }
+
+    fn matches(&self, literal: &str) -> bool {
+        of_literal(literal).is_some_and(|address| self.nets.iter().any(|net| net.contains(&address)))
     }
 
     /// The client's address: the peer unless the peer is a trusted proxy, in which case the right-most
     /// `X-Forwarded-For` hop that is not itself a trusted proxy. When every hop claims to be one, the peer — a
     /// real address rather than a claimed one.
-    pub fn client_address(&self, peer: Option<&str>, forwarded_for: Option<&str>) -> String {
-        let peer = peer.unwrap_or("unknown");
-        if !self.is_trusted(peer) {
-            return peer.to_owned();
+    ///
+    /// As Java 1.0's `TrustedProxies` reads it: **every** `X-Forwarded-For` line, each hop through
+    /// [`address_literal`] (a balancer's port dropped), and a hop that is no address at all (`unknown`, an obfuscated
+    /// identifier) ends the walk at the nearest trusted proxy — a claim the chain cannot read is not a client.
+    pub fn client_address<'a>(&self, peer: Option<&str>, forwarded_for: impl IntoIterator<Item = &'a str>) -> String {
+        let remote = peer.unwrap_or("unknown");
+        let peer = address_literal(remote).unwrap_or_else(|| remote.to_owned());
+        if !self.is_trusted(&peer) {
+            return peer;
         }
-        let Some(forwarded) = forwarded_for.filter(|value| !value.trim().is_empty()) else {
-            return peer.to_owned();
-        };
-        for hop in forwarded.split(',').rev().map(str::trim) {
-            if !hop.is_empty() && !self.is_trusted(hop) {
-                return hop.to_owned();
+        let hops: Vec<&str> = forwarded_for
+            .into_iter()
+            .flat_map(|line| line.split(','))
+            .map(str::trim)
+            .filter(|hop| !hop.is_empty())
+            .collect();
+        let mut nearest_trusted = peer.clone();
+        for hop in hops.iter().rev() {
+            let Some(literal) = address_literal(hop) else {
+                return nearest_trusted;
+            };
+            if !self.matches(&literal) {
+                return literal;
             }
+            nearest_trusted = literal;
         }
-        peer.to_owned()
+        // Every hop claims to be a trusted proxy: nothing identifies a client, and the peer is a real address.
+        peer
     }
 
     /// Whether the request reached us over TLS: the peer said so, or a trusted proxy said it terminated it.
@@ -121,8 +137,7 @@ pub fn client_bucket(address: &str) -> String {
 pub fn address_literal(hop: &str) -> Option<String> {
     let value = java::trim(hop);
     if let Some(after) = value.strip_prefix('[') {
-        let close = after.find(']')?;
-        let (inner, rest) = (&after[..close], &after[close + 1..]);
+        let (inner, rest) = after.split_once(']')?;
         if !rest.is_empty() && !is_port(rest) {
             return None;
         }
@@ -132,8 +147,8 @@ pub fn address_literal(hop: &str) -> Option<String> {
     if let Some(colon) = value.find(':')
         && value.rfind(':') == Some(colon)
     {
-        let host = &value[..colon];
-        return (is_port(&value[colon..]) && ipv4_literal(host).is_some()).then(|| host.to_owned());
+        let (host, port) = value.split_at(colon);
+        return (is_port(port) && ipv4_literal(host).is_some()).then(|| host.to_owned());
     }
     of_literal(value).map(|_| value.to_owned())
 }
@@ -292,36 +307,50 @@ mod tests {
     #[test]
     fn nothing_configured_means_the_peer_is_the_client() {
         let none = TrustedProxies::none();
-        assert_eq!(none.client_address(Some("192.0.2.9"), Some("203.0.113.5")), "192.0.2.9");
+        assert_eq!(none.client_address(Some("192.0.2.9"), ["203.0.113.5"]), "192.0.2.9");
         assert!(!none.is_secure_transport(Some("192.0.2.9"), false, Some("https")));
     }
 
     #[test]
     fn a_trusted_peer_hands_over_the_rightmost_hop_that_is_not_a_proxy() {
         let list = proxies("10.0.0.0/8, 192.0.2.7");
-        assert_eq!(list.client_address(Some("10.1.2.3"), Some("203.0.113.5, 198.51.100.9, 10.9.9.9")), "198.51.100.9");
-        assert_eq!(list.client_address(Some("192.0.2.7"), Some("203.0.113.5")), "203.0.113.5");
+        assert_eq!(list.client_address(Some("10.1.2.3"), ["203.0.113.5, 198.51.100.9, 10.9.9.9"]), "198.51.100.9");
+        assert_eq!(list.client_address(Some("192.0.2.7"), ["203.0.113.5"]), "203.0.113.5");
     }
 
     #[test]
     fn a_client_cannot_forge_the_header_when_the_peer_is_not_trusted() {
         let list = proxies("10.0.0.0/8");
-        assert_eq!(list.client_address(Some("203.0.113.5"), Some("198.51.100.9")), "203.0.113.5");
+        assert_eq!(list.client_address(Some("203.0.113.5"), ["198.51.100.9"]), "203.0.113.5");
     }
 
     #[test]
     fn every_hop_claiming_to_be_a_proxy_leaves_the_peer() {
         let list = proxies("10.0.0.0/8");
-        assert_eq!(list.client_address(Some("10.0.0.1"), Some("10.0.0.2, 10.0.0.3")), "10.0.0.1");
-        assert_eq!(list.client_address(Some("10.0.0.1"), Some("  ")), "10.0.0.1");
-        assert_eq!(list.client_address(None, None), "unknown");
+        assert_eq!(list.client_address(Some("10.0.0.1"), ["10.0.0.2, 10.0.0.3"]), "10.0.0.1");
+        assert_eq!(list.client_address(Some("10.0.0.1"), ["  "]), "10.0.0.1");
+        assert_eq!(list.client_address(None, []), "unknown");
     }
 
     #[test]
     fn a_header_value_that_is_not_an_address_matches_nothing() {
         let list = proxies("10.0.0.0/8");
         assert!(!list.is_trusted("not-an-address"));
-        assert_eq!(list.client_address(Some("10.0.0.1"), Some("not-an-address")), "not-an-address");
+        assert_eq!(
+            list.client_address(Some("10.0.0.1"), ["not-an-address"]),
+            "10.0.0.1",
+            "a hop no address answers the nearest trusted proxy"
+        );
+        assert_eq!(
+            list.client_address(Some("10.0.0.1"), ["203.0.113.5:51234"]),
+            "203.0.113.5",
+            "a balancer's port is dropped"
+        );
+        assert_eq!(
+            list.client_address(Some("10.0.0.1"), ["203.0.113.5", "10.0.0.2"]),
+            "203.0.113.5",
+            "every line is read"
+        );
     }
 
     #[test]
