@@ -1,0 +1,8 @@
+# The recordings not replayed yet that `agents`'s port ends: its routes, and its stand-ins the served routes meet.
+# README.md beside this file says the format and the rules.
+ceiling 2
+
+
+# ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
+route PUT /api/v1/agent/executors | agents — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route GET /api/v1/admin/agents/built-in-worker | agents — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)

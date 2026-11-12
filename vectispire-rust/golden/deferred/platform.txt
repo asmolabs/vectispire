@@ -1,6 +1,6 @@
 # The recordings not replayed yet that `platform`'s port ends: its routes, and its stand-ins the served routes meet.
 # README.md beside this file says the format and the rules.
-ceiling 12
+ceiling 16
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
 route GET /api/v1/settings | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
@@ -15,3 +15,9 @@ route PUT /api/v1/settings/ai-openai-key | platform (settings, audit log, crypto
 route PUT /api/v1/settings/ticket-token | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
 route PUT /api/v1/settings/ticket-webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
 route PUT /api/v1/settings/webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
+
+# ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
+route GET /api/v1/integrations | platform — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route PUT /api/v1/integrations/{key}/enabled | platform — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route GET /api/v1/crypto/public-keys | platform — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route GET /api/v1/crypto/public-keys/{keyId}.pub | platform — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)

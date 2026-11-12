@@ -261,7 +261,7 @@ async fn the_agent_speaks_the_protocol_with_a_real_control_plane() {
             platform: "linux".into(),
             scanner_engine: "docker".into(),
             sealing_public_key: client.sealing_public_key(),
-            version: Some("0.12.0-dev".into()),
+            version: Some("2.0.0-dev".into()),
         })
         .await
         .unwrap();

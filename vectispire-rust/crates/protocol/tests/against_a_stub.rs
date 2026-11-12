@@ -106,7 +106,7 @@ fn unusable(result: Result<vectispire_protocol::Claim, ProtocolError>) -> (Assig
 async fn every_request_carries_the_api_key_and_asks_for_json_and_only_a_body_has_a_content_type() {
     let stub = StubControlPlane::answering(vec![hello_answer("local"), Response::status(204)]);
     let client = client(&stub, None);
-    client.hello(&description(&client, Some("0.12.0-dev"))).await.unwrap();
+    client.hello(&description(&client, Some("2.0.0-dev"))).await.unwrap();
     client.claim(Duration::from_secs(1)).await.unwrap();
     let seen = stub.requests();
     assert_eq!(seen.len(), 2);
@@ -177,12 +177,12 @@ async fn hello_is_snake_case_and_a_missing_version_is_left_out() {
     let client = client(&stub, None);
     let identity = client.hello(&description(&client, None)).await.unwrap();
     assert_eq!((identity.max_concurrent, identity.credentials_mode.as_deref()), (2, Some("local")));
-    client.hello(&description(&client, Some("0.12.0-dev"))).await.unwrap();
+    client.hello(&description(&client, Some("2.0.0-dev"))).await.unwrap();
     let (without, with) = (stub.requests()[0].json(), stub.requests()[1].json());
     assert_eq!(without["contract_version"], "1");
     assert_eq!(without["sealing_public_key"], client.sealing_public_key());
     assert!(without.get("version").is_none(), "absent, neither null nor \"1\": {without}");
-    assert_eq!(with["version"], "0.12.0-dev");
+    assert_eq!(with["version"], "2.0.0-dev");
 }
 
 #[tokio::test]

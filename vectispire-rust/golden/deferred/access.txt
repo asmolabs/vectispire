@@ -1,6 +1,6 @@
 # The recordings not replayed yet that `access`'s port ends: its routes, and its stand-ins the served routes meet.
 # README.md beside this file says the format and the rules.
-ceiling 39
+ceiling 45
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
 route DELETE /api/v1/api-keys/{id} | access — Phase 1, task 1.7
@@ -42,3 +42,11 @@ route PUT /api/v1/teams/{id}/webhook | access — Phase 1, task 1.7
 route PUT /api/v1/users/{id}/targets | access — Phase 1, task 1.7
 route PUT /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route PUT /scim/v2/Users/{id} | access — Phase 1, task 1.7
+
+# ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
+route GET /api/v1/account-requests | access — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route POST /api/v1/account-requests/{id}/approve | access — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route POST /api/v1/account-requests/{id}/reject | access — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route DELETE /api/v1/users/{id}/second-factor | access — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
+route DELETE /api/v1/users/{id} | access — Phase 1, task 1.7 (first recorded by a 1.0 test)
+route GET /api/v1/teams/{id}/members | access — Phase 1, task 1.7 (first recorded by a 1.0 test)

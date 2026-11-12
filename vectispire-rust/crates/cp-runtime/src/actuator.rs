@@ -284,7 +284,7 @@ mod tests {
                 group: "com.asmolabs.vectispire".to_owned(),
                 artifact: "vectispire-core".to_owned(),
                 name: "vectispire-core".to_owned(),
-                version: "0.12.0-dev".to_owned(),
+                version: "2.0.0-dev".to_owned(),
                 time: Some("2026-10-16T21:00:00.000Z".to_owned()),
             },
         }
@@ -351,7 +351,7 @@ mod tests {
         let actuator = actuator();
         assert_eq!(
             actuator.answer("/actuator/info", "", "http://h").unwrap().body,
-            "{\"build\":{\"artifact\":\"vectispire-core\",\"name\":\"vectispire-core\",\"version\":\"0.12.0-dev\",\"time\":\"2026-10-16T21:00:00.000Z\",\"group\":\"com.asmolabs.vectispire\"}}"
+            "{\"build\":{\"artifact\":\"vectispire-core\",\"name\":\"vectispire-core\",\"version\":\"2.0.0-dev\",\"time\":\"2026-10-16T21:00:00.000Z\",\"group\":\"com.asmolabs.vectispire\"}}"
         );
         assert_eq!(
             actuator.answer("/actuator/metrics", "", "http://h").unwrap().body,
