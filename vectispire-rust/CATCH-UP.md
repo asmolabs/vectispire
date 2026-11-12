@@ -75,7 +75,7 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       `tests/gauges_composition.rs` on a real database). Java's counters beside them (scans started, completed, failed,
       lapsed; agents' polls and claims) are not ported yet, and whether a NaN gauge is written `null` (cp-runtime's
       JSON) or `"NaN"` (Jackson) is unverified against the Java image.
-- [ ] **Signing keys rotate** (`docs/en/KEY_ROTATION.md`): the record of known keys is sealed
+- [x] **Signing keys rotate** (`docs/en/KEY_ROTATION.md`): the record of known keys is sealed
       (`internal.document_signing_keys.sealed`) before the first signature; `vectispire.signing.revoked-keys`,
       `adopt-unsealed-keys`; verification tried against every published key, `Verification.keyStatus`; messages
       "…any of Vectispire's signing keys…" and "…nor one it signed with before…"; `GET /crypto/public-keys` and
@@ -86,6 +86,7 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       `{keyId}.pub` (matchit 0.8.4); `cp-runtime` binds neither `revoked-keys` nor `adopt-unsealed-keys`; the replay's
       router (`cp-agents/tests/golden.rs`) builds a key per test, so its first signature records the key where Java's
       context had recorded it before the suite (the 5 crypto recordings now differ by that insert).*
+      *Done 2026-11-12: both routes served (cp-http opens them and routes `{keyId}.pub`), the two settings bound.*
 - [x] **`ENCRYPTION_KEY` refused at start** when a template placeholder or a passphrase under 20 code points (exact
       32-byte keys and previous keys exempt).
 - [x] **Integrations** (ADR 0040): `GET /integrations`, `PUT /integrations/{key}/enabled`, audit
