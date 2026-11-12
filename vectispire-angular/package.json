@@ -28,7 +28,7 @@
         "@openng/optimus-ui": "^2.0.2",
         "@openng/optimus-ui-tailwindcss": "^2.0.2",
         "@openng/optimus-ui-themes": "^2.0.2",
-        "@tailwindcss/postcss": "^4.1.11",
+        "@tailwindcss/postcss": "^4.3.5",
         "chart.js": "4.6.1",
         "rxjs": "~7.8.0",
         "tslib": "^2.9.1"
@@ -51,7 +51,7 @@
         "prettier": "^3.9.10",
         "tailwindcss": "^4.1.11",
         "typescript": "~6.0.3",
-        "typescript-eslint": "^8.72.1",
+        "typescript-eslint": "^8.72.2",
         "vitest": "^4.1.12"
     }
 }
