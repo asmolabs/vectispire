@@ -454,6 +454,15 @@ impl ScanQueue {
         self.count_by_status(PENDING).await
     }
 
+    /// How many scans of one kind wait — those serving out a retry delay included — and when the oldest was queued:
+    /// what the queue's gauges show (`PlatformMetrics`, read once per scheduling tick, never at a scrape).
+    pub async fn waiting_of_kind(&self, repositories: bool) -> Result<(i64, Option<OffsetDateTime>), StoreError> {
+        let mut tx = persistence::read(&self.db).await?;
+        let waiting = persistence::waiting_of_kind(&mut tx, PENDING, repositories).await;
+        commit(tx).await?;
+        waiting
+    }
+
     async fn count_by_status(&self, status: &str) -> Result<i64, StoreError> {
         let mut tx = persistence::read(&self.db).await?;
         let count = persistence::count_by_status(&mut tx, status).await;

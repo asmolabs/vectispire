@@ -7,6 +7,7 @@
 
 pub mod audit_mirror;
 pub mod chain_entries;
+pub mod gauges;
 pub mod ingestion;
 pub mod maintenance;
 pub mod registry;

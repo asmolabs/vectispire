@@ -22,7 +22,8 @@ use crate::json;
 type Tags = Vec<(String, String)>;
 
 enum Kind {
-    Gauge(Arc<dyn Fn() -> f64 + Send + Sync>),
+    /// A value read when asked, and its base unit when it has one (`seconds` for Micrometer's `TimeGauge`).
+    Gauge(Arc<dyn Fn() -> f64 + Send + Sync>, Option<&'static str>),
     Counter(Arc<AtomicU64>),
     Timer(Arc<TimerState>),
 }
@@ -102,7 +103,20 @@ impl Metrics {
 
     /// A value read when asked: the number of scans waiting, say.
     pub fn gauge(&self, name: &str, description: &str, read: impl Fn() -> f64 + Send + Sync + 'static) {
-        self.add(name, description, &[], Kind::Gauge(Arc::new(read)));
+        self.add(name, description, &[], Kind::Gauge(Arc::new(read), None));
+    }
+
+    /// A gauge with its tags, and its base unit where it has one — Micrometer's `Gauge` with tags, or its `TimeGauge`
+    /// (`Some("seconds")`), which `/actuator/metrics` reports with `"baseUnit":"seconds"`.
+    pub fn gauge_with(
+        &self,
+        name: &str,
+        description: &str,
+        tags: &[(&str, &str)],
+        base_unit: Option<&'static str>,
+        read: impl Fn() -> f64 + Send + Sync + 'static,
+    ) {
+        self.add(name, description, tags, Kind::Gauge(Arc::new(read), base_unit));
     }
 
     pub fn counter(&self, name: &str, description: &str, tags: &[(&str, &str)]) -> Counter {
@@ -148,7 +162,12 @@ impl Metrics {
         let mut base_unit: Option<&str> = None;
         for meter in &matching {
             let measured: Vec<(usize, &'static str, f64)> = match &meter.kind {
-                Kind::Gauge(read) => vec![(0, "VALUE", read())],
+                Kind::Gauge(read, unit) => {
+                    if unit.is_some() {
+                        base_unit = *unit;
+                    }
+                    vec![(0, "VALUE", read())]
+                }
                 Kind::Counter(count) => vec![(0, "COUNT", count.load(Ordering::Relaxed) as f64)],
                 Kind::Timer(timer) => {
                     base_unit = Some("seconds");

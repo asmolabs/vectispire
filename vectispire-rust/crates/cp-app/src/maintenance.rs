@@ -29,6 +29,9 @@
 //! **Access (task 1.3)** fills `SESSION_CLEANUP`: expired sessions, attempts past twice the throttle's window, abandoned
 //! challenges and closed rate windows — each purge on its own, none failing the tick.
 //!
+//! **The gauges (Java 1.0)** fill `SCAN_METRICS` and `AGENT_METRICS` ([`crate::gauges`]): the snapshot the queue's and
+//! the agents' gauges read, taken on every instance's scheduling turn.
+//!
 //! The turns are started by `main` (2.11) beside the server with the shutdown signal as their stop.
 
 use std::sync::Arc;
@@ -77,6 +80,7 @@ pub fn tasks(
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
+    gauges: &crate::gauges::Gauges,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
@@ -91,6 +95,7 @@ pub fn tasks(
     ));
     tasks.push(session_cleanup);
     tasks.extend(gate.tasks(settings, clock));
+    tasks.extend(gauges.tasks());
     Ok(tasks)
 }
 
@@ -107,6 +112,7 @@ pub fn turns(
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
+    gauges: &crate::gauges::Gauges,
 ) -> Result<Turns, MaintenanceError> {
     Ok(Turns::new(tasks(
         outbox,
@@ -119,5 +125,6 @@ pub fn turns(
         settings,
         clock,
         session_cleanup,
+        gauges,
     )?)?)
 }

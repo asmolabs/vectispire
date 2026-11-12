@@ -356,6 +356,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     };
     let db = vectispire_cp_db::Db::connect_lazy(&db_settings).unwrap();
     let settings = vectispire_cp_settings::Settings::new(db);
+    let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = vectispire_cp_app::maintenance::turns(
         outbox,
         targets,
@@ -367,6 +368,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
         session_cleanup(),
+        &gauges,
     )
     .unwrap();
     let problems = check(&turns.composition(), DEFERRED);

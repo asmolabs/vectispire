@@ -761,6 +761,17 @@ impl AgentAdministrationService {
         Ok(unroutable)
     }
 
+    /// What the agents' gauges report (`AgentMetrics.refresh`), read at `as_of`: the enabled agents, those heard from
+    /// within the online window as the agents screen counts them, and when the least recently seen of them was last
+    /// heard from — since its creation if it never polled. The scheduling tick asks; a scrape never does.
+    pub async fn gauge_figures(&self, as_of: OffsetDateTime) -> Result<AgentFigures, AgentError> {
+        let enabled = agents::find_enabled(&self.db).await.map_err(AgentError::from)?;
+        let online = enabled.iter().filter(|agent| is_online(agent, as_of)).count();
+        let least_recently_seen = enabled.iter().map(|agent| agent.last_seen_at.unwrap_or(agent.created_at)).min();
+        let unserved = self.unserved_backlog().await?.scans;
+        Ok(AgentFigures { enabled: enabled.len(), online, least_recently_seen, unserved })
+    }
+
     pub async fn unserved_backlog(&self) -> Result<Unserved, AgentError> {
         let enabled = agents::find_enabled(&self.db).await.map_err(AgentError::from)?;
         let capable: Vec<&AgentRow> = enabled.iter().filter(|a| can_be_handed(a)).collect();
@@ -841,6 +852,16 @@ impl CredentialedBacklogProvider for AgentAdministrationService {
             self.unserved_backlog().await.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
         })
     }
+}
+
+/// The figures behind the agents' gauges, as one tick read them ([`AgentAdministrationService::gauge_figures`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AgentFigures {
+    pub enabled: usize,
+    pub online: usize,
+    pub least_recently_seen: Option<OffsetDateTime>,
+    /// Waiting scans needing a credential no executor able to be handed it can take.
+    pub unserved: i64,
 }
 
 #[allow(clippy::arithmetic_side_effects)]

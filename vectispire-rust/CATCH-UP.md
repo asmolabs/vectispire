@@ -70,13 +70,11 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       read as an agent id — so the route check calls it served. Register the literal route before the parameter one.
       Red: `cp-agents --test contract`.
 - [x] The built-in worker checks its Docker daemon before claiming.
-- [ ] Maintenance: new tasks `SCAN_METRICS` (order 50) and `AGENT_METRICS` (60). Red: `cp-maintenance --test reference`.
-      Phase 1: the two slots are in `Sequence` (the reference is green) and both are listed in
-      `cp-maintenance/data/deferred.txt`: the gauges they refresh (`PlatformMetrics`, `AgentMetrics`) are not registered
-      in the Rust binary, so a task composed now would refresh what nothing reads. Open until the gauges are ported.
-
-## Platform, crypto and integrations (`cp-platform`, `cp-crypto`, `cp-settings`)
-
+- [x] Maintenance: new tasks `SCAN_METRICS` (order 50) and `AGENT_METRICS` (60), composed with the gauges they refresh
+      (`cp-app/src/gauges.rs`: Java's `PlatformMetrics` and `AgentMetrics` gauges, read from a snapshot each tick takes;
+      `tests/gauges_composition.rs` on a real database). Java's counters beside them (scans started, completed, failed,
+      lapsed; agents' polls and claims) are not ported yet, and whether a NaN gauge is written `null` (cp-runtime's
+      JSON) or `"NaN"` (Jackson) is unverified against the Java image.
 - [ ] **Signing keys rotate** (`docs/en/KEY_ROTATION.md`): the record of known keys is sealed
       (`internal.document_signing_keys.sealed`) before the first signature; `vectispire.signing.revoked-keys`,
       `adopt-unsealed-keys`; verification tried against every published key, `Verification.keyStatus`; messages

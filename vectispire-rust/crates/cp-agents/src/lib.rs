@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 pub use error::AgentError;
 pub use internal::admin_service::{
-    Activity, AgentAdministrationService, AgentSummary, Change, Changed, Declaration, DeclaredAgent, PendingScan,
-    PinnedKey, QueueFigures, RunningScan, Unroutable,
+    Activity, AgentAdministrationService, AgentFigures, AgentSummary, Change, Changed, Declaration, DeclaredAgent,
+    PendingScan, PinnedKey, QueueFigures, RunningScan, Unroutable,
 };
 pub use internal::audit::AgentResultAuditDelivery;
 pub use internal::backlog_task::{CredentialedBacklogProvider, CredentialedBacklogTask, Unserved};

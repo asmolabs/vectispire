@@ -252,6 +252,20 @@ pub async fn count_by_status(tx: &mut Tx, status: &str) -> Result<i64, StoreErro
     Ok(on!(tx, Tx, |t| mysql::count_by_status(t, status).await, postgres::count_by_status(t, status).await)?)
 }
 
+/// How many scans of one kind (`repositories`, else container images) are in `status`, and the oldest one's creation.
+pub async fn waiting_of_kind(
+    tx: &mut Tx,
+    status: &str,
+    repositories: bool,
+) -> Result<(i64, Option<OffsetDateTime>), StoreError> {
+    Ok(on!(
+        tx,
+        Tx,
+        |t| mysql::waiting_of_kind(t, status, repositories).await,
+        postgres::waiting_of_kind(t, status, repositories).await
+    )?)
+}
+
 /// `countByStatusAndRepoId`.
 pub async fn count_of_repository(tx: &mut Tx, status: &str, repo: i64) -> Result<i64, StoreError> {
     Ok(on!(

@@ -502,6 +502,7 @@ async fn serve() -> ExitCode {
         siem.security_events(),
     ));
 
+    let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
         targets.clone(),
@@ -513,6 +514,7 @@ async fn serve() -> ExitCode {
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
         vectispire_cp_access::session_cleanup::session_cleanup_task(creds.clone(), db.clone(), access_clock.clone()),
+        &gauges,
     ) {
         Ok(turns) => turns,
         Err(error) => {
@@ -641,6 +643,8 @@ async fn serve() -> ExitCode {
         time: None,
     };
     let app = App::new(settings, "vectispire", build);
+    // Before the first scheduling turn has run: each gauge reads NaN until its snapshot is taken.
+    gauges.register(&app.metrics);
     // Before the "Started" line: a stop sent as soon as it is read must find the handlers in place.
     let stop = match vectispire_cp_runtime::shutdown::termination_handlers() {
         Ok(stop) => stop,

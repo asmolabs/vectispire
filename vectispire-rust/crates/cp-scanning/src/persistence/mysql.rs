@@ -89,6 +89,32 @@ pub async fn count_by_status(conn: &mut MySqlConnection, status: &str) -> Result
         .await?)
 }
 
+/// `waitingRepositoryScans` / `waitingContainerScans`: how many scans of one kind wait, and the oldest one's creation.
+pub async fn waiting_of_kind(
+    conn: &mut MySqlConnection,
+    status: &str,
+    repositories: bool,
+) -> Result<(i64, Option<OffsetDateTime>), DbError> {
+    let row = if repositories {
+        sqlx::query!(
+            r#"/* mysql */ select count(id) as "count!: i64", min(created_at) as "oldest: UtcInstant" from t_scan where status = ? and repo_id is not null"#,
+            status
+        )
+        .fetch_one(&mut *conn)
+        .await
+        .map(|row| (row.count, row.oldest.map(|at| at.0)))?
+    } else {
+        sqlx::query!(
+            r#"/* mysql */ select count(id) as "count!: i64", min(created_at) as "oldest: UtcInstant" from t_scan where status = ? and container_id is not null"#,
+            status
+        )
+        .fetch_one(&mut *conn)
+        .await
+        .map(|row| (row.count, row.oldest.map(|at| at.0)))?
+    };
+    Ok(row)
+}
+
 pub async fn count_of_repository(conn: &mut MySqlConnection, status: &str, repo: i64) -> Result<i64, DbError> {
     Ok(sqlx::query_scalar!(
         r#"/* mysql */ select count(id) as "count!: i64" from t_scan where status = ? and repo_id = ?"#,

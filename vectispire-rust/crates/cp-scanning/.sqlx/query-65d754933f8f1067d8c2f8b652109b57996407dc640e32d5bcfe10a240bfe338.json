@@ -1,0 +1,38 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(id) as \"count!: i64\", min(created_at) as \"oldest: UtcInstant\" from t_scan where status = ? and repo_id is not null",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "oldest: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "",
+          "collation": 255,
+          "max_size": 104
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "65d754933f8f1067d8c2f8b652109b57996407dc640e32d5bcfe10a240bfe338"
+}
