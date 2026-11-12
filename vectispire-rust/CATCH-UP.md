@@ -49,6 +49,14 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       to a disabled integration, or AI review is turned on over one; a secret administrator-only setting refused from a
       non-administrator even unchanged; `checkAiEndpoint` hides the URL from a non-administrator.
 
+- [ ] **Found while catching up access** (2026-11-12): the derivation gate (`DerivationGate`, 503 when every password
+      derivation permit is taken — the `sign-in.derivations.*` settings are read, nothing uses them yet); cp-app does
+      not pass `settings.sign_in` to the sign-in flow and the session cleanup (`with_limits`); an e-mail change on a
+      directory-managed account → 409 `managed-by-directory` (V102; `AccountChange` has no e-mail yet) and SCIM's
+      `scimLoweredFrom`; `POST /auth/mfa/enable` asks the current password again (`MfaEnableRequest.password`);
+      `TrustedProxies` reads every `X-Forwarded-For` line through `AddressLiterals`, and a hop that is no address
+      answers the nearest trusted proxy (cp-http).
+
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 
 - [ ] **Executors** (ADR 0045): `HelloRequest.executors` (optional, `null` when absent); `AgentView.executors`,

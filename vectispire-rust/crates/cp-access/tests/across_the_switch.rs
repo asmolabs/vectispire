@@ -34,7 +34,7 @@ use vectispire_cp_http::{ApiKeyScope, Role};
 use vectispire_testkit::docker::{Container, docker, unique_name};
 
 const DEFAULT_IMAGE: &str =
-    "ghcr.io/asmolabs/vectispire:0.11.0-rc.3@sha256:453aedcefc981ff9e91298c38db74138b027f5b1cac5e284fa889d1e264e1d46";
+    "ghcr.io/asmolabs/vectispire:1.0.0-rc.2@sha256:1058a81a5d01426e202f041245879fbbd2a2a6fad71a3d58af92c145cf2194c2";
 /// The composition's MySQL, as `docker-compose.yml` pins it.
 const MYSQL_IMAGE: &str = "mysql:8.4.11@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70";
 const DB_PASSWORD: &str = "vs-rs-p1c-database-password"; // gitleaks:allow — invented, for a container removed after the test
@@ -406,7 +406,12 @@ async fn second_factor_both_ways(http: &reqwest::Client, base: &str, db: &Db, ad
     let enabled: Value = http
         .post(format!("{base}/api/v1/auth/mfa/enable"))
         .bearer_auth(&session)
-        .json(&json!({"secret": java_secret, "code": totp::generate_code(&java_secret, now()).unwrap()}))
+        // Java 1.0 asks the current password again before it turns the second factor on (`MfaEnableRequest`).
+        .json(&json!({
+            "password": ROTATED_PASSWORD,
+            "secret": java_secret,
+            "code": totp::generate_code(&java_secret, now()).unwrap()
+        }))
         .send()
         .await
         .unwrap()
