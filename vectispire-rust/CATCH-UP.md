@@ -147,6 +147,14 @@ causes rather than one by one. Counts are recordings.
       played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
       are made concrete. A replay defect, not the port's.
 
+- [x] **An issue's decisions read oldest first, with `requestedStatus`** — 5, `HistoryTest`: Rust read them newest
+      first, an older defect the 1.0 history recordings exposed; the decision view lacked V88's `requestedStatus`.
+- [ ] **A notification channel in use cannot be switched off** — 21, `NotificationChannelSwitchRoutesTest`: Java's
+      `NotificationDestinations` answers the integrations registry `integration-in-use`; Rust has no notifications
+      module yet (wave 2), so its switch-off is accepted.
+- [ ] **The published keys' list in the read-cost sweep** — 2: an export Rust does not serve wrote the key record in
+      Java's run, and the replay cannot rebuild its `«sealed»` value; ends with the compliance exports.
+
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.
 
