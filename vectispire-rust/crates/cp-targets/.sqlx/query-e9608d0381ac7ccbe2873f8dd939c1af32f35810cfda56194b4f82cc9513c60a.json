@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id as \"id: TextUuid\", name, private_key, public_key, created_at as \"created_at: UtcInstant\" from t_ssh_key order by created_at desc",
+  "query": "/* postgres */ select id as \"id: TextUuid\", name, host, username, token, created_at as \"created_at: UtcInstant\" from t_git_token order by created_at desc, id desc",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Bpchar",
         "origin": {
           "Table": {
-            "table": "t_ssh_key",
+            "table": "t_git_token",
             "name": "id"
           }
         }
@@ -20,40 +20,51 @@
         "type_info": "Varchar",
         "origin": {
           "Table": {
-            "table": "t_ssh_key",
+            "table": "t_git_token",
             "name": "name"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "private_key",
-        "type_info": "Text",
+        "name": "host",
+        "type_info": "Varchar",
         "origin": {
           "Table": {
-            "table": "t_ssh_key",
-            "name": "private_key"
+            "table": "t_git_token",
+            "name": "host"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "public_key",
-        "type_info": "Text",
+        "name": "username",
+        "type_info": "Varchar",
         "origin": {
           "Table": {
-            "table": "t_ssh_key",
-            "name": "public_key"
+            "table": "t_git_token",
+            "name": "username"
           }
         }
       },
       {
         "ordinal": 4,
+        "name": "token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "token"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "created_at: UtcInstant",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "t_ssh_key",
+            "table": "t_git_token",
             "name": "created_at"
           }
         }
@@ -67,8 +78,9 @@
       false,
       false,
       true,
+      false,
       false
     ]
   },
-  "hash": "2904e5a7c09fa549311848c276161afda080bb06cc68fd067405bd3c27bf2f11"
+  "hash": "e9608d0381ac7ccbe2873f8dd939c1af32f35810cfda56194b4f82cc9513c60a"
 }

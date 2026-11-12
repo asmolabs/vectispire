@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "/* mysql */ select id as \"id: TextUuid\", name, host, username, token, created_at as \"created_at: UtcInstant\" from t_git_token order by created_at desc",
+  "query": "/* mysql */ select id as \"id: TextUuid\", name, host, username, token, created_at as \"created_at: UtcInstant\" from t_git_token order by created_at desc, id desc",
   "describe": {
     "columns": [
       {
@@ -112,5 +112,5 @@
       false
     ]
   },
-  "hash": "cfdbbccf9049fd8a830a0bfe5c429a2656a400bcca1c29be09568fa5f557d3de"
+  "hash": "b24f7025f8e142a6be06a6205dc5f6cf3d6d706b1fcbe6720a53c131bbbfa315"
 }

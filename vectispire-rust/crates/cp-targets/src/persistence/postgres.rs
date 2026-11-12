@@ -799,7 +799,7 @@ pub async fn delete_project(conn: &mut PgConnection, id: i64) -> Result<u64, DbE
 
 pub async fn git_tokens(conn: &mut PgConnection) -> Result<Vec<GitTokenRow>, DbError> {
     let rows = sqlx::query!(
-        r#"/* postgres */ select id as "id: TextUuid", name, host, username, token, created_at as "created_at: UtcInstant" from t_git_token order by created_at desc"#
+        r#"/* postgres */ select id as "id: TextUuid", name, host, username, token, created_at as "created_at: UtcInstant" from t_git_token order by created_at desc, id desc"#
     )
     .fetch_all(conn)
     .await?;
@@ -857,7 +857,7 @@ pub async fn delete_git_token(conn: &mut PgConnection, id: Uuid) -> Result<u64, 
 
 pub async fn ssh_keys(conn: &mut PgConnection) -> Result<Vec<SshKeyRow>, DbError> {
     let rows = sqlx::query!(
-        r#"/* postgres */ select id as "id: TextUuid", name, private_key, public_key, created_at as "created_at: UtcInstant" from t_ssh_key order by created_at desc"#
+        r#"/* postgres */ select id as "id: TextUuid", name, private_key, public_key, created_at as "created_at: UtcInstant" from t_ssh_key order by created_at desc, id desc"#
     )
     .fetch_all(conn)
     .await?;

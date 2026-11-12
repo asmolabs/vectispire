@@ -23,7 +23,7 @@ use vectispire_cp_targets::deletion::PurgeRegistry;
 const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("GET", "/api/v1/repositories", "list_7", &["limit", "offset"]),
     ("POST", "/api/v1/repositories", "create_4", &[]),
-    ("GET", "/api/v1/repositories/duplicates", "duplicates", &[]),
+    ("GET", "/api/v1/repositories/duplicates", "duplicates", &["limit", "offset"]),
     ("PATCH", "/api/v1/repositories/{id}", "update_5", &[]),
     ("POST", "/api/v1/repositories/{id}/scan", "triggerScan", &[]),
     ("DELETE", "/api/v1/repositories/{id}", "remove_3", &[]),
@@ -44,10 +44,10 @@ const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("DELETE", "/api/v1/projects/{id}/repositories/{repositoryId}", "unfile", &[]),
     ("PUT", "/api/v1/projects/{id}/containers/{containerId}", "fileContainer", &[]),
     ("DELETE", "/api/v1/projects/{id}/containers/{containerId}", "unfileContainer", &[]),
-    ("GET", "/api/v1/git-tokens", "list_13", &[]),
+    ("GET", "/api/v1/git-tokens", "list_13", &["limit", "offset"]),
     ("POST", "/api/v1/git-tokens", "create_6", &[]),
     ("DELETE", "/api/v1/git-tokens/{id}", "remove_8", &[]),
-    ("GET", "/api/v1/ssh-keys", "list_3", &[]),
+    ("GET", "/api/v1/ssh-keys", "list_3", &["limit", "offset"]),
     ("POST", "/api/v1/ssh-keys", "create_2", &[]),
     ("DELETE", "/api/v1/ssh-keys/{id}", "remove_7", &[]),
 ];

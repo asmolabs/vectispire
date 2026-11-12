@@ -434,9 +434,19 @@ impl Targets {
     /// The targets filed twice: repositories sharing one identity, oldest first in each group, groups by their oldest
     /// member — over the rows the caller sees, computed from the URLs as they are, so a row the keying has not reached
     /// is listed all the same. Nothing deletes them: either may hold the triage.
-    pub async fn duplicates(&self, allowed: &Visibility) -> Result<Vec<Duplicated>, TargetError> {
+    /// The targets filed more than once, grouped over the rows the caller sees, in the order of their lowest id — or
+    /// one page of groups (`ListWindow.requested`), never a group cut in two, which would read as a target filed once.
+    pub async fn duplicates(
+        &self,
+        allowed: &Visibility,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<Duplicated>, TargetError> {
+        let window = ListWindow::requested(limit, offset).map_err(TargetError::Invalid)?;
+        let mut listed_rows = self.repositories_listed(allowed, None).await?;
+        listed_rows.sort_by_key(|listed| listed.repository.id);
         let mut groups: Vec<(RepositoryIdentity, Vec<Listed>)> = Vec::new();
-        for listed in self.repositories_listed(allowed, None).await? {
+        for listed in listed_rows {
             let repository = &listed.repository;
             let Some(identity) =
                 RepositoryIdentity::of(&repository.url, Some(&repository.branch), repository.sub_path.as_deref())
@@ -448,11 +458,15 @@ impl Targets {
                 None => groups.push((identity, vec![listed])),
             }
         }
-        Ok(groups
+        let every: Vec<Duplicated> = groups
             .into_iter()
             .filter(|(_, members)| members.len() > 1)
             .map(|(identity, targets)| Duplicated { identity, targets })
-            .collect())
+            .collect();
+        Ok(match window {
+            Some(page) => page.of(&every),
+            None => every,
+        })
     }
 
     fn refuse_unlisted_host(&self, url: &str) -> Result<(), TargetError> {

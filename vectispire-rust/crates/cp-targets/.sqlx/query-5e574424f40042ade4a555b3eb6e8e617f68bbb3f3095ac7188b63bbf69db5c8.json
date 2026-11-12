@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "/* mysql */ select id as \"id: TextUuid\", name, private_key, public_key, created_at as \"created_at: UtcInstant\" from t_ssh_key order by created_at desc",
+  "query": "/* mysql */ select id as \"id: TextUuid\", name, private_key, public_key, created_at as \"created_at: UtcInstant\" from t_ssh_key order by created_at desc, id desc",
   "describe": {
     "columns": [
       {
@@ -95,5 +95,5 @@
       false
     ]
   },
-  "hash": "1310617b464e3bc86422f5f59f5545aecd1e1ab337bcced1fd3c390407dcc3e2"
+  "hash": "5e574424f40042ade4a555b3eb6e8e617f68bbb3f3095ac7188b63bbf69db5c8"
 }

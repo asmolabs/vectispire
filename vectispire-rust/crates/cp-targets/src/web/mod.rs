@@ -253,7 +253,8 @@ fn repositories_routes(targets: &Arc<Targets>, entries: &mut Vec<RouteEntry>) {
               headers: HeaderMap,
               method: Method,
               uri: Uri,
-              Scoped(scope): Scoped<CallerScope>| {
+              Scoped(scope): Scoped<CallerScope>,
+              RawQuery(query): RawQuery| {
             let t = t.clone();
             async move {
                 let call = call(&caller, &address, &headers, &method, &uri);
@@ -261,7 +262,12 @@ fn repositories_routes(targets: &Arc<Targets>, entries: &mut Vec<RouteEntry>) {
                     Ok(allowance) => allowance,
                     Err(refused) => return *refused,
                 };
-                let groups = attempt!(call, t.duplicates(&allowance.visibility).await);
+                let limit = read!(read::query_int(query.as_deref(), "limit"));
+                let offset = read!(read::query_int(query.as_deref(), "offset"));
+                let groups = attempt!(
+                    call,
+                    t.duplicates(&allowance.visibility, limit.map(i64::from), offset.map(i64::from)).await
+                );
                 ok(StatusCode::OK, &groups.iter().map(json::DuplicateTarget::of).collect::<Vec<_>>())
             }
         },
@@ -792,11 +798,18 @@ fn filing_route(targets: &Arc<Targets>, filing: Filing, kind: Kind) -> RouteEntr
 fn credentials_routes(targets: &Arc<Targets>, entries: &mut Vec<RouteEntry>) {
     let t = targets.clone();
     entries.push(Route::get("/api/v1/git-tokens").requires(Access::Administrator).names_no_target().handler(
-        move |caller: Caller, address: ClientAddress, headers: HeaderMap, method: Method, uri: Uri| {
+        move |caller: Caller,
+              address: ClientAddress,
+              headers: HeaderMap,
+              method: Method,
+              uri: Uri,
+              RawQuery(query): RawQuery| {
             let t = t.clone();
             async move {
                 let call = call(&caller, &address, &headers, &method, &uri);
-                let tokens = attempt!(call, t.git_tokens().await);
+                let limit = read!(read::query_int(query.as_deref(), "limit"));
+                let offset = read!(read::query_int(query.as_deref(), "offset"));
+                let tokens = attempt!(call, t.git_tokens(limit.map(i64::from), offset.map(i64::from)).await);
                 ok(StatusCode::OK, &tokens.iter().map(json::GitTokenSummary::of).collect::<Vec<_>>())
             }
         },
@@ -854,11 +867,18 @@ fn credentials_routes(targets: &Arc<Targets>, entries: &mut Vec<RouteEntry>) {
     ));
     let t = targets.clone();
     entries.push(Route::get("/api/v1/ssh-keys").requires(Access::Administrator).names_no_target().handler(
-        move |caller: Caller, address: ClientAddress, headers: HeaderMap, method: Method, uri: Uri| {
+        move |caller: Caller,
+              address: ClientAddress,
+              headers: HeaderMap,
+              method: Method,
+              uri: Uri,
+              RawQuery(query): RawQuery| {
             let t = t.clone();
             async move {
                 let call = call(&caller, &address, &headers, &method, &uri);
-                let keys = attempt!(call, t.ssh_keys().await);
+                let limit = read!(read::query_int(query.as_deref(), "limit"));
+                let offset = read!(read::query_int(query.as_deref(), "offset"));
+                let keys = attempt!(call, t.ssh_keys(limit.map(i64::from), offset.map(i64::from)).await);
                 ok(StatusCode::OK, &keys.iter().map(json::SshKeySummary::of).collect::<Vec<_>>())
             }
         },

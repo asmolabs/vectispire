@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
+use vectispire_domain::list_window::ListWindow;
 
 use regex::Regex;
 use time::OffsetDateTime;
@@ -97,10 +98,17 @@ impl Targets {
     // ── HTTPS tokens ─────────────────────────────────────────────────────────────────────
 
     /// Newest first, each with how many repositories use it.
-    pub async fn git_tokens(&self) -> Result<Vec<TokenView>, TargetError> {
+    /// Every token, or one page (`ListWindow.requested`): newest first and by id among those created in the same
+    /// instant, so that the pages are the list cut — and only the page's rows are decrypted to say their state.
+    pub async fn git_tokens(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<TokenView>, TargetError> {
+        let window = ListWindow::requested(limit, offset).map_err(TargetError::Invalid)?;
         let mut tx = persistence::read(&self.db).await?;
         let usage: BTreeMap<Uuid, i64> = persistence::usage_by_https_token(&mut tx).await?.into_iter().collect();
         let tokens = persistence::git_tokens(&mut tx).await?;
+        let tokens = match window {
+            Some(page) => page.of(&tokens),
+            None => tokens,
+        };
         tx.commit().await.map_err(StoreError::from)?;
         let mut views = Vec::with_capacity(tokens.len());
         for token in tokens {
@@ -206,10 +214,16 @@ impl Targets {
 
     // ── SSH keys ─────────────────────────────────────────────────────────────────────────
 
-    pub async fn ssh_keys(&self) -> Result<Vec<KeyView>, TargetError> {
+    /// Every key, or one page, ordered and cut as [`Targets::git_tokens`] is.
+    pub async fn ssh_keys(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<KeyView>, TargetError> {
+        let window = ListWindow::requested(limit, offset).map_err(TargetError::Invalid)?;
         let mut tx = persistence::read(&self.db).await?;
         let usage: BTreeMap<Uuid, i64> = persistence::usage_by_ssh_key(&mut tx).await?.into_iter().collect();
         let keys = persistence::ssh_keys(&mut tx).await?;
+        let keys = match window {
+            Some(page) => page.of(&keys),
+            None => keys,
+        };
         tx.commit().await.map_err(StoreError::from)?;
         let mut views = Vec::with_capacity(keys.len());
         for key in keys {

@@ -100,7 +100,7 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 
 ## Targets, scanning, checklists, compliance
 
-- [ ] `GET /git-tokens`, `/repositories/duplicates`, `/ssh-keys` take `limit` and `offset`. Red: `cp-targets --test contract`.
+- [x] `GET /git-tokens`, `/repositories/duplicates`, `/ssh-keys` take `limit` and `offset`. Red: `cp-targets --test contract`.
 - [ ] `ScanningProperties` binds `bundledRules`, `hostSsh`, `pluginRegistry`, `pluginSignatureRequired`,
       `vulnerabilityDbDir`, `images` (the property table already says `bundled-rules` is a record).
 - [ ] Checklists: NO_DATA reason `forge_integration_disabled`. Red: `cp-checklists --test reference_set`.

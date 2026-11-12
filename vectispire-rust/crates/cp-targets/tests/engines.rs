@@ -440,13 +440,13 @@ async fn twins_found_by_the_upgrade_keep_their_rows(db: &Db) {
     // A second turn finds nothing to do — and the task is that turn.
     RepositoryIdentityTask(targets.clone()).run().await.unwrap();
     assert_eq!(count(db, "select count(*) from t_repository where identity_guard is not null").await, 1);
-    let groups = targets.duplicates(&Visibility::Everything).await.unwrap();
+    let groups = targets.duplicates(&Visibility::Everything, None, None).await.unwrap();
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].identity.repository, "gitlab.example.org/team/legacy");
     assert_eq!(groups[0].targets.len(), 3);
     assert_eq!(groups[0].targets[0].repository.id, older, "oldest first");
     // A reader who sees none of them is shown no group.
-    assert!(targets.duplicates(&Visibility::only([])).await.unwrap().is_empty());
+    assert!(targets.duplicates(&Visibility::only([]), None, None).await.unwrap().is_empty());
     // An edit making another row the twin is refused; renaming a twin filed before the rule is not.
     let younger = count(db, &format!("select min(id) from t_repository where id > {older}")).await;
     let rename = Changes { name: Some("Renamed".to_owned()), ..Changes::default() };
@@ -499,14 +499,14 @@ async fn credentials_are_stored_encrypted_under_their_contexts(db: &Db) {
         matches!(refused, Err(TargetError::Invalid(ref m)) if m == "This token is used by 1 repository(ies). Detach it from them first."),
         "{refused:?}"
     );
-    let listed = targets.git_tokens().await.unwrap();
+    let listed = targets.git_tokens(None, None).await.unwrap();
     assert_eq!(listed.iter().find(|view| view.id == token.id).map(|view| view.used_by_repositories), Some(1));
 
-    let keys = targets.ssh_keys().await.unwrap();
+    let keys = targets.ssh_keys(None, None).await.unwrap();
     assert_eq!(keys.iter().find(|view| view.id == key.id).map(|view| view.encryption_state.as_str()), Some("current"));
     // Unreadable once its ciphertext is not what this key wrote.
     exec(db, &format!("update t_ssh_key set private_key = 'v2:AAAA' where id = '{}'", key.id)).await;
-    let keys = targets.ssh_keys().await.unwrap();
+    let keys = targets.ssh_keys(None, None).await.unwrap();
     assert_eq!(
         keys.iter().find(|view| view.id == key.id).map(|view| view.encryption_state.as_str()),
         Some("unreadable")
@@ -564,7 +564,7 @@ async fn every_service_refuses_what_its_caller_cannot_see(db: &Db) {
         assert!(targets.list_repositories(hidden, None, None).await.unwrap().is_empty());
         assert!(targets.list_containers(hidden, None, None).await.unwrap().is_empty());
         assert_eq!(targets.listed_repository(hidden, repository).await.unwrap(), None);
-        assert!(targets.duplicates(hidden).await.unwrap().is_empty());
+        assert!(targets.duplicates(hidden, None, None).await.unwrap().is_empty());
     }
     // A move to a solution that exists is an administrator's whole gesture: refused to anyone else as its absence.
     let elsewhere = targets.create_solution(Some("Elsewhere"), None, &actor).await.unwrap().id;
