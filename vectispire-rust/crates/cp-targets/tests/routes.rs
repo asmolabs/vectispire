@@ -195,7 +195,7 @@ async fn the_answers_are_javas(db: &Db) {
     assert_eq!(status, 400);
     assert_eq!(
         body,
-        r#"{"detail":"The URL carries a credential. Remove it from the URL and attach an HTTPS token instead: it is stored encrypted and sent only to its own host.","instance":"/api/v1/repositories","status":400,"title":"Bad Request"}"#
+        r#"{"detail":"The URL carries a credential. Remove it from the URL and attach an HTTPS token instead: it is stored encrypted and sent only to its own host.","instance":"/api/v1/repositories","status":400,"title":"Bad Request","code":"invalid-request"}"#
     );
     let (status, body) = send(
         &router,
@@ -221,7 +221,7 @@ async fn the_answers_are_javas(db: &Db) {
     assert_eq!(
         body,
         format!(
-            r#"{{"detail":"This repository is already registered as \"team/api\" (id {id}), on branch main, at its root. Edit that target, or choose another branch or sub-path.","instance":"/api/v1/repositories","status":409,"title":"Conflict","type":"urn:vectispire:problem:target-already-registered","existingRepositoryId":{id}}}"#
+            r#"{{"detail":"This repository is already registered as \"team/api\" (id {id}), on branch main, at its root. Edit that target, or choose another branch or sub-path.","instance":"/api/v1/repositories","status":409,"title":"Conflict","type":"urn:vectispire:problem:target-already-registered","code":"target-already-registered","existingRepositoryId":{id}}}"#
         )
     );
     // Manual only beside an interval is refused; manual only alone clears the interval.
@@ -257,7 +257,7 @@ async fn the_answers_are_javas(db: &Db) {
         (status, body.as_str()),
         (
             400,
-            r#"{"detail":"Failed to convert 'id' with value: 'abc'","instance":"/api/v1/repositories/abc","status":400,"title":"Bad Request"}"#
+            r#"{"detail":"Failed to convert 'id' with value: 'abc'","instance":"/api/v1/repositories/abc","status":400,"title":"Bad Request","code":"invalid-request"}"#
         )
     );
     let (status, body) = send(&router, "PATCH", &format!("/api/v1/repositories/{ABSENT}"), admin, Some("{}")).await;
@@ -310,7 +310,7 @@ async fn the_answers_are_javas(db: &Db) {
         (status, body.as_str()),
         (
             409,
-            r#"{"detail":"A solution named \"PAYMENTS\" already exists.","instance":"/api/v1/solutions","status":409,"title":"Conflict","type":"urn:vectispire:problem:solution-name-taken"}"#
+            r#"{"detail":"A solution named \"PAYMENTS\" already exists.","instance":"/api/v1/solutions","status":409,"title":"Conflict","type":"urn:vectispire:problem:solution-name-taken","code":"solution-name-taken"}"#
         )
     );
     let (status, body) =
@@ -469,7 +469,7 @@ async fn the_answers_are_javas(db: &Db) {
         (
             404,
             format!(
-                r#"{{"detail":"Repository not found.","instance":"/api/v1/repositories/{id}","status":404,"title":"Not Found"}}"#
+                r#"{{"detail":"Repository not found.","instance":"/api/v1/repositories/{id}","status":404,"title":"Not Found","code":"not-found"}}"#
             )
         )
     );

@@ -148,7 +148,7 @@ impl ImportBatch<'_> {
     ) -> Result<Queued, TargetError> {
         self.targets.scans.queue_repository(repository, Some(not_before)).await.map_err(|error| match error {
             crate::ports::QueueError::AlreadyQueued(message) => {
-                TargetError::Conflict { message, cause: None, members: Vec::new() }
+                TargetError::Conflict { message, cause: None, code: Some("already-queued"), members: Vec::new() }
             }
             crate::ports::QueueError::Failed(failure) => TargetError::Unexpected(failure),
         })

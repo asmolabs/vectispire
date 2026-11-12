@@ -20,7 +20,7 @@ fn command(variables: &[(&str, &str)]) -> Command {
 fn the_version_and_the_usage_are_printed() {
     let version = command(&[]).arg("--version").output().unwrap();
     assert!(version.status.success());
-    assert!(String::from_utf8_lossy(&version.stdout).starts_with("vectispire-control-plane 0."));
+    assert!(String::from_utf8_lossy(&version.stdout).starts_with("vectispire-control-plane 2."));
     let help = command(&[]).arg("--help").output().unwrap();
     assert!(String::from_utf8_lossy(&help.stdout).contains("--check-config"));
     let unknown = command(&[]).arg("--frobnicate").output().unwrap();

@@ -577,7 +577,7 @@ async fn every_service_refuses_what_its_caller_cannot_see(db: &Db) {
     }
     // The twin of a target the caller cannot see is refused without naming it: one bit about a URL the caller holds.
     match targets.create_repository(&changes("git@gitlab.example.org:team/guarded.git"), &nothing, &actor).await {
-        Err(TargetError::Conflict { message, cause, members }) => {
+        Err(TargetError::Conflict { message, cause, members, .. }) => {
             assert_eq!(message, "This repository is already registered, on this branch and sub-path.");
             assert_eq!(cause, Some("target-already-registered"));
             assert!(members.is_empty(), "{members:?}");

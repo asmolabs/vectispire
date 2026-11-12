@@ -14,9 +14,16 @@ pub enum TargetError {
     #[error("{0}")]
     NotFound(String),
     /// `ConflictException` and the conflicts mapped beside it: 409, typed `urn:vectispire:problem:<cause>` when a
-    /// cause is named, with the members a client reads as data.
+    /// cause is named, with the members a client reads as data. `code` is the problem's `code` where the conflict's
+    /// kind is more precise than "conflict" and names no cause — `already-queued`, `solution-not-empty` (Java 1.0's
+    /// `ApiExceptionHandler`); a named cause is its own code.
     #[error("{message}")]
-    Conflict { message: String, cause: Option<&'static str>, members: Vec<(&'static str, serde_json::Value)> },
+    Conflict {
+        message: String,
+        cause: Option<&'static str>,
+        code: Option<&'static str>,
+        members: Vec<(&'static str, serde_json::Value)>,
+    },
     /// `MissingEncryptionKeyException`: 412 — a secret cannot be stored without a key, and storing it in the clear
     /// is the one answer that is never right.
     #[error("{0}")]
@@ -39,7 +46,7 @@ impl TargetError {
     }
 
     pub fn conflict(message: impl Into<String>, cause: &'static str) -> TargetError {
-        TargetError::Conflict { message: message.into(), cause: Some(cause), members: Vec::new() }
+        TargetError::Conflict { message: message.into(), cause: Some(cause), code: None, members: Vec::new() }
     }
 
     pub fn unexpected(error: impl std::error::Error + Send + Sync + 'static) -> TargetError {

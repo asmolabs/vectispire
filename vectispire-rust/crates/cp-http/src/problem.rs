@@ -39,6 +39,11 @@ struct Data {
     detail: String,
     instance: Option<String>,
     problem_type: Option<String>,
+    /// The `code` member, when the refusal's kind is more precise than its status (`ProblemCode` on the Java side).
+    code: Option<String>,
+    /// `code` after the other members rather than before them: where a Java handler sets its own members on the
+    /// problem before the code is added — the sign-in lockout's `retryAfterSeconds`.
+    code_last: bool,
     properties: Vec<(String, Value)>,
     headers: Vec<(&'static str, String)>,
     writer: Writer,
@@ -61,6 +66,8 @@ impl Problem {
             detail: detail.into(),
             instance: None,
             problem_type: None,
+            code: None,
+            code_last: false,
             properties: Vec::new(),
             headers: Vec::new(),
             writer,
@@ -80,6 +87,33 @@ impl Problem {
     }
 
     /// A member beside the standard ones — `retryAfterSeconds`, `correlationId`, what a conflict names.
+    /// The kind of refusal for a program, where its status does not say it: `credential-not-accepted` rather than
+    /// `forbidden`, `no-such-route` rather than `not-found`. A conflict that names its cause needs none — the cause is
+    /// its code.
+    pub fn code(mut self, code: &str) -> Problem {
+        self.0.code = Some(code.to_owned());
+        self
+    }
+
+    /// The `code` this problem answers: the one it was given, else its cause, else its status's (Java 1.0's
+    /// `ProblemCode`: every problem the API answers carries one, decision 0043 §6 — a client matching the English
+    /// `detail` broke on its next rewording).
+    pub fn code_member(&self) -> String {
+        if let Some(code) = &self.0.code {
+            return code.clone();
+        }
+        if let Some(cause) = self.0.problem_type.as_deref().and_then(|kind| kind.strip_prefix(PROBLEM_TYPE)) {
+            return cause.to_owned();
+        }
+        code_for_status(self.0.status.as_u16())
+    }
+
+    /// Writes `code` after the other members ([`Data::code_last`]).
+    pub fn code_last(mut self) -> Problem {
+        self.0.code_last = true;
+        self
+    }
+
     pub fn with(mut self, name: &str, value: impl Into<Value>) -> Problem {
         self.0.properties.push((name.to_owned(), value.into()));
         self
@@ -149,12 +183,44 @@ impl Problem {
                 }
             }
         }
+        // After the standard members and the type, before any other: where Spring's `ProblemDetail` writes the
+        // property the exception handler sets first.
+        let code = Value::from(self.code_member());
+        if !self.0.code_last {
+            member(&mut out, "code", &code);
+        }
         for (name, value) in &self.0.properties {
             member(&mut out, name, value);
+        }
+        if self.0.code_last {
+            member(&mut out, "code", &code);
         }
         out.push('}');
         out
     }
+}
+
+/// `ProblemCode.forStatus`: the code of a refusal known only by its status.
+#[must_use]
+pub fn code_for_status(status: u16) -> String {
+    match status {
+        400 => "invalid-request",
+        401 => "authentication-required",
+        403 => "forbidden",
+        404 => "not-found",
+        405 => "method-not-allowed",
+        406 => "not-acceptable",
+        409 => "conflict",
+        412 => "precondition-failed",
+        413 => "content-too-large",
+        415 => "unsupported-media-type",
+        422 => "unprocessable",
+        429 => "rate-limited",
+        502..=504 => "unavailable",
+        500..=599 => "unexpected-failure",
+        other => return format!("http-{other}"),
+    }
+    .to_owned()
 }
 
 impl IntoResponse for Problem {
@@ -185,9 +251,12 @@ mod tests {
     #[test]
     fn the_chain_writes_title_first_and_the_handler_detail_first() {
         let chain = Problem::chain(StatusCode::UNAUTHORIZED, "sign in").at("/x").body();
-        assert_eq!(chain, r#"{"title":"Unauthorized","status":401,"detail":"sign in","instance":"/x"}"#);
+        assert_eq!(
+            chain,
+            r#"{"title":"Unauthorized","status":401,"detail":"sign in","instance":"/x","code":"authentication-required"}"#
+        );
         let handler = Problem::handler(StatusCode::NOT_FOUND, "gone").at("/x").body();
-        assert_eq!(handler, r#"{"detail":"gone","instance":"/x","status":404,"title":"Not Found"}"#);
+        assert_eq!(handler, r#"{"detail":"gone","instance":"/x","status":404,"title":"Not Found","code":"not-found"}"#);
     }
 
     #[test]
@@ -199,7 +268,7 @@ mod tests {
             .body();
         assert_eq!(
             body,
-            r#"{"detail":"twice","instance":"/x","status":409,"title":"Conflict","type":"urn:vectispire:problem:target-already-registered","existingRepositoryId":1}"#
+            r#"{"detail":"twice","instance":"/x","status":409,"title":"Conflict","type":"urn:vectispire:problem:target-already-registered","code":"target-already-registered","existingRepositoryId":1}"#
         );
     }
 
@@ -207,7 +276,19 @@ mod tests {
     fn a_chain_problem_carries_its_members_after_the_instance() {
         let body =
             Problem::chain(StatusCode::TOO_MANY_REQUESTS, "slow down").at("/x").with("retryAfterSeconds", 2).body();
-        assert!(body.ends_with(r#""instance":"/x","retryAfterSeconds":2}"#), "{body}");
+        assert!(body.ends_with(r#""instance":"/x","code":"rate-limited","retryAfterSeconds":2}"#), "{body}");
+    }
+
+    #[test]
+    fn the_code_is_the_one_given_else_the_cause_else_the_status() {
+        let given = Problem::handler(StatusCode::FORBIDDEN, "no").code("credential-not-accepted");
+        assert_eq!(given.code_member(), "credential-not-accepted");
+        let caused = Problem::handler(StatusCode::CONFLICT, "off").caused_by("integration-disabled");
+        assert_eq!(caused.code_member(), "integration-disabled");
+        assert_eq!(Problem::handler(StatusCode::CONFLICT, "twice").code_member(), "conflict");
+        assert_eq!(code_for_status(503), "unavailable");
+        assert_eq!(code_for_status(501), "unexpected-failure");
+        assert_eq!(code_for_status(418), "http-418");
     }
 
     #[test]

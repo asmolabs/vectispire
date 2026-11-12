@@ -221,7 +221,7 @@ async fn an_integration_key_has_a_budget_of_its_own_per_minute_and_a_429_that_sa
     assert_eq!(headers["retry-after"], "1");
     assert_eq!(
         body,
-        r#"{"detail":"This API key has made too many requests. Try again in 1 seconds.","instance":"/api/v1/repositories","status":429,"title":"Too Many Requests","retryAfterSeconds":1}"#
+        r#"{"detail":"This API key has made too many requests. Try again in 1 seconds.","instance":"/api/v1/repositories","status":429,"title":"Too Many Requests","code":"rate-limited","retryAfterSeconds":1}"#
     );
     // The session of the same account is not the key's budget.
     assert_eq!(

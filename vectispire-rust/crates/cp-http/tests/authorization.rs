@@ -83,7 +83,7 @@ async fn a_refusal_names_no_role_and_is_audited_with_who_where_and_with_what() {
     assert_eq!(status, 403);
     assert_eq!(
         body,
-        r#"{"title":"Forbidden","status":403,"detail":"This credential is not allowed to call this route.","instance":"/api/v1/_t/administrator"}"#
+        r#"{"title":"Forbidden","status":403,"detail":"This credential is not allowed to call this route.","instance":"/api/v1/_t/administrator","code":"forbidden"}"#
     );
     let denied = app.audit.denied.lock().expect("lock");
     assert_eq!(denied.len(), 1);
@@ -105,7 +105,7 @@ async fn a_service_s_refusal_is_answered_and_audited_by_the_chain_with_the_servi
     // The caller is told what every refusal tells it; the reason is the audit log's.
     assert_eq!(
         body,
-        r#"{"title":"Forbidden","status":403,"detail":"This credential is not allowed to call this route.","instance":"/api/v1/_t/denied"}"#
+        r#"{"title":"Forbidden","status":403,"detail":"This credential is not allowed to call this route.","instance":"/api/v1/_t/denied","code":"forbidden"}"#
     );
     let denied = app.audit.denied.lock().expect("lock");
     assert_eq!(denied.len(), 1);
@@ -157,7 +157,7 @@ async fn an_agent_route_refuses_whoever_is_not_an_agent_in_the_agent_controllers
         assert_eq!(status, 401);
         assert_eq!(
             body,
-            r#"{"detail":"API key absent, invalid, or without the \"agent\" scope.","instance":"/api/v1/agent/_t","status":401,"title":"Unauthorized"}"#
+            r#"{"detail":"API key absent, invalid, or without the \"agent\" scope.","instance":"/api/v1/agent/_t","status":401,"title":"Unauthorized","code":"authentication-required"}"#
         );
     }
     assert_eq!(with(&app, "/api/v1/agent/_t", ADMIN).await, 401, "a session is not an agent");

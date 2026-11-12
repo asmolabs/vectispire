@@ -132,11 +132,13 @@ fn refuse(method: &str, path: &str, error: SiemError) -> Response {
         SiemError::InvalidInput(message) => Problem::handler(StatusCode::BAD_REQUEST, message).into_response(),
         // `MissingEncryptionKeyException`: a header cannot be stored without a key, and in the clear is never right.
         SiemError::Encryption(EncryptionError::MissingKey) => {
-            Problem::handler(StatusCode::PRECONDITION_FAILED, EncryptionError::MissingKey.to_string()).into_response()
+            Problem::handler(StatusCode::PRECONDITION_FAILED, EncryptionError::MissingKey.to_string())
+                .code("encryption-key-missing")
+                .into_response()
         }
         // `UnsafeUrlException`: the guard refused the KMS's address.
         SiemError::Encryption(EncryptionError::UnsafeUrl(message)) => {
-            Problem::handler(StatusCode::UNPROCESSABLE_ENTITY, message).into_response()
+            Problem::handler(StatusCode::UNPROCESSABLE_ENTITY, message).code("unsafe-url").into_response()
         }
         failure @ (SiemError::Encryption(EncryptionError::Kms(_)) | SiemError::Database(_)) => {
             unexpected(method, path, &failure)

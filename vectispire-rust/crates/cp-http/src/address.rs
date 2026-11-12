@@ -97,11 +97,13 @@ pub fn client_bucket(address: &str) -> String {
     if java::is_blank(address) {
         return address.to_owned();
     }
-    let trimmed = java::trim(address);
-    // `replaceAll("^\\[|]$", "")`: one leading bracket and one trailing one, each on its own.
-    let literal = trimmed.strip_prefix('[').unwrap_or(trimmed);
-    let literal = literal.strip_suffix(']').unwrap_or(literal);
-    match of_literal(literal) {
+    // Java 1.0 reads the hop through `AddressLiterals` first: a port a balancer appended is dropped, and brackets hold
+    // IPv6 only. Before, `203.0.113.7:51234` was kept whole, so each new source port of one client was a new client
+    // to the throttles.
+    let Some(literal) = address_literal(address) else {
+        return address.to_owned();
+    };
+    match of_literal(&literal) {
         Some(IpAddr::V4(v4)) => v4.to_string(),
         Some(IpAddr::V6(v6)) => {
             let prefix: String = v6.octets().iter().take(8).map(|byte| format!("{byte:02x}")).collect();
@@ -109,6 +111,37 @@ pub fn client_bucket(address: &str) -> String {
         }
         None => address.to_owned(),
     }
+}
+
+/// `AddressLiterals.of`: the literal a forwarded hop names — without brackets or a port, otherwise as written — or
+/// `None` when the hop is no IP address literal (`unknown`, an obfuscated identifier, a host name, junk). A bare IPv6
+/// literal has colons and no port, so a port is read only off a bracketed literal or a value with exactly one colon
+/// (an IPv4 address and its port).
+#[must_use]
+pub fn address_literal(hop: &str) -> Option<String> {
+    let value = java::trim(hop);
+    if let Some(after) = value.strip_prefix('[') {
+        let close = after.find(']')?;
+        let (inner, rest) = (&after[..close], &after[close + 1..]);
+        if !rest.is_empty() && !is_port(rest) {
+            return None;
+        }
+        // Brackets hold an IPv6 literal and nothing else (RFC 3986, RFC 7239).
+        return (inner.contains(':') && of_literal(inner).is_some()).then(|| inner.to_owned());
+    }
+    if let Some(colon) = value.find(':')
+        && value.rfind(':') == Some(colon)
+    {
+        let host = &value[..colon];
+        return (is_port(&value[colon..]) && ipv4_literal(host).is_some()).then(|| host.to_owned());
+    }
+    of_literal(value).map(|_| value.to_owned())
+}
+
+/// `:` and one to five ASCII digits.
+fn is_port(suffix: &str) -> bool {
+    let digits = suffix.strip_prefix(':').unwrap_or("");
+    (1..=5).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 /// `InetAddress.ofLiteral`: IPv4 first, then IPv6 — the IPv4-mapped form answered as the IPv4 address it maps.

@@ -325,8 +325,14 @@ impl<V: Clone + Send + Sync + 'static> Routes<V> {
 
 /// An unmapped path, in Vectispire's words — not Spring's "No static resource api/v1/…".
 pub(crate) async fn not_found() -> Problem {
-    Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.")
+    Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.").code(NO_SUCH_ROUTE)
 }
+
+/// The code of an unmapped path, apart from `not-found`: a client told "nothing is served here" has the wrong URL, one
+/// told "not found" asked for a row that is absent or hidden.
+pub(crate) const NO_SUCH_ROUTE: &str = "no-such-route";
+/// A credential on a route that did not invite it (decision 0024) — agent key, API key, or a key without the scope.
+const CREDENTIAL_NOT_ACCEPTED: &str = "credential-not-accepted";
 
 /// A row the caller may see, or the one 404 an absent row and an invisible one share.
 ///
@@ -394,7 +400,9 @@ async fn route_gate(State(gate): State<Arc<RouteGate>>, mut request: Request, ne
     //    client back to sign in, which it has already done — and would do again, in a loop.
     chain.visit("password-change");
     if principal.as_ref().is_some_and(Principal::must_change_password) && !gate.allows_pending_password_change {
-        return Problem::handler(StatusCode::FORBIDDEN, PASSWORD_CHANGE).into_response();
+        return Problem::handler(StatusCode::FORBIDDEN, PASSWORD_CHANGE)
+            .code("password-change-required")
+            .into_response();
     }
 
     // 2. What this kind of credential may reach at all. An agent's key reaches the agent routes; an integration key,
@@ -404,11 +412,13 @@ async fn route_gate(State(gate): State<Arc<RouteGate>>, mut request: Request, ne
         match &principal.credential {
             Credential::Agent { .. } if gate.access != Access::AgentKey => {
                 return Problem::handler(StatusCode::FORBIDDEN, "This route does not accept an agent key.")
+                    .code(CREDENTIAL_NOT_ACCEPTED)
                     .into_response();
             }
             Credential::Integration { key_id, scopes } => {
                 let Some(needed) = gate.accepts_api_key else {
                     return Problem::handler(StatusCode::FORBIDDEN, "This route does not accept an API key.")
+                        .code(CREDENTIAL_NOT_ACCEPTED)
                         .into_response();
                 };
                 if !scopes.contains(&needed) {
@@ -416,6 +426,7 @@ async fn route_gate(State(gate): State<Arc<RouteGate>>, mut request: Request, ne
                         StatusCode::FORBIDDEN,
                         format!("This API key lacks the {} scope.", needed.wire_name()),
                     )
+                    .code(CREDENTIAL_NOT_ACCEPTED)
                     .into_response();
                 }
                 let taken = chain.keys.consume(key_id);

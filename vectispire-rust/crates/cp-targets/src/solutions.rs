@@ -123,6 +123,7 @@ impl Targets {
                         row.name
                     ),
                     cause: None,
+                    code: Some("solution-not-empty"),
                     members: Vec::new(),
                 });
             }

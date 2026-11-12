@@ -62,6 +62,12 @@ pub const CHAIN: [&str; 13] = [
 /// (measured, not assumed), `script-src` carries neither it nor `'unsafe-eval'`, and HSTS stays absent on purpose —
 /// Vectispire is routinely reached over plain HTTP on an internal address, and a Strict-Transport-Security header seen
 /// once makes that origin unreachable in that browser. It belongs to the proxy that terminates TLS.
+/// The browser features no screen uses, refused to the page and to anything injected into it — Java 1.0's
+/// `PERMISSIONS_POLICY`, byte for byte. The clipboard stays allowed: the CI/CD snippets are copied with a button.
+pub const PERMISSIONS_POLICY: &str = "accelerometer=(), bluetooth=(), camera=(), display-capture=(), geolocation=(), \
+                                      gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), \
+                                      serial=(), usb=()";
+
 pub const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 const UNAUTHENTICATED: &str = "Authentication required: sign in, or send a valid credential as a bearer token.";
@@ -346,6 +352,14 @@ async fn headers(State(chain): State<Arc<Chain>>, request: Request, next: Next) 
     };
     set("x-frame-options", "DENY");
     set("content-security-policy", CONTENT_SECURITY_POLICY);
+    set("permissions-policy", PERMISSIONS_POLICY);
+    // Java 1.0's isolation (SecurityConfiguration): the interface opens no window it talks to and loads nothing from
+    // another origin, so no other site keeps a handle on it and none of its answers is read into another site's
+    // process. A route that sets one of the three itself — the published badge, meant to be embedded — keeps its own,
+    // as Spring's writers leave a header already set alone.
+    set("cross-origin-opener-policy", "same-origin");
+    set("cross-origin-embedder-policy", "require-corp");
+    set("cross-origin-resource-policy", "same-origin");
     response
 }
 

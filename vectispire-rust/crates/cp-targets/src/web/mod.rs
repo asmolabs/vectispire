@@ -74,18 +74,25 @@ fn problem(method: &Method, path: &str, error: TargetError) -> Problem {
     match error {
         TargetError::Invalid(message) => Problem::handler(StatusCode::BAD_REQUEST, message),
         TargetError::NotFound(message) => Problem::handler(StatusCode::NOT_FOUND, message),
-        TargetError::Conflict { message, cause, members } => {
+        TargetError::Conflict { message, cause, code, members } => {
             let mut problem = Problem::handler(StatusCode::CONFLICT, message);
             if let Some(cause) = cause {
                 problem = problem.caused_by(cause);
+            }
+            if let Some(code) = code {
+                problem = problem.code(code);
             }
             for (name, value) in members {
                 problem = problem.with(name, value);
             }
             problem
         }
-        TargetError::MissingKey(message) => Problem::handler(StatusCode::PRECONDITION_FAILED, message),
-        TargetError::UnsafeUrl(message) => Problem::handler(StatusCode::UNPROCESSABLE_ENTITY, message),
+        TargetError::MissingKey(message) => {
+            Problem::handler(StatusCode::PRECONDITION_FAILED, message).code("encryption-key-missing")
+        }
+        TargetError::UnsafeUrl(message) => {
+            Problem::handler(StatusCode::UNPROCESSABLE_ENTITY, message).code("unsafe-url")
+        }
         TargetError::Unexpected(failure) => unexpected(method, path, failure.as_ref()),
     }
 }

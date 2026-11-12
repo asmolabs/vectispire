@@ -248,7 +248,9 @@ impl Targets {
         let row = vectispire_cp_access::rows::require_visible_row(found, ScanTarget::Container(id), allowed)?;
         let view = ContainerView::from(&row);
         let scan = self.scans.queue_container(&view).await.map_err(|error| match error {
-            QueueError::AlreadyQueued(message) => TargetError::Conflict { message, cause: None, members: Vec::new() },
+            QueueError::AlreadyQueued(message) => {
+                TargetError::Conflict { message, cause: None, code: Some("already-queued"), members: Vec::new() }
+            }
             QueueError::Failed(failure) => TargetError::Unexpected(failure),
         })?;
         self.audit

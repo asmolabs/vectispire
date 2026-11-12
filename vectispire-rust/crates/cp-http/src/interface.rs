@@ -110,14 +110,18 @@ impl Service<Request> for InterfaceService {
 async fn serve(interface: &Interface, request: Request) -> Response {
     let readable = matches!(*request.method(), Method::GET | Method::HEAD);
     if !readable {
-        return Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.").into_response();
+        return Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.")
+            .code(crate::routes::NO_SUCH_ROUTE)
+            .into_response();
     }
     let path = request.uri().path().to_owned();
     let served = ServeDir::new(interface.root.as_path()).append_index_html_on_directories(false).oneshot(request).await;
     match served {
         Ok(response) if response.status() != StatusCode::NOT_FOUND => response.map(Body::new),
         _ if is_forwarded(&path) => interface.index_response(),
-        _ => Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.").into_response(),
+        _ => Problem::handler(StatusCode::NOT_FOUND, "Nothing is served at this path.")
+            .code(crate::routes::NO_SUCH_ROUTE)
+            .into_response(),
     }
 }
 

@@ -86,7 +86,9 @@ fn refuse(method: &str, path: &str, error: SigningError) -> Response {
     match error {
         SigningError::InvalidPublicKey => bad_request(SigningError::InvalidPublicKey.to_string()),
         SigningError::MissingKey => {
-            Problem::handler(StatusCode::PRECONDITION_FAILED, SigningError::MissingKey.to_string()).into_response()
+            Problem::handler(StatusCode::PRECONDITION_FAILED, SigningError::MissingKey.to_string())
+                .code("encryption-key-missing")
+                .into_response()
         }
         failure => unexpected(method, path, &failure),
     }

@@ -498,7 +498,9 @@ pub(crate) fn added(actor: &RequestActor, row: &RepositoryRow, provenance: &str)
 
 fn queue_refusal(error: QueueError) -> TargetError {
     match error {
-        QueueError::AlreadyQueued(message) => TargetError::Conflict { message, cause: None, members: Vec::new() },
+        QueueError::AlreadyQueued(message) => {
+            TargetError::Conflict { message, cause: None, code: Some("already-queued"), members: Vec::new() }
+        }
         QueueError::Failed(failure) => TargetError::Unexpected(failure),
     }
 }
@@ -552,6 +554,7 @@ pub(crate) async fn refuse_if_registered(
             identity.branch
         ),
         cause: Some(ALREADY_REGISTERED),
+        code: None,
         members: vec![("existingRepositoryId", serde_json::Value::from(existing.id))],
     })
 }

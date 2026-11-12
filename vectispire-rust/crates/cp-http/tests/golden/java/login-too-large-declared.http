@@ -6,7 +6,11 @@ Pragma: no-cache
 Expires: 0
 X-Frame-Options: DENY
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+Permissions-Policy: accelerometer=(), bluetooth=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Resource-Policy: same-origin
 Content-Type: application/problem+json;charset=UTF-8
-Content-Length: 153
+Content-Length: 180
 
-{"title":"Content Too Large","status":413,"detail":"The request body is larger than the 16384 bytes this route accepts.","instance":"/api/v1/auth/login"}
+{"title":"Content Too Large","status":413,"detail":"The request body is larger than the 16384 bytes this route accepts.","instance":"/api/v1/auth/login","code":"content-too-large"}
