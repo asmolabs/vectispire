@@ -82,6 +82,27 @@ async fn a_panicking_destination_fails_its_message_and_the_pass_goes_on() {
 }
 
 #[tokio::test]
+async fn a_held_message_stays_pending_its_attempts_uncounted_and_comes_back_after_the_hold_interval() {
+    // A SIEM transport switched off by hand: failed eight times it would have been abandoned in four hours, and the
+    // security events it was meant to keep lost to a switch that may be turned back in a minute.
+    let store = store_with(vec![due(1, "siem_event", 3), due(2, "siem_event", 0)]);
+    let reason = "the SIEM transport \"siem.syslog_tls\" is disabled on this installation";
+    let answers: Answers = Arc::new(BTreeMap::from([(Uuid::from_u128(1), Answer::Held(reason.to_owned()))]));
+    let result = outbox(store.clone(), &["siem_event"], &[], answers, &log()).relay(20).await.unwrap();
+    assert_eq!((result.sent, result.failed, result.abandoned, result.held), (1, 0, 0, 1));
+    let calls = store.calls();
+    assert_eq!(calls[2]["method"], "recordAttempt");
+    assert_eq!(calls[2]["args"][1], 3, "the attempts as they were: a hold is not an attempt");
+    assert_eq!(calls[2]["args"][2], reason, "the reason, whole, as the last error an operator reads");
+    assert_eq!(calls[2]["args"][3], "pending");
+    assert_eq!(
+        calls[2]["args"][4], "2026-08-18T14:05:00Z",
+        "offered again after the hold interval, for as long as it takes"
+    );
+    assert_eq!(retry::HOLD_INTERVAL, time::Duration::minutes(5), "OutboxRetry.HOLD_INTERVAL");
+}
+
+#[tokio::test]
 async fn a_literal_panic_s_text_is_the_reason_too() {
     let store = store_with(vec![due(1, "siem_event", 0)]);
     let answers: Answers = Arc::new(BTreeMap::from([(Uuid::from_u128(1), Answer::PanicsLiterally)]));

@@ -47,32 +47,45 @@ fn writer(configured: &str, stream: &str) -> Encryption {
     Encryption::with_random(&config(Some(configured), &[]), door(), LabelledRandom::boxed(stream)).unwrap()
 }
 
+/// Without the start's weak-key refusal (`Encryption::new`): the set reads, as the current key, passphrases Java's
+/// `EncryptionKey.derive` derives and its `EncryptionService` would refuse to start on — `café invented` is thirteen
+/// characters. What is checked here is the derivation; the refusal is `tests/encryption.rs`'.
 fn reader(current: Option<&str>, previous: &[&str]) -> Encryption {
-    Encryption::new(&config(current, previous), door()).unwrap()
+    Encryption::with_random(&config(current, previous), door(), Box::new(rand_core::OsRng)).unwrap()
 }
 
-/// One row of `t_setting`, in memory.
+/// The internal rows of `t_setting`, in memory — the signing key's, and the record of published keys beside it.
 #[derive(Debug, Default)]
-struct Row(Mutex<Option<String>>);
+struct Row(Mutex<std::collections::HashMap<String, String>>);
 
 impl KeyStore for Row {
-    async fn internal_value(&self, _key: &str) -> Result<Option<String>, SettingsError> {
-        Ok(self.0.lock().unwrap().clone())
+    async fn internal_value(&self, key: &str) -> Result<Option<String>, SettingsError> {
+        Ok(self.0.lock().unwrap().get(key).cloned())
     }
 
-    async fn store_internal_if_absent(&self, _key: &str, value: &str) -> Result<bool, SettingsError> {
-        let mut row = self.0.lock().unwrap();
-        if row.is_some() {
+    async fn store_internal_if_absent(&self, key: &str, value: &str) -> Result<bool, SettingsError> {
+        let mut rows = self.0.lock().unwrap();
+        if rows.contains_key(key) {
             return Ok(false);
         }
-        *row = Some(value.to_owned());
+        rows.insert(key.to_owned(), value.to_owned());
+        Ok(true)
+    }
+
+    async fn reseal_internal(&self, key: &str, expected: &str, value: &str) -> Result<bool, SettingsError> {
+        let mut rows = self.0.lock().unwrap();
+        if rows.get(key).map(String::as_str) != Some(expected) {
+            return Ok(false);
+        }
+        rows.insert(key.to_owned(), value.to_owned());
         Ok(true)
     }
 }
 
 impl Row {
+    /// The signing key's row holding `value`.
     fn holding(value: &str) -> Row {
-        Row(Mutex::new(Some(value.to_owned())))
+        Row(Mutex::new([(vectispire_cp_crypto::STORED_KEY.to_owned(), value.to_owned())].into()))
     }
 }
 
@@ -248,10 +261,10 @@ async fn the_signing_key_java_stored_signs_and_verifies_here() {
         .unwrap();
     let expected = &signing["other_verification"];
     assert_eq!(
-        (theirs.valid, theirs.key_id.as_str(), theirs.vectispire_key, theirs.message.as_str()),
+        (theirs.valid, theirs.key_id.as_deref(), theirs.vectispire_key, theirs.message.as_str()),
         (
             expected["valid"].as_bool().unwrap(),
-            text(&expected["fingerprint"]),
+            Some(text(&expected["fingerprint"])),
             expected["vectispire"].as_bool().unwrap(),
             text(&expected["message"])
         )

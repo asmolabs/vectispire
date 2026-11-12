@@ -24,6 +24,9 @@ impl KeyStore for Nowhere {
         self.0.lock().unwrap().push(value.to_owned());
         Ok(true)
     }
+    async fn reseal_internal(&self, _key: &str, _expected: &str, _value: &str) -> Result<bool, SettingsError> {
+        Ok(false)
+    }
 }
 
 fn keys(configured: &str) -> Result<SigningKeys<Nowhere>, SigningError> {

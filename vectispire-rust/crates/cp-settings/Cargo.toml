@@ -17,8 +17,10 @@ postgres-queries = []
 
 [dependencies]
 regex.workspace = true
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
 thiserror.workspace = true
+# `t_integration.updated_at`, as the other modules read an instant (`UtcInstant`).
+time = { version = "0.3", features = ["std"] }
 tracing.workspace = true
 vectispire-cp-db = { path = "../cp-db" }
 vectispire-domain.workspace = true

@@ -288,3 +288,98 @@ async fn an_address_the_guard_refuses_is_never_reached() {
     assert!(matches!(refused, EncryptionError::UnsafeUrl(_)), "{refused:?}");
     assert!(stub.requests().is_empty());
 }
+
+fn start(key: &str, previous: &[&str]) -> Result<Encryption, String> {
+    Encryption::new(
+        &EncryptionConfig {
+            key: Some(Secret::new(key)),
+            previous_keys: previous.iter().map(|key| Secret::new(*key)).collect(),
+            ..EncryptionConfig::default()
+        },
+        door(),
+    )
+    .map_err(|refused| refused.to_string())
+}
+
+/// `EncryptionService.refuseAWeakCurrentKey`'s sentence, which the operator reads at the failed start.
+const ADVICE: &str = ". Every secret Vectispire stores is sealed under this key. Generate one with `openssl rand -base64 \
+32`. If this installation already stores secrets under the refused value, rotate rather than replace it: set the \
+generated key as ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE), the refused value in VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS (or \
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE), restart, and follow the key rotation procedure (docs/en/KEY_ROTATION.md) \
+until /actuator/encryption reports the rotation finished.";
+
+#[test]
+fn a_placeholder_key_stops_the_start_whatever_its_spelling() {
+    // The composition's template shipped CHANGE_ME, and Compose refuses only an empty value: an instance started on
+    // it sealed every secret under a key derivable from the public repository.
+    for placeholder in [
+        "CHANGE_ME",
+        "changeme",
+        "change-me",
+        " Change Me ",
+        "<replace me>",
+        "CHANGE_ME_generate_with_openssl_rand_base64_32",
+        "Put-Your-Key-Here, then restart the instance",
+        // Compatibility forms fold to the word under NFKC: a full-width spelling is still the template's.
+        "ＣＨＡＮＧＥ＿ＭＥ",
+        // A mark between the letters is no letter (`\p{L}`) — though Unicode calls it alphabetic — and goes with the
+        // separators.
+        "change\u{0345}me-and-a-long-enough-tail",
+    ] {
+        assert_eq!(
+            start(placeholder, &[]).unwrap_err(),
+            format!("ENCRYPTION_KEY is refused: it is a template's placeholder, published with the template{ADVICE}"),
+            "{placeholder}"
+        );
+    }
+}
+
+#[test]
+fn a_short_passphrase_stops_the_start_and_the_message_does_not_quote_it() {
+    let refused = start("Summer2026!", &[]).unwrap_err();
+    assert_eq!(
+        refused,
+        format!(
+            "ENCRYPTION_KEY is refused: it is a passphrase of 11 characters, and one shorter than 20 is a guess away \
+             for whoever holds a copy of the database{ADVICE}"
+        )
+    );
+    assert!(!refused.contains("Summer2026!"));
+    assert!(start(&"a".repeat(19), &[]).unwrap_err().contains("19 characters"));
+    // Counted in code points, as `codePointCount`: nineteen keys are thirty-eight UTF-16 units and still nineteen.
+    assert!(start(&"🔑".repeat(19), &[]).unwrap_err().contains("19 characters"));
+    // Trimmed first, as Java trims it.
+    assert!(start(&format!("  {}  ", "a".repeat(19)), &[]).unwrap_err().contains("19 characters"));
+}
+
+#[tokio::test]
+async fn a_long_passphrase_and_a_generated_key_keep_working() {
+    let passphrase = "correct horse battery staple";
+    let written = start(passphrase, &[]).unwrap().encrypt("deployment key", CONTEXT).await.unwrap();
+    assert_eq!(start(passphrase, &[]).unwrap().inspect(&written, CONTEXT).await.state(), SecretState::Current);
+    assert!(start(&"b".repeat(vectispire_cp_crypto::MIN_PASSPHRASE_LENGTH), &[]).unwrap().is_configured());
+    // An exact 32-byte key is no passphrase: its length is not counted.
+    assert!(start(&current(), &[]).unwrap().is_configured());
+    assert!(start("q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE", &[]).unwrap().is_configured());
+    // No key at all is not a weak key: it starts, and refuses to write.
+    assert!(!service(None, &[]).is_configured());
+}
+
+#[tokio::test]
+async fn a_refused_key_still_opens_as_a_previous_one_so_the_rotation_can_read_what_it_sealed() {
+    // What an installation started on the placeholder holds: values sealed under it. Refusing it among the previous
+    // keys would strand them; the rotation is how they leave it.
+    let sealed = Encryption::with_random(
+        &EncryptionConfig { key: Some(Secret::new("CHANGE_ME")), ..EncryptionConfig::default() },
+        door(),
+        Box::new(rand_core::OsRng),
+    )
+    .unwrap()
+    .encrypt("deployment key", CONTEXT)
+    .await
+    .unwrap();
+    let rotating = start(&current(), &["CHANGE_ME", "short"]).unwrap();
+    let read = rotating.inspect(&sealed, CONTEXT).await;
+    assert_eq!((read.plain_text(), read.state()), ("deployment key", SecretState::PreviousKey));
+    assert_eq!(service(None, &["CHANGE_ME"]).inspect(&sealed, CONTEXT).await.plain_text(), "deployment key");
+}

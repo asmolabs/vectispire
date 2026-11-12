@@ -69,6 +69,9 @@ async fn two_instances_agree_on_one_key(engine: Engine) {
         async fn store_internal_if_absent(&self, key: &str, value: &str) -> Result<bool, SettingsError> {
             self.inner.store_internal_if_absent(key, value).await
         }
+        async fn reseal_internal(&self, key: &str, expected: &str, value: &str) -> Result<bool, SettingsError> {
+            self.inner.reseal_internal(key, expected, value).await
+        }
     }
 
     let server = Migrated::start(engine).await;

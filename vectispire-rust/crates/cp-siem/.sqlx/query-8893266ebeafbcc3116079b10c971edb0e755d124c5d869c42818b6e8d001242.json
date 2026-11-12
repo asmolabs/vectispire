@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select enabled, protocol from t_siem_config where id = $1 for share",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_siem_config",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "protocol",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_siem_config",
+            "name": "protocol"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "8893266ebeafbcc3116079b10c971edb0e755d124c5d869c42818b6e8d001242"
+}

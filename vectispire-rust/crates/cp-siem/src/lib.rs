@@ -38,6 +38,7 @@ pub use events::{
     MAX_MESSAGE_LENGTH, QueueError, QueuedEvent, SiemEvents, TYPE, Unreadable, bounded, of_epoch_milli,
     signalled_by_entry,
 };
+pub use internal::in_use::{IN_USE, SiemTransportInUse};
 pub use internal::sender::{LABEL, SiemSender, TIMEOUT, body};
 pub use internal::syslog::{MAX_DATAGRAM, SyslogSender, TrustUnreadable};
 pub use transport::{PrivateDestinations, SendError, Transport};

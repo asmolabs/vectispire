@@ -24,6 +24,9 @@ subtle.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
+# `[^\\p{L}\\p{N}]` of `EncryptionKey.refusalAsCurrentKey`: the general category, which `char::is_alphanumeric`
+# (the Alphabetic property, marks included) is not. Already a dependency of cp-checklists.
+unicode-general-category = "1.1"
 # Normalizer.normalize(NFKC) before scrypt. Already in the graph (idna).
 unicode-normalization = "0.1"
 vectispire-cp-outbound = { path = "../cp-outbound" }

@@ -236,6 +236,7 @@ fn stand_ins() -> StandIns {
             )
             .unwrap(),
         ),
+        integrations: vectispire_cp_app::registry::integration_administration(&db, (*audit).clone()),
     };
     let siem = vectispire_cp_app::siem::service(
         &siem,

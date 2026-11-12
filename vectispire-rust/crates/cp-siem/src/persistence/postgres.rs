@@ -67,3 +67,11 @@ pub async fn update(conn: &mut sqlx::PgConnection, row: &ConfigRow) -> Result<u6
     .await?
     .rows_affected())
 }
+
+/// The export's switch and protocol, `for share`.
+pub async fn find_locked(conn: &mut sqlx::PgConnection) -> Result<Option<(bool, String)>, DbError> {
+    Ok(sqlx::query!("/* postgres */ select enabled, protocol from t_siem_config where id = $1 for share", SINGLETON_ID)
+        .fetch_optional(conn)
+        .await?
+        .map(|row| (row.enabled, row.protocol)))
+}

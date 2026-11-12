@@ -16,6 +16,10 @@ pub enum AuditOperation {
     UserUpdated,
     UserPasswordReset,
     UserDeleted,
+    /// A request for an account, filed by its applicant.
+    AccountRequestFiled,
+    AccountRequestApproved,
+    AccountRequestRejected,
     ApiKeyCreated,
     ApiKeyDeleted,
     SettingUpdated,
@@ -111,11 +115,13 @@ pub enum AuditOperation {
     IntegrationTokenRestored,
     ChecklistContactChanged,
     ChecklistReminderSent,
+    /// An integration switched on or off by the platform governor (decision 0040 §4).
+    IntegrationEnabledChanged,
 }
 
 impl AuditOperation {
     /// Every operation, in the Java enum's order.
-    pub const ALL: [AuditOperation; 103] = [
+    pub const ALL: [AuditOperation; 107] = [
         AuditOperation::LoginSuccess,
         AuditOperation::LoginFailure,
         AuditOperation::LoginBlocked,
@@ -124,6 +130,9 @@ impl AuditOperation {
         AuditOperation::UserUpdated,
         AuditOperation::UserPasswordReset,
         AuditOperation::UserDeleted,
+        AuditOperation::AccountRequestFiled,
+        AuditOperation::AccountRequestApproved,
+        AuditOperation::AccountRequestRejected,
         AuditOperation::ApiKeyCreated,
         AuditOperation::ApiKeyDeleted,
         AuditOperation::SettingUpdated,
@@ -219,6 +228,7 @@ impl AuditOperation {
         AuditOperation::IntegrationTokenRestored,
         AuditOperation::ChecklistContactChanged,
         AuditOperation::ChecklistReminderSent,
+        AuditOperation::IntegrationEnabledChanged,
     ];
 
     /// The value stored in `t_audit_log.operation_type`.
@@ -232,6 +242,9 @@ impl AuditOperation {
             AuditOperation::UserUpdated => "USER_UPDATED",
             AuditOperation::UserPasswordReset => "USER_PASSWORD_RESET",
             AuditOperation::UserDeleted => "USER_DELETED",
+            AuditOperation::AccountRequestFiled => "ACCOUNT_REQUEST_FILED",
+            AuditOperation::AccountRequestApproved => "ACCOUNT_REQUEST_APPROVED",
+            AuditOperation::AccountRequestRejected => "ACCOUNT_REQUEST_REJECTED",
             AuditOperation::ApiKeyCreated => "API_KEY_CREATED",
             AuditOperation::ApiKeyDeleted => "API_KEY_DELETED",
             AuditOperation::SettingUpdated => "SETTING_UPDATED",
@@ -327,6 +340,7 @@ impl AuditOperation {
             AuditOperation::IntegrationTokenRestored => "INTEGRATION_TOKEN_RESTORED",
             AuditOperation::ChecklistContactChanged => "CHECKLIST_CONTACT_CHANGED",
             AuditOperation::ChecklistReminderSent => "CHECKLIST_REMINDER_SENT",
+            AuditOperation::IntegrationEnabledChanged => "INTEGRATION_ENABLED_CHANGED",
         }
     }
 

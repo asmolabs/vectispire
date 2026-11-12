@@ -47,12 +47,14 @@ use delivery::Route;
 /// Every message the scan notifications write: the generic webhook's type.
 pub const TYPE_SCAN_DELTA: &str = "scan_delta";
 
-/// What one pass did: delivered, to be retried, out of attempts.
+/// What one pass did: delivered, to be retried, out of attempts, kept pending with no attempt counted because its
+/// destination may not be reached for now.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RelayResult {
     pub sent: u32,
     pub failed: u32,
     pub abandoned: u32,
+    pub held: u32,
 }
 
 impl NewMessage {
@@ -168,6 +170,7 @@ impl Outbox {
         let at = self.now();
         let due = self.store.find_due(PENDING, at, limit).await?;
         let mut result = RelayResult::default();
+        let mut hold_reasons: Vec<String> = Vec::new();
         for message in due {
             // **Claimed before it is sent.** Every instance runs this pass and reads the same due rows; without the
             // claim each of them delivered each message.
@@ -180,6 +183,17 @@ impl Outbox {
                 Ok(()) => {
                     self.store.mark_sent(message.id, attempts, SENT, at).await?;
                     result.sent = result.sent.saturating_add(1);
+                }
+                Err(DeliveryError::Held(reason)) => {
+                    // **Kept, not counted.** Settled through the failure path it would have spent its eight attempts
+                    // in four hours and been abandoned — the security events a disabled transport was meant to keep,
+                    // lost to a switch that may be turned back in a minute.
+                    let next = at.saturating_add(retry::HOLD_INTERVAL);
+                    self.store.record_attempt(message.id, message.attempts, Some(&reason), PENDING, Some(next)).await?;
+                    if !hold_reasons.contains(&reason) {
+                        hold_reasons.push(reason);
+                    }
+                    result.held = result.held.saturating_add(1);
                 }
                 Err(DeliveryError::Gone(reason)) => {
                     // Abandoned at once: twelve attempts would fill the log with an error nobody can act on.
@@ -198,6 +212,13 @@ impl Outbox {
         }
         if result.sent > 0 {
             tracing::info!("Outbox: {} message(s) delivered.", result.sent);
+        }
+        if result.held > 0 {
+            tracing::warn!(
+                "Outbox: {} message(s) held, not sent and kept pending: {}",
+                result.held,
+                hold_reasons.join("; ")
+            );
         }
         Ok(result)
     }

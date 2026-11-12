@@ -10,6 +10,12 @@
 //! the reason ([`DeliveryError::Gone`]). A collector that does not answer, a row that cannot be read: retried on the
 //! outbox's backoff, then abandoned, with the exception Java's delivery throws as the kind.
 //!
+//! **Never over a disabled transport** (decision 0040 §1), **and never losing the event for it.** The governor cannot
+//! switch off the transport an enabled export uses (`SiemTransportInUse`, under the registry's lock), so this is the
+//! case of a row written by hand — or by a version that did not ask: the event is held ([`DeliveryError::Held`]),
+//! pending with its reason and its attempts uncounted, until the transport is enabled again or the export pointed at
+//! one that is.
+//!
 //! Runs outside any transaction: the relay claims the row in one, sends, and settles it in another. A collector that
 //! takes ten seconds to answer holds no lock.
 
@@ -20,6 +26,8 @@ use vectispire_cp_audit::Clock;
 use vectispire_cp_crypto::Encryption;
 use vectispire_cp_db::Db;
 use vectispire_cp_outbox::{Delivery, DeliveryError, OutboxHandler};
+use vectispire_cp_settings::Integrations;
+use vectispire_domain::integrations::Integration;
 use vectispire_domain::java;
 use vectispire_domain::secret::Secret;
 use vectispire_domain::siem::{CollectorCa, SiemProtocol, endpoint};
@@ -32,6 +40,7 @@ use crate::transport::Transport;
 /// The handler.
 pub struct SiemDelivery {
     db: Db,
+    integrations: Integrations,
     transport: Arc<dyn Transport>,
     encryption: Arc<Encryption>,
     clock: Arc<dyn Clock>,
@@ -50,7 +59,9 @@ impl SiemDelivery {
         encryption: Arc<Encryption>,
         clock: Arc<dyn Clock>,
     ) -> SiemDelivery {
-        SiemDelivery { db, transport, encryption, clock }
+        // The registry over the same database: the delivery reads it, and asks no module whether anything is in use.
+        let integrations = crate::config::registry(&db, &clock);
+        SiemDelivery { db, integrations, transport, encryption, clock }
     }
 
     /// One message: sent, gone, or failed.
@@ -72,6 +83,21 @@ impl SiemDelivery {
                 config.protocol
             ))
         })?;
+        // Before anything is decrypted or resolved: nothing of a disabled transport runs. Held, not gone — the export
+        // still wants these events, and the switch is a gesture away from being turned back.
+        let transport = Integration::of_siem(protocol);
+        let enabled = self
+            .integrations
+            .is_enabled(transport)
+            .await
+            .map_err(|error| DeliveryError::failed("DataAccessException", error.to_string()))?;
+        if !enabled {
+            return Err(DeliveryError::Held(format!(
+                "the SIEM transport \"{}\" is disabled on this installation: the event waits until the platform \
+                 governor enables it, or the SIEM export is pointed at an enabled transport",
+                transport.key()
+            )));
+        }
         let destination = endpoint::parse(protocol, config.endpoint.as_deref()).map_err(|unreadable| {
             DeliveryError::Gone(format!("the stored SIEM endpoint is unusable for {}: {unreadable}", protocol.name()))
         })?;

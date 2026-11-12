@@ -16,11 +16,13 @@
 
 pub mod about;
 pub mod catalog;
+pub mod integrations;
 mod persistence;
 pub mod rules;
 mod store;
 pub mod types;
 
 pub use catalog::{Definition, Setting};
+pub use integrations::{InUse, InUseFuture, IntegrationView, Integrations, IntegrationsError, Switched};
 pub use store::{FIRST_INSTALL_DEFAULTS, Settings, SettingsError};
 pub use types::{Section, Sensitivity, SettingType, THRESHOLDS};

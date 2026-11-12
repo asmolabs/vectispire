@@ -22,6 +22,10 @@ pub const MAX_PER_PASS: u32 = 20;
 /// due again rather than staying claimed for ever.
 pub const CLAIM_WINDOW: Duration = Duration::minutes(5);
 
+/// How long a held message waits before it is offered again — `OutboxRetry.HOLD_INTERVAL`: a switch turned back on is
+/// noticed within five minutes, and a held row costs one read each time.
+pub const HOLD_INTERVAL: Duration = Duration::minutes(5);
+
 /// Delivered messages are kept a week, so "did it go out?" has an answer.
 pub const SENT_RETENTION: Duration = Duration::days(7);
 

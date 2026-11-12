@@ -25,8 +25,13 @@ mod signing;
 
 pub use encryption::{
     Decrypted, Encryption, EncryptionConfig, EncryptionError, MISSING_KEY, SecretState, StartupRefusal, VaultDoor,
+    refuse_a_weak_current_key,
 };
-pub use signing::{DsseEnvelope, DsseSignature, KeyStore, STORED_KEY, SigningError, SigningKeys, Verification};
+pub use internal::cipher::{MIN_PASSPHRASE_LENGTH, refusal_as_current_key};
+pub use signing::{
+    Clock, DsseEnvelope, DsseSignature, KNOWN_KEYS, KNOWN_KEYS_CONTEXT, KeyStatus, KeyStore, PublishedKey,
+    SEALED_KNOWN_KEYS, STORED_KEY, SigningConfig, SigningError, SigningKeys, Verification,
+};
 
 /// Where a private SSH key lives — `SecretCipher.privateKeyContext`. Encrypting under one context and reading
 /// under another makes the value unreadable, so the string is only ever built here.

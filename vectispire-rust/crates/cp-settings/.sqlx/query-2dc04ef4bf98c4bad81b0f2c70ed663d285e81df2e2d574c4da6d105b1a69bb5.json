@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_integration (integration_key, enabled, updated_at, updated_by) values (?, true, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2dc04ef4bf98c4bad81b0f2c70ed663d285e81df2e2d574c4da6d105b1a69bb5"
+}

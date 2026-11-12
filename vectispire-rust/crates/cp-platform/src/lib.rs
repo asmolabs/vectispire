@@ -8,6 +8,8 @@
 //!   `ai`'s destination guard and its acceptance record — are seams ([`Approvers`], [`Tracker`], [`AiDestination`])
 //!   that the binary fills, as `platform` in Java may use any module (decision 0029).
 //!
+//! - [`IntegrationAdministration`] is `IntegrationAdministrationService` (decision 0040): the registry's list and the
+//!   governor's switch, audited once; [`integration_routes`] are `IntegrationsController`'s.
 //! - [`routes`] are `AuditLogController`'s and `CryptoController`'s, over `cp-audit`'s `AuditLogQuery` and `cp-crypto`'s
 //!   `SigningKeys`.
 //!
@@ -17,11 +19,13 @@
 #![forbid(unsafe_code)]
 
 mod forms;
+mod integrations;
 mod settings;
 mod web;
 
+pub use integrations::{IntegrationAdministration, IntegrationAdministrationError};
 pub use settings::{
     AdministrationError, AiAfter, AiDestination, Applied, Approvers, Caller, CollaboratorError, Entry,
     SECURITY_SETTING_CHANGED, SettingsAdministration, Tracker,
 };
-pub use web::routes;
+pub use web::{integration_routes, routes};

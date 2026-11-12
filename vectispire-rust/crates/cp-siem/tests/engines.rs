@@ -12,6 +12,11 @@
 //!   queued; the collector left behind is told, or the audit says it was not; a TLS collector is reached through its
 //!   pinned CA and only through it; a lapsed CA abandons the row; the private-destination switch decides the reach;
 //!   the header is encrypted at rest; the listener's failure costs the audit entry nothing.
+//! - **Each transport is an integration** (decision 0040) — `SiemTransportsRoutesTest` at the service's level: an
+//!   enabled export is neither saved nor tested over a disabled transport (409 `integration-disabled`), a disabled
+//!   export is saved over any; a row on a disabled transport holds its events, uncounted, until the transport is back;
+//!   no stop notice leaves over a disabled transport, and the audit says so; the governor cannot switch off the
+//!   transport an enabled export uses, and a save holding it makes the switch wait.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -34,13 +39,15 @@ use vectispire_cp_db::types::UtcInstant;
 use vectispire_cp_db::{Db, Engine, Mode, Tx};
 use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender, UnsafeUrl};
 use vectispire_cp_outbox::{DeliveryError, Outbox, Registry};
-use vectispire_cp_settings::{Setting, Settings};
+use vectispire_cp_settings::{InUse, Integrations, IntegrationsError, Setting, Settings};
 use vectispire_cp_siem::{
     AUTH_HEADER_CONTEXT, NOT_DELIVERED, QueuedEvent, REFUSED_BY_POLICY, SendError, SiemConfigUpdate, SiemDelivery,
-    SiemError, SiemEvents, SiemExporterService, SiemSender, SyslogSender, TYPE, Transport, body,
+    SiemError, SiemEvents, SiemExporterService, SiemSender, SiemTransportInUse, SyslogSender, TYPE, Transport, body,
 };
 use vectispire_domain::instant::Instant;
+use vectispire_domain::integrations::Integration;
 use vectispire_domain::secret::Secret;
+use vectispire_domain::siem::SiemProtocol;
 use vectispire_domain::siem::{CefEvent, SecurityEventType, SiemEndpoint, syslog};
 use vectispire_tls::TlsTrust;
 
@@ -88,6 +95,10 @@ async fn run(engine: Engine) {
     a_lapsed_stored_ca_abandons_the_event(&db).await;
     the_private_switch_decides_the_reach(&db).await;
     the_header_is_encrypted_at_rest(&db).await;
+    a_disabled_transport_is_neither_configured_nor_tested(&db).await;
+    a_disabled_transport_holds_its_events(&db).await;
+    no_stop_notice_over_a_disabled_transport(&db).await;
+    the_transport_in_use_is_not_switched_off(&db).await;
 }
 
 // ---- the fixtures ----
@@ -1151,4 +1162,151 @@ async fn the_header_is_encrypted_at_rest(db: &Db) {
     );
     // The audit entry never holds it.
     assert!(audit_descriptions(db).await.iter().all(|entry| !entry.contains("secret-siem-token")));
+}
+
+// ---- the transports are integrations ----
+
+/// The registry as the governor's switch composes it: with the export's answer to "is it in use".
+fn governor_registry(db: &Db) -> Integrations {
+    let uses: Vec<Arc<dyn InUse>> = vec![Arc::new(SiemTransportInUse)];
+    Integrations::new(db.clone(), uses, Arc::new(OffsetDateTime::now_utc))
+}
+
+async fn switch(db: &Db, protocol: SiemProtocol, enabled: bool) {
+    // By hand, as a row written past the governor's switch: what the delivery and the stop notice must still refuse.
+    let key = Integration::of_siem(protocol).key();
+    match db {
+        Db::MySql(pool) => {
+            sqlx::query("update t_integration set enabled = ? where integration_key = ?")
+                .bind(enabled)
+                .bind(key)
+                .execute(pool)
+                .await
+                .unwrap();
+        }
+        Db::PostgreSql(pool) => {
+            sqlx::query("update t_integration set enabled = $1 where integration_key = $2")
+                .bind(enabled)
+                .bind(key)
+                .execute(pool)
+                .await
+                .unwrap();
+        }
+    }
+}
+
+async fn a_disabled_transport_is_neither_configured_nor_tested(db: &Db) {
+    reset(db).await;
+    allow_private(db, true).await;
+    let recording = Arc::new(Recording::default());
+    let module = compose(db, recording.clone(), TestClock::system(), None);
+    switch(db, SiemProtocol::SyslogUdp, false).await;
+
+    let refused = module.exporter.save_config(update(true, "SYSLOG_UDP", "127.0.0.1:9", "LOW"), &admin()).await;
+    let Err(SiemError::IntegrationDisabled(integration)) = refused else { panic!("{refused:?}") };
+    assert_eq!(integration.key(), "siem.syslog_udp");
+    assert_eq!(
+        SiemError::IntegrationDisabled(integration).to_string(),
+        "The integration \"siem.syslog_udp\" is disabled on this installation; a platform governor enables it with \
+         PUT /api/v1/integrations/siem.syslog_udp/enabled."
+    );
+    assert!(module.exporter.get_config().await.unwrap().is_none(), "nothing written");
+    // Refused before the form's other words: an unreadable endpoint over a disabled transport is the 409 too.
+    assert!(matches!(
+        module.exporter.save_config(update(true, "SYSLOG_UDP", "not an endpoint", "LOW"), &admin()).await,
+        Err(SiemError::IntegrationDisabled(_))
+    ));
+
+    // The test: refused, nothing sent — not "not delivered", which would send the security lead to the network.
+    let tested = module.exporter.test_connection(Some("SYSLOG_UDP"), Some("127.0.0.1:9"), None, None).await;
+    assert!(matches!(tested, Err(SiemError::IntegrationDisabled(_))), "{tested:?}");
+    assert!(recording.sent.lock().unwrap().is_empty());
+
+    // A disabled export is saved over any transport: switching the export off is never what a disabled transport
+    // prevents.
+    let saved = module.exporter.save_config(update(false, "SYSLOG_UDP", "127.0.0.1:9", "LOW"), &admin()).await;
+    assert!(saved.is_ok(), "{saved:?}");
+    // And another transport, enabled, saves and tests.
+    let saved = module.exporter.save_config(update(true, "SYSLOG_TCP", "127.0.0.1:9", "LOW"), &admin()).await;
+    assert!(saved.is_ok(), "{saved:?}");
+    switch(db, SiemProtocol::SyslogUdp, true).await;
+}
+
+async fn a_disabled_transport_holds_its_events(db: &Db) {
+    reset(db).await;
+    allow_private(db, true).await;
+    let recording = Arc::new(Recording::default());
+    let module = compose(db, recording.clone(), TestClock::system(), None);
+    module.exporter.save_config(update(true, "SYSLOG_UDP", "127.0.0.1:9", "LOW"), &admin()).await.unwrap();
+    // A row on a transport switched off by hand — the governor's switch would have refused it.
+    switch(db, SiemProtocol::SyslogUdp, false).await;
+    sql(db, "delete from t_outbox_message", "delete from t_outbox_message").await;
+    enqueue_committed(&module.events, db, &kev("CVE-2026-0001")).await;
+    let id = Uuid::parse_str(&outbox_rows(db).await[0].id).unwrap();
+
+    let held = module.delivery.deliver_message(id, &outbox_rows(db).await[0].payload).await;
+    let Err(DeliveryError::Held(reason)) = held else { panic!("{held:?}") };
+    assert_eq!(
+        reason,
+        "the SIEM transport \"siem.syslog_udp\" is disabled on this installation: the event waits until the platform \
+         governor enables it, or the SIEM export is pointed at an enabled transport"
+    );
+    let result = module.outbox.relay(20).await.unwrap();
+    assert_eq!((result.sent, result.failed, result.abandoned, result.held), (0, 0, 0, 1));
+    let row = &outbox_rows(db).await[0];
+    assert_eq!((row.status.as_str(), row.attempts), ("pending", 0), "kept, not counted");
+    assert!(recording.sent.lock().unwrap().is_empty(), "nothing of a disabled transport runs");
+
+    switch(db, SiemProtocol::SyslogUdp, true).await;
+    assert!(module.delivery.deliver_message(id, &row.payload).await.is_ok(), "back once the transport is");
+}
+
+async fn no_stop_notice_over_a_disabled_transport(db: &Db) {
+    reset(db).await;
+    allow_private(db, true).await;
+    let module = compose(db, real_sender(db, &TlsTrust::BuiltIn), TestClock::system(), None);
+    let (left, left_port) = udp().await;
+    module
+        .exporter
+        .save_config(update(true, "SYSLOG_UDP", &format!("127.0.0.1:{left_port}"), "HIGH"), &admin())
+        .await
+        .unwrap();
+    switch(db, SiemProtocol::SyslogUdp, false).await;
+    module
+        .exporter
+        .save_config(update(false, "SYSLOG_UDP", &format!("127.0.0.1:{left_port}"), "HIGH"), &admin())
+        .await
+        .unwrap();
+    assert!(support::datagrams(&left, Duration::from_millis(500)).await.is_empty(), "nothing sent over it");
+    let last = audit_descriptions(db).await.pop().unwrap();
+    assert!(
+        last.ends_with("; stop notice NOT sent to the previous collector: its transport siem.syslog_udp is disabled"),
+        "{last}"
+    );
+    switch(db, SiemProtocol::SyslogUdp, true).await;
+}
+
+async fn the_transport_in_use_is_not_switched_off(db: &Db) {
+    reset(db).await;
+    allow_private(db, true).await;
+    let module = compose(db, Arc::new(Recording::default()), TestClock::system(), None);
+    let registry = governor_registry(db);
+    let tls = Integration::of_siem(SiemProtocol::SyslogUdp);
+    module.exporter.save_config(update(true, "SYSLOG_UDP", "127.0.0.1:9", "HIGH"), &admin()).await.unwrap();
+
+    let refused = registry.switch_to(tls, false, "governor").await.unwrap_err();
+    assert!(matches!(refused, IntegrationsError::InUse(..)), "{refused:?}");
+    assert_eq!(
+        refused.to_string(),
+        "The integration \"siem.syslog_udp\" is in use and cannot be disabled: it is the transport the SIEM export \
+         sends over. Change the SIEM configuration first — another transport, or the export switched off: the security \
+         events queued in the outbox would otherwise have nowhere to go, and be lost in silence."
+    );
+    // Another transport is not in use; a disabled export uses none.
+    let tcp = Integration::of_siem(SiemProtocol::SyslogTcp);
+    assert!(registry.switch_to(tcp, false, "governor").await.unwrap().changed);
+    assert!(registry.switch_to(tcp, true, "governor").await.unwrap().changed);
+    module.exporter.save_config(update(false, "SYSLOG_UDP", "127.0.0.1:9", "HIGH"), &admin()).await.unwrap();
+    assert!(registry.switch_to(tls, false, "governor").await.unwrap().changed);
+    assert!(registry.switch_to(tls, true, "governor").await.unwrap().changed);
 }

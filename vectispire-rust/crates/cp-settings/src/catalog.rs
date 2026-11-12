@@ -62,6 +62,7 @@ pub enum Setting {
     SlaMediumDays,
     SlaLowDays,
     FourEyesApprovalRequired,
+    FourEyesIndependenceDays,
     ChecklistAutoAnswer,
 }
 
@@ -80,7 +81,7 @@ pub struct Definition {
 
 impl Setting {
     /// Every setting, in the Java enum's order.
-    pub const ALL: [Setting; 54] = [
+    pub const ALL: [Setting; 55] = [
         Setting::EnrichmentEnabled,
         Setting::EolEnabled,
         Setting::EolWarnDays,
@@ -134,6 +135,7 @@ impl Setting {
         Setting::SlaMediumDays,
         Setting::SlaLowDays,
         Setting::FourEyesApprovalRequired,
+        Setting::FourEyesIndependenceDays,
         Setting::ChecklistAutoAnswer,
     ];
 
@@ -193,6 +195,7 @@ impl Setting {
             Setting::SlaMediumDays => "SLA_MEDIUM_DAYS",
             Setting::SlaLowDays => "SLA_LOW_DAYS",
             Setting::FourEyesApprovalRequired => "FOUR_EYES_APPROVAL_REQUIRED",
+            Setting::FourEyesIndependenceDays => "FOUR_EYES_INDEPENDENCE_DAYS",
             Setting::ChecklistAutoAnswer => "CHECKLIST_AUTO_ANSWER",
         }
     }
@@ -677,6 +680,15 @@ impl Setting {
                 default_value: r#"true"#,
                 sensitivity: Sensitivity::Plain,
             },
+            Setting::FourEyesIndependenceDays => Definition {
+                key: "four_eyes_independence_days",
+                setting_type: SettingType::Integer,
+                section: Section::Triage,
+                label: r#"Approver independence window (days)"#,
+                help: r#"With four-eyes on, an approval is refused when the person who asked for it created the approver's account, reset its password or changed its role within this many days: the second pair of eyes would otherwise be an account the first one made, or whose password it typed. Applies to triage approvals and to account changes waiting for a second administrator. Zero switches the check off; at most 3650."#,
+                default_value: r#"30"#,
+                sensitivity: Sensitivity::Plain,
+            },
             Setting::ChecklistAutoAnswer => Definition {
                 key: "checklist_auto_answer",
                 setting_type: SettingType::Boolean,
@@ -733,6 +745,7 @@ impl Setting {
             | Setting::AiReviewOpenaiKey
             | Setting::AiReviewAllowRemote
             | Setting::FourEyesApprovalRequired
+            | Setting::FourEyesIndependenceDays
             | Setting::ChecklistAutoAnswer => true,
             Setting::EnrichmentEnabled
             | Setting::EolEnabled

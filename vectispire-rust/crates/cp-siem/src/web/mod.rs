@@ -140,6 +140,14 @@ fn refuse(method: &str, path: &str, error: SiemError) -> Response {
         SiemError::Encryption(EncryptionError::UnsafeUrl(message)) => {
             Problem::handler(StatusCode::UNPROCESSABLE_ENTITY, message).code("unsafe-url").into_response()
         }
+        // `IntegrationDisabledException`: a conflict naming its cause, the integration's key in a member of its own so
+        // that a screen names it in its language without parsing the sentence.
+        SiemError::IntegrationDisabled(integration) => {
+            Problem::handler(StatusCode::CONFLICT, SiemError::IntegrationDisabled(integration).to_string())
+                .caused_by(vectispire_domain::integrations::DISABLED_CAUSE)
+                .with("integration", integration.key())
+                .into_response()
+        }
         failure @ (SiemError::Encryption(EncryptionError::Kms(_)) | SiemError::Database(_)) => {
             unexpected(method, path, &failure)
         }
@@ -264,5 +272,8 @@ mod tests {
         );
         assert_eq!(status(SiemError::Encryption(EncryptionError::Kms("x".into()))), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(status(SiemError::Database("x".into())), StatusCode::INTERNAL_SERVER_ERROR);
+        let udp =
+            vectispire_domain::integrations::Integration::of_siem(vectispire_domain::siem::SiemProtocol::SyslogUdp);
+        assert_eq!(status(SiemError::IntegrationDisabled(udp)), StatusCode::CONFLICT);
     }
 }

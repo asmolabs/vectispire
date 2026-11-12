@@ -50,15 +50,23 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       `adopt-unsealed-keys`; verification tried against every published key, `Verification.keyStatus`; messages
       "…any of Vectispire's signing keys…" and "…nor one it signed with before…"; `GET /crypto/public-keys` and
       `/crypto/public-keys/{keyId}.pub`. Red: `cp-crypto --test reference_set`.
-- [ ] **`ENCRYPTION_KEY` refused at start** when a template placeholder or a passphrase under 20 code points (exact
+      *Phase 1 (`rust/p1-platform`): the service is done and green (`reference_set`, `rotation` on MySQL), the binary
+      starts it as Java's constructor does. Owed: the two routes, written and tested in `cp-platform` but not routed —
+      `cp-http`'s chain opens only `public-key.pub` to an anonymous caller, and its route builder cannot route
+      `{keyId}.pub` (matchit 0.8.4); `cp-runtime` binds neither `revoked-keys` nor `adopt-unsealed-keys`; the replay's
+      router (`cp-agents/tests/golden.rs`) builds a key per test, so its first signature records the key where Java's
+      context had recorded it before the suite (the 5 crypto recordings now differ by that insert).*
+- [x] **`ENCRYPTION_KEY` refused at start** when a template placeholder or a passphrase under 20 code points (exact
       32-byte keys and previous keys exempt).
-- [ ] **Integrations** (ADR 0040): `GET /integrations`, `PUT /integrations/{key}/enabled`, audit
-      `INTEGRATION_ENABLED_CHANGED`. Not-yet-ported list.
-- [ ] **Settings**: new `four_eyes_independence_days` (INTEGER, 30, TRIAGE), one setting became administrator-only,
+- [x] **Integrations** (ADR 0040): `GET /integrations`, `PUT /integrations/{key}/enabled`, audit
+      `INTEGRATION_ENABLED_CHANGED`. Not-yet-ported list. *The registry in `cp-settings`, the routes in `cp-platform`;
+      their `golden/deferred/platform.txt` lines stay until the replay's router composes them, and the notification
+      channels' in-use answer joins with the notifications module.*
+- [x] **Settings**: new `four_eyes_independence_days` (INTEGER, 30, TRIAGE), one setting became administrator-only,
       forge API roots with a query or fragment refused; `validation.json` moved. Red: `cp-settings --test reference_set`.
 - [ ] **Metrics**: `vectispire.metrics.scrape-token` / `-file` accepted as a bearer on `/actuator/prometheus` (declared
       in the property table; not honoured yet).
-- [ ] Audit operations list. Red: `cp-audit --test reference_set`.
+- [x] Audit operations list. Red: `cp-audit --test reference_set`.
 
 ## SIEM (`cp-siem`, `domain`)
 
@@ -66,6 +74,8 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       an enabled save or a test over one answers 409 `integration-disabled`; the save runs in a transaction; no stop
       notice over a disabled transport, and the audit text says so; `census()` reports how the stored authorization
       header is sealed. Red: `domain --test siem_reference_set`.
+      *Phase 1: all but the census, green (`siem_reference_set`, `cp-siem --test engines`, the outbox's `Held`); the
+      port has no `/actuator/encryption` and so no census to report into yet.*
 
 ## Targets, scanning, checklists, compliance
 
@@ -91,7 +101,7 @@ causes rather than one by one. Counts are recordings.
       result — 33; the outbox rows a result writes — 34; status differences on `GET /agent/jobs`,
       `POST /agent/sealing-key`, `PUT /admin/agents/{id}/signing-key`, `POST /agent/jobs/{id}/failure`,
       `POST /agent/hello` (the contract range) — about 60.
-- [ ] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
+- [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
 - [ ] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
       `«pem:…»` request bodies of SSH-key and CA tests the recorder hides.

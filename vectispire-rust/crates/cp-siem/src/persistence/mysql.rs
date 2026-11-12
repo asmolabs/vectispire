@@ -65,3 +65,14 @@ pub async fn update(conn: &mut sqlx::MySqlConnection, row: &ConfigRow) -> Result
     .await?
     .rows_affected())
 }
+
+/// The export's switch and protocol, `for share`.
+pub async fn find_locked(conn: &mut sqlx::MySqlConnection) -> Result<Option<(bool, String)>, DbError> {
+    Ok(sqlx::query!(
+        "/* mysql */ select enabled as `enabled: bool`, protocol from t_siem_config where id = ? for share",
+        SINGLETON_ID
+    )
+    .fetch_optional(conn)
+    .await?
+    .map(|row| (row.enabled, row.protocol)))
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_integration (integration_key, enabled, updated_at, updated_by) values ($1, true, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7371f332a0571ba1887c4a0d777ade400bad8e7185ebaf645dcd998908deddf"
+}
