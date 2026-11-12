@@ -116,10 +116,10 @@ Recorded at 1.0.0-rc.2 (`record-goldens.sh`: 2,616 tests, the two expected failu
 MySQL (`replay-goldens.sh`): 3,053 recordings of served routes are owed a replay, and they differ by a handful of
 causes rather than one by one. Counts are recordings.
 
-- [ ] **Every answer lacks four security headers** Java 1.0 sends: `permissions-policy`,
+- [x] **Every answer lacks four security headers** Java 1.0 sends: `permissions-policy`,
       `cross-origin-opener-policy` (same-origin), `cross-origin-embedder-policy` (require-corp),
       `cross-origin-resource-policy` (same-origin) — 4,505. One layer in `cp-http`.
-- [ ] **Problem details carry a `code`** (`authentication-required`, …) — 432; and a few refusals' `type`, `title`,
+- [x] **Problem details carry a `code`** (`authentication-required`, …) — 432; and a few refusals' `type`, `title`,
       `status`, `instance`, `detail` where Rust answered differently.
 - [x] **`IssueView` no longer carries `reachability` and `reachableSymbols`** (Java 1.0 dropped the two, always UNKNOWN and
       null) — 58, on `POST /issues/triage` mostly; the columns stay.
