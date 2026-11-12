@@ -1,6 +1,6 @@
 # The recordings not replayed yet that `compliance`'s port ends: its routes, and its stand-ins the served routes meet.
 # README.md beside this file says the format and the rules.
-ceiling 22
+ceiling 24
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
 route GET /api/v1/compliance/evidence-bundle.zip | compliance — Phase 5
@@ -29,3 +29,7 @@ golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--098-GET-api_v1_audit-log_
 # ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
 route GET /api/v1/owasp/coverage/export.csv | compliance — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
 route PUT /api/v1/owasp/coverage/{category}/declaration | compliance — wave 1 (first recorded by a 1.0 test)
+
+# ── Added on 2026-11-12, Phase 1: recordings Java 1.0's tests made of routes the port now serves ──
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--030-GET-api_v1_crypto_public-keys | an export Rust does not serve wrote the signing-key record in Java's run, and the recorder hides its sealed value («sealed»): the list reads no record and names no activeFrom — compliance's exports, wave 1
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--114-GET-api_v1_crypto_public-keys | an export Rust does not serve wrote the signing-key record in Java's run, and the recorder hides its sealed value («sealed»): the list reads no record and names no activeFrom — compliance's exports, wave 1

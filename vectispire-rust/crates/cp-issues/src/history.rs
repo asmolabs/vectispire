@@ -348,7 +348,7 @@ fn observed_of(
 pub struct TriageHistoryCsv;
 
 impl TriageHistoryCsv {
-    pub const HEADER: [&'static str; 27] = [
+    pub const HEADER: [&'static str; 28] = [
         "repository",
         "repository_url",
         "scan_id",
@@ -376,6 +376,9 @@ impl TriageHistoryCsv {
         "decision_expires_at",
         "decision_comment",
         "decision_previous_resolved_at",
+        // Last, as Java 1.0 added it (`TriageHistoryCsv`), so the columns before it keep their place for a reader that
+        // parses by position.
+        "decision_requested_status",
     ];
 
     pub fn render(repository: &TriageHistoryRepository, scans: &[TriageHistoryScan]) -> String {
@@ -416,7 +419,7 @@ impl TriageHistoryCsv {
         let dec_expires_str = Self::stamp(decision.and_then(|d| d.expires_at));
         let dec_prev_resolved_str = Self::stamp(decision.and_then(|d| d.previous_resolved_at));
 
-        let cells: [&str; 27] = [
+        let cells: [&str; 28] = [
             &repository.name,
             &repository.url,
             &scan_id_str,
@@ -444,6 +447,7 @@ impl TriageHistoryCsv {
             &dec_expires_str,
             decision.and_then(|d| d.comment.as_deref()).unwrap_or(""),
             &dec_prev_resolved_str,
+            decision.and_then(|d| d.requested_status.as_deref()).unwrap_or(""),
         ];
 
         cells.iter().map(|&cell| Self::quote(cell)).collect::<Vec<_>>().join(",")
