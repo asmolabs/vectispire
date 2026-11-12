@@ -46,6 +46,8 @@ pub struct Settings {
     pub exports: Exports,
     pub bootstrap: Bootstrap,
     pub security: Security,
+    pub sign_in: SignIn,
+    pub metrics: Metrics,
     pub max_body: MaxBody,
     pub session: Session,
     pub oidc: Oidc,
@@ -134,6 +136,56 @@ pub struct Security {
     pub login_attempt_window: Duration,
 }
 
+/// The password throttle's ceilings — `SignInLimits` — and the bound on derivations running at once —
+/// `PasswordDerivationLimits`.
+///
+/// **An unset, zero or negative value reads as the shipped one**, as Java's compact constructor and `DerivationGate`
+/// read it: a ceiling of zero would refuse every sign-in, and an operator who cleared a variable meant "the default",
+/// not "nobody gets in". The derivations' bound keeps zero: there it is the documented "size it from the machine",
+/// which the gate decides.
+#[derive(Clone, Debug)]
+pub struct SignIn {
+    pub failures_per_account_from_client: u32,
+    pub failures_per_account: u32,
+    pub failures_per_client: u32,
+    pub known_client_retention: Duration,
+    /// Zero: sized from the machine by the gate.
+    pub derivations_concurrent: u32,
+    pub derivations_queue_wait: Duration,
+}
+
+/// `LoginThrottle.MAX_ATTEMPTS_PER_USER`, `MAX_ATTEMPTS_PER_ACCOUNT`, `MAX_ATTEMPTS_PER_CLIENT`.
+const SHIPPED_FAILURES: (u32, u32, u32) = (5, 50, 20);
+/// `SignInLimits.DEFAULT_KNOWN_CLIENT_RETENTION`: thirty days.
+const SHIPPED_KNOWN_CLIENT_RETENTION: Duration = Duration::from_secs(30 * 86_400);
+/// `DerivationGate.DEFAULT_WAIT`.
+const SHIPPED_DERIVATION_WAIT: Duration = Duration::from_secs(2);
+
+/// The metrics scraper's credential — `ScrapeTokenProperties`.
+#[derive(Clone, Debug)]
+pub struct Metrics {
+    scrape_token: Option<Secret>,
+    scrape_token_file: Option<String>,
+}
+
+/// `ScrapeTokenProperties.MIN_TOKEN_LENGTH`: the SCIM token's floor, for its reason — a static secret compared on
+/// every request, throttled per address only, is as strong as it is long.
+pub const MIN_SCRAPE_TOKEN_LENGTH: usize = 32;
+
+impl Metrics {
+    /// The token in force: the file's when one is named — **read at each call**, so a rotated secret takes effect
+    /// without a restart, and a file that cannot be read is an error — else the value's. `Ok(None)`: no scraper,
+    /// and the Prometheus page answers an administrator's session only.
+    pub fn scrape_token(&self) -> Result<Option<Secret>, String> {
+        match &self.scrape_token_file {
+            Some(path) => {
+                secret_file::read(path, "VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE").map(|token| Some(Secret::new(token)))
+            }
+            None => Ok(self.scrape_token.clone()),
+        }
+    }
+}
+
 /// The ceilings on a request body, in bytes, per route class.
 #[derive(Clone, Debug)]
 pub struct MaxBody {
@@ -161,6 +213,8 @@ pub struct Session {
 pub struct Oidc {
     pub password_login: bool,
     pub link_privileged_accounts: bool,
+    /// Whether any account is linked on its first sign-on by a claim at all; off, only SCIM binds a subject.
+    pub link_by_claim: bool,
     pub require_mfa: bool,
     pub mfa_amr: Vec<String>,
     pub mfa_acr: Option<String>,
@@ -432,6 +486,8 @@ impl Settings {
             login_attempts_per_window: r.number("vectispire.security.login-attempts-per-window"),
             login_attempt_window: r.duration("vectispire.security.login-attempt-window"),
         };
+        let sign_in = Settings::sign_in(&mut r);
+        let metrics = Settings::metrics(&mut r);
         let max_body = MaxBody {
             default: r.size("vectispire.http.max-body.default"),
             rule_set_upload: r.size("vectispire.http.max-body.rule-set-upload"),
@@ -523,6 +579,8 @@ impl Settings {
             exports,
             bootstrap,
             security,
+            sign_in,
+            metrics,
             max_body,
             session,
             oidc,
@@ -564,6 +622,7 @@ impl Settings {
         Oidc {
             password_login: r.boolean("vectispire.oidc.password-login"),
             link_privileged_accounts: r.boolean("vectispire.oidc.link-privileged-accounts"),
+            link_by_claim: r.boolean("vectispire.oidc.link-by-claim"),
             require_mfa: r.boolean("vectispire.oidc.require-mfa"),
             mfa_amr: r
                 .string("vectispire.oidc.mfa-amr")
@@ -680,6 +739,77 @@ impl Settings {
             }
         }
         delays
+    }
+
+    /// `SignInLimits` and `PasswordDerivationLimits`: a ceiling or a wait that is zero or negative is the shipped one.
+    /// A negative duration, which the reader refuses everywhere else, is read here as Java's binding reads it — bound,
+    /// then replaced by the default — rather than refused.
+    fn sign_in(r: &mut Reader<'_>) -> SignIn {
+        let (account_from_client, account, client) = SHIPPED_FAILURES;
+        let mut ceiling = |key: &str, shipped: u32| {
+            let value: i64 = r.number(key);
+            u32::try_from(value).ok().filter(|value| *value > 0).unwrap_or(shipped)
+        };
+        let failures_per_account_from_client =
+            ceiling("vectispire.sign-in.failures-per-account-from-client", account_from_client);
+        let failures_per_account = ceiling("vectispire.sign-in.failures-per-account", account);
+        let failures_per_client = ceiling("vectispire.sign-in.failures-per-client", client);
+        let derivations_concurrent = ceiling("vectispire.sign-in.derivations.concurrent", 0);
+        let known_client_retention =
+            Settings::positive_duration(r, "vectispire.sign-in.known-client-retention", SHIPPED_KNOWN_CLIENT_RETENTION);
+        let derivations_queue_wait =
+            Settings::positive_duration(r, "vectispire.sign-in.derivations.queue-wait", SHIPPED_DERIVATION_WAIT);
+        SignIn {
+            failures_per_account_from_client,
+            failures_per_account,
+            failures_per_client,
+            known_client_retention,
+            derivations_concurrent,
+            derivations_queue_wait,
+        }
+    }
+
+    /// A duration whose zero or negative value means `shipped`.
+    fn positive_duration(r: &mut Reader<'_>, key: &str, shipped: Duration) -> Duration {
+        let Some(text) = r.raw(key) else { return shipped };
+        if text.trim().starts_with('-') {
+            return shipped;
+        }
+        match parse_duration(&text) {
+            Ok(duration) if !duration.is_zero() => duration,
+            Ok(_) => shipped,
+            Err(message) => {
+                r.problems.push(format!("{key}: {message}"));
+                shipped
+            }
+        }
+    }
+
+    /// `ScrapeTokenProperties`: a blank value is no token, a blank file name is no file, and the token in force — the
+    /// file's when one is named — is **refused at start** when shorter than [`MIN_SCRAPE_TOKEN_LENGTH`]: a short
+    /// token accepted is one nobody hears about until somebody has guessed it, and a scraper failing for weeks reads
+    /// as an outage. Its length is counted in UTF-16 units, as `String.length()` counts it.
+    fn metrics(r: &mut Reader<'_>) -> Metrics {
+        let scrape_token = r.secret("vectispire.metrics.scrape-token");
+        let scrape_token_file = r
+            .present("vectispire.metrics.scrape-token-file")
+            .map(|path| path.trim_matches(|c: char| c <= ' ').to_owned())
+            .filter(|path| !path.is_empty());
+        let metrics = Metrics { scrape_token, scrape_token_file };
+        match metrics.scrape_token() {
+            Ok(Some(token)) => {
+                let length = token.expose().encode_utf16().count();
+                if length < MIN_SCRAPE_TOKEN_LENGTH {
+                    r.problems.push(format!(
+                        "The metrics scrape token is {length} characters long; at least {MIN_SCRAPE_TOKEN_LENGTH} are \
+                         required. Generate one with `openssl rand -base64 32`."
+                    ));
+                }
+            }
+            Ok(None) => {}
+            Err(message) => r.problems.push(message),
+        }
+        metrics
     }
 
     /// A relay exists only when a host is named — and an empty host is named.

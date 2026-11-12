@@ -243,3 +243,72 @@ fn the_docker_host_is_the_vectispire_variable_then_docker_s_and_blank_is_none() 
         Some("tcp://d:1")
     );
 }
+
+#[test]
+fn the_sign_in_ceilings_are_java_s_and_a_zero_or_negative_one_is_the_shipped_value() {
+    let shipped = load(&[]).sign_in;
+    assert_eq!(
+        (shipped.failures_per_account_from_client, shipped.failures_per_account, shipped.failures_per_client),
+        (5, 50, 20)
+    );
+    assert_eq!(shipped.known_client_retention, Duration::from_secs(30 * 86_400));
+    assert_eq!((shipped.derivations_concurrent, shipped.derivations_queue_wait), (0, Duration::from_secs(2)));
+
+    let set = load(&[
+        ("VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT_FROM_CLIENT", "3"),
+        ("VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT", "0"),
+        ("VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT", "-4"),
+        ("VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION", "-P1D"),
+        ("VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT", "8"),
+        ("VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT", "PT0S"),
+    ])
+    .sign_in;
+    assert_eq!((set.failures_per_account_from_client, set.failures_per_account, set.failures_per_client), (3, 50, 20));
+    assert_eq!(set.known_client_retention, Duration::from_secs(30 * 86_400));
+    assert_eq!((set.derivations_concurrent, set.derivations_queue_wait), (8, Duration::from_secs(2)));
+    assert_eq!(
+        load(&[("VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION", "P7D")]).sign_in.known_client_retention,
+        Duration::from_secs(7 * 86_400)
+    );
+    let typo = problems(&[("VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT", "many")], &[]);
+    assert_eq!(typo, ["vectispire.sign-in.failures-per-client: 'many' is not a number"]);
+}
+
+#[test]
+fn a_claim_links_an_account_unless_switched_off() {
+    assert!(load(&[]).oidc.link_by_claim);
+    assert!(!load(&[("VECTISPIRE_OIDC_LINK_BY_CLAIM", "false")]).oidc.link_by_claim);
+}
+
+#[test]
+fn a_scrape_token_shorter_than_thirty_two_characters_is_refused_at_start_and_its_file_wins() {
+    assert!(load(&[]).metrics.scrape_token().unwrap().is_none());
+    assert!(load(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN", "   ")]).metrics.scrape_token().unwrap().is_none());
+    let long = "a".repeat(32);
+    let settings = load(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN", long.as_str())]);
+    assert_eq!(settings.metrics.scrape_token().unwrap().unwrap().expose(), long);
+
+    let short = problems(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN", &"a".repeat(31))], &[]);
+    assert_eq!(
+        short,
+        ["The metrics scrape token is 31 characters long; at least 32 are required. Generate one with `openssl rand \
+          -base64 32`."]
+    );
+
+    // The file's token is the one in force, read at each call, so a rotation needs no restart.
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("scrape");
+    std::fs::write(&file, format!("{}\n", "f".repeat(40))).unwrap();
+    let path = file.to_str().unwrap();
+    let from_file =
+        load(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN", long.as_str()), ("VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE", path)]);
+    assert_eq!(from_file.metrics.scrape_token().unwrap().unwrap().expose(), "f".repeat(40));
+    std::fs::write(&file, "g".repeat(40)).unwrap();
+    assert_eq!(from_file.metrics.scrape_token().unwrap().unwrap().expose(), "g".repeat(40));
+
+    std::fs::write(&file, "short").unwrap();
+    let refused = problems(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE", path)], &[]);
+    assert!(refused[0].starts_with("The metrics scrape token is 5 characters long"), "{}", refused[0]);
+    let missing = problems(&[("VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE", "/nonexistent/vectispire/scrape")], &[]);
+    assert!(missing[0].starts_with("VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE points at"), "{}", missing[0]);
+}
