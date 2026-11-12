@@ -47,6 +47,10 @@ pub struct Column {
     pub cast: String,
     /// `timestamptz` on PostgreSQL: read in UTC, as the recorder's `LocalDateTime` of MySQL's `timestamp`.
     pub zoned: bool,
+    /// A generated column (`t_scan.has_sbom` since V98): the recorder reads it like any other, and the engine refuses
+    /// any value written to it, so a seed or a restore leaves it out and lets the engine compute it again. MySQL's
+    /// `DEFAULT_GENERATED` is an expression default, not this: that column takes a written value.
+    pub generated: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -131,7 +135,8 @@ impl Schema {
             ),
             Engine::PostgreSql => (
                 "select c.table_name::text, c.column_name::text, c.data_type::text, c.udt_name::text, \
-                 case when c.is_identity = 'YES' then 'identity ' || lower(coalesce(c.identity_generation, '')) \
+                 case when c.is_generated = 'ALWAYS' then 'stored generated' \
+                      when c.is_identity = 'YES' then 'identity ' || lower(coalesce(c.identity_generation, '')) \
                       when c.column_default like 'nextval(%' then 'serial' else '' end, \
                  coalesce(pg_get_serial_sequence(quote_ident(c.table_name), c.column_name), '') \
                  from information_schema.columns c join information_schema.tables t \
@@ -170,6 +175,7 @@ impl Schema {
                 kind,
                 cast: full_type.clone(),
                 zoned: engine == Engine::PostgreSql && full_type == "timestamptz",
+                generated: extra.contains("stored generated") || extra.contains("virtual generated"),
             });
         }
         for row in texts(db, keys_sql).await? {
@@ -536,6 +542,9 @@ impl Writes {
                     let column = table
                         .column(column_name)
                         .ok_or_else(|| Unseedable(format!("{name}.{column_name} is not a column of this schema")))?;
+                    if column.generated {
+                        continue;
+                    }
                     values.push(concrete(engine, column, value, bindings)?);
                     columns.push(quoted(engine, column_name));
                     marks.push(placeholder_sql(engine, column, values.len()));
@@ -562,6 +571,9 @@ impl Writes {
                     let column = table
                         .column(column_name)
                         .ok_or_else(|| Unseedable(format!("{name}.{column_name} is not a column of this schema")))?;
+                    if column.generated {
+                        continue;
+                    }
                     let to = change.get("to").ok_or_else(|| Unseedable(format!("{name}.{column_name}: no `to`")))?;
                     values.push(concrete(engine, column, to, bindings)?);
                     sets.push(format!(
@@ -837,6 +849,9 @@ pub async fn reset(db: &Db, schema: &Schema, kept: &Snapshot, restore: &BTreeSet
             let mut marks = Vec::new();
             let mut values = Vec::new();
             for (column, value) in table.columns.iter().zip(row) {
+                if column.generated {
+                    continue;
+                }
                 values.push(match value {
                     Json::Null => Bound::Null,
                     Json::Bool(flag) if schema.engine == Engine::MySql => Bound::Integer(i64::from(*flag)),

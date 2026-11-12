@@ -75,9 +75,36 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 - [ ] Checklists: NO_DATA reason `forge_integration_disabled`. Red: `cp-checklists --test reference_set`.
 - [ ] `GET /owasp/coverage/export.csv`. Not-yet-ported list.
 
+## The golden replay of Java 1.0's traffic
+
+Recorded at 1.0.0-rc.2 (`record-goldens.sh`: 2,616 tests, the two expected failures, 7,949 files) and replayed on
+MySQL (`replay-goldens.sh`): 3,053 recordings of served routes are owed a replay, and they differ by a handful of
+causes rather than one by one. Counts are recordings.
+
+- [ ] **Every answer lacks four security headers** Java 1.0 sends: `permissions-policy`,
+      `cross-origin-opener-policy` (same-origin), `cross-origin-embedder-policy` (require-corp),
+      `cross-origin-resource-policy` (same-origin) — 4,505. One layer in `cp-http`.
+- [ ] **Problem details carry a `code`** (`authentication-required`, …) — 432; and a few refusals' `type`, `title`,
+      `status`, `instance`, `detail` where Rust answered differently.
+- [ ] **Inventory components carry `reachability` and `reachableSymbols`** — 58.
+- [ ] **Agents**: `executors`, `executorsReportedAt` on the agent views — 33; `t_scan.examined_types` written by a
+      result — 33; the outbox rows a result writes — 34; status differences on `GET /agent/jobs`,
+      `POST /agent/sealing-key`, `PUT /admin/agents/{id}/signing-key`, `POST /agent/jobs/{id}/failure`,
+      `POST /agent/hello` (the contract range) — about 60.
+- [ ] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
+      CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
+- [ ] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
+      `«pem:…»` request bodies of SSH-key and CA tests the recorder hides.
+- [ ] **`ListPagingEstateRoutesTest/refusesWhatItCannotServe`** — 36: the seed of `POST /plugins` (not served,
+      played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
+      are made concrete. A replay defect, not the port's.
+
+Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
+(986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.
+
 ## Not done in Phase 0, still owed by it
 
-- [ ] The recorder's golden recordings regenerated from Java 1.0 and replayed (`.claude/skills/golden-replay`), and
-      `fix/golden-signatures` (232b8e62f) applied first.
+- [x] The recorder's golden recordings regenerated from Java 1.0 and replayed, `fix/golden-signatures` applied first:
+      the section above.
 - [x] PostgreSQL left the port's jobs (2026-11-12, decision 0043 §3): `rust-engines` deleted, the nightly replay and
       `check.sh` on MySQL; the code for both engines kept.
