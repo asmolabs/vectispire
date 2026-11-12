@@ -42,7 +42,7 @@ fn every_slot_of_java_s_sequence_with_its_value() {
 fn every_java_task_fills_its_slot_in_its_module_on_its_turn() {
     let java = reference();
     let tasks = java["tasks"].as_array().unwrap();
-    assert_eq!(tasks.len(), 28, "MaintenanceJobsTest.COMPOSITION");
+    assert_eq!(tasks.len(), 30, "MaintenanceJobsTest.COMPOSITION");
     let mut seen = Vec::new();
     for row in tasks {
         let slot = row["slot"].as_str().unwrap();

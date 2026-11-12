@@ -173,6 +173,17 @@ impl Runner {
         Ok(Runner { containers, images, database, placement, _bundled: bundled, rule_provider, places, trust })
     }
 
+    /// Why the executor cannot run anything now — `None` when its daemon answers. Asked before claiming.
+    pub async fn why_unavailable(&self) -> Option<String> {
+        self.containers.why_unavailable().await
+    }
+
+    /// Whether this runner scans container images: not yet (`IMAGE_NOT_PORTED`), so a worker using it announces
+    /// repositories only, and is handed no image scan it would fail.
+    pub fn exports_images(&self) -> bool {
+        false
+    }
+
     pub async fn run(&self, task: ScanTask) -> Result<ScanArtifacts, ExecutionFailure> {
         let started = Instant::now();
         let repository = match &task.target {

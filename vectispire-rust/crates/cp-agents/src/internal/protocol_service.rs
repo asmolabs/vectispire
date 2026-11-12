@@ -13,10 +13,11 @@ use vectispire_cp_scanning::ports::{PortError, ScanRuleSets};
 use vectispire_crypto::{is_usable_sealing_key, verify_failure, verify_result, verify_sealing_key};
 use vectispire_domain::bounded_text;
 use vectispire_protocol::concurrency;
+use vectispire_protocol::executors::{Executor, WorkerExecutors};
 use vectispire_protocol::server::refusals;
 use vectispire_protocol::server::{
     FailureAnswer, FailureReport, HelloAnswer, HelloRequest, RouteRefusal, SealingKeyRequest, contract_is_compatible,
-    iso_instant,
+    contract_spoken, iso_instant,
 };
 use vectispire_protocol::{ScanArtifacts, StoredFile, failure_reason};
 
@@ -91,6 +92,9 @@ pub struct AuthenticatedAgent {
     pub signing_public_key: Option<String>,
     pub labels: Option<String>,
     pub last_seen_at: Option<OffsetDateTime>,
+    /// What its executors can run, as it last said — `None` when it never said (or the column is unreadable), which
+    /// claims every kind as an agent older than the announcement always did.
+    pub executors: Option<WorkerExecutors>,
 }
 
 impl From<&AgentRow> for AuthenticatedAgent {
@@ -106,6 +110,7 @@ impl From<&AgentRow> for AuthenticatedAgent {
             signing_public_key: row.signing_public_key.clone(),
             labels: row.labels.clone(),
             last_seen_at: row.last_seen_at,
+            executors: WorkerExecutors::read(row.executors.as_deref()),
         }
     }
 }
@@ -152,7 +157,13 @@ impl AgentProtocolService {
         let version = bounded_text::clip(text(req.version.as_deref()), 50);
         let scanner_engine = bounded_text::clip(text(req.scanner_engine.as_deref()), 50);
         let capabilities = bounded_text::clip(text(req.capabilities.as_deref()), bounded_text::TEXT_MAX);
-        let trimmed_contract = Some(announced.map_or("", str::trim));
+        // Trimmed as the compatibility check read it — `String.trim`, control characters included: padding it accepted
+        // would otherwise reach a column sized for the version itself.
+        let spoken = contract_spoken(announced);
+        // Bounded like the display fields — clipped, never refused — but not a display field: what the claim hands this
+        // agent follows it. **Written whatever the hello carried, absent included**: an agent replaced by an older one
+        // that announces none claims as an unknown again, not under the state its predecessor left.
+        let executors = req.executors.as_ref().map(|said| WorkerExecutors::new(said.clone()).bounded());
 
         let data = HeartbeatData {
             hostname,
@@ -160,13 +171,35 @@ impl AgentProtocolService {
             version,
             scanner_engine,
             capabilities,
-            contract_version: trimmed_contract,
+            contract_version: Some(&spoken),
+            executors: executors.as_ref().map(WorkerExecutors::write),
+            executors_reported_at: executors.as_ref().map(|_| now),
         };
 
         let _ = agents::record_heartbeat(&self.db, agent.id, now, &data).await;
 
         let eff_max = concurrency::effective(agent.max_concurrent.map(i64::from)) as i32;
-        Ok(HelloAnswer::new(Some(agent.id), Some(agent.name.clone()), eff_max, Some(agent.credentials_mode.clone())))
+        // The contract this control plane speaks to this agent: its own, now that it is in the range.
+        Ok(HelloAnswer::speaking(
+            spoken,
+            Some(agent.id),
+            Some(agent.name.clone()),
+            eff_max,
+            Some(agent.credentials_mode.clone()),
+        ))
+    }
+
+    /// `reportExecutors`: what the agent's executors can run now, said after its hello because the answer changed — a
+    /// daemon that stopped answering, an API that came back. The next claim is decided by it; counted as a sign of
+    /// life too, since the agent said something on its key.
+    pub async fn report_executors(
+        &self,
+        agent: &AuthenticatedAgent,
+        executors: Vec<Executor>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let stored = WorkerExecutors::new(executors).bounded().write();
+        agents::record_executors(&self.db, agent.id, &stored, OffsetDateTime::now_utc()).await?;
+        Ok(())
     }
 
     pub async fn heard_from(&self, agent: &AuthenticatedAgent) {
@@ -494,5 +527,6 @@ fn to_claiming_agent(agent: &AuthenticatedAgent) -> ClaimingAgent {
         signing_public_key: agent.signing_public_key.clone(),
         labels: agent.labels.clone(),
         max_concurrent: agent.max_concurrent.map(i64::from),
+        executors: agent.executors.clone(),
     }
 }

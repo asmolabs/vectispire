@@ -81,6 +81,26 @@ pub fn routes(admin: Arc<AgentAdministrationService>) -> Vec<RouteEntry> {
         ),
     );
 
+    // 3b. GET /api/v1/admin/agents/built-in-worker — a literal segment, registered before `/{id}`'s routes as Spring
+    // prefers it: matched as an id, "built-in-worker" was answered by the parameter route.
+    let a = admin.clone();
+    entries.push(
+        Route::get("/api/v1/admin/agents/built-in-worker").requires(Access::Administrator).names_no_target().handler(
+            move || {
+                let a = a.clone();
+                async move {
+                    let state = a.built_in_worker();
+                    ok(&BuiltInWorkerView {
+                        enabled: state.enabled,
+                        runs_scans: state.runs_scans,
+                        executors: state.executors,
+                        checked_at: state.checked_at.map(vectispire_cp_audit::iso_instant),
+                    })
+                }
+            },
+        ),
+    );
+
     // 4. GET /api/v1/admin/agents/non-routables
     let a = admin.clone();
     entries.push(
@@ -363,6 +383,16 @@ struct PendingScanItem {
     wait_duration_seconds: i64,
     is_routable: bool,
     position_in_queue: i32,
+    executor_available: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BuiltInWorkerView {
+    enabled: bool,
+    runs_scans: bool,
+    executors: Vec<vectispire_protocol::executors::Executor>,
+    checked_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -419,6 +449,7 @@ impl AgentActivitySummary {
                 wait_duration_seconds: p.wait_duration_seconds,
                 is_routable: p.routable,
                 position_in_queue: p.position_in_queue,
+                executor_available: p.executor_available,
             })
             .collect();
 

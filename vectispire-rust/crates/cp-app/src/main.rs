@@ -465,15 +465,18 @@ async fn serve() -> ExitCode {
 
     let built_in =
         vectispire_cp_app::worker::BuiltInWorker::of(&settings.worker, scanning.dispatcher().runs_scans_here());
-    let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
-        db.clone(),
-        creds.clone(),
-        Arc::new(scanning.catalog().clone()),
-        targets.clone(),
-        audit.clone(),
-        built_in.labels,
-        built_in.runs,
-    ));
+    let admin = Arc::new(
+        vectispire_cp_agents::AgentAdministrationService::new(
+            db.clone(),
+            creds.clone(),
+            Arc::new(scanning.catalog().clone()),
+            targets.clone(),
+            audit.clone(),
+            built_in.labels,
+            built_in.runs,
+        )
+        .with_built_in_worker(settings.worker.enabled, scanning.dispatcher_arc()),
+    );
 
     let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(
         db.clone(),

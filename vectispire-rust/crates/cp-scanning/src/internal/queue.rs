@@ -28,6 +28,7 @@ use crate::instants::{instant, offset};
 use crate::persistence::{self, ClaimCandidate, StoreError};
 use crate::ports::{AgentClaimLock, PortError};
 use crate::views::ScanView;
+use vectispire_protocol::executors::ExecutorTarget;
 
 /// How many waiting scans one page of an excluding agent's walk reads, and so the most repositories an [`Exclusion`]
 /// is asked about at once — far below every engine's bind-parameter limit.
@@ -275,23 +276,42 @@ impl ScanQueue {
         labels: &[String],
         exclusion: &dyn Exclusion,
     ) -> Result<AgentClaim, StoreError> {
+        self.claim_within_targets(agent, limit, labels, exclusion, &ExecutorTarget::every()).await
+    }
+
+    /// [`claim_within`](Self::claim_within), **among the scans of `targets` only** — the kinds of target the agent's
+    /// available executors run (`WorkerExecutors::claimable_of`: every kind for an agent that never said). None claims
+    /// nothing, without reading the queue.
+    ///
+    /// Narrowed like the exclusion, in the selection and not the take: the kind of a scan is whether it names a
+    /// repository, which the candidates' page already carries. A scan of another kind skipped is **not** `kept` — that
+    /// flag answers "a credential was withheld" and asks the agent for a key, which a missing executor is not.
+    pub async fn claim_within_targets(
+        &self,
+        agent: Uuid,
+        limit: i64,
+        labels: &[String],
+        exclusion: &dyn Exclusion,
+        targets: &BTreeSet<ExecutorTarget>,
+    ) -> Result<AgentClaim, StoreError> {
         let worker = agent.as_hyphenated().to_string();
-        if limit <= 0 {
+        if limit <= 0 || targets.is_empty() {
             return Ok(AgentClaim::NOTHING);
         }
+        let every_kind = ExecutorTarget::ALL.iter().all(|kind| targets.contains(kind));
         let mut kept = false;
         for _ in 0..self.policy.claim_attempts {
             if self.count_held(&worker).await? >= limit {
                 return Ok(AgentClaim { scan: None, kept });
             }
             let as_of = self.clock.now();
-            let selection = if exclusion.excludes_nothing() {
+            let selection = if exclusion.excludes_nothing() && every_kind {
                 Selection {
                     candidates: self.candidates(1, labels, as_of, None).await?.iter().map(|row| row.id).collect(),
                     kept: false,
                 }
             } else {
-                self.eligible(labels, exclusion, as_of).await?
+                self.eligible(labels, exclusion, targets, as_of).await?
             };
             kept |= selection.kept;
             if selection.candidates.is_empty() {
@@ -315,19 +335,31 @@ impl ScanQueue {
         &self,
         labels: &[String],
         exclusion: &dyn Exclusion,
+        targets: &BTreeSet<ExecutorTarget>,
         as_of: OffsetDateTime,
     ) -> Result<Selection, StoreError> {
         let mut kept = false;
         let mut after = None;
         for _ in 0..PAGES {
             let rows = self.candidates(i64::try_from(PAGE).unwrap_or(256), labels, as_of, after).await?;
-            let repositories: BTreeSet<i64> = rows.iter().filter_map(|row| row.repo_id).collect();
-            let excluded = if repositories.is_empty() {
+            // A scan names a repository, or it names an image: the kind an executor has to be able to run.
+            let runnable: Vec<_> = rows
+                .iter()
+                .filter(|row| {
+                    targets.contains(if row.repo_id.is_some() {
+                        &ExecutorTarget::Repository
+                    } else {
+                        &ExecutorTarget::Container
+                    })
+                })
+                .collect();
+            let repositories: BTreeSet<i64> = runnable.iter().filter_map(|row| row.repo_id).collect();
+            let excluded = if repositories.is_empty() || exclusion.excludes_nothing() {
                 BTreeSet::new()
             } else {
                 exclusion.among(&repositories).await.map_err(StoreError)?
             };
-            for row in &rows {
+            for row in runnable {
                 // An image scan, or a repository with no key and no token, stays the agent's to take.
                 if row.repo_id.is_none_or(|repository| !excluded.contains(&repository)) {
                     return Ok(Selection { candidates: vec![row.id], kept });

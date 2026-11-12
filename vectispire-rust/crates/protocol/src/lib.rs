@@ -22,6 +22,7 @@ mod artifacts;
 mod client;
 mod coerce;
 pub mod concurrency;
+pub mod executors;
 pub mod failure_reason;
 pub mod jackson;
 mod received;

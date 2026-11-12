@@ -1,6 +1,0 @@
-# The routes of `agents` the Rust control plane does not serve yet — README.md beside this file says the rules.
-# Raised once on 2026-11-12 (Phase 0 of the recovery plan): Java 1.0 added these operations while the port was
-# paused, and they start here like every route not yet served. The list only shrinks from this point again.
-ceiling 2
-GET /api/v1/admin/agents/built-in-worker
-PUT /api/v1/agent/executors

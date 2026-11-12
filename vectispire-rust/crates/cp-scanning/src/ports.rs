@@ -235,6 +235,18 @@ pub trait ScanRunner: Send + Sync {
     /// Runs the task, its credentials in the clear. An error is a scan that could not run at all — a step that failed
     /// inside a scan that ran is in the result, absent (decision 0007).
     fn run<'a>(&'a self, task: &'a ScanTask) -> BoxFuture<'a, Result<Received<'static>, RunFailure>>;
+
+    /// What the executor says when asked whether it can run anything now — `None` when it can, else why, in its own
+    /// words. The built-in worker asks before each round's claim, so as cheap as the backend allows: a ping.
+    fn executor_unavailable(&self) -> BoxFuture<'_, Option<String>> {
+        Box::pin(async { None })
+    }
+
+    /// Whether the executor can scan a container image at all; one that cannot says so here rather than only failing
+    /// the export, and the agents screen reads it.
+    fn executor_exports_images(&self) -> bool {
+        true
+    }
 }
 
 /// A scan the runner could not run: the executor's sentence, and whether another attempt could pass.

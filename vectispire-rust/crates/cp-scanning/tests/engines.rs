@@ -141,6 +141,7 @@ async fn suite(engine: Engine) {
         ("concurrent polls of one agent never pass its limit", |db| Box::pin(concurrent_polls(db))),
         ("the count waits for a concurrent take", |db| Box::pin(the_count_waits(db))),
         ("a lapsed lease does not count", |db| Box::pin(lapsed_does_not_count(db))),
+        ("the claim takes only what the executors run", |db| Box::pin(executors_narrow_the_claim(db))),
         ("an exclusion leaves the scans where they are", |db| Box::pin(exclusion_leaves(db))),
         ("the exclusion is asked a page at a time", |db| Box::pin(exclusion_paged(db))),
         ("a refund gives back the claim's attempt", |db| Box::pin(refund(db))),
@@ -344,6 +345,60 @@ async fn lapsed_does_not_count(db: Db) {
     );
     lapse(&db, held).await;
     assert!(queue.claim_within(edge, 1, &[], &NoExclusion).await.unwrap().scan.is_some());
+}
+
+/// The claim takes only the kinds of target the agent's available executors run (decision 0045): none available
+/// claims nothing, an empty list claims nothing, and an agent that never said claims every kind as before.
+async fn executors_narrow_the_claim(db: Db) {
+    use vectispire_protocol::executors::{Executor, WorkerExecutors};
+    let composed = composed(&db);
+    let dispatcher = composed.scanning.dispatcher().clone();
+    let image = support::container(&db, "image").await;
+    let repository = support::repository(&db, "repository").await;
+    // The image scan first in claim order: an agent that ignored its executors would take it.
+    let image_scan = support::scan(&db, None, Some(image), None, base()).await;
+    let repository_scan = support::scan(&db, Some(repository), None, None, base() + Duration::from_secs(60)).await;
+    let docker = |available: bool, targets: &[&str]| {
+        Some(WorkerExecutors::new(vec![Executor {
+            kind: Some("docker".into()),
+            available,
+            targets: targets.iter().map(|target| (*target).to_owned()).collect(),
+            detail: (!available).then(|| "down".to_owned()),
+        }]))
+    };
+    let agent = |name: &str, id: Uuid, executors: Option<WorkerExecutors>| ClaimingAgent {
+        id,
+        name: Some(name.to_owned()),
+        labels: None,
+        max_concurrent: Some(4),
+        credentials_mode: Some("local".to_owned()),
+        sealing_public_key: None,
+        signing_public_key: None,
+        executors,
+    };
+    let down = support::agent(&db, "down").await;
+    let empty = support::agent(&db, "empty").await;
+    let repositories_only = support::agent(&db, "repositories-only").await;
+    let unknown = support::agent(&db, "unknown").await;
+
+    let none = dispatcher.claim_for_agent(&agent("down", down, docker(false, &["repository", "container"]))).await;
+    assert!(none.unwrap().is_none(), "an executor that cannot run anything claims nothing");
+    let none = dispatcher.claim_for_agent(&agent("empty", empty, Some(WorkerExecutors::default()))).await;
+    assert!(none.unwrap().is_none(), "no executor at all claims nothing");
+    assert_eq!(count(&db, "select count(*) from t_scan where status = 'scanning'").await, 0);
+
+    let taken = dispatcher
+        .claim_for_agent(&agent("repositories-only", repositories_only, docker(true, &["repository", "later"])))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(taken.scan_id, repository_scan, "the repository scan, past the image scan its executor cannot run");
+    let taken = dispatcher.claim_for_agent(&agent("unknown", unknown, None)).await.unwrap().unwrap();
+    assert_eq!(taken.scan_id, image_scan, "an agent that never said claims every kind");
+
+    let queue = composed.scanning.queue().clone();
+    let nothing = queue.claim_within_targets(unknown, 4, &[], &NoExclusion, &BTreeSet::new()).await.unwrap();
+    assert_eq!(nothing, vectispire_cp_scanning::AgentClaim::NOTHING, "no kind reads no queue");
 }
 
 async fn exclusion_leaves(db: Db) {
@@ -1389,6 +1444,7 @@ async fn results(db: Db) {
         credentials_mode: Some("local".to_owned()),
         sealing_public_key: None,
         signing_public_key: None,
+        executors: None,
     };
     let image = support::container(&db, "service").await;
     async fn write(

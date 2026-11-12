@@ -83,6 +83,7 @@ impl DispatchQueue for DummyQueue {
         _limit: i64,
         _labels: &'a [String],
         _exclusion: &'a dyn Exclusion,
+        _targets: &'a std::collections::BTreeSet<vectispire_protocol::executors::ExecutorTarget>,
     ) -> BoxFuture<'a, Result<AgentClaim, PortError>> {
         unreachable!()
     }

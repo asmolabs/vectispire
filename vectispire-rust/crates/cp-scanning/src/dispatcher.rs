@@ -33,6 +33,7 @@ use vectispire_domain::git_host_allowlist::GitHostAllowlist;
 use vectispire_domain::scan_queue::Next;
 use vectispire_domain::secret::Secret;
 use vectispire_domain::{FailureKind, agent_labels, repository_url};
+use vectispire_protocol::executors::{Executor, ExecutorTarget, WorkerExecutors};
 use vectispire_protocol::failure_reason;
 use vectispire_protocol::{
     AssignedTask, CredentialsMode, HttpsCredential, Image, ImageReference, Received, ScanTask, Step, Target,
@@ -63,6 +64,9 @@ pub struct ClaimingAgent {
     pub credentials_mode: Option<String>,
     pub sealing_public_key: Option<String>,
     pub signing_public_key: Option<String>,
+    /// What its executors can run, as it last said — `None` when it never said, which claims every kind as an agent
+    /// older than the announcement always did (decision 0043 §2).
+    pub executors: Option<WorkerExecutors>,
 }
 
 impl ClaimingAgent {
@@ -171,12 +175,14 @@ pub trait DispatchQueue: Send + Sync {
         worker: &'a str,
         labels: &'a [String],
     ) -> BoxFuture<'a, Result<Vec<ScanView>, PortError>>;
+    /// Among the scans of `targets` only — `ScanQueue::claim_within_targets`.
     fn claim_within<'a>(
         &'a self,
         agent: Uuid,
         limit: i64,
         labels: &'a [String],
         exclusion: &'a dyn Exclusion,
+        targets: &'a BTreeSet<ExecutorTarget>,
     ) -> BoxFuture<'a, Result<AgentClaim, PortError>>;
     fn count_held<'a>(&'a self, worker: &'a str) -> BoxFuture<'a, Result<i64, PortError>>;
     fn by_id(&self, id: i64) -> BoxFuture<'_, Result<Option<ScanView>, PortError>>;
@@ -253,8 +259,11 @@ impl DispatchQueue for QueueOnDatabase {
         limit: i64,
         labels: &'a [String],
         exclusion: &'a dyn Exclusion,
+        targets: &'a BTreeSet<ExecutorTarget>,
     ) -> BoxFuture<'a, Result<AgentClaim, PortError>> {
-        Box::pin(async move { self.queue.claim_within(agent, limit, labels, exclusion).await.map_err(port) })
+        Box::pin(async move {
+            self.queue.claim_within_targets(agent, limit, labels, exclusion, targets).await.map_err(port)
+        })
     }
 
     fn count_held<'a>(&'a self, worker: &'a str) -> BoxFuture<'a, Result<i64, PortError>> {
@@ -463,6 +472,16 @@ pub struct ScanDispatcher {
     image_platform: Option<String>,
     runner: Option<Arc<dyn ScanRunner>>,
     scanned: Vec<Arc<dyn RepositoryScanned>>,
+    /// What the built-in worker's executor said at its last round, for the agents screen; `None` before the first
+    /// round. This instance's own: every instance runs its own worker, and each one's daemon answers for itself.
+    built_in: Arc<std::sync::Mutex<Option<ExecutorCheck>>>,
+}
+
+/// What a worker's executors said, and when they were asked — `ScanDispatcher.ExecutorCheck`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecutorCheck {
+    pub executors: WorkerExecutors,
+    pub checked_at: OffsetDateTime,
 }
 
 impl std::fmt::Debug for ScanDispatcher {
@@ -491,7 +510,15 @@ impl ScanDispatcher {
             image_platform: config.image_platform.filter(|platform| !platform.trim().is_empty()),
             runner: config.runner,
             scanned: config.scanned,
+            built_in: Arc::default(),
         }
+    }
+
+    /// `builtInExecutors`: what the built-in worker's executor said at its last round — `None` before the first, and
+    /// on a control plane with no runner, whose worker has no executor to ask.
+    pub fn built_in_executors(&self) -> Option<ExecutorCheck> {
+        self.runner.as_ref()?;
+        self.built_in.lock().ok().and_then(|check| check.clone())
     }
 
     /// Whether this control plane scans anything itself: without a runner the built-in worker claims nothing,
@@ -513,10 +540,20 @@ impl ScanDispatcher {
         let labels = agent_labels::parse(agent.labels.as_deref());
         let limit = i64::from(vectispire_protocol::concurrency::effective(agent.max_concurrent));
         let worker = agent.worker();
+        // **Only what its executors can run now** — every kind for an agent that never said. None claims nothing, and
+        // no 412: the agent's executor is down, not its key, and the agents screen says which.
+        let runnable = WorkerExecutors::claimable_of(agent.executors.as_ref());
+        if runnable.is_empty() {
+            return Ok(None);
+        }
         // Asked only of an agent that cannot be handed a credential: every other poll costs what it cost before.
         let carrying = CarryingCredentials(self.targets.as_ref());
         let exclusion: &dyn Exclusion = if can_be_handed_credentials(agent) { &NoExclusion } else { &carrying };
-        let claim = self.queue.claim_within(agent.id, limit, &labels, exclusion).await.map_err(ClaimError::Failed)?;
+        let claim = self
+            .queue
+            .claim_within(agent.id, limit, &labels, exclusion, &runnable)
+            .await
+            .map_err(ClaimError::Failed)?;
         let Some(scan) = claim.scan else {
             // Not when the agent is full: it would have been handed nothing anyway, and the answer would name a
             // missing key as the reason for a limit.
@@ -680,6 +717,18 @@ impl ScanDispatcher {
     ) -> Result<Dispatched, PortError> {
         self.reclaim_lost_leases().await?;
         let Some(runner) = &self.runner else { return Ok(Dispatched::default()) };
+        // **Asked before the claim, as an agent's executor is.** A daemon that stopped answering used to have its round
+        // claim as usual and fail every scan it took, an attempt each; it now claims nothing, and the agents screen
+        // shows the daemon's own answer. Docker runs every kind of target here, so it is all or nothing.
+        let check = ExecutorCheck { executors: probe(runner.as_ref()).await, checked_at: OffsetDateTime::now_utc() };
+        let previous = self.built_in.lock().ok().and_then(|mut held| held.replace(check.clone()));
+        if check.executors.claimable().is_empty() {
+            if previous.is_none_or(|previous| previous.executors != check.executors) {
+                let detail = check.executors.executors.first().and_then(|executor| executor.detail.clone());
+                tracing::warn!("The built-in worker claims nothing: {}", detail.unwrap_or_default());
+            }
+            return Ok(Dispatched::default());
+        }
         let held = i32::try_from(self.queue.count_held(worker).await?).unwrap_or(i32::MAX);
         let room = vectispire_domain::scan_queue::capacity(max_concurrent, held);
         if room == 0 {
@@ -1193,4 +1242,21 @@ fn log_abandoned(scan: i64, place: &str, done: &Abandoned) {
             "A scan could not run — back in the queue, after its wait."
         );
     }
+}
+
+/// The built-in worker's one executor, the Docker daemon its runner reaches — `ScanDispatcher.probe`.
+async fn probe(runner: &dyn ScanRunner) -> WorkerExecutors {
+    let why = runner.executor_unavailable().await;
+    let targets = if runner.executor_exports_images() {
+        vec![ExecutorTarget::Repository, ExecutorTarget::Container]
+    } else {
+        vec![ExecutorTarget::Repository]
+    };
+    WorkerExecutors::new(vec![Executor {
+        kind: Some("docker".to_owned()),
+        available: why.is_none(),
+        targets: targets.into_iter().map(|target| target.wire_name().to_owned()).collect(),
+        detail: why,
+    }])
+    .bounded()
 }
