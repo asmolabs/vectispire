@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_finding where scan_id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "5fc2cf21f8197a0da1b529396d8fafeb849bfd32351d01d7e253987fbcfb67c1"
+}

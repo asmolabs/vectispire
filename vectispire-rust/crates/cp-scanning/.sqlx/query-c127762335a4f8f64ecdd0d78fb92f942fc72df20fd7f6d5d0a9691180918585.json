@@ -1,0 +1,48 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select s.repo_id as \"repo_id!\", s.detected_languages from t_scan s where s.repo_id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j) and s.id = (select max(l.id) from t_scan l where l.repo_id = s.repo_id and l.status = ?)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repo_id!",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "repo_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "detected_languages",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 2048
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "detected_languages"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "c127762335a4f8f64ecdd0d78fb92f942fc72df20fd7f6d5d0a9691180918585"
+}

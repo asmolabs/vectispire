@@ -1,0 +1,12 @@
+// Adds `printRuntimeClasspath` to vectispire-core for oracle.sh, without touching the build itself.
+allprojects {
+    afterEvaluate { project ->
+        if (project.name == 'vectispire-core') {
+            project.tasks.register('printRuntimeClasspath') {
+                dependsOn project.tasks.named('classes')
+                def classpath = project.sourceSets.main.runtimeClasspath
+                doLast { println 'CLASSPATH=' + classpath.asPath }
+            }
+        }
+    }
+}

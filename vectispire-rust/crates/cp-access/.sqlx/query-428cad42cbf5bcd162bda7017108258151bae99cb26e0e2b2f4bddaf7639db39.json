@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_team_member (team_id, user_id, origin) values ($1, $2, $3) on conflict (team_id, user_id) do update set origin = excluded.origin",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "428cad42cbf5bcd162bda7017108258151bae99cb26e0e2b2f4bddaf7639db39"
+}

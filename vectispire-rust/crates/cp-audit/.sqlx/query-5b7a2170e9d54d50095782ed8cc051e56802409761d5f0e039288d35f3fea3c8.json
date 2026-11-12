@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select distinct operation_type from t_audit_log order by operation_type asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operation_type",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_audit_log",
+            "name": "operation_type"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5b7a2170e9d54d50095782ed8cc051e56802409761d5f0e039288d35f3fea3c8"
+}

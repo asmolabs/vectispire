@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_repository set url_identity = $1, identity_guard = $2 where id = $3 and identity_guard is null and url = $4 and branch = $5 and coalesce(sub_path, '') = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cad088bdbf6b871521f008902d16de929c1f91d9e137061b8c00d0ed78a467bd"
+}

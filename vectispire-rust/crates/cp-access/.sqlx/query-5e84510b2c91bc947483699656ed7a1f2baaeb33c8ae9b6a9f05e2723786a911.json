@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_team (name, description, created_at) values ($1, $2, $3) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_team",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5e84510b2c91bc947483699656ed7a1f2baaeb33c8ae9b6a9f05e2723786a911"
+}

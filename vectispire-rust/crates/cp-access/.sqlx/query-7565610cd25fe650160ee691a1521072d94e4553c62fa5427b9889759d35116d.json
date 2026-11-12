@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_team_member (team_id, user_id, origin) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "7565610cd25fe650160ee691a1521072d94e4553c62fa5427b9889759d35116d"
+}

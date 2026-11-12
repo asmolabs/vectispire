@@ -1,0 +1,23 @@
+[package]
+name = "vectispire-container"
+description = "Scanner containers through the Docker API — or the socket proxy in front of it — with the confinement every scanner runs under."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bollard.workspace = true
+futures-util.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

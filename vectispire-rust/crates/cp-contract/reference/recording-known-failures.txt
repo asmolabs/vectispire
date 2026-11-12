@@ -1,0 +1,8 @@
+# The tests that fail *while the recorder is on* and pass without it — and nothing else may. One per line:
+# `class | name`. With the recorder on, identities grow as in production (nine digits from the first row), so
+# an audit description cut at 255 characters (`AuditLogService`) loses the words these two assert on; the
+# product's behaviour, written in vectispire-java/.../core/golden/README.md. Their recordings are marked failed
+# in the manifest so the replay skips them. The list may only shrink: a test that no longer fails is removed
+# from it here (scripts/record-goldens.sh says so), never left to excuse the next one.
+com.asmolabs.vectispire.core.api.ReportRunsRoutesTest$Documents | a download by the governor, whom the export is refused to, is signalled VECTI-SEC-032; anybody else's is not
+com.asmolabs.vectispire.core.api.ReportRunsRoutesTest$Withdrawal | withdrawing a digest withdraws every document it produced, and only those; they stay downloadable, flagged

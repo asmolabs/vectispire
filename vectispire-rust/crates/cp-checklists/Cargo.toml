@@ -1,0 +1,26 @@
+[package]
+name = "vectispire-cp-checklists"
+description = "The control plane's security checklists: templates and their versions, each project's checklist, the rules that measure its lines."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+# `Digests.sha256Hex`: the rule's and the evidence's digests, which a measurement and a sign-off name.
+sha2.workspace = true
+thiserror.workspace = true
+# `\p{Cf}`, `\p{Z}` and `\p{Cc}` of `ChecklistText`'s patterns, at Unicode 16 as JDK 25 reads them. The regex
+# crate's Unicode classes would need a feature the agent's graph shares; this crate is the control plane's alone.
+unicode-general-category = "1.1"
+# `Normalizer.Form.NFKC`, which every item key and content digest is computed over.
+unicode-normalization = "0.1"
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

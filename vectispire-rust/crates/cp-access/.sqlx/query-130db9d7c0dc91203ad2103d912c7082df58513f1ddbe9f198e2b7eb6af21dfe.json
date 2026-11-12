@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select team_id from t_team_webhook order by team_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "team_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_team_webhook",
+            "name": "team_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "130db9d7c0dc91203ad2103d912c7082df58513f1ddbe9f198e2b7eb6af21dfe"
+}

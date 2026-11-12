@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_scan set lease_expires_at = $1 where id = $2 and status = $3 and claimed_by = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "70bcb013dc5ca9678282426f23f0b373e96e489a86556486ddc0cae9ba2fd81c"
+}

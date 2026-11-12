@@ -1,0 +1,4 @@
+{
+  "handlers" : [ "agent_result_audit", "checklist_answer", "owasp_report_after_scan", "siem_event", "token_alert", "token_alert_audit" ],
+  "channels" : [ "scan_delta", "scan_delta_discord", "scan_delta_mail", "scan_delta_slack", "scan_delta_teams" ]
+}

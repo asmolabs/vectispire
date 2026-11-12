@@ -1,0 +1,4 @@
+# The module `targets` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security"]
+reason = "`access` alone: grants are revoked through `TargetGrants` before a purge, and visibility reads the projects through `GrantableTargets`, a port `access` declares and `targets` implements. Not `scanning` nor `issues`: the listings' figures and the scan trigger are ports `targets` declares (`TargetScans`, `TargetBacklog`), so every module that names a target can depend on it. `access::security` for its routes."

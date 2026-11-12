@@ -1,0 +1,14 @@
+{
+  "name": "things/create",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/things",
+    "headers": { "Content-Type": "application/json" },
+    "body": { "id": 7, "name": "seven" }
+  },
+  "response": {
+    "status": 201,
+    "headers": { "content-type": "application/json" },
+    "body": { "id": 7, "name": "seven", "tags": ["a", "b"] }
+  }
+}

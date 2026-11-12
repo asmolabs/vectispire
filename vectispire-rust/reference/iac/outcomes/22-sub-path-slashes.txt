@@ -1,0 +1,2 @@
+findings
+[{"checkId":"CKV_X_1","checkName":"A check","file":"inside.tf","line":1,"guideline":"https://docs.example.org/x","resource":"aws_s3_bucket.a"},{"checkId":"CKV_X_1","checkName":"A check","file":"main.tf","line":1,"guideline":"https://docs.example.org/x","resource":"aws_s3_bucket.a"}]

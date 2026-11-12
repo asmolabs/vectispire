@@ -1,0 +1,107 @@
+{
+  "ciphers": [
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "ssh_key:7:private_key",
+      "plain": "invented deployment key material\nsecond line\n",
+      "cipher": "v2:CnB2MMBxG4z0TC+mY5VXzXrzy8lkEioz/8OVyIWmlyPqyHqaNscKCPRMVIKTUa2T6F+GFqNbs/tszq7NclrW0Ojj9KPWEhHzQg=="
+    },
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "git_token:12:token",
+      "plain": "invented clone token",
+      "cipher": "v2:scSeycmbLBrnYAC8ZRtFhPU3p5ezqcYGeLn471Mzbnvg1esyoluegj4d9xVr060A"
+    },
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "forge_connection:3:token",
+      "plain": "invented forge token",
+      "cipher": "v2:zzTJW+XL7Q5mgJtSTAIsxgfY3TNmOKWhqdz6ojXwEX8T7zoXZFXPBXHPV+lVSzM+"
+    },
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "user:totp_secret:5",
+      "plain": "INVENTEDTOTPSEEDAAAA",
+      "cipher": "v2:1XpjEJMUvaxHBA4FFZOUNASvUjhqH3MBVeO2CH3F9JySrzZ9zcJVEo5EjVeBVQOR"
+    },
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "é:ü:🔑",
+      "plain": "unicode é ü 中文 🔑",
+      "cipher": "v2:qfR2OrWcPexuMwLWZ4qfV3KXITfCVkRiPLFgZ1QeHqhmA/WsKLTIQvFcN8TjKgzuqXP3xTE="
+    },
+    {
+      "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+      "context": "",
+      "plain": "no associated data at all",
+      "cipher": "v2:VcRd9nQzIP3vd59F5S3t+vXq/mh2Ay2qsltBea8df1bmPiSiymo0tpa/r+IN0wxlGHugvR4="
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "ssh_key:7:private_key",
+      "plain": "invented deployment key material\nsecond line\n",
+      "cipher": "v2:CnB2MMBxG4z0TC+mCikxGOHnU1ZRnYaZUWRj3vHKYGDBFWmJN0lF4pnsDGx5ZPwGC+z3hN2T4Y4uFstEENsXDAG99rlUtMSA8g=="
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "git_token:12:token",
+      "plain": "invented clone token",
+      "cipher": "v2:scSeycmbLBrnYAC8lKHVWDNLj0X2Isv3oMM5+Y3m/3B16Ykgrng3zXz2pt/Dp+5v"
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "forge_connection:3:token",
+      "plain": "invented forge token",
+      "cipher": "v2:zzTJW+XL7Q5mgJtSEfNVxMSlszP5FHwTvtNjYWWnWtIp5wRiIx3Dql9e+K9NGQu2"
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "user:totp_secret:5",
+      "plain": "INVENTEDTOTPSEEDAAAA",
+      "cipher": "v2:1XpjEJMUvaxHBA4Ff8fBD7Utd5QMwOQhbateCsDKLa0J+Gcckrh7+eHw5DCraNLU"
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "é:ü:🔑",
+      "plain": "unicode é ü 中文 🔑",
+      "cipher": "v2:qfR2OrWcPexuMwLWVCU11UrgyzwNBA/CkmxRKDzosBSKIov7WDP/n3CYMDFMBAZKc0Ch2ro="
+    },
+    {
+      "configured": "a passphrase written by the Rust side, invented",
+      "context": "",
+      "plain": "no associated data at all",
+      "cipher": "v2:VcRd9nQzIP3vd59Fus8U97amN1PIjdqDsXdO1diA3RUOIy16QA2irMYE4bdefAJwCOAaZ3A="
+    }
+  ],
+  "sealed_to": "MCowBQYDK2VuAyEAjcsXOs1YqbdQq7SMo60MOdNVeB5GFmAMxwCc/533KQY=",
+  "envelopes": [
+    {
+      "context": "deployment-key",
+      "plain": "invented material sealed by Rust for deployment-key",
+      "sealed": "sealed:v2:MCowBQYDK2VuAyEAcI266b2joJ/W7QnlCazWkGx786wWEvoTy4eXBFonL2iqfS34FpDRWBkcbZcZye5u1AJC3+/8mSp7U4nOHhIw/jE0BoZNYiaRI8R9qPrfvziUPWCmJMOHC06A94GM5uno2l0JkHw1PwXW25Xi5I9W"
+    },
+    {
+      "context": "https-token:18:gitlab.example.org;14:x-access-token;",
+      "plain": "invented material sealed by Rust for https-token:18:gitlab.example.org;14:x-access-token;",
+      "sealed": "sealed:v2:MCowBQYDK2VuAyEAD3zFezoD9AAVtXvfFR4LDv+KD1owXejHBJG2kR1y2kQcMTx0g2UB7TSsb1d/Vx9fFLX6+9U/CCbtn4FOkMSEKo7JCI6baneyQA8YAepEfkc94yPDFwuktAvTBCMFTdkqFsXyrNaFj4v298iER/qlKapQJXJZhu6gW57ysHVLaPB+f8nEjVcMWSU9rOB454EA/DiYck8="
+    },
+    {
+      "context": "https-token:-;1:é;",
+      "plain": "invented material sealed by Rust for https-token:-;1:é;",
+      "sealed": "sealed:v2:MCowBQYDK2VuAyEAkxZCXhBKLmshrVK3+1ykwoBwPQQs2CHSveuJrOJYTmtMPVMMgGAD0obKLVz0Ost22nZHoWRqGEL0MdikcvzEEfR3zZ8+TjzfPFySEoPww8LGSO43uJwK0lJbDryoufjLSgES+8XvjY6Si2CqUbfjD/dywuM="
+    }
+  ],
+  "signing": {
+    "label": "vectispire-rust-reference:rust-signing-key",
+    "configured": "q4xqqqvpzWYvqmrtPQ2yVi5MsL9tkal/2cFuqlRG2HE=",
+    "context": "internal:document_signing_key",
+    "row": "v2:H8/5/WUOpd0iBfCtuHNaUAKgv2H6I2LTCbYTTeDQyOy1fs9AwMhHq/3hfgo0g3v9YtxCbEgrlHlFWK1fWTtY6nXoSkCnMDpj0MWIKaCxbfRcjuAH9sCoUULd1LS9kFk22oxM74HOwV4JcSHMcN3GV5H1ZU1wDV5QNbjVI2G4FCi5quqX6jAiYlnBhLNlwbQf511ujc8sYCrupQhX0FgGKUk4QAZy08/RUrwxrcRD8qQe1hl0tXTddUpkRj6bEmAk+qZrboF49PfU4qbhVIkNmEsIIX97oaKMrHbDZ4h33NbgFyzQOTjth4CHfmdjp0OuPEXc/CgjAvA7+oLOcJrJezKrCiIPwKR6CHKITLE=",
+    "public_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJTYlmFDoDwoNowuR1id1n9w0OfVp\nQc4SZ0/jGvrH+yDpZmO9kFTzrW6/5+IlYrsVH/M3lSqZfzrq8DOAqFII5A==\n-----END PUBLIC KEY-----\n",
+    "fingerprint": "73b55f6624cc89b5c3ae4ae10789abdc125b91213ae417fa1803bc9fc08d2750",
+    "payload": "{\"status\":\"passed\",\"by\":\"rust\"}",
+    "signature": "MEYCIQD7TOe78M6MQPcUcQJUHJRT/1vx4upNdjfUMjGs250hRAIhAMyMyJHt0kbynwz96Eu8slwKfCQFtTo4ajKMT3rpUCru",
+    "dsse_payload_type": "application/vnd.in-toto+json",
+    "dsse_payload": "eyJzdGF0dXMiOiJwYXNzZWQiLCJieSI6InJ1c3QifQ==",
+    "dsse_signature": "MEUCIFI9PJeQXh7QqoVMdkwx+kOglifE9bmkF6QFPfiXnKM6AiEA7F47/DLMWOg20L8Vo//AxYhRSEKuppgZTirHL7q4WaY="
+  }
+}

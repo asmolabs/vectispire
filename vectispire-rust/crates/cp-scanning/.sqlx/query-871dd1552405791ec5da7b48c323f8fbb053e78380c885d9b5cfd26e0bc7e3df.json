@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_scan set attempts = 0, not_before = null where id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j) and status = ? and attempts > 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "871dd1552405791ec5da7b48c323f8fbb053e78380c885d9b5cfd26e0bc7e3df"
+}

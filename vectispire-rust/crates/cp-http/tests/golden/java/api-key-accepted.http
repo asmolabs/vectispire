@@ -1,0 +1,12 @@
+200 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+Content-Type: application/json
+Content-Length: 482
+
+[{"id":1,"url":"https://git.example.org/invented/vs-rs-http.git","branch":"main","name":"vs-rs-http","subPath":null,"displayName":"vs-rs-http","scanIntervalMinutes":null,"scanCron":null,"scanManualOnly":false,"schedule":{"mode":"default","intervalMinutes":10080},"requiredAgentLabel":null,"sshKeyId":null,"httpsTokenId":null,"lastScheduledScanAt":null,"lastScan":null,"openIssues":0,"tier":"TIER_2_BUSINESS_OPERATIONAL","projectId":null,"projectName":null,"detectedLanguages":null}]

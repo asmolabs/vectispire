@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_login_attempt where counter_key = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f62b4a20aa0c71402c8576015eae6f1fb7de78e6de69644f616aabf28d4f1dc6"
+}

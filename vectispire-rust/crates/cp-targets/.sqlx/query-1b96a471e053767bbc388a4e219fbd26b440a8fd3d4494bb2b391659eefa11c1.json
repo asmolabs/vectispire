@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_container (registry, image_name, tag, scan_interval_minutes, scan_cron, scan_manual_only, required_agent_label, last_scheduled_scan_at, tier, in_certified_scope) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Timestamptz",
+        "Varchar",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1b96a471e053767bbc388a4e219fbd26b440a8fd3d4494bb2b391659eefa11c1"
+}

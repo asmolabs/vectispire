@@ -1,0 +1,5 @@
+# The module `issues` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "ported"
+allowed = ["access", "access::security", "scanning", "targets"]
+reason = "`access`: the backlog is read within the caller's visibility. `targets`: an issue belongs to a target and answers the listings' counts through `TargetBacklog`, a port `targets` declares. `scanning`: the backlog reads scans and findings through `ScanCatalog`; a scan's findings reach it through `ScanIngestor.Backlog`, a port `scanning` declares. `access::security` for its routes."
+interfaces = ["queries"]

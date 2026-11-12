@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_repository set project_id = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8d0f903f2a48691d8d12c9fc48f291db19e6588617fc33dbf581d5e1dcffb73d"
+}

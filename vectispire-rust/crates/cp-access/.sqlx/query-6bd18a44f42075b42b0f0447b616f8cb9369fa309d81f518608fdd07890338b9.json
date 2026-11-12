@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select team_id from t_team_target where target_kind = $1 and target_id = $2 order by team_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "team_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_team_target",
+            "name": "team_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6bd18a44f42075b42b0f0447b616f8cb9369fa309d81f518608fdd07890338b9"
+}

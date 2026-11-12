@@ -1,0 +1,27 @@
+{
+  "signing_seed_label" : "vectispire-rust-reference:result-signing-seed",
+  "signing_public" : "RH/lx5tYPoXDjyK71yEC/8IlwCoZHO+NTv4PFAamcpc=",
+  "scan_id" : 42,
+  "result_body" : "{\"secrets\":[{\"rule\":\"generic-api-key\",\"file\":\"src/app.env\",\"line\":3}]}",
+  "result_signature" : "CQ6e6fJjlJzjCnHGHNUTMuT678PYO/UVHaXtwBBt4pfzhHqDxQ4WCv0Oq+TFIaogGyoHt6ZmCkQFWbmPQH/kAg==",
+  "failure_body" : "{\"kind\":\"TRANSIENT\",\"message\":\"The clone of https://gitlab.example.org/x timed out.\"}",
+  "failure_signature" : "2sNpfy21zNZdUGx6LOAd/lxHFGuFNbZFWLVB6zJS2iRAbG6DygpvIrAVOTfHNcF6KNX70L92pGWl6dIICD7GDw==",
+  "agent_id" : "3f2b6c1e-8d4a-4b7e-9c2f-5a1d0e7b9c34",
+  "generation" : 3,
+  "java_sealing_label" : "vectispire-rust-reference:java-sealing-key",
+  "java_sealing_public" : "MCowBQYDK2VuAyEAjcsXOs1YqbdQq7SMo60MOdNVeB5GFmAMxwCc/533KQY=",
+  "java_sealing_attestation" : "at7TxDNegiJht+qb/xKeECYZTjHuquHf5oGLX8+mdW/BzQqYS8txPh+shyw9PnDlXjSj0jnsJJ3YlyKII3g+Aw==",
+  "envelopes_to_rust" : [ {
+    "context" : "deployment-key",
+    "plain" : "invented material for deployment-key",
+    "sealed" : "sealed:v2:MCowBQYDK2VuAyEAMznw4Ggzts8mPfsPeF06pKQVoxNixrP0N2TqWYQv0QgRHMBeFaxS4XKLKDKxzICUmPj1QqMyxyPxHYm8RtANEbdEZnEYMfchdhuiiincTQ/Pf2IUIRu9xss3J7a4AYjM"
+  }, {
+    "context" : "https-token:18:gitlab.example.org;14:x-access-token;",
+    "plain" : "invented material for https-token:18:gitlab.example.org;14:x-access-token;",
+    "sealed" : "sealed:v2:MCowBQYDK2VuAyEARfZS2Y5n46rMwi/uhsL5iiFTr2pgW+GbC4UzKD405yg8wyYd+WI4uSYQU2HIjEQV3H0UCwJozh+BBeFrK6IMbNlTcxZX+r5N9y+zhWSTFXhoO8JcOdoQH/JL2KZWQNKfT8HjQ5TqTFLIPJk9lJn35NGvU+v/zEX+E7ryAbmkw+dSuJYIfBQ="
+  }, {
+    "context" : "https-token:18:gitlab.example.org;-;",
+    "plain" : "invented material for https-token:18:gitlab.example.org;-;",
+    "sealed" : "sealed:v2:MCowBQYDK2VuAyEA5RABhNzfOAq1J0YHYbXgWLts3pSFbYRT2UFamYl0vz1Xd7VR8qi9fQ1gfS9xG+rgPtD8q9P2ly52W06ASOy+GHwNh0QgmqKhxPRmtEB5Eltzd2vpp2CPiE9NliR2i9ynJUorlnp4H/9A8JOCd/gEFo/sgW+03w=="
+  } ]
+}

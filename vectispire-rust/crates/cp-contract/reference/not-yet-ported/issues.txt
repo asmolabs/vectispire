@@ -1,0 +1,3 @@
+# The routes of `issues` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 1
+GET /api/v1/history/repositories/{id}/export.pdf

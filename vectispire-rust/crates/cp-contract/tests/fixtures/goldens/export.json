@@ -1,0 +1,9 @@
+{
+  "name": "things/export",
+  "request": { "method": "GET", "path": "/api/v1/things/export" },
+  "response": {
+    "status": 200,
+    "headers": { "content-type": "text/csv" },
+    "bodyText": "id,name\n7,seven\n"
+  }
+}

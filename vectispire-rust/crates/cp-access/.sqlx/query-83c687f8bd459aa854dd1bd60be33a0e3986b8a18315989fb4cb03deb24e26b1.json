@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select hits from t_rate_window where window_key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "hits",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_rate_window",
+            "name": "hits"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "83c687f8bd459aa854dd1bd60be33a0e3986b8a18315989fb4cb03deb24e26b1"
+}

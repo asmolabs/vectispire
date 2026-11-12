@@ -1,0 +1,320 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, url, branch, sub_path, name, scan_interval_minutes, scan_cron, scan_manual_only as \"scan_manual_only: bool\", required_agent_label, last_scheduled_scan_at as \"last_scheduled_scan_at: UtcInstant\", ssh_key_id as \"ssh_key_id: TextUuid\", https_token_id as \"https_token_id: TextUuid\", badge_token, tier, in_certified_scope as \"in_certified_scope: bool\", project_id, url_identity, identity_guard from t_repository order by id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "url",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "url"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "branch",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "branch"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sub_path",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "sub_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "scan_interval_minutes",
+        "type_info": {
+          "type": "Long",
+          "flags": "",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "scan_interval_minutes"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "scan_cron",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "scan_cron"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "scan_manual_only: bool",
+        "type_info": {
+          "type": "Tiny",
+          "flags": "NOT_NULL",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "scan_manual_only"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "required_agent_label",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "required_agent_label"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "last_scheduled_scan_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "last_scheduled_scan_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "ssh_key_id: TextUuid",
+        "type_info": {
+          "type": "String",
+          "flags": "MULTIPLE_KEY",
+          "collation": 255,
+          "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "ssh_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "https_token_id: TextUuid",
+        "type_info": {
+          "type": "String",
+          "flags": "MULTIPLE_KEY",
+          "collation": 255,
+          "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "https_token_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "badge_token",
+        "type_info": {
+          "type": "VarString",
+          "flags": "UNIQUE_KEY",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "badge_token"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "tier",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "collation": 255,
+          "max_size": 128
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "tier"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "in_certified_scope: bool",
+        "type_info": {
+          "type": "Tiny",
+          "flags": "NOT_NULL",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "in_certified_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "project_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "url_identity",
+        "type_info": {
+          "type": "VarString",
+          "flags": "MULTIPLE_KEY",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "url_identity"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "identity_guard",
+        "type_info": {
+          "type": "VarString",
+          "flags": "UNIQUE_KEY",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "identity_guard"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "519099bcbdbb1bbd0a4e8b46a527037eb77f286d8a4c90b4764c476b6bcebba1"
+}

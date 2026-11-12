@@ -1,0 +1,28 @@
+# The recordings not replayed yet that `reportplugins`'s port ends: its routes, and its stand-ins the served routes meet.
+# README.md beside this file says the format and the rules.
+ceiling 21
+
+# ── Routes not ported: the module, and the phase and task that ports it ──
+route DELETE /api/v1/projects/{projectId}/report-plugins/{pluginId} | reportplugins — Phase 5
+route GET /api/v1/projects/{projectId}/export | reportplugins — Phase 5
+route GET /api/v1/projects/{projectId}/report-plugins | reportplugins — Phase 5
+route GET /api/v1/projects/{projectId}/reports | reportplugins — Phase 5
+route GET /api/v1/projects/{projectId}/reports/{runId} | reportplugins — Phase 5
+route GET /api/v1/projects/{projectId}/reports/{runId}/document | reportplugins — Phase 5
+route GET /api/v1/report-documents/{sha256} | reportplugins — Phase 5
+route GET /api/v1/report-plugins | reportplugins — Phase 5
+route GET /api/v1/report-plugins/{id} | reportplugins — Phase 5
+route GET /api/v1/schemas/project-export/{major} | reportplugins — Phase 5
+route POST /api/v1/projects/{projectId}/reports | reportplugins — Phase 5
+route POST /api/v1/report-plugins | reportplugins — Phase 5
+route POST /api/v1/report-plugins/{id}/manifests/{digest}/approval | reportplugins — Phase 5
+route POST /api/v1/report-plugins/{id}/manifests/{digest}/withdrawal | reportplugins — Phase 5
+route PUT /api/v1/projects/{projectId}/report-plugins/{pluginId} | reportplugins — Phase 5
+route PUT /api/v1/report-plugins/{id} | reportplugins — Phase 5
+route PUT /api/v1/report-plugins/{id}/enabled | reportplugins — Phase 5
+
+# ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
+golden api.ReportPluginsRoutesTest.Activating/projectDeleted--005-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay
+golden api.ReportRunsRoutesTest.Documents/projectDeleted--006-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay
+golden api.ReportRunsRoutesTest.Keeping/projectDeleted--006-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay
+golden api.ReportRunsRoutesTest.Withdrawal/hiddenIsUnknown--014-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay

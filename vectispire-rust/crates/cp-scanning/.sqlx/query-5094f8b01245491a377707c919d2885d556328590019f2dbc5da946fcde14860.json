@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_scan set status = $1, error = $2, claimed_by = null, claimed_at = null, lease_expires_at = null, not_before = null where id = $3 and status = $4 and claimed_by = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5094f8b01245491a377707c919d2885d556328590019f2dbc5da946fcde14860"
+}

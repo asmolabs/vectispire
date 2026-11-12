@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_mfa_challenge where expires_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "9cf1bdf955fc0b22c9f2deacf73b8087d15b3d37f9a2df10537e7b9aa3955540"
+}

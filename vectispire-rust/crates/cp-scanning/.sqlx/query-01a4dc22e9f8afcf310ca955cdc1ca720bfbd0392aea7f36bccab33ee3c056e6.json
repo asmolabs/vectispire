@@ -1,0 +1,65 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, repo_id, created_at as \"created_at: UtcInstant\" from t_scan where status = ? and (required_agent_label is null or required_agent_label in (select j.label from json_table(?, '$[*]' columns (label varchar(255) path '$')) as j)) and (not_before is null or not_before <= ?) and (created_at > ? or (created_at = ? and id > ?)) order by created_at asc, id asc limit ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repo_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "repo_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "01a4dc22e9f8afcf310ca955cdc1ca720bfbd0392aea7f36bccab33ee3c056e6"
+}

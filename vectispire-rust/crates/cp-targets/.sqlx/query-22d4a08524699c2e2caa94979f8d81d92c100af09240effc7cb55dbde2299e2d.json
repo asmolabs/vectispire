@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_project set solution_id = $1, name = $2, description = $3, created_at = $4 where id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "22d4a08524699c2e2caa94979f8d81d92c100af09240effc7cb55dbde2299e2d"
+}

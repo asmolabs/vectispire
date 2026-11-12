@@ -1,0 +1,5 @@
+# The module `reporting` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = []
+shared = true
+reason = "The report rendering every document export and screen shares."

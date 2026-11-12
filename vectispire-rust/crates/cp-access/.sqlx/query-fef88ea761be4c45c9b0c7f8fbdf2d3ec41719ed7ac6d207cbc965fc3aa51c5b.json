@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_user set mfa_backup_codes = $1, updated_at = $2 where id = $3 and mfa_backup_codes = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fef88ea761be4c45c9b0c7f8fbdf2d3ec41719ed7ac6d207cbc965fc3aa51c5b"
+}

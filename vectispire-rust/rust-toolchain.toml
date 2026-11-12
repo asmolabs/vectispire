@@ -1,0 +1,6 @@
+# One toolchain for every build, so that two builds of one commit compile with the same compiler —
+# the Rust side of what `gradle/verification-metadata.xml` and the pinned JDK are on the Java side.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

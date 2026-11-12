@@ -1,0 +1,5 @@
+400 
+Content-Type: application/problem+json;charset=UTF-8
+Content-Length: 286
+
+{"title":"Bad Request","status":400,"detail":"The request was refused before it reached the application: its URL could not be decoded (a % must be followed by two hexadecimal digits, and an encoded / is not accepted), or the request was otherwise malformed.","instance":"/api/v1/a%5Cb"}

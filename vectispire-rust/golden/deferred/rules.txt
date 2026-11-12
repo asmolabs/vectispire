@@ -1,0 +1,14 @@
+# The recordings not replayed yet that `rules`'s port ends: its routes, and its stand-ins the served routes meet.
+# README.md beside this file says the format and the rules.
+ceiling 9
+
+# ── Routes not ported: the module, and the phase and task that ports it ──
+route GET /api/v1/rule-sets | rules — Phase 3
+route GET /api/v1/rule-sets/catalogue | rules — Phase 3
+route GET /api/v1/rule-sets/coverage | rules — Phase 3
+route GET /api/v1/rule-sets/deactivate/impact | rules — Phase 3
+route GET /api/v1/rule-sets/{id}/impact | rules — Phase 3
+route POST /api/v1/rule-sets | rules — Phase 3
+route POST /api/v1/rule-sets/catalogue | rules — Phase 3
+route POST /api/v1/rule-sets/deactivate | rules — Phase 3
+route POST /api/v1/rule-sets/{id}/activate | rules — Phase 3

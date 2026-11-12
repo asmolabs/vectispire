@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, url_identity as \"identity!\" from t_repository where url_identity = any($1) order by id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_repository",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "identity!",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_repository",
+            "name": "url_identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "03fbdef30f91fc34a02580356dd6d6ea566c76e361f957b739a7c6bb595cb4b8"
+}

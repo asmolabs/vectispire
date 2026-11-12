@@ -1,0 +1,5 @@
+# The module `settings` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = []
+shared = true
+reason = "The deployment's settings (`t_setting`): retention, the scanners' switches, the licence blocklist, the default schedule — read by nearly every domain, so a line in each would be a review nobody takes."

@@ -1,0 +1,43 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select claimed_by as \"claimed_by!\", count(id) as \"count!: i64\" from t_scan where status = ? and claimed_by is not null group by claimed_by order by claimed_by",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "claimed_by!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "claimed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "a9fcd1eef0d7249ce691e8688b8dfa11140cfbf3cf4ed4c500d5969b1272baf5"
+}

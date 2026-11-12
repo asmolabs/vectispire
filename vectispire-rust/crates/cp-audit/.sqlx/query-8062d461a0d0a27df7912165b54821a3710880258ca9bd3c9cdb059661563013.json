@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_audit_log set previous_hash = ?, entry_hash = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "8062d461a0d0a27df7912165b54821a3710880258ca9bd3c9cdb059661563013"
+}

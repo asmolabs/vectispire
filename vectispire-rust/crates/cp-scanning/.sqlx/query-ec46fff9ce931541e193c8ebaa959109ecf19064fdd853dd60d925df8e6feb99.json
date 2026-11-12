@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_leader_lease set expires_at = ?, updated_at = ? where name = ? and holder = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "ec46fff9ce931541e193c8ebaa959109ecf19064fdd853dd60d925df8e6feb99"
+}

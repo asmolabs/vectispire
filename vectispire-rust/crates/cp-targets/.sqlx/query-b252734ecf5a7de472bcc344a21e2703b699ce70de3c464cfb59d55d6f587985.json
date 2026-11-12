@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_git_token (id, name, host, username, token, created_at) values (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "b252734ecf5a7de472bcc344a21e2703b699ce70de3c464cfb59d55d6f587985"
+}

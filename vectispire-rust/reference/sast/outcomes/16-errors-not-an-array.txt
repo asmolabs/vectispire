@@ -1,0 +1,2 @@
+findings
+[{"ruleId":"example.rule","category":"security","severity":"MEDIUM","confidence":"HIGH","file":"app.py","line":3,"message":"A message.","owaspCategory":"A03"}]

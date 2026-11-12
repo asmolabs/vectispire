@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_user set username = ?, email = ?, password = ?, display_name = ?, avatar_url = ?, role = ?, is_active = ?, github_id = ?, keycloak_id = ?, created_at = ?, updated_at = ?, must_change_password = ?, mfa_enabled = ?, totp_secret = ?, mfa_backup_codes = ?, totp_last_step = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 17
+    },
+    "nullable": []
+  },
+  "hash": "167df25fc52056bf3c042d803692d8caf516b909da0aed9475724e393ec45903"
+}

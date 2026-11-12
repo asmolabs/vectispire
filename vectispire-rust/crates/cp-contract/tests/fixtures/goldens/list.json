@@ -1,0 +1,9 @@
+{
+  "name": "things/list",
+  "request": { "method": "GET", "path": "/api/v1/things", "query": { "limit": "5" }, "headers": { "X-Trace": "t-1" } },
+  "response": {
+    "status": 200,
+    "headers": { "content-type": "application/json" },
+    "body": [ { "id": 7, "name": "seven", "tags": ["a", "b"] } ]
+  }
+}

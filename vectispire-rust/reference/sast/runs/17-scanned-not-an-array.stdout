@@ -1,0 +1,1 @@
+{"results": [{"check_id": "example.rule", "path": "/repo/source/app.py", "start": {"line": 3, "col": 1}, "extra": {"message": "A message.", "severity": "WARNING", "metadata": {"category": "security", "confidence": "HIGH", "owasp": "A03:2021 - Injection"}}}], "errors": [], "paths": {"scanned": "everything"}}

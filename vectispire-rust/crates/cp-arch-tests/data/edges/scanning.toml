@@ -1,0 +1,5 @@
+# The module `scanning` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "targets"]
+reason = "`access`: a scan is read within the caller's visibility, and the dispatcher hands a task to the agent the principal carries. `targets`: a scan is of a target — the dispatcher reads its row and credentials, the scheduler its schedule. What it needs of higher modules is a port it declares (`ScanIngestor.Backlog`, `InventorySink`, `ScanRuleSets`, `AgentClaimLock`). `access::security` for its routes."
+interfaces = ["queries"]

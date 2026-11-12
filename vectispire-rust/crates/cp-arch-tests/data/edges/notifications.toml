@@ -1,0 +1,4 @@
+# The module `notifications` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "issues", "targets"]
+reason = "`access`: a scan's delta is routed to the teams granted its target. `issues`: the delta is the backlog's, announced through `ScanDelta.Sink`. `targets`: a message names its target. `access::security` for its routes."

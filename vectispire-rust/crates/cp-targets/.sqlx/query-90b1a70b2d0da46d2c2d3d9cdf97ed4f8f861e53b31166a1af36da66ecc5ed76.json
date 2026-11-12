@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_solution where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "90b1a70b2d0da46d2c2d3d9cdf97ed4f8f861e53b31166a1af36da66ecc5ed76"
+}

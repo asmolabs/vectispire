@@ -1,0 +1,4 @@
+# The module `posture` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "notifications", "scanning", "targets"]
+reason = "It reads what the modules below it hold — `gate`, `inventory`, `issues` and `issues::queries`, `scanning`, `targets` — and sends the digest through `notifications`. `access`: every figure is narrowed to what the account may see. `access::security` for its routes."

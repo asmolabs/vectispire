@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, occurred_at from t_login_attempt where counter_key = $1 and occurred_at > $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "t_login_attempt",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "occurred_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_login_attempt",
+            "name": "occurred_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b781040732755f5e42b2f248b9d1fb4671c960db92488bff8322d6d910d4c49b"
+}

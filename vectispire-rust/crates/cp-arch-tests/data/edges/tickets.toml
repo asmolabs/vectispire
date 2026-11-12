@@ -1,0 +1,4 @@
+# The module `tickets` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "gate", "issues", "targets"]
+reason = "`access`, `issues`, `targets`: a ticket is attached to a visible issue of a target. `gate`: the sweep opens a ticket only for an issue the policy of its scope would fail on (`ActiveGatePolicies`). `gate` uses nothing that uses `tickets`. `access::security` for its routes."

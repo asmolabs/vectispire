@@ -48,6 +48,9 @@ ENGINE = JAVA / "integrationTest/java/com/asmolabs/vectispire/core/persistence/E
 TEST_DATABASE = JAVA / "test/java/com/asmolabs/vectispire/core/TestDatabase.java"
 DRILL = ROOT / "scripts" / "upgrade-drill.sh"
 COMPOSE = ROOT / "docker-compose.yml"
+# The Rust workspace's test databases, one place for every crate: its throwaway servers, and the digests CI's
+# `rust` job runs as services — which the workflow check below reads in turn.
+RUST_TEST_DATABASES = ROOT / "vectispire-rust" / "crates" / "cp-db" / "src" / "testing.rs"
 # The workflows whose job services must carry a campaign engine; each must yield at least one, so a
 # service that is renamed or moved out of reach of the pattern below fails here rather than escaping.
 # Any `image:` naming either engine is read, registry prefix included: `docker.io/library/mysql:…`
@@ -107,6 +110,11 @@ def pins() -> list[tuple[str, str]]:
                          f"{len(composed)}.")
     found += [("docker-compose.yml db", composed[0])]
 
+    rust = re.findall(r'pub const (MYSQL|POSTGRES)_IMAGE: &str =\s*"([^"]+)";', read(RUST_TEST_DATABASES))
+    if sorted(name for name, _ in rust) != ["MYSQL", "POSTGRES"]:
+        raise SystemExit(f"check-db-pins: expected MYSQL_IMAGE and POSTGRES_IMAGE in "
+                         f"{RUST_TEST_DATABASES.relative_to(ROOT)}, found {[name for name, _ in rust]}.")
+    found += [(f"cp-db testing.rs {name}_IMAGE", image) for name, image in rust]
 
     for workflow in WORKFLOWS:
         text = read(workflow)

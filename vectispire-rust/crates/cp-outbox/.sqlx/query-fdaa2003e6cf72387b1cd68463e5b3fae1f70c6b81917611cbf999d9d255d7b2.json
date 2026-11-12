@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_outbox_message (id, message_type, payload, team_id, status, attempts, next_attempt_at, last_error, created_at, sent_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "fdaa2003e6cf72387b1cd68463e5b3fae1f70c6b81917611cbf999d9d255d7b2"
+}

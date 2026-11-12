@@ -1,0 +1,1 @@
+{"version": "1.171.0", "results": [], "errors": [{"type": "OnlyType"}, {"message": "only a message"}, {"type": "Both", "message": "and its message"}, {}, {"type": "  ", "message": " "}, 5, {"type": 3, "message": null}, {"type": "", "message": "empty type"}], "paths": {"scanned": []}}

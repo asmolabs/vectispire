@@ -1,0 +1,14 @@
+# gitleaks over a recording of the Java suite (`gitleaks detect --no-git --source <dir> --config …`).
+#
+# The recorder replaces every random credential with a placeholder, so a recording carries none — except the one
+# value a test plants on purpose to prove the export never carries it (`ProjectExportRoutesTest`), which the
+# replay must seed as it is. Generated files cannot carry a `gitleaks:allow` marker, so the one value is
+# allowed here by name and nothing else is: a second finding is a credential the recorder let through.
+title = "Vectispire's recordings"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "the one invented fixture the export test plants"
+regexes = ['''AKIAPLANTEDSECRET7781''']

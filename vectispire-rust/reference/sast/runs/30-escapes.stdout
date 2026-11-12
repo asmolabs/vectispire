@@ -1,0 +1,1 @@
+{"results": [{"check_id": "r.\u00e9", "path": "/repo/source/\u2028.py", "start": {"line": 1}, "extra": {"message": "line\nbreak \ud83d\ude00 \u0000", "severity": "INFO", "metadata": {"owasp": "A0\u0033:2021"}}}], "errors": [], "paths": {"scanned": ["/repo/source/a.py"]}}

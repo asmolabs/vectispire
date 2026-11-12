@@ -1,0 +1,10 @@
+# The routes open to anonymous callers, and why each is — `RouteAuthorizationTest.onlyTheWaysInAreOpen` of the Java
+# control plane (0.11.1 line), carried over. The list is exact: a further route is not forbidden, it is a review
+# conversation, and the test failing is how the conversation starts. One route per line: `path | reason`.
+/api/v1/auth/login | the password exchange itself
+/api/v1/auth/methods | which buttons the login screen offers; an instance having single sign-on is public by construction, since the redirect it produces is
+/api/v1/auth/session/exchange | trades the one-time hand-off cookie the browser just received for the session it stands for; the cookie is the credential
+/api/v1/auth/mfa/verify | the second half of that exchange: called with the mfa_token step 1 returned and no bearer, because the bearer is what it is on the way to issuing
+/api/v1/scorecards/badges/{token}.svg | a shield rendered into READMEs and pull requests, read by people with no account; named by a token, never by the repository's id, which would be an anonymous walk through every grade
+/api/v1/crypto/public-key.pub | a public key: publishing it is the point
+/api/v1/tickets/webhook/{provider} | called by Jira, GitLab and ServiceNow, which hold a shared secret rather than a session; the handler verifies it

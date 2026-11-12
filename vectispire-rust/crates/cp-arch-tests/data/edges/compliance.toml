@@ -1,0 +1,4 @@
+# The module `compliance` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "ai", "exports", "gate", "inventory", "issues", "issues::queries", "posture", "rules", "scanning", "scanning::queries", "targets"]
+reason = "The top of the domains: an evidence bundle states what the modules below it recorded — `ai`, `exports`, `gate`, `inventory`, `issues` and `issues::queries`, `posture`, `rules`, `scanning` and `scanning::queries`, `targets`. `access`: every statement is narrowed to what the caller sees. Nothing uses it but `platform`. `access::security` for its routes."

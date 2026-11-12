@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_repository (url, branch, sub_path, name, scan_interval_minutes, scan_cron, scan_manual_only, required_agent_label, last_scheduled_scan_at, ssh_key_id, https_token_id, badge_token, tier, in_certified_scope, url_identity, identity_guard) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": []
+  },
+  "hash": "aa8b0dab7ba881cf43eaff73c6657abca4a1236d906173ba54357b6ea0563b22"
+}

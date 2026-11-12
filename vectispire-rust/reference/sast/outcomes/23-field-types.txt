@@ -1,0 +1,2 @@
+failure
+semgrep's report holds a result that is not an object; the report is not read.

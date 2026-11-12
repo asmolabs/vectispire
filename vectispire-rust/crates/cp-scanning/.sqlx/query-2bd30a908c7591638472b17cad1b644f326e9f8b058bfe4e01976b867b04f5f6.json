@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select cast(avg(duration_ms) as double) as \"average: f64\" from t_scan where status = ? and created_at >= ? and duration_ms is not null",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "average: f64",
+        "type_info": {
+          "type": "Double",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 23
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "2bd30a908c7591638472b17cad1b644f326e9f8b058bfe4e01976b867b04f5f6"
+}

@@ -1,0 +1,60 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select required_agent_label, repo_id as \"repo_id!\", count(id) as \"count!: i64\" from t_scan where status = ? and repo_id is not null group by required_agent_label, repo_id order by required_agent_label, repo_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "required_agent_label",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "required_agent_label"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repo_id!",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "repo_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "fe327abbed937769b71a7145454cf46c6103fe896777db4e82259d86bffd06fe"
+}

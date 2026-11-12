@@ -1,0 +1,4 @@
+# The routes of `notifications` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 2
+GET /api/v1/notifications/channels
+POST /api/v1/notifications/test/{channelType}

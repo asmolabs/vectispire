@@ -1,0 +1,4 @@
+# The module `threatintel` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "issues", "issues::queries", "scanning", "targets"]
+reason = "`issues` and `issues::queries`: the feed re-evaluates the backlog's exploitation and the EPSS ranking reads the open issues. `scanning`: enrichment and end of life are `ScanIngestor.Enricher` and `EndOfLifeSource`, ports `scanning` declares. `targets`: the ranking names each issue's target. `access` for its routes only. `access::security` for its routes."

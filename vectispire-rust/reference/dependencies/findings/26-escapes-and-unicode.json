@@ -1,0 +1,1 @@
+[{"identifier":"CVE-2026-0007","severity":"UNKNOWN","packageName":"@scope/pké","installedVersion":"1.0.0-ré","fixVersions":"","description":"ctl\u0001\u001F tab\there nl\n cr\r q\" bs\\ sl/ ls  é 😀 raw-é-😀","referenceUrl":"https://example.org/a?b=1&c=<d>","purl":"pkg:npm/%40scope/pk%C3%A9@1.0.0?arch=x86_64&distro=alpine-3.12#sub/path"}]

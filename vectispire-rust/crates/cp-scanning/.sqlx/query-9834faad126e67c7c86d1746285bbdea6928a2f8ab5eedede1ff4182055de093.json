@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_scan set lease_expires_at = ? where id = ? and status = ? and claimed_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "9834faad126e67c7c86d1746285bbdea6928a2f8ab5eedede1ff4182055de093"
+}

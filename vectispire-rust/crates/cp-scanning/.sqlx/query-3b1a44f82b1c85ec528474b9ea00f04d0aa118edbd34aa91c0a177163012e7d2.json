@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_leader_lease (name, holder, acquired_at, expires_at, updated_at) values (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "3b1a44f82b1c85ec528474b9ea00f04d0aa118edbd34aa91c0a177163012e7d2"
+}

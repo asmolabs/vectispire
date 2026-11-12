@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_rate_window where window_key like $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "28771b47f696c1ad041e45e0998bf1b9a794aa10d3f3e3908bba61109a07b9fa"
+}

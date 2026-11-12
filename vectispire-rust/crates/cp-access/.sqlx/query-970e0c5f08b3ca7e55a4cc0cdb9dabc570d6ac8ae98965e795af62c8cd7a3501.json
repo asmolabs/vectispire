@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, username from t_user order by id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "username"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "970e0c5f08b3ca7e55a4cc0cdb9dabc570d6ac8ae98965e795af62c8cd7a3501"
+}

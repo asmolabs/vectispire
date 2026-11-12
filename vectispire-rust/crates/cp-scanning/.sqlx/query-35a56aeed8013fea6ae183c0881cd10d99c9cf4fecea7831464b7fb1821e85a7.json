@@ -1,0 +1,43 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select required_agent_label as \"label!\", count(id) as \"count!: i64\" from t_scan where status = ? and required_agent_label is not null group by required_agent_label order by required_agent_label",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "required_agent_label"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "35a56aeed8013fea6ae183c0881cd10d99c9cf4fecea7831464b7fb1821e85a7"
+}

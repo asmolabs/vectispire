@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_api_key set last_used_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "16e7ab6600ab8909770f1273a610ca34a79ce7ab2f2562c70d6d0661e62a93e2"
+}

@@ -1,0 +1,1 @@
+{"results": {"failed_checks": [{"check_id": "FIRST", "check_id": "SECOND", "file_path": "/a.tf", "file_path": "/b.tf"}]}, "results": {"failed_checks": [{"check_id": "THIRD"}]}}

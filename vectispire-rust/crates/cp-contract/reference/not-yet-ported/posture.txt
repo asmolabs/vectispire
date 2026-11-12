@@ -1,0 +1,20 @@
+# The routes of `posture` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 18
+DELETE /api/v1/scorecards/repositories/{repoId}/badge
+GET /api/v1/attack-paths/overview
+GET /api/v1/attack-paths/repositories/{repoId}
+GET /api/v1/dashboard
+GET /api/v1/dashboard/posture-analytics
+GET /api/v1/dashboard/trends
+GET /api/v1/quality/overview
+GET /api/v1/remediation/coverage
+GET /api/v1/remediation/debt
+GET /api/v1/remediation/distribution
+GET /api/v1/remediation/high-impact-fixes
+GET /api/v1/scorecards/badges/{token}.svg
+GET /api/v1/scorecards/containers/{containerId}
+GET /api/v1/scorecards/global
+GET /api/v1/scorecards/repositories/{repoId}
+GET /api/v1/scorecards/repositories/{repoId}/badge
+GET /api/v1/scorecards/simulation
+POST /api/v1/scorecards/repositories/{repoId}/badge

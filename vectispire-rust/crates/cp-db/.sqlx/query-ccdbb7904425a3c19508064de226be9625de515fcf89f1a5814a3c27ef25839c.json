@@ -1,0 +1,65 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select cve_id, score, percentile from t_epss_score where generation = ? and cve_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cve_id",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | PRIMARY_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 128
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_epss_score",
+            "name": "cve_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "score",
+        "type_info": {
+          "type": "Double",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 22
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_epss_score",
+            "name": "score"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "percentile",
+        "type_info": {
+          "type": "Double",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 22
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_epss_score",
+            "name": "percentile"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ccdbb7904425a3c19508064de226be9625de515fcf89f1a5814a3c27ef25839c"
+}
