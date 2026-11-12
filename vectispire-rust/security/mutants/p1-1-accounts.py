@@ -25,7 +25,7 @@ M = [
     ("reset keeps the keys", S + "accounts.rs", "let revoked = self.store.save_revoking_everything(&user).await?;", "let revoked = { self.store.save(&user, true).await?; Vec::new() };", UNIT),
     ("lift keeps the password", S + "accounts.rs", "user.password = Some(PasswordHash::new(passwords::hash_of_nothing_anybody_knows()));", "user.password = user.password.clone();", UNIT),
     ("lift keeps the sessions", S + "accounts.rs", "self.store.save(&user, true).await?;", "self.store.save(&user, false).await?;", UNIT),
-    ("right proof not cleared", S + "accounts.rs", "attempts.clear(user.id).await?;", "", UNIT),
+    ("right proof not cleared", S + "accounts.rs", "attempts.clear(user.id, ip_address).await?;", "", UNIT),
     ("same password accepted", S + "accounts.rs", "if Some(new_password) == current_password {", "if false {", UNIT),
     ("ill-formed names looked up", S + "accounts.rs", "Some(name) if account_rules::is_well_formed_username(Some(name)) => {", "Some(name) => {", UNIT),
     ("no rehash", S + "accounts.rs", "if passwords::needs_rehash(user.password.as_ref().map(PasswordHash::encoded)) {", "if false {", UNIT),

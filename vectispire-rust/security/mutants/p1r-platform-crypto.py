@@ -37,7 +37,7 @@ MUTANTS = [
     ("no adoption", SI, ".filter(|k| self.adopted.contains(&k.key_id) && !present.contains(k.key_id.as_str()))", ".filter(|_| false)", TR),
     ("the record never re-sealed", SI, "        if record.state() != SecretState::PreviousKey {\n            return Ok(());", "        if true {\n            return Ok(());", TR),
     ("the private key never re-sealed", SI, "        if secret.state() == SecretState::PreviousKey {\n            let resealed", "        if false {\n            let resealed", TR),
-    ("a revoked generated key starts", SI, "        if !keys.configured && !keys.revoked.is_empty() {", "        if false {", TR),
+    ("a revoked generated key starts", SI, "        if !self.configured && !self.revoked.is_empty() {", "        if false {", TR),
 ]
 
 if __name__ == "__main__":

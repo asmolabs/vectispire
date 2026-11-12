@@ -40,7 +40,9 @@ MUTANTS = [
     ("kept is never told", Q, "                kept = true;\n", "", PG),
     ("the walk stops at the first page", Q, "            if rows.len() < PAGE {\n                break;\n            }", "            if rows.len() <= PAGE {\n                break;\n            }", PG),
     ("the next page restarts at the first", Q, "            after = rows.last().map(|last| (last.created_at, last.id));", "            after = None;", PG),
-    ("the exclusion is never asked", Q, "            let excluded = if repositories.is_empty() {", "            let excluded = if true {", PG),
+    # MySQL first (1.0 is MySQL only): `on_postgresql` alone returns at once under VECTISPIRE_TEST_ENGINES=mysql, and
+    # the mutant then survives by the suite not running.
+    ("the exclusion is never asked", Q, "            let excluded = if repositories.is_empty() || exclusion.excludes_nothing() {", "            let excluded = if true {", [MY, PG]),
     # ── attempts ──
     ("another worker's report is applied", Q, "scan.status == SCANNING && scan.claimed_by.as_deref() == Some(worker) && scan.attempts == attempt", "scan.status == SCANNING && scan.attempts == attempt", PG),
     ("a retried scan is failed", Q, "        let to = if abandoned.retried() { PENDING } else { FAILED };", "        let to = FAILED;", PG),

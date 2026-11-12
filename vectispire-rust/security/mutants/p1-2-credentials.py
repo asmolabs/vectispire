@@ -11,7 +11,9 @@ TESTS = ["-p", "vectispire-cp-access", "--lib", "--test", "reference_set", "--te
 
 M = [
     ("hash of the token", "sessions.rs", "hex(&Sha256::digest(presented.as_bytes()))", "hex(&Sha256::digest(presented.trim().as_bytes()))"),
-    ("scheme case ignored", "sessions.rs", 'java_trim(header?).strip_prefix("Bearer ")?', 'java_trim(header?).strip_prefix("Bearer ").or_else(|| java_trim(header?).strip_prefix("bearer "))?'),
+    # Java 1.0 reads the scheme in any ASCII case (`^bearer\s+` with CASE_INSENSITIVE): the guard is now the
+    # case folding, and the mutant matches `Bearer` exactly, as before 1.0.
+    ("scheme case observed", "sessions.rs", 'if !scheme.eq_ignore_ascii_case("bearer") {', 'if scheme != "Bearer" {'),
     ("whitespace in a session token", "sessions.rs", "!token.is_empty() && !token.chars().any(is_java_regex_space)", "!token.is_empty()"),
     ("absolute lifetime off by its edge", "sessions.rs", "if now >= plus(created_at, policy.absolute_lifetime) {", "if now > plus(created_at, policy.absolute_lifetime) {"),
     ("idle window ignored", "sessions.rs", "if now >= plus(last_seen_at, policy.idle_lifetime) {", "if false && now >= plus(last_seen_at, policy.idle_lifetime) {"),

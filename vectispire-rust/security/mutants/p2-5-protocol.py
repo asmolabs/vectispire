@@ -123,9 +123,11 @@ MUTANTS = [
     ("microseconds written as nanoseconds", V, "        } else if nano.is_multiple_of(1_000) {", "        } else if false {", T),
     ("a whole second with a fraction", V, "    if nano > 0 {", "    if nano >= 0 {", T),
     ("before the epoch read forwards", V, "let second_of_day = instant.epoch_second.rem_euclid(Instant::SECONDS_PER_DAY);", "let second_of_day = instant.epoch_second % Instant::SECONDS_PER_DAY;", T),
-    ("the contract untrimmed", V, "announced.is_some_and(|announced| java::trim(announced) == contract::VERSION)", "announced.is_some_and(|announced| announced == contract::VERSION)", T),
-    ("the contract trimmed as Rust trims", V, "announced.is_some_and(|announced| java::trim(announced) == contract::VERSION)", "announced.is_some_and(|announced| announced.trim() == contract::VERSION)", T),
-    ("an empty contract named as sent", V, 'let announced = announced.filter(|announced| !announced.is_empty()).unwrap_or("unknown");', 'let announced = announced.unwrap_or("unknown");', T),
+    # The contract became a range (`domain::contract`, `AgentContract` of Java 1.0): the number is trimmed where it is
+    # parsed, in the domain crate, and the protocol's tests still ask it through `contract_is_compatible`.
+    ("the contract untrimmed", "crates/domain/src/contract.rs", "let trimmed = java::trim(announced?);", "let trimmed = announced?;", T),
+    ("the contract trimmed as Rust trims", "crates/domain/src/contract.rs", "let trimmed = java::trim(announced?);", "let trimmed = announced?.trim();", T),
+    ("an empty contract named as sent", V, 'let named = announced.filter(|announced| !announced.is_empty()).unwrap_or("unknown");', 'let named = announced.unwrap_or("unknown");', T),
     ("a failure report's attempt 0 accepted", V, "let attempt = attempt.filter(|&attempt| attempt >= 1).ok_or_else(unreadable)?;", "let attempt = attempt.filter(|&attempt| attempt >= 0).ok_or_else(unreadable)?;", T),
     ("a failure kind in its case", V, 'Some(value) if java::to_lower_root(java::trim(value)) == "permanent" => FailureKind::Permanent,', 'Some(value) if value == "permanent" => FailureKind::Permanent,', T),
     ("the hello read by Jackson 2", V, "        let document = jackson::prepare(body, jackson::SPRING_MVC)?;\n        let text = std::str::from_utf8(&document).map_err(|error| Refused(error.to_string()))?;\n        let Some(m) = coerce::root(text, \"HelloRequest\")?", "        let document = jackson::prepare(body, jackson::CONTROL_PLANE)?;\n        let text = std::str::from_utf8(&document).map_err(|error| Refused(error.to_string()))?;\n        let Some(m) = coerce::root(text, \"HelloRequest\")?", T),

@@ -27,8 +27,8 @@ MUTANTS = [
     ("an array read as text", CR, "            Some(_) => Err(Problem::handler(StatusCode::BAD_REQUEST, UNREADABLE)),\n        };", "            Some(other) => Ok(Some(other.to_string())),\n        };", LIB),
     ("a null body refused", CR, "            Value::Null => return Ok(VerifyRequest::default()),", "            Value::Null => return Err(Problem::handler(StatusCode::BAD_REQUEST, UNREADABLE)),", LIB),
     ("a pasted key is a 500", CR, "        SigningError::InvalidPublicKey => bad_request(SigningError::InvalidPublicKey.to_string()),\n", "", LIB),
-    ("no encryption key is a 500", CR, "        SigningError::MissingKey => {\n            Problem::handler(StatusCode::PRECONDITION_FAILED, SigningError::MissingKey.to_string()).into_response()\n        }\n", "", LIB),
-    ("key not a named download", CR, "        HeaderValue::from_static(\"attachment; filename=\\\"vectispire-signing-key.pub\\\"\"),", "        HeaderValue::from_static(\"inline\"),", LIB),
+    ("no encryption key is a 500", CR, "        SigningError::MissingKey => {\n            Problem::handler(StatusCode::PRECONDITION_FAILED, SigningError::MissingKey.to_string())\n                .code(\"encryption-key-missing\")\n                .into_response()\n        }\n", "", LIB),
+    ("key not a named download", CR, 'HeaderValue::from_str(&format!("attachment; filename=\\"{filename}\\""))', 'HeaderValue::from_str(&format!("inline; filename=\\"{filename}\\""))', LIB),
     ("cosign looks up the log", CR, "    cosign_verify_manifest: \"cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \\", "    cosign_verify_manifest: \"cosign verify-blob --key vectispire-signing-key.pub \\", LIB),
     # ---- query parameters ----
     ("blank is the default", RD, "    if first.is_empty() {\n        return Ok(default);", "    if first.trim().is_empty() {\n        return Ok(default);", LIB),
