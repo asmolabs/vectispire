@@ -146,5 +146,6 @@ fn to_claiming_agent(agent: &AuthenticatedAgent) -> ClaimingAgent {
         signing_public_key: agent.signing_public_key.clone(),
         labels: agent.labels.clone(),
         max_concurrent: agent.max_concurrent.map(i64::from),
+        executors: agent.executors.clone(),
     }
 }

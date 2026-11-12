@@ -71,6 +71,10 @@ pub enum Sequence {
     CredentialedBacklog,
     /// On the scheduler's minute too: the report runs no executor holds or will claim.
     ReportRunSweep,
+    /// The queue's gauges, read on the scheduler's minute so that a scrape never queries (Java 1.0).
+    ScanMetrics,
+    /// The agents' gauges, on the same minute and for the same reason (Java 1.0).
+    AgentMetrics,
     ScanRetention,
     SentMessages,
     TicketSweep,
@@ -117,11 +121,13 @@ const fn slot(java: &'static str, order: u32, module: &'static str, task: &'stat
 
 impl Sequence {
     /// Every slot, in its order.
-    pub const ALL: [Sequence; 28] = [
+    pub const ALL: [Sequence; 30] = [
         Sequence::NotificationRelay,
         Sequence::SchedulingTick,
         Sequence::CredentialedBacklog,
         Sequence::ReportRunSweep,
+        Sequence::ScanMetrics,
+        Sequence::AgentMetrics,
         Sequence::ScanRetention,
         Sequence::SentMessages,
         Sequence::TicketSweep,
@@ -157,6 +163,8 @@ impl Sequence {
                 slot("CREDENTIALED_BACKLOG", 30, "agents", "CredentialedBacklogTask", Scheduling)
             }
             Sequence::ReportRunSweep => slot("REPORT_RUN_SWEEP", 40, "reportplugins", "ReportRunSweepTask", Scheduling),
+            Sequence::ScanMetrics => slot("SCAN_METRICS", 50, "scanning", "ScanMetricsTask", Scheduling),
+            Sequence::AgentMetrics => slot("AGENT_METRICS", 60, "agents", "AgentMetricsTask", Scheduling),
             Sequence::ScanRetention => slot("SCAN_RETENTION", 100, "scanning", "ScanRetentionTask", Hourly),
             Sequence::SentMessages => slot("SENT_MESSAGES", 200, "outbox", "SentMessagesTask", Hourly),
             Sequence::TicketSweep => slot("TICKET_SWEEP", 300, "tickets", "TicketSweepTask", Hourly),

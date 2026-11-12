@@ -120,15 +120,29 @@ async fn the_hourly_turn_neither_relays_nor_schedules_and_the_others_are_their_o
     let (turns, log) = composition(&[]);
     turns.turn(Cadence::Hourly).await;
     let hourly = taken(&log);
-    for other in
-        [Sequence::NotificationRelay, Sequence::SchedulingTick, Sequence::CredentialedBacklog, Sequence::ReportRunSweep]
-    {
+    for other in [
+        Sequence::NotificationRelay,
+        Sequence::SchedulingTick,
+        Sequence::CredentialedBacklog,
+        Sequence::ReportRunSweep,
+        Sequence::ScanMetrics,
+        Sequence::AgentMetrics,
+    ] {
         assert!(!hourly.contains(&other), "{other:?} ran on the hourly turn");
     }
     turns.turn(Cadence::Relay).await;
     assert_eq!(taken(&log), [Sequence::NotificationRelay]);
     turns.turn(Cadence::Scheduling).await;
-    assert_eq!(taken(&log), [Sequence::SchedulingTick, Sequence::CredentialedBacklog, Sequence::ReportRunSweep]);
+    assert_eq!(
+        taken(&log),
+        [
+            Sequence::SchedulingTick,
+            Sequence::CredentialedBacklog,
+            Sequence::ReportRunSweep,
+            Sequence::ScanMetrics,
+            Sequence::AgentMetrics
+        ]
+    );
     assert_eq!(turns.of(Cadence::Relay), [Sequence::NotificationRelay]);
     assert_eq!(turns.composition(), Sequence::ALL.to_vec(), "the composition, in the global order");
 }

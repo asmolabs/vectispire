@@ -21,7 +21,10 @@ fn the_embedded_document_is_the_one_the_port_targets() {
         document.operation("GET", "/api/v1/projects/{projectId}/checklists/contacts").is_some(),
         "the 0.11.1 contacts route"
     );
-    assert!(document.operation("PUT", "/api/v1/agent/executors").is_some(), "a 1.0.0-rc.2 route: the agent's executors");
+    assert!(
+        document.operation("PUT", "/api/v1/agent/executors").is_some(),
+        "a 1.0.0-rc.2 route: the agent's executors"
+    );
 }
 
 #[test]

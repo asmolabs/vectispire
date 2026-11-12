@@ -17,6 +17,11 @@ pub struct HeartbeatData<'a> {
     pub scanner_engine: Option<&'a str>,
     pub capabilities: Option<&'a str>,
     pub contract_version: Option<&'a str>,
+    /// `WorkerExecutors`' stored form, written **whatever the hello carried — null included**: an agent replaced by an
+    /// older one that announces none must claim as an unknown again, not under the state its predecessor left.
+    pub executors: Option<String>,
+    /// `at` when the hello carried executors, `None` when it did not.
+    pub executors_reported_at: Option<OffsetDateTime>,
 }
 
 /// A row of `t_agent`.
@@ -42,6 +47,11 @@ pub struct AgentRow {
     pub signing_public_key: Option<String>,
     pub last_seen_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
+    /// What the agent's executors can run, as it last said — `WorkerExecutors`' stored form; `None` when it never
+    /// said. Written by the hello and `record_executors` alone, never by `insert` or `update`: an administrator's
+    /// change saved after a report must not put the old state back (Java's `updatable = false`).
+    pub executors: Option<String>,
+    pub executors_reported_at: Option<OffsetDateTime>,
 }
 
 macro_rules! parse_agent_row {
@@ -78,6 +88,8 @@ macro_rules! parse_agent_row {
             signing_public_key: $row.get("signing_public_key"),
             last_seen_at: $row.get("last_seen_at"),
             created_at: $row.get("created_at"),
+            executors: $row.get("executors"),
+            executors_reported_at: $row.get("executors_reported_at"),
         }
     }};
 }
@@ -89,7 +101,8 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreErro
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where id = ?",
             )
             .bind(&id_str)
@@ -101,7 +114,8 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreErro
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where id = $1",
             )
             .bind(&id_str)
@@ -118,7 +132,8 @@ pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, Store
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where name = ?",
             )
             .bind(name)
@@ -130,7 +145,8 @@ pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, Store
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where name = $1",
             )
             .bind(name)
@@ -148,7 +164,8 @@ pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<Agen
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where api_key_id = ?",
             )
             .bind(&key_str)
@@ -160,7 +177,8 @@ pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<Agen
             let row = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where api_key_id = $1",
             )
             .bind(&key_str)
@@ -177,7 +195,8 @@ pub async fn find_all_ordered(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
             let list = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent order by name asc, id asc",
             )
             .fetch_all(pool)
@@ -188,7 +207,8 @@ pub async fn find_all_ordered(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
             let list = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent order by name asc, id asc",
             )
             .fetch_all(pool)
@@ -204,7 +224,8 @@ pub async fn find_enabled(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
             let list = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where enabled = 1",
             )
             .fetch_all(pool)
@@ -215,7 +236,8 @@ pub async fn find_enabled(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
             let list = sqlx::query(
                 "select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent, \
                  api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version, \
-                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at \
+                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, \
+                 executors, executors_reported_at \
                  from t_agent where enabled = true",
             )
             .fetch_all(pool)
@@ -415,7 +437,8 @@ pub async fn record_heartbeat(
             let sql = r#"
                 update t_agent
                    set last_seen_at = ?, hostname = ?, platform = ?, version = ?,
-                       scanner_engine = ?, capabilities = ?, contract_version = ?
+                       scanner_engine = ?, capabilities = ?, contract_version = ?,
+                       executors = ?, executors_reported_at = ?
                  where id = ?
             "#;
             sqlx::query(sql)
@@ -426,6 +449,8 @@ pub async fn record_heartbeat(
                 .bind(data.scanner_engine)
                 .bind(data.capabilities)
                 .bind(data.contract_version)
+                .bind(data.executors.as_deref())
+                .bind(data.executors_reported_at)
                 .bind(&id_str)
                 .execute(pool)
                 .await?
@@ -435,8 +460,9 @@ pub async fn record_heartbeat(
             let sql = r#"
                 update t_agent
                    set last_seen_at = $1, hostname = $2, platform = $3, version = $4,
-                       scanner_engine = $5, capabilities = $6, contract_version = $7
-                 where id = $8
+                       scanner_engine = $5, capabilities = $6, contract_version = $7,
+                       executors = $8, executors_reported_at = $9
+                 where id = $10
             "#;
             sqlx::query(sql)
                 .bind(at)
@@ -446,11 +472,42 @@ pub async fn record_heartbeat(
                 .bind(data.scanner_engine)
                 .bind(data.capabilities)
                 .bind(data.contract_version)
+                .bind(data.executors.as_deref())
+                .bind(data.executors_reported_at)
                 .bind(&id_str)
                 .execute(pool)
                 .await?
                 .rows_affected()
         }
+    };
+    Ok(rows > 0)
+}
+
+/// `recordExecutors`: what the agent's executors can run now, said after its hello because the answer changed — a
+/// sign of life too. A statement of its own, never a save of the row. `false` when the agent no longer exists.
+pub async fn record_executors(db: &Db, id: Uuid, executors: &str, at: OffsetDateTime) -> Result<bool, StoreError> {
+    let id_str = id.as_hyphenated().to_string();
+    let rows = match db {
+        Db::MySql(pool) => {
+            sqlx::query("update t_agent set executors = ?, executors_reported_at = ?, last_seen_at = ? where id = ?")
+                .bind(executors)
+                .bind(at)
+                .bind(at)
+                .bind(&id_str)
+                .execute(pool)
+                .await?
+                .rows_affected()
+        }
+        Db::PostgreSql(pool) => sqlx::query(
+            "update t_agent set executors = $1, executors_reported_at = $2, last_seen_at = $3 where id = $4",
+        )
+        .bind(executors)
+        .bind(at)
+        .bind(at)
+        .bind(&id_str)
+        .execute(pool)
+        .await?
+        .rows_affected(),
     };
     Ok(rows > 0)
 }

@@ -59,18 +59,21 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 
-- [ ] **Executors** (ADR 0045): `HelloRequest.executors` (optional, `null` when absent); `AgentView.executors`,
+- [x] **Executors** (ADR 0045): `HelloRequest.executors` (optional, `null` when absent); `AgentView.executors`,
       `executorsReportedAt`; `PUT /agent/executors` (`{executors:[…]}`, 400 when the list is missing; an older control
       plane answers 404, read by the agent as "not supported"); the claim limited to the target kinds the agent's
       available executors run, none claimed with none available. Red: `protocol --test server_wire_reference_set`.
-- [ ] **Contract refusal and acceptance**: the 409 now reads "… and Vectispire serves contract <served>. <remedy>"
+- [x] **Contract refusal and acceptance**: the 409 now reads "… and Vectispire serves contract <served>. <remedy>"
       (remedy for a newer agent: "Upgrade the control plane first, then its agents."); an accepted hello answers the
       contract spoken to that agent, not `CURRENT`. Red: `server_wire_reference_set`.
-- [ ] **`GET /admin/agents/built-in-worker`**: Rust's `GET /admin/agents/{id}` answers that path today — "built-in-worker"
+- [x] **`GET /admin/agents/built-in-worker`**: Rust's `GET /admin/agents/{id}` answers that path today — "built-in-worker"
       read as an agent id — so the route check calls it served. Register the literal route before the parameter one.
       Red: `cp-agents --test contract`.
-- [ ] The built-in worker checks its Docker daemon before claiming.
+- [x] The built-in worker checks its Docker daemon before claiming.
 - [ ] Maintenance: new tasks `SCAN_METRICS` (order 50) and `AGENT_METRICS` (60). Red: `cp-maintenance --test reference`.
+      Phase 1: the two slots are in `Sequence` (the reference is green) and both are listed in
+      `cp-maintenance/data/deferred.txt`: the gauges they refresh (`PlatformMetrics`, `AgentMetrics`) are not registered
+      in the Rust binary, so a task composed now would refresh what nothing reads. Open until the gauges are ported.
 
 ## Platform, crypto and integrations (`cp-platform`, `cp-crypto`, `cp-settings`)
 
@@ -120,10 +123,13 @@ causes rather than one by one. Counts are recordings.
       `status`, `instance`, `detail` where Rust answered differently.
 - [x] **`IssueView` no longer carries `reachability` and `reachableSymbols`** (Java 1.0 dropped the two, always UNKNOWN and
       null) — 58, on `POST /issues/triage` mostly; the columns stay.
-- [ ] **Agents**: `executors`, `executorsReportedAt` on the agent views — 33; `t_scan.examined_types` written by a
+- [x] **Agents**: `executors`, `executorsReportedAt` on the agent views — 33; `t_scan.examined_types` written by a
       result — 33; the outbox rows a result writes — 34; status differences on `GET /agent/jobs`,
       `POST /agent/sealing-key`, `PUT /admin/agents/{id}/signing-key`, `POST /agent/jobs/{id}/failure`,
       `POST /agent/hello` (the contract range) — about 60.
+      Phase 1, replayed on MySQL: the 349 recordings of `/agent/…` and `/admin/agents…` differ by the four headers
+      and the problem details' `code` alone (the two entries above); the last own difference, an image scan's
+      `branch` read as null in the activity, is fixed.
 - [ ] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
 - [ ] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly

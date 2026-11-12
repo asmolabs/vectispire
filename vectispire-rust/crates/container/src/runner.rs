@@ -82,7 +82,13 @@ impl ContainerRunner {
     /// Whether the daemon answers — asked before claiming a scan, so that an agent without Docker
     /// does not take work it cannot do.
     pub async fn is_available(&self) -> bool {
-        self.docker.ping().await.is_ok()
+        self.why_unavailable().await.is_none()
+    }
+
+    /// Why the daemon cannot run anything now, in its own words — `None` when it answers a ping. What a worker
+    /// announces as its executor's state (decision 0045), worded as the Java executor words it.
+    pub async fn why_unavailable(&self) -> Option<String> {
+        self.docker.ping().await.err().map(|error| format!("The Docker daemon did not answer a ping: {error}"))
     }
 
     async fn limits(&self) -> ScannerLimits {

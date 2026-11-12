@@ -9,6 +9,7 @@ use vectispire_cp_access::credentials::CredentialService;
 use vectispire_cp_audit::{AuditLog, AuditOperation, Record, RequestActor};
 use vectispire_cp_db::Db;
 use vectispire_cp_scanning::dispatcher::can_be_handed_credentials;
+use vectispire_cp_scanning::dispatcher::{ExecutorCheck, ScanDispatcher};
 use vectispire_cp_scanning::{ClaimingAgent, ScanCatalog};
 use vectispire_cp_targets::Targets;
 use vectispire_domain::agent_labels;
@@ -16,6 +17,7 @@ use vectispire_domain::bounded_text;
 use vectispire_domain::list_window::ListWindow;
 use vectispire_protocol::CredentialsMode;
 use vectispire_protocol::concurrency;
+use vectispire_protocol::executors::{Executor, ExecutorTarget, WorkerExecutors};
 
 use crate::error::AgentError;
 use crate::internal::backlog_task::{CredentialedBacklogProvider, Unserved};
@@ -50,6 +52,11 @@ pub struct AgentSummary {
     pub last_seen_at: Option<String>,
     pub online: bool,
     pub running_scans: i64,
+    /// What the agent's executors can run, as it last said — **`None` when it never said**, an agent older than the
+    /// announcement, which claims as it always did. An empty list is an agent with no executor.
+    pub executors: Option<Vec<Executor>>,
+    /// When it last said; `None` with `executors`.
+    pub executors_reported_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -121,6 +128,35 @@ pub struct PendingScan {
     pub wait_duration_seconds: i64,
     pub routable: bool,
     pub position_in_queue: i32,
+    /// Whether a worker that could take it now — online and enabled, or the built-in one when it runs — serves its
+    /// label and has an available executor running its kind of target. False is a scan waiting for an executor.
+    pub executor_available: bool,
+}
+
+/// The built-in worker as the agents screen shows it — it is not a row of the table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuiltInWorkerState {
+    /// Switched on by configuration, whether or not this control plane has a runner.
+    pub enabled: bool,
+    /// Switched on *and* able to run a scan here: the one case in which it claims anything.
+    pub runs_scans: bool,
+    /// What its executor said at its last round; empty before the first, and when it has none.
+    pub executors: Vec<Executor>,
+    /// When that was; `None` with no answer yet.
+    pub checked_at: Option<OffsetDateTime>,
+}
+
+/// A worker that could take a scan: the labels it serves, and the kinds of target its executors run now.
+struct Taker {
+    labels: HashSet<String>,
+    targets: BTreeSet<ExecutorTarget>,
+}
+
+impl Taker {
+    /// A scan that requires no label goes to anyone; one that does, to a worker carrying it.
+    fn serves(&self, required: Option<&str>) -> bool {
+        required.is_none_or(|label| label.trim().is_empty() || self.labels.contains(label))
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -151,6 +187,10 @@ pub struct AgentAdministrationService {
     audit: Arc<AuditLog>,
     worker_labels: Vec<String>,
     worker_runs: bool,
+    /// The built-in worker switched on by configuration — what its screen says, beside whether it runs.
+    worker_enabled: bool,
+    /// Where the built-in worker's last executor check is read; `None` with no worker composed.
+    dispatcher: Option<Arc<ScanDispatcher>>,
 }
 
 impl std::fmt::Debug for AgentAdministrationService {
@@ -169,7 +209,53 @@ impl AgentAdministrationService {
         worker_labels: Vec<String>,
         worker_runs: bool,
     ) -> Self {
-        Self { db, credentials, scans, targets, audit, worker_labels, worker_runs }
+        Self {
+            db,
+            credentials,
+            scans,
+            targets,
+            audit,
+            worker_labels,
+            worker_runs,
+            worker_enabled: worker_runs,
+            dispatcher: None,
+        }
+    }
+
+    /// The built-in worker's configuration switch, and the dispatcher whose round asks its executor — read by
+    /// `GET /admin/agents/built-in-worker` and by the activity's `executorAvailable`. Without it the worker reads as
+    /// switched on exactly when it runs, and as never having asked its executor.
+    #[must_use]
+    pub fn with_built_in_worker(mut self, enabled: bool, dispatcher: Arc<ScanDispatcher>) -> Self {
+        self.worker_enabled = enabled;
+        self.dispatcher = Some(dispatcher);
+        self
+    }
+
+    /// `builtInWorker`: whether it runs, and what its executor answered at its last round — so a scan waiting on it
+    /// says why. A worker whose daemon stopped answering claims nothing, by design.
+    pub fn built_in_worker(&self) -> BuiltInWorkerState {
+        let check = self.built_in_check();
+        BuiltInWorkerState {
+            enabled: self.worker_enabled,
+            runs_scans: self.worker_runs,
+            checked_at: check.as_ref().map(|check| check.checked_at),
+            executors: check.map(|check| check.executors.executors).unwrap_or_default(),
+        }
+    }
+
+    fn built_in_check(&self) -> Option<ExecutorCheck> {
+        self.dispatcher.as_ref().and_then(|dispatcher| dispatcher.built_in_executors())
+    }
+
+    /// `BuiltInWorker.claimable`: none when it does not run, every kind before its first round has asked — as for an
+    /// agent that never said — and otherwise what its executor answered.
+    fn built_in_claimable(&self) -> BTreeSet<ExecutorTarget> {
+        if !self.worker_runs {
+            return BTreeSet::new();
+        }
+        let check = self.built_in_check();
+        WorkerExecutors::claimable_of(check.as_ref().map(|check| &check.executors))
     }
 
     pub async fn list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<AgentSummary>, AgentError> {
@@ -186,6 +272,10 @@ impl AgentAdministrationService {
                 let online = is_online(&agent, as_of);
                 let running_count = running.get(&agent.id.to_string()).copied().unwrap_or(0);
                 let eff_max = concurrency::effective(agent.max_concurrent.map(i64::from));
+                // Read back as stored; an unreadable column reads as never said, as the claim reads it.
+                let executors = WorkerExecutors::read(agent.executors.as_deref());
+                let executors_reported_at =
+                    executors.as_ref().and(agent.executors_reported_at).map(vectispire_cp_audit::iso_instant);
                 AgentSummary {
                     id: agent.id,
                     name: agent.name,
@@ -204,6 +294,8 @@ impl AgentAdministrationService {
                     last_seen_at: agent.last_seen_at.map(vectispire_cp_audit::iso_instant),
                     online,
                     running_scans: running_count,
+                    executors: executors.map(|said| said.executors),
+                    executors_reported_at,
                 }
             })
             .collect())
@@ -260,6 +352,8 @@ impl AgentAdministrationService {
             signing_public_key: None,
             last_seen_at: None,
             created_at: now,
+            executors: None,
+            executors_reported_at: None,
         };
 
         let mut tx = crate::persistence::write(&self.db).await.map_err(AgentError::from)?;
@@ -484,20 +578,30 @@ impl AgentAdministrationService {
         let mut agent_names = HashMap::new();
         let mut active_agent_labels = HashSet::new();
         let mut online_count: i32 = 0;
+        // Every worker that could take a scan now, with the labels it serves and the kinds of target its executors
+        // run: a pending scan none of them can run waits for an executor, which is the reason the screen has to give.
+        let mut takers = Vec::new();
 
         for a in &all_agents {
             agent_names.insert(a.id.to_string(), a.name.clone());
             if is_online(a, as_of) {
                 online_count = online_count.saturating_add(1);
                 if a.enabled {
-                    for label in agent_labels::parse(a.labels.as_deref()) {
-                        active_agent_labels.insert(label);
-                    }
+                    let labels: HashSet<String> = agent_labels::parse(a.labels.as_deref()).into_iter().collect();
+                    active_agent_labels.extend(labels.iter().cloned());
+                    let said = WorkerExecutors::read(a.executors.as_deref());
+                    takers.push(Taker { labels, targets: WorkerExecutors::claimable_of(said.as_ref()) });
                 }
             }
         }
         for l in &self.worker_labels {
             active_agent_labels.insert(l.clone());
+        }
+        if self.worker_runs {
+            takers.push(Taker {
+                labels: self.worker_labels.iter().cloned().collect(),
+                targets: self.built_in_claimable(),
+            });
         }
 
         let mut repo_names = HashMap::new();
@@ -539,7 +643,8 @@ impl AgentAdministrationService {
                 ("unknown".to_owned(), 0, "Unknown Target".to_owned())
             };
 
-            let branch = if scan.branch.is_empty() { None } else { Some(scan.branch.clone()) };
+            // As stored, empty included: Java answers `scan.branch()`, and an image scan's is "", not null.
+            let branch = Some(scan.branch.clone());
 
             if scan.status == "scanning" {
                 let agent_id = scan.claimed_by.clone();
@@ -580,6 +685,10 @@ impl AgentAdministrationService {
 
                 #[allow(clippy::arithmetic_side_effects)]
                 let wait_sec = (as_of - scan.created_at).whole_seconds().max(0);
+                let kind = if scan.repo_id.is_some() { ExecutorTarget::Repository } else { ExecutorTarget::Container };
+                let executor_available = takers
+                    .iter()
+                    .any(|taker| taker.serves(scan.required_agent_label.as_deref()) && taker.targets.contains(&kind));
 
                 pending_items.push(PendingScan {
                     scan_id: scan.id,
@@ -592,6 +701,7 @@ impl AgentAdministrationService {
                     wait_duration_seconds: wait_sec,
                     routable: is_routable,
                     position_in_queue: pending_pos,
+                    executor_available,
                 });
                 pending_pos = pending_pos.saturating_add(1);
             }
@@ -773,6 +883,7 @@ fn can_be_handed(agent: &AgentRow) -> bool {
         signing_public_key: agent.signing_public_key.clone(),
         labels: agent.labels.clone(),
         max_concurrent: agent.max_concurrent.map(i64::from),
+        executors: WorkerExecutors::read(agent.executors.as_deref()),
     };
     can_be_handed_credentials(&ca)
 }

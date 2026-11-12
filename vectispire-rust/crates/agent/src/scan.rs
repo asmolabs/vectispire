@@ -72,6 +72,14 @@ impl Execute for ScanRunner {
     ) -> impl std::future::Future<Output = Result<vectispire_protocol::ScanArtifacts, ExecutionFailure>> + Send {
         self.run(task)
     }
+
+    fn why_unavailable(&self) -> impl std::future::Future<Output = Option<String>> + Send {
+        self.inner.why_unavailable()
+    }
+
+    fn exports_images(&self) -> bool {
+        self.inner.exports_images()
+    }
 }
 
 #[cfg(test)]

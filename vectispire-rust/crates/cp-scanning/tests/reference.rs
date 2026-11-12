@@ -349,6 +349,7 @@ impl DispatchQueue for FakeQueue {
         limit: i64,
         _labels: &'a [String],
         exclusion: &'a dyn Exclusion,
+        _targets: &'a std::collections::BTreeSet<vectispire_protocol::executors::ExecutorTarget>,
     ) -> BoxFuture<'a, Result<AgentClaim, PortError>> {
         Box::pin(async move {
             assert_eq!(limit, 2, "the agent's limit as the queue applies it");
@@ -638,6 +639,7 @@ async fn claim(case: &Case) -> Value {
         credentials_mode: Some(case.mode.to_owned()),
         sealing_public_key: case.sealing_key.then(|| recipient.public_key()),
         signing_public_key: case.signing_key.then(|| "MCowBQYDK2VwAyEAinvented".to_owned()),
+        executors: None,
     };
     let mut answer = serde_json::Map::new();
     answer.insert("case".into(), json!(case.name));

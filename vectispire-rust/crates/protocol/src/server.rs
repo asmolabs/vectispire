@@ -11,6 +11,7 @@
 //! Where the body is answered from is the route's (task 2.9); what it says is here.
 
 use crate::coerce;
+use crate::executors::{self, Executor};
 use crate::jackson::{self, Refused};
 use crate::received::Unreadable;
 use crate::wire::AssignedTask;
@@ -61,11 +62,17 @@ impl AssignedTask {
     }
 }
 
-/// Whether the hello's contract number is this control plane's: `AgentContract.isCompatible`, the
-/// number trimmed as `String.trim` trims (control characters too, not a no-break space) and compared
-/// for strict equality — `01` and `1.0` are other contracts.
+/// Whether the hello's contract number is one this control plane serves: `AgentContract.isCompatible`, the
+/// number trimmed as `String.trim` trims (control characters too, not a no-break space) and held to the range
+/// `OLDEST_SERVED` to `CURRENT` — `01` and `1.0` are no contract numbers at all.
 pub fn contract_is_compatible(announced: Option<&str>) -> bool {
-    announced.is_some_and(|announced| java::trim(announced) == contract::VERSION)
+    contract::is_compatible(announced)
+}
+
+/// The contract an accepted hello answers: **the agent's own**, trimmed as it was compared — not `CURRENT`, which an
+/// agent of the previous contract never spoke and would log as the one it was spoken to.
+pub fn contract_spoken(announced: Option<&str>) -> String {
+    java::trim(announced.unwrap_or("")).to_owned()
 }
 
 /// The hello's answer — `AgentsController.HelloResponse`.
@@ -74,20 +81,32 @@ pub fn contract_is_compatible(announced: Option<&str>) -> bool {
 pub struct HelloAnswer {
     pub id: Option<Uuid>,
     pub name: Option<String>,
-    /// Always this control plane's number, [`contract::VERSION`].
-    pub contract_version: &'static str,
+    /// The contract this control plane speaks to this agent: its own once it is in the range ([`contract_spoken`]).
+    pub contract_version: String,
     pub max_concurrent: i32,
     pub credentials_mode: Option<String>,
 }
 
 impl HelloAnswer {
+    /// The answer to an agent speaking this build's own contract, [`contract::VERSION`].
     pub fn new(
         id: Option<Uuid>,
         name: Option<String>,
         max_concurrent: i32,
         credentials_mode: Option<String>,
     ) -> HelloAnswer {
-        HelloAnswer { id, name, contract_version: contract::VERSION, max_concurrent, credentials_mode }
+        HelloAnswer::speaking(contract::VERSION.to_owned(), id, name, max_concurrent, credentials_mode)
+    }
+
+    /// The answer speaking `contract` — the agent's own, [`contract_spoken`].
+    pub fn speaking(
+        contract: String,
+        id: Option<Uuid>,
+        name: Option<String>,
+        max_concurrent: i32,
+        credentials_mode: Option<String>,
+    ) -> HelloAnswer {
+        HelloAnswer { id, name, contract_version: contract, max_concurrent, credentials_mode }
     }
 
     pub fn to_body(&self) -> Result<String, serde_json::Error> {
@@ -195,6 +214,9 @@ pub struct HelloRequest {
     pub version: Option<String>,
     pub scanner_engine: Option<String>,
     pub capabilities: Option<String>,
+    /// What the agent's executors can run, as it probed them before announcing itself. **Optional**: an agent older
+    /// than the field sends none and claims exactly as before — absent is "unknown", never "nothing available".
+    pub executors: Option<Vec<Executor>>,
 }
 
 impl HelloRequest {
@@ -213,7 +235,25 @@ impl HelloRequest {
             version: field("version")?,
             scanner_engine: field("scanner_engine")?,
             capabilities: field("capabilities")?,
+            executors: coerce::last(&m, "executors", executors::read_list)?.flatten(),
         }))
+    }
+}
+
+/// `PUT /agent/executors`'s body — `AgentsController.ExecutorsReport`: what the agent's executors can run now.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ExecutorsReport {
+    /// `None` when the report names no list, which the route refuses: an agent with no executor sends an empty one.
+    pub executors: Option<Vec<Executor>>,
+}
+
+impl ExecutorsReport {
+    /// `Ok(None)` for the JSON `null`, which Spring MVC refuses as a missing required body.
+    pub fn read(body: &[u8]) -> Result<Option<ExecutorsReport>, Refused> {
+        let document = jackson::prepare(body, jackson::SPRING_MVC)?;
+        let text = std::str::from_utf8(&document).map_err(|error| Refused(error.to_string()))?;
+        let Some(m) = coerce::root(text, "ExecutorsReport")? else { return Ok(None) };
+        Ok(Some(ExecutorsReport { executors: coerce::last(&m, "executors", executors::read_list)?.flatten() }))
     }
 }
 
@@ -301,16 +341,23 @@ pub mod refusals {
     }
 
     /// 409 and not 400: the request is well formed, the two sides disagree about the protocol, and the fix
-    /// is a deployment. A missing number is named `unknown`; anything else as sent, untrimmed.
+    /// is a deployment — which one the remedy says: a newer agent waits for its control plane, an older one is
+    /// updated. A missing number is named `unknown`; anything else as sent, untrimmed.
     pub fn incompatible_contract(announced: Option<&str>) -> RouteRefusal {
-        let announced = announced.filter(|announced| !announced.is_empty()).unwrap_or("unknown");
+        let named = announced.filter(|announced| !announced.is_empty()).unwrap_or("unknown");
         refusal(
             409,
             format!(
-                "This agent speaks contract \"{announced}\" and Vectispire speaks \"{}\". Update the agent.",
-                contract::VERSION
+                "This agent speaks contract \"{named}\" and Vectispire serves contract {}. {}",
+                contract::served(),
+                contract::remedy(announced)
             ),
         )
+    }
+
+    /// `PUT /agent/executors` with no list: an agent that has no executor says so with an empty one.
+    pub fn executors_report_without_list() -> RouteRefusal {
+        refusal(400, "An executors report needs an \"executors\" list.")
     }
 
     pub fn sealing_key_unreadable() -> RouteRefusal {
@@ -424,6 +471,22 @@ mod tests {
         assert_eq!(at(1_792_240_496, 123_456_789), "2026-10-17T12:34:56.123456789Z");
         assert_eq!(at(951_782_400, 0), "2000-02-29T00:00:00Z");
         assert_eq!(at(253_402_300_800, 0), "+10000-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn the_hello_and_the_report_read_the_executors_and_absent_stays_absent() {
+        let body = br#"{"contract_version":"1","executors":[{"kind":"docker","available":false,"targets":["repository",null],"detail":"down","later":1},null]}"#;
+        let hello = HelloRequest::read(body).unwrap().unwrap();
+        let executors = hello.executors.unwrap();
+        assert_eq!(executors.len(), 1, "a null element is dropped");
+        assert_eq!(
+            (executors[0].kind.as_deref(), executors[0].available, executors[0].targets.as_slice()),
+            (Some("docker"), false, ["repository".to_owned()].as_slice())
+        );
+        assert_eq!(HelloRequest::read(br#"{"contract_version":"1"}"#).unwrap().unwrap().executors, None);
+        assert_eq!(ExecutorsReport::read(b"{}").unwrap().unwrap().executors, None, "no list: the route's 400");
+        assert_eq!(ExecutorsReport::read(br#"{"executors":[]}"#).unwrap().unwrap().executors, Some(vec![]));
+        assert!(ExecutorsReport::read(br#"{"executors":"docker"}"#).is_err());
     }
 
     #[test]

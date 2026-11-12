@@ -15,9 +15,10 @@ use vectispire_domain::FailureKind;
 use vectispire_domain::failure::Classified;
 use vectispire_domain::repository_url;
 use vectispire_domain::secret::Secret;
+use vectispire_protocol::executors::{Executor, ExecutorTarget, WorkerExecutors};
 use vectispire_protocol::{
-    AgentClient, AssignedTask, FailureReported, ProtocolError, ScanArtifacts, ScanTask, Target, concurrency,
-    failure_reason,
+    AgentClient, AssignedTask, ExecutorsReported, FailureReported, ProtocolError, ScanArtifacts, ScanTask, Target,
+    concurrency, failure_reason,
 };
 
 pub use vectispire_runner::ExecutionFailure;
@@ -25,6 +26,141 @@ pub use vectispire_runner::ExecutionFailure;
 /// What runs a claimed scan — the shared runner on the Java side (`ScanRunner::run`).
 pub trait Execute: Send + Sync + 'static {
     fn execute(&self, task: ScanTask) -> impl Future<Output = Result<ScanArtifacts, ExecutionFailure>> + Send;
+
+    /// Why the executor cannot run anything now, in its own words — `None` when it can. Asked before a claim.
+    fn why_unavailable(&self) -> impl Future<Output = Option<String>> + Send {
+        async { None }
+    }
+
+    /// Whether the executor scans container images at all; one that cannot is handed none.
+    fn exports_images(&self) -> bool {
+        true
+    }
+}
+
+/// What this agent's executor can run, asked of it before a claim, and told to the control plane when the answer
+/// changes — `ExecutorWatch` (decision 0045).
+///
+/// **The control plane decides, from what this says.** The agent keeps polling whatever the answer: a poll is its
+/// sign of life, and an agent that went quiet because its daemon did would read as offline on the screen that should
+/// say why. **Reported on a change, not on every poll**: the hello carries the first answer; afterwards a ping every
+/// [`ExecutorWatch::INTERVAL`] at most, and a call only when the answer moved. A report that did not arrive is sent
+/// again at the next probe; a control plane without the route (404) is not asked again, since it claims for this
+/// agent as it always did.
+#[derive(Debug)]
+pub struct ExecutorWatch {
+    kind: String,
+    state: Mutex<WatchState>,
+}
+
+#[derive(Debug, Default)]
+struct WatchState {
+    probed_at: Option<std::time::Instant>,
+    current: Option<WorkerExecutors>,
+    reported: Option<WorkerExecutors>,
+    unsupported: bool,
+}
+
+impl ExecutorWatch {
+    /// How stale the answer may be before a claim asks again: the claim's own wait is longer.
+    pub const INTERVAL: Duration = Duration::from_secs(15);
+
+    /// `kind`: the executor's name, `docker` for this agent.
+    pub fn new(kind: &str) -> ExecutorWatch {
+        ExecutorWatch { kind: kind.to_owned(), state: Mutex::new(WatchState::default()) }
+    }
+
+    fn state(&self) -> std::sync::MutexGuard<'_, WatchState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Probes now and remembers the answer as the one the hello carries.
+    pub async fn announced<E: Execute>(&self, execute: &E) -> WorkerExecutors {
+        let probed = self.probe(execute).await;
+        let mut state = self.state();
+        state.current = Some(probed.clone());
+        state.reported = Some(probed.clone());
+        probed
+    }
+
+    /// Before a claim: probes again once [`Self::INTERVAL`] has passed, and reports the answer if it changed. Only a
+    /// refused key is an error.
+    pub async fn before_claim<E: Execute>(&self, client: &AgentClient, execute: &E) -> Result<(), ProtocolError> {
+        if self.state().probed_at.is_some_and(|at| at.elapsed() < Self::INTERVAL) {
+            return Ok(());
+        }
+        let current = self.probe(execute).await;
+        {
+            let mut state = self.state();
+            state.current = Some(current.clone());
+            if state.unsupported || state.reported.as_ref() == Some(&current) {
+                return Ok(());
+            }
+        }
+        match client.report_executors(&current).await {
+            Ok(ExecutorsReported::Accepted) => {
+                tracing::info!("Executors reported: {}.", describe_executors(&current));
+                self.state().reported = Some(current);
+            }
+            Ok(ExecutorsReported::NotSupported) => {
+                tracing::info!(
+                    "The control plane predates executor reports: it hands this agent work whatever its executor says.                      Executors: {}.",
+                    describe_executors(&current)
+                );
+                self.state().unsupported = true;
+            }
+            Ok(ExecutorsReported::Failed) => tracing::warn!(
+                "The control plane did not record this agent's executors; tried again at the next probe."
+            ),
+            Err(fatal) if fatal.is_fatal() => return Err(fatal),
+            Err(unreachable) => tracing::warn!(
+                "This agent's executors could not be reported ({unreachable}); tried again at the next probe."
+            ),
+        }
+        Ok(())
+    }
+
+    /// The one executor this agent was started with. Scrubbed and bounded as the control plane bounds it: the detail
+    /// is the executor's own message, shown on a screen.
+    async fn probe<E: Execute>(&self, execute: &E) -> WorkerExecutors {
+        let why = execute.why_unavailable().await;
+        let targets = if execute.exports_images() {
+            vec![ExecutorTarget::Repository, ExecutorTarget::Container]
+        } else {
+            vec![ExecutorTarget::Repository]
+        };
+        let probed = WorkerExecutors::new(vec![Executor {
+            kind: Some(self.kind.clone()),
+            available: why.is_none(),
+            targets: targets.into_iter().map(|target| target.wire_name().to_owned()).collect(),
+            detail: why.clone(),
+        }])
+        .bounded();
+        let mut state = self.state();
+        state.probed_at = Some(std::time::Instant::now());
+        if let Some(why) = why
+            && state.current.as_ref() != Some(&probed)
+        {
+            tracing::warn!("The {} executor cannot run scans: {why}", self.kind);
+        }
+        probed
+    }
+}
+
+fn describe_executors(executors: &WorkerExecutors) -> String {
+    let described: Vec<String> = executors
+        .executors
+        .iter()
+        .map(|executor| {
+            let kind = executor.kind.as_deref().unwrap_or_default();
+            if executor.available {
+                format!("{kind} available for {}", executor.targets.join(", "))
+            } else {
+                format!("{kind} unavailable")
+            }
+        })
+        .collect();
+    if described.is_empty() { "none".to_owned() } else { described.join("; ") }
 }
 
 /// What became of the scans one call handled — `AgentLoop.Result`.
@@ -144,6 +280,8 @@ pub struct AgentLoop<E> {
     slots: Arc<Slots>,
     stopping: AtomicBool,
     stopped: Notify,
+    /// Asked before each claim; `None` claims without asking (a loop composed without one, as the tests' are).
+    executors: Option<ExecutorWatch>,
 }
 
 impl<E: Execute> AgentLoop<E> {
@@ -156,7 +294,15 @@ impl<E: Execute> AgentLoop<E> {
             slots: Arc::new(Slots::new(max_concurrent)),
             stopping: AtomicBool::new(false),
             stopped: Notify::new(),
+            executors: None,
         }
+    }
+
+    /// The watch whose first answer the hello carried: probed again before the claims, reported when it changes.
+    #[must_use]
+    pub fn with_executors(mut self, watch: ExecutorWatch) -> AgentLoop<E> {
+        self.executors = Some(watch);
+        self
     }
 
     #[cfg(test)]
@@ -232,6 +378,9 @@ impl<E: Execute> AgentLoop<E> {
     /// a revoked key every ten seconds for ever. Anything else costs a turn, not a scan: the control
     /// plane keeps the row queued.
     async fn claim(&self) -> Result<Option<AssignedTask>, ProtocolError> {
+        if let Some(watch) = &self.executors {
+            watch.before_claim(&self.client, self.execute.as_ref()).await?;
+        }
         let claim = match self.client.claim(self.settings.claim_wait).await {
             Ok(claim) => claim,
             Err(fatal) if fatal.is_fatal() => return Err(fatal),

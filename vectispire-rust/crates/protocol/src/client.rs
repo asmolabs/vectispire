@@ -8,6 +8,7 @@
 
 use crate::artifacts::ScanArtifacts;
 use crate::concurrency;
+use crate::executors::WorkerExecutors;
 use crate::wire::{AssignedTask, Description, Identity, PluginRef, StoredFile, Target};
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
@@ -74,6 +75,17 @@ pub enum SealingKeyOutcome {
     Stale,
     /// This agent has no signing key to sign with, or no hello answered yet.
     Unsignable,
+}
+
+/// What became of a report of this agent's executors — `ExecutorReport`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutorsReported {
+    /// Recorded: the next claim is decided by it.
+    Accepted,
+    /// The control plane predates the report (404): it claims for this agent as it always did.
+    NotSupported,
+    /// Anything else: not recorded, and worth sending again.
+    Failed,
 }
 
 /// What became of a report that a claimed scan could not run — `FailureReported`.
@@ -314,6 +326,24 @@ impl AgentClient {
                 Self::refuse_if_failed(&answer, "Sealing key announcement refused")?;
                 // A 2xx this protocol does not use: taken as accepted, like the 204 it stands for.
                 SealingKeyOutcome::Accepted
+            }
+        })
+    }
+
+    /// What this agent's executors can run now, said when that changed since the hello — a route of its own, so
+    /// that an older control plane answers 404, read as "not supported". A refused key is an error; anything else
+    /// the control plane answers is an outcome, the report sent again at the next probe.
+    pub async fn report_executors(&self, executors: &WorkerExecutors) -> Result<ExecutorsReported, ProtocolError> {
+        let body = serde_json::json!({ "executors": executors.executors }).to_string();
+        let answer = self
+            .call(reqwest::Method::PUT, "/api/v1/agent/executors", Some(body), Duration::from_secs(30), &[])
+            .await?;
+        Ok(match answer.status {
+            200 | 204 => ExecutorsReported::Accepted,
+            404 => ExecutorsReported::NotSupported,
+            _ => {
+                Self::refuse_if_unauthorized(&answer)?;
+                ExecutorsReported::Failed
             }
         })
     }

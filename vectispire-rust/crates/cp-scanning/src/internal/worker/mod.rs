@@ -216,6 +216,14 @@ impl ScanRunner for BuiltInScanRunner {
             Ok(received.into_owned())
         })
     }
+
+    fn executor_unavailable(&self) -> BoxFuture<'_, Option<String>> {
+        Box::pin(async move { self.runner.why_unavailable().await })
+    }
+
+    fn executor_exports_images(&self) -> bool {
+        self.runner.exports_images()
+    }
 }
 
 fn host_name() -> String {

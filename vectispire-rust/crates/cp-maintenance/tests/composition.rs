@@ -47,8 +47,9 @@ fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
     assert_eq!(
         entries.len(),
-        15,
-        "the outbox, the targets, scanning, agents, inventory, issues, gate and access fill thirteen of Java's twenty-eight"
+        17,
+        "the outbox, the targets, scanning, agents, inventory, issues, gate and access fill thirteen of Java's thirty; \
+         SCAN_METRICS and AGENT_METRICS, Java 1.0's, wait for the gauges they refresh"
     );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());

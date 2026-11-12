@@ -71,6 +71,7 @@ fn description(client: &AgentClient, version: Option<&str>) -> Description {
         scanner_engine: "docker".into(),
         sealing_public_key: client.sealing_public_key(),
         version: version.map(str::to_owned),
+        executors: None,
     }
 }
 

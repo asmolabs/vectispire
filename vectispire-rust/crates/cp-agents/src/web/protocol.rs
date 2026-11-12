@@ -13,10 +13,9 @@ use vectispire_cp_http::access::Access;
 use vectispire_cp_http::principal::Credential;
 use vectispire_cp_http::routes::{Route, RouteEntry};
 use vectispire_cp_http::{Caller, ClientAddress, Problem};
-use vectispire_domain::contract;
 use vectispire_protocol::concurrency;
 use vectispire_protocol::server::refusals;
-use vectispire_protocol::server::{HelloRequest, RouteRefusal, SealingKeyRequest};
+use vectispire_protocol::server::{ExecutorsReport, HelloRequest, RouteRefusal, SealingKeyRequest};
 
 use crate::error::AgentError;
 use crate::internal::poller::{AgentJobPoller, Receipt};
@@ -53,13 +52,47 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                         let resp = HelloResponse {
                             id: agent.id,
                             name: agent.name,
-                            contract_version: contract::VERSION.to_owned(),
+                            // The agent's own contract, not `CURRENT`: an agent of the previous contract would log
+                            // a number it never spoke.
+                            contract_version: answer.contract_version,
                             max_concurrent: answer.max_concurrent,
                             credentials_mode: agent.credentials_mode,
                         };
                         ok(&resp)
                     }
                     Err(refusal) => refusal_response(refusal),
+                }
+            }
+        },
+    ));
+
+    // 1b. PUT /api/v1/agent/executors — what the agent's executors can run now, when that changed since its hello. A
+    // route of its own, so that a newer agent meeting an older control plane gets a 404 and carries on.
+    let p = protocol.clone();
+    entries.push(Route::put("/api/v1/agent/executors").requires(Access::AgentKey).names_no_target().handler(
+        move |caller: Caller, request: Request| {
+            let p = p.clone();
+            async move {
+                // Spring binds the body before the controller runs: a body that is no JSON object is refused first.
+                let bytes = match read_bytes(request).await {
+                    Ok(b) => b,
+                    Err(p) => return p.into_response(),
+                };
+                let Ok(Some(body)) = ExecutorsReport::read(&bytes) else {
+                    return Problem::handler(StatusCode::BAD_REQUEST, vectispire_cp_http::extract::UNREADABLE)
+                        .into_response();
+                };
+                let agent = match authenticate(&caller, &p).await {
+                    Ok(a) => a,
+                    Err(p) => return p.into_response(),
+                };
+                // 400 for a report naming no list: an agent that has no executor says so with an empty one.
+                let Some(executors) = body.executors else {
+                    return refusal_response(refusals::executors_report_without_list());
+                };
+                match p.report_executors(&agent, executors).await {
+                    Ok(()) => no_content(),
+                    Err(err) => unexpected(err),
                 }
             }
         },

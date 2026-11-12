@@ -1,4 +1,4 @@
-//! The seventeen agent routes against the contract they must not change (`openapi.json` of the 0.11.1 line):
+//! The nineteen agent routes against the contract they must not change (`openapi.json` of the 1.0 line):
 //! documented under the same method and path, with Java's operation ids and query parameters, out of `cp-contract`'s
 //! `not-yet-ported/` since the commit that ported them — then the router probed, so a route declared and not
 //! registered is caught too.
@@ -18,12 +18,14 @@ const DECLARED: &[(&str, &str, &str, &[&str], &[&str])] = &[
     ("GET", "/api/v1/admin/agents", "list_16", &["limit", "offset"], &[]),
     ("POST", "/api/v1/admin/agents", "create_9", &[], &[]),
     ("GET", "/api/v1/admin/agents/activity", "activity", &[], &[]),
+    ("GET", "/api/v1/admin/agents/built-in-worker", "builtInWorker", &[], &[]),
     ("GET", "/api/v1/admin/agents/credentialed-backlog", "credentialedBacklog", &[], &[]),
     ("GET", "/api/v1/admin/agents/non-routables", "unroutable", &[], &[]),
     ("PATCH", "/api/v1/admin/agents/{id}", "update_8", &[], &[]),
     ("DELETE", "/api/v1/admin/agents/{id}", "remove_6", &[], &[]),
     ("DELETE", "/api/v1/admin/agents/{id}/sealing-key", "resetSealingKey", &[], &[]),
     ("PUT", "/api/v1/admin/agents/{id}/signing-key", "pinSigningKey", &[], &[]),
+    ("PUT", "/api/v1/agent/executors", "reportExecutors", &[], &[]),
     ("POST", "/api/v1/agent/hello", "hello", &[], &[]),
     ("GET", "/api/v1/agent/jobs", "claimJob", &["wait"], &[]),
     ("POST", "/api/v1/agent/jobs/{scanId}/failure", "reportFailure", &[], &["X-Vectispire-Agent-Signature"]),
@@ -39,7 +41,7 @@ async fn the_routes_are_the_documented_ones() {
     let db = support::unreachable();
     let composed = support::compose(&db, support::system_clock());
     let entries = vectispire_cp_agents::routes(composed.agents.clone());
-    assert_eq!(entries.len(), 17);
+    assert_eq!(entries.len(), 19);
     let declared: Vec<RouteDecl> = entries
         .iter()
         .map(|entry| {

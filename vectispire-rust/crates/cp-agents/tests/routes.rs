@@ -46,7 +46,7 @@ async fn every_route_declares_its_caller() {
     let protocol: Vec<_> = table.iter().filter(|r| r.path.starts_with("/api/v1/agent/")).collect();
     let admin: Vec<_> = table.iter().filter(|r| r.path.starts_with("/api/v1/admin/agents")).collect();
     assert_eq!(protocol.len() + admin.len(), table.len(), "every route is a protocol or an administration route");
-    assert_eq!((protocol.len(), admin.len()), (8, 9), "Java's AgentsController and AgentsAdminController");
+    assert_eq!((protocol.len(), admin.len()), (9, 10), "Java's AgentsController and AgentsAdminController");
     for route in protocol {
         assert_eq!(route.access, Access::AgentKey, "{} {} is the agents' alone", route.method, route.path);
     }
@@ -147,7 +147,7 @@ async fn suite(engine: Engine) {
             reached += 1;
         }
     }
-    assert_eq!(reached, 8 * 3 + 9, "{engine}: every route was sent its strangers");
+    assert_eq!(reached, 9 * 3 + 10, "{engine}: every route was sent its strangers");
 
     for (method, path) in [
         ("POST", format!("/api/v1/agent/jobs/{held}/heartbeat")),

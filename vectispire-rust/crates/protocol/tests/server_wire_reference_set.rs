@@ -240,7 +240,9 @@ fn the_hello_is_read_as_spring_mvc_binds_it() {
         let outcome = outcome_of(read, |hello| {
             json!({"contractVersion": hello.contract_version, "sealingPublicKey": hello.sealing_public_key, "hostname": hello.hostname,
                 "platform": hello.platform, "version": hello.version, "scannerEngine": hello.scanner_engine,
-                "capabilities": hello.capabilities})
+                "capabilities": hello.capabilities,
+                // Java writes a present list by its `toString`, which no case of the set has: an absent one is null.
+                "executors": hello.executors.as_ref().map(|list| format!("{list:?}"))})
         });
         assert_eq!(outcome, expected(case), "{}", case["name"]);
     }
