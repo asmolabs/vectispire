@@ -42,7 +42,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                     />
                     <circle cx="20" cy="19.4" r="2.6" fill="var(--primary-color)" />
                 </svg>
-                <span>{{ branding.brandName().toUpperCase() }}</span>
+                <span>{{ branding.brandName() }}</span>
             </a>
         </div>
 

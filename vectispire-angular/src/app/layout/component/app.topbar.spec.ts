@@ -7,6 +7,7 @@ import { AppTopbar } from './app.topbar';
 import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { BrandingService } from '@/app/core/branding.service';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
@@ -130,6 +131,20 @@ describe('la barre du haut', () => {
         const named = buttons.map((element) => element.getAttribute('aria-label'));
 
         expect(named).toEqual(['Account', 'Password', 'Sign out']);
+    });
+
+    /**
+     * **The instance's name as its operator wrote it.** The header used to set it in capitals, so an
+     * instance named `CloudSecElection` read `CLOUDSECELECTION` there, and only there: the tab title,
+     * the sign-in page, the footer, the reports and the exports all kept its case. A name made of
+     * joined words loses its word boundaries in capitals, which is the one thing its case carries.
+     */
+    it('shows the instance name with the case it was given', () => {
+        TestBed.inject(BrandingService).brandName.set('CloudSecElection');
+        fixture.detectChanges();
+
+        const logo = (fixture.nativeElement as HTMLElement).querySelector('.layout-topbar-logo');
+        expect(logo?.textContent?.trim()).toBe('CloudSecElection');
     });
 
     it('opens the password change remembering the page it was on', () => {
