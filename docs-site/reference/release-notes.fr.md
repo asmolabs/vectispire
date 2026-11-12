@@ -21,6 +21,40 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
+## 1.0.0-rc.3 — non publiée
+
+Ce qui suit se compare à 1.0.0-rc.2.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-100-rc3}
+
+- **Deux migrations.** V103 ajoute trois colonnes facultatives à `t_forge_repository`, la lecture des branches de
+  chaque dépôt découvert ; V104 retire la clé unique qui ne permettait qu'un lien d'import par dépôt de la forge,
+  pour qu'un dépôt puisse être importé sur plusieurs branches. Aucune ne réécrit de ligne.
+- **Une revue des changements qui ne nomme pas de branche lit désormais la branche que la cible analyse**, et la
+  branche par défaut de la forge seulement pour une cible qui n'en nomme aucune. Une cible ajoutée à la main est
+  clonée sur `main` quand aucune branche n'a été saisie : sa lecture passe aussi sur `main` — ce qui est analysé.
+
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-100-rc3}
+
+- **L'import accepte `branches`** (`default` et des noms suivis), et son aperçu comme son résultat disent par
+  branche ce qui a été créé ou écarté : `ForgeImportedTarget.branch`, `ForgeSkippedImport.branch`, et les raisons
+  `branch_absent` et `branch_unknown`.
+- **La sélection filtre sur `branches`** (l'un ou l'autre des noms) ; `unjudged` peut compter `branch`.
+- **Un dépôt découvert porte `trackedBranches`** (null quand la forge ne l'a pas dit), un candidat
+  `importedTargets`, et la page des candidats les `trackedBranches` configurées.
+
+### Nouveautés {#nouveautes-100-rc3}
+
+- **Une cible par branche depuis un import de forge.** La découverte lit lesquelles de `main`, `master` et
+  `develop` chaque dépôt porte (`VECTISPIRE_FORGES_DISCOVERY_TRACKEDBRANCHES` en nomme d'autres), la sélection les
+  montre et filtre dessus, et l'import crée une cible sur chaque branche choisie — `acme/api` et
+  `acme/api (develop)`, chacune avec ses propres constats. Voir
+  [Connexions de forge](../administration/forge-connections.fr.md#selectionner-et-importer).
+
+### Corrigé {#corrige-100-rc3}
+
+- **L'en-tête affiche le nom de l'instance avec sa casse** : `CloudSecElection`, et non plus `CLOUDSECELECTION`.
+
 ## 1.0.0-rc.2 — 12 novembre 2026
 
 Ce qui suit se compare à 1.0.0-rc.1.
