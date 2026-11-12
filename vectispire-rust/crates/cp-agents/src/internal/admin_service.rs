@@ -643,7 +643,8 @@ impl AgentAdministrationService {
                 ("unknown".to_owned(), 0, "Unknown Target".to_owned())
             };
 
-            let branch = if scan.branch.is_empty() { None } else { Some(scan.branch.clone()) };
+            // As stored, empty included: Java answers `scan.branch()`, and an image scan's is "", not null.
+            let branch = Some(scan.branch.clone());
 
             if scan.status == "scanning" {
                 let agent_id = scan.claimed_by.clone();

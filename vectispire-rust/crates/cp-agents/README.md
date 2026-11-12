@@ -38,7 +38,7 @@ the Rust port (plan, §7).
 
 - `tests/routes.rs`: the authorization coverage, enumerated from the router — every protocol route an agent's key's
   alone, every administration route an administrator's, and one agent's scan refused to another.
-- `tests/golden.rs`: the Java suite's recorded traffic, replayed for the agents' seventeen routes together with
+- `tests/golden.rs`: the Java suite's recorded traffic, replayed for the agents' nineteen routes together with
   `targets`' and `scanning`'s (it moved here from `cp-scanning`). It found three differences, fixed: hello's descriptors
   were stored untrimmed, the protocol's audit entries named no actor where Java names the agent, and a failure
   report's entry spelt its kind `PERMANENT` where Java writes `permanent`. What does not replay is named in

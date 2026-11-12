@@ -21,6 +21,10 @@ pub struct Description {
     pub sealing_public_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    /// What it can run scans with, as it probed them before announcing itself (decision 0045). Left out when
+    /// `None`, which a control plane reads as "unknown" and serves as it serves an agent older than the field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executors: Option<Vec<crate::executors::Executor>>,
 }
 
 /// What the control plane answers at hello — `HelloResponse`, in its camel case.

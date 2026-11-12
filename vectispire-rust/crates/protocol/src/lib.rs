@@ -31,7 +31,9 @@ mod wire;
 
 pub use artifacts::{Failure, Findings, PluginStep, Project, Refusal, ScanArtifacts, Signature, java_duration};
 #[cfg(feature = "client")]
-pub use client::{AgentClient, CONCURRENCY_HEADER, Claim, FailureReported, ProtocolError, SealingKeyOutcome};
+pub use client::{
+    AgentClient, CONCURRENCY_HEADER, Claim, ExecutorsReported, FailureReported, ProtocolError, SealingKeyOutcome,
+};
 pub use coerce::{JavaDuration, parse_duration};
 pub use received::{
     ApiContract, ApiEndpoint, ApiVisibility, DependencyFinding, IacFinding, LANGUAGES, Listed,

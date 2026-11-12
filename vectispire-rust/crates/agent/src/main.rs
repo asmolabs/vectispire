@@ -13,7 +13,7 @@ mod scan;
 mod serve;
 
 use config::Config;
-use serve::{AgentLoop, Settings};
+use serve::{AgentLoop, ExecutorWatch, Settings};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -105,6 +105,20 @@ async fn run() -> Result<(), Fatal> {
     let generation = SystemTime::now().duration_since(UNIX_EPOCH).map_or(1, |elapsed| elapsed.as_millis() as i64);
     let client = AgentClient::new(&config.url, config.token.clone(), &trust, signer, sealing, generation)?;
 
+    let client = Arc::new(client);
+    // Built before the hello, which carries what its executor can run (decision 0045): a daemon that does not answer
+    // claims nothing, rather than every scan it is handed failing an attempt on this host's fault.
+    let runner = scan::ScanRunner::new(
+        client.clone(),
+        scan::Images::from_lookup(|name| std::env::var(name).ok()),
+        scan::Places::from_lookup(|name| std::env::var(name).ok()),
+        config.vulnerability_db_dir.clone(),
+        trust,
+    )
+    .map_err(Fatal::Runner)?;
+    let watch = ExecutorWatch::new("docker");
+    let announced = watch.announced(&runner).await;
+
     let description = Description {
         contract_version: vectispire_domain::contract::VERSION,
         hostname: hostname(),
@@ -112,6 +126,7 @@ async fn run() -> Result<(), Fatal> {
         scanner_engine: "docker".to_owned(),
         sealing_public_key: client.sealing_public_key(),
         version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+        executors: Some(announced.executors),
     };
     let identity = announce(&client, &description, config.retry_delay).await?;
     tracing::info!(
@@ -136,16 +151,7 @@ async fn run() -> Result<(), Fatal> {
         heartbeat: config.heartbeat,
         secrets,
     };
-    let client = Arc::new(client);
-    let runner = scan::ScanRunner::new(
-        client.clone(),
-        scan::Images::from_lookup(|name| std::env::var(name).ok()),
-        scan::Places::from_lookup(|name| std::env::var(name).ok()),
-        config.vulnerability_db_dir.clone(),
-        trust,
-    )
-    .map_err(Fatal::Runner)?;
-    let looping = Arc::new(AgentLoop::new(client, Arc::new(runner), settings, max_concurrent));
+    let looping = Arc::new(AgentLoop::new(client, Arc::new(runner), settings, max_concurrent).with_executors(watch));
     let stopper = looping.clone();
     tokio::spawn(async move {
         shutdown_signal().await;

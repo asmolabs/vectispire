@@ -376,3 +376,82 @@ fn a_slot_limit_is_held_within_its_bounds() {
     slots.resize(0);
     assert_eq!(slots.limit(), 1);
 }
+
+/// An executor whose daemon answers or not, as the test sets it.
+struct Daemon {
+    down: Mutex<Option<String>>,
+}
+
+impl Execute for Daemon {
+    fn execute(&self, task: ScanTask) -> impl Future<Output = Result<ScanArtifacts, ExecutionFailure>> + Send {
+        let answer = found_nothing(&task);
+        async move { answer }
+    }
+
+    fn why_unavailable(&self) -> impl Future<Output = Option<String>> + Send {
+        let down = self.down.lock().unwrap().clone();
+        async move { down }
+    }
+
+    fn exports_images(&self) -> bool {
+        false
+    }
+}
+
+fn daemon(down: Option<&str>) -> Daemon {
+    Daemon { down: Mutex::new(down.map(str::to_owned)) }
+}
+
+/// Lets the next claim probe again, as the interval passing would.
+fn interval_passed(watch: &ExecutorWatch) {
+    watch.state().probed_at = None;
+}
+
+#[tokio::test]
+async fn the_executors_are_announced_then_reported_only_when_they_change_and_a_404_ends_the_reports() {
+    let daemon = daemon(None);
+    let watch = ExecutorWatch::new("docker");
+    let announced = watch.announced(&daemon).await;
+    assert_eq!(announced.write(), r#"[{"kind":"docker","available":true,"targets":["repository"],"detail":null}]"#);
+
+    let stub = StubControlPlane::answering(vec![Response::status(204), Response::status(404)]);
+    let client = client(&stub);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    interval_passed(&watch);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    assert!(stub.routes().is_empty(), "an unchanged answer is not reported");
+
+    // The daemon stops answering: reported once, scrubbed, and not again while it stays down.
+    *daemon.down.lock().unwrap() = Some("The Docker daemon did not answer a ping: token=abcdefgh".into());
+    interval_passed(&watch);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    assert_eq!(stub.routes(), ["PUT /api/v1/agent/executors"]);
+    let report = stub.requests()[0].json();
+    assert_eq!(report["executors"][0]["available"], false);
+    assert_eq!(report["executors"][0]["detail"], "The Docker daemon did not answer a ping: token=***");
+    interval_passed(&watch);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    assert_eq!(stub.routes().len(), 1, "the same answer is not sent twice");
+
+    // Back up, to a control plane without the route: a 404, and never asked again.
+    *daemon.down.lock().unwrap() = None;
+    interval_passed(&watch);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    assert_eq!(stub.routes().len(), 2);
+    *daemon.down.lock().unwrap() = Some("down again".into());
+    interval_passed(&watch);
+    watch.before_claim(&client, &daemon).await.unwrap();
+    assert_eq!(stub.routes().len(), 2, "a 404 reads as not supported: not asked again");
+}
+
+#[tokio::test]
+async fn a_refused_key_on_the_executors_report_stops_the_loop() {
+    let daemon = daemon(None);
+    let watch = ExecutorWatch::new("docker");
+    watch.announced(&daemon).await;
+    *daemon.down.lock().unwrap() = Some("down".into());
+    interval_passed(&watch);
+    let stub = StubControlPlane::answering(vec![Response::status(401)]);
+    let refused = watch.before_claim(&client(&stub), &daemon).await.unwrap_err();
+    assert!(refused.is_fatal(), "{refused:?}");
+}

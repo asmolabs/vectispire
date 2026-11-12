@@ -474,6 +474,22 @@ mod tests {
     }
 
     #[test]
+    fn the_hello_and_the_report_read_the_executors_and_absent_stays_absent() {
+        let body = br#"{"contract_version":"1","executors":[{"kind":"docker","available":false,"targets":["repository",null],"detail":"down","later":1},null]}"#;
+        let hello = HelloRequest::read(body).unwrap().unwrap();
+        let executors = hello.executors.unwrap();
+        assert_eq!(executors.len(), 1, "a null element is dropped");
+        assert_eq!(
+            (executors[0].kind.as_deref(), executors[0].available, executors[0].targets.as_slice()),
+            (Some("docker"), false, ["repository".to_owned()].as_slice())
+        );
+        assert_eq!(HelloRequest::read(br#"{"contract_version":"1"}"#).unwrap().unwrap().executors, None);
+        assert_eq!(ExecutorsReport::read(b"{}").unwrap().unwrap().executors, None, "no list: the route's 400");
+        assert_eq!(ExecutorsReport::read(br#"{"executors":[]}"#).unwrap().unwrap().executors, Some(vec![]));
+        assert!(ExecutorsReport::read(br#"{"executors":"docker"}"#).is_err());
+    }
+
+    #[test]
     fn the_contract_is_compared_once_trimmed_as_java_trims() {
         assert!(contract_is_compatible(Some("\u{0}1\u{1f}")));
         assert!(!contract_is_compatible(Some("\u{a0}1")));
