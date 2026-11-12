@@ -5,7 +5,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * Why a discovered repository is not offered, or not imported, as a new target (decision 0037 §4–5). The selection
  * shows it greyed with this word; an import that was asked for it skips it and reports the word, and replaying an
- * import is therefore harmless: everything it created is skipped the second time.
+ * import is therefore harmless: everything it created is skipped the second time. An import naming {@code branches}
+ * judges each of a repository's branches apart — the two {@code already_} words, {@code branch_absent} and {@code
+ * branch_unknown} then name one branch of it.
  */
 public enum ImportSkip {
     /** Linked to a target by an earlier import from this connection — recognised by the forge's id, renamed or not. */
@@ -20,7 +22,18 @@ public enum ImportSkip {
     /** The forge gave no clone URL of the kind the credential chosen for its host needs. */
     NO_CLONE_URL("no_clone_url"),
     /** Another repository of the same selection has the same identity, and is the one imported. */
-    DUPLICATE_IN_SELECTION("duplicate_in_selection");
+    DUPLICATE_IN_SELECTION("duplicate_in_selection"),
+    /**
+     * An import asked for a tracked branch (decision 0037 §5, {@code branches}) the discovery read as absent from
+     * this repository: no target on a branch nobody saw.
+     */
+    BRANCH_ABSENT("branch_absent"),
+    /**
+     * An import asked for a tracked branch the forge did not say whether this repository has — a token that may not
+     * read its branches, an error, or a discovery that has not asked yet. Unknown is not absent, and not present
+     * either: no target is created on it until a discovery has seen it.
+     */
+    BRANCH_UNKNOWN("branch_unknown");
 
     private final String wireName;
 

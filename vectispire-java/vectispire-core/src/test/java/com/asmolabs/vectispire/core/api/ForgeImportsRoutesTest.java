@@ -66,6 +66,8 @@ class ForgeImportsRoutesTest extends ApiTestBase {
 
     private static final String RECENT = "2026-09-20T10:00:00Z";
 
+    private static final String BRANCHES = "/api/v4/projects/%d/repository/branches/%s";
+
     /**
      * The host the stub forge answers on, and so the host its clone URLs name — a forge clones from its own host, and
      * an import refuses a clone URL on any other.
@@ -133,6 +135,10 @@ class ForgeImportsRoutesTest extends ApiTestBase {
                 + "]"));
         gitlab.route("/api/v4/projects/11/languages", Reply.json("{\"Java\":90,\"Shell\":10}"));
         gitlab.route("/api/v4/projects/18/languages", Reply.json("{\"Go\":100}"));
+        // The tracked branches: 11 has develop beside its default main, 12's main GitLab will not say (a Guest's 403);
+        // every other name of every project is absent — the stub's 404.
+        gitlab.route(BRANCHES.formatted(11, "develop"), Reply.json("{\"name\":\"develop\"}"));
+        gitlab.route(BRANCHES.formatted(12, "main"), Reply.status(403));
         connectionId = connection();
         discoveryId = discover();
         outbox.deleteAll();
@@ -782,6 +788,136 @@ class ForgeImportsRoutesTest extends ApiTestBase {
         unknown.put("discoveryId", runningId);
         assertThat(detailOf(postJson(base() + "/imports/preview", unknown, asAdmin())
                 .andExpect(status().isBadRequest()).andReturn())).contains("not listed by discovery " + runningId);
+    }
+
+    // ---- Branches: the tracked ones read by the discovery, filtered on, imported one target each.
+
+    @Test
+    @DisplayName("the discovery reads the tracked branches once, and again only for a project active since")
+    void trackedBranchesRead() throws Exception {
+        JsonNode page = candidates("?archived=show&forks=show");
+        assertThat(page.at("/trackedBranches")).extracting(JsonNode::asText).containsExactly("main", "master", "develop");
+        assertThat(byForgeId(page.at("/items"), "11").at("/repository/trackedBranches")).extracting(JsonNode::asText)
+                .as("the default branch, and develop found").containsExactly("develop", "main");
+        assertThat(byForgeId(page.at("/items"), "12").at("/repository/trackedBranches").isNull())
+                .as("a 403 on main: unknown, not none").isTrue();
+        assertThat(byForgeId(page.at("/items"), "13").at("/repository/trackedBranches")).extracting(JsonNode::asText)
+                .containsExactly("main");
+        assertThat(byForgeId(page.at("/items"), "18").at("/repository/trackedBranches"))
+                .as("trunk is the default, and no tracked name exists: an answer, none").isEmpty();
+        assertThat(gitlab.count(BRANCHES.formatted(11, "main"))).as("the default branch is never asked").isZero();
+        assertThat(gitlab.count(BRANCHES.formatted(11, "develop"))).isOne();
+        assertThat(gitlab.count(BRANCHES.formatted(12, "develop"))).as("12's reading ended at its first unknown")
+                .isZero();
+
+        gitlab.route(PROJECTS, Reply.json("[" + String.join(",", List.of(
+                project(11, "acme/backend/payments/api", "group", "main", false, 10L, false, RECENT),
+                project(12, "acme/backend/payments/worker", "group", "develop", false, 10L, false, RECENT),
+                project(13, "acme/tools", "group", "main", false, 10L, false, "2026-09-25T10:00:00Z"),
+                project(14, "acme/legacy", "group", "master", true, 10L, false, RECENT),
+                project(15, "acme/frontend/web-fork", "group", "main", false, 10L, true, RECENT),
+                project(16, "ada/sandbox", "user", "main", false, 10L, false, RECENT),
+                project(17, "acme/empty", "group", null, false, null, false, RECENT),
+                project(18, "globex/platform/core", "group", "trunk", false, 10L, false, "2020-01-01T00:00:00Z")))
+                + "]"));
+        gitlab.route(BRANCHES.formatted(13, "develop"), Reply.json("{\"name\":\"develop\"}"));
+        discoveryId = discover();
+
+        assertThat(gitlab.count(BRANCHES.formatted(11, "develop"))).as("nothing pushed since: not asked again").isOne();
+        assertThat(gitlab.count(BRANCHES.formatted(12, "main"))).as("unknown is kept until the project moves").isOne();
+        assertThat(gitlab.count(BRANCHES.formatted(13, "develop"))).as("active since: asked again").isEqualTo(2);
+        assertThat(byForgeId(candidates("").at("/items"), "13").at("/repository/trackedBranches"))
+                .extracting(JsonNode::asText).containsExactly("develop", "main");
+    }
+
+    @Test
+    @DisplayName("the branch filter: any of the names, the default counting unread, the unknown counted; an untracked name refused")
+    void branchFilter() throws Exception {
+        JsonNode develop = candidates("?branches=develop");
+        assertThat(forgeIds(develop.at("/items"))).as("11 found it; 12's default branch needs no reading")
+                .containsExactly("11", "12");
+        assertThat(develop.at("/unjudged/branch").isMissingNode()).as("every other one was read without it").isTrue();
+
+        JsonNode main = candidates("?branches=main");
+        assertThat(forgeIds(main.at("/items"))).containsExactly("11", "13", "16");
+        assertThat(main.at("/unjudged/branch").asLong()).as("12: GitLab would not say").isOne();
+        assertThat(forgeIds(candidates("?branches=master,develop").at("/items"))).containsExactly("11", "12");
+
+        String url = base() + "/discoveries/" + discoveryId + "/selection";
+        JsonNode selected = ok(postJson(url, Map.of("operation", "all", "filters", Map.of("branches", List.of("develop"))),
+                asAdmin()));
+        assertThat(selected.at("/selected")).extracting(JsonNode::asText).containsExactly("11", "12");
+
+        assertThat(detailOf(mvc.perform(authenticated(get(url + "?branches=trunk"), asAdmin()))
+                .andExpect(status().isBadRequest()).andReturn())).contains("not a tracked branch").contains("develop");
+    }
+
+    @Test
+    @DisplayName("an import naming branches: one target per branch the repository has, the rest skipped with their branch")
+    void importPerBranch() throws Exception {
+        Map<String, Object> body = request(List.of("11", "12", "13"));
+        body.put("branches", List.of("default", "develop", "main"));
+
+        JsonNode preview = preview(body);
+        assertThat(list(preview.at("/targets"))).extracting(target -> target.at("/forgeId").asText() + "@"
+                        + target.at("/branch").asText())
+                .as("12's default is develop: named twice, one target")
+                .containsExactly("11@main", "11@develop", "12@develop", "13@main");
+        assertThat(list(preview.at("/skipped"))).extracting(skip -> skip.at("/forgeId").asText() + "@"
+                        + skip.at("/branch").asText() + " " + skip.at("/reason").asText())
+                .containsExactlyInAnyOrder("12@main branch_unknown", "13@develop branch_absent");
+        assertThat(preview.at("/credentials/0/repositories").asInt()).as("counted per target").isEqualTo(4);
+
+        JsonNode imported = importing(body);
+        assertThat(list(imported.at("/created"))).extracting(target -> target.at("/forgeId").asText() + "@"
+                + target.at("/branch").asText()).containsExactly("11@main", "11@develop", "12@develop", "13@main");
+        long apiMain = byForgeId(imported.at("/created"), "11").at("/repositoryId").asLong();
+        RepositoryEntity apiDevelop = repositories.findAll().stream()
+                .filter(row -> "develop".equals(row.getBranch()) && row.getUrl().contains("payments/api")).findFirst()
+                .orElseThrow();
+        assertThat(apiDevelop.getName()).as("the branch beside the path, the two read apart")
+                .isEqualTo("acme/backend/payments/api (develop)");
+        assertThat(repositories.findById(apiMain).orElseThrow().getName()).isEqualTo("acme/backend/payments/api");
+        assertThat(links.findAll()).extracting(link -> link.getForgeId()).containsExactlyInAnyOrder("11", "11", "12", "13");
+
+        JsonNode candidate = byForgeId(candidates("").at("/items"), "11");
+        assertThat(candidate.at("/importedAs").asLong()).isEqualTo(Math.min(apiMain, apiDevelop.getId()));
+        assertThat(candidate.at("/importedTargets")).extracting(JsonNode::asLong)
+                .containsExactlyInAnyOrder(apiMain, apiDevelop.getId());
+
+        JsonNode again = importing(body);
+        assertThat(again.at("/created")).as("replayed: nothing").isEmpty();
+        assertThat(list(again.at("/skipped"))).extracting(skip -> skip.at("/forgeId").asText() + "@"
+                        + skip.at("/branch").asText() + " " + skip.at("/reason").asText())
+                .containsExactlyInAnyOrder("11@main already_imported", "11@develop already_imported",
+                        "12@develop already_imported", "13@main already_imported", "12@main branch_unknown",
+                        "13@develop branch_absent");
+
+        JsonNode whole = preview(request(List.of("11")));
+        assertThat(whole.at("/targets")).as("without branches, the repository judged whole, as before").isEmpty();
+        assertThat(whole.at("/skipped/0/reason").asText()).isEqualTo("already_imported");
+        assertThat(whole.at("/skipped/0/branch").isNull()).isTrue();
+        assertThat(whole.at("/skipped/0/repositoryIds")).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("an import naming branches adds a branch to a repository already a target, and refuses an untracked name")
+    void anotherBranchOfAPresentRepository() throws Exception {
+        long typed = repository("https://" + FORGE_HOST + "/acme/backend/payments/api.git", null);
+        Map<String, Object> body = request(List.of("11"));
+        body.put("branches", List.of("develop", "DEFAULT"));
+
+        JsonNode preview = preview(body);
+        assertThat(list(preview.at("/targets"))).extracting(target -> target.at("/branch").asText())
+                .as("the typed target names no branch: it scans the default").containsExactly("develop");
+        assertThat(preview.at("/skipped/0/reason").asText()).isEqualTo("already_present");
+        assertThat(preview.at("/skipped/0/branch").asText()).isEqualTo("main");
+        assertThat(preview.at("/skipped/0/repositoryIds")).extracting(JsonNode::asLong).containsExactly(typed);
+
+        body.put("branches", List.of("trunk"));
+        assertThat(detailOf(postJson(base() + "/imports", body, asAdmin()).andExpect(status().isBadRequest())
+                .andReturn())).contains("not a branch an import can name").contains("main, master, develop");
+        assertThat(repositories.count()).isOne();
     }
 
     @Test

@@ -175,7 +175,7 @@ class ForgeImportIntegrationTest {
     /** Into no project, so that the first key both imports meet is the target's own guard (V73). */
     private ForgeImportRequest request() {
         return new ForgeImportRequest(discoveryId, List.of("1", "2", "3"),
-                List.of(new ForgeMappingRule("acme", null, null, null, true)), null, null, null, null);
+                List.of(new ForgeMappingRule("acme", null, null, null, true)), null, null, null, null, null);
     }
 
     @Test
@@ -225,11 +225,10 @@ class ForgeImportIntegrationTest {
     }
 
     @Test
-    @DisplayName("the provenance keys: a repository of a connection once, a target from one place; deleted by target and by connection")
+    @DisplayName("the provenance keys: a repository of a connection as one target per branch, a target from one place; deleted by target and by connection")
     void theLinkKeys() {
         links.saveAndFlush(link(connectionId, "1", 10L));
-        assertThatThrownBy(() -> links.saveAndFlush(link(connectionId, "1", 11L)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        links.saveAndFlush(link(connectionId, "1", 11L));
         assertThatThrownBy(() -> links.saveAndFlush(link(UUID.randomUUID(), "1", 10L)))
                 .isInstanceOf(DataIntegrityViolationException.class);
         UUID other = UUID.randomUUID();
@@ -237,10 +236,12 @@ class ForgeImportIntegrationTest {
         links.saveAndFlush(link(connectionId, "2", 13L));
         assertThat(links.findAll()).extracting(ForgeImportLinkEntity::getImportedAt).allSatisfy(at ->
                 assertThat(at).as("the timestamp's precision").isEqualTo(AT));
+        assertThat(links.findByConnectionIdAndForgeIdIn(connectionId, List.of("1")))
+                .extracting(ForgeImportLinkEntity::getRepositoryId).containsExactlyInAnyOrder(10L, 11L);
 
         assertThat(links.deleteByRepository(10L)).isOne();
-        assertThat(links.countByConnectionId(connectionId)).isOne();
-        assertThat(links.deleteByConnection(connectionId)).isOne();
+        assertThat(links.countByConnectionId(connectionId)).isEqualTo(2);
+        assertThat(links.deleteByConnection(connectionId)).isEqualTo(2);
         assertThat(links.findAll()).extracting(ForgeImportLinkEntity::getRepositoryId).containsExactly(12L);
     }
 

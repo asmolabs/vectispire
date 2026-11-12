@@ -5,7 +5,9 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -34,6 +36,10 @@ import java.util.Set;
  *     {@code ?} one; without either, the path need only contain it
  * @param personal repositories in a user's own namespace: shown by default
  * @param present repositories already a target: shown by default — greyed and not selectable
+ * @param branches only repositories having <em>any</em> of these tracked branches (not all of them: "has master or
+ *     develop" is the question a person importing both asks); empty for no such filter. A repository whose
+ *     branches the forge did not say is left out and counted unjudged, unless one of the names is its default
+ *     branch, which needs no reading ({@link BranchPresence})
  */
 public record SelectionFilter(
         Shown archived,
@@ -44,7 +50,8 @@ public record SelectionFilter(
         String namespace,
         String path,
         Shown personal,
-        Shown present) {
+        Shown present,
+        Set<String> branches) {
 
     /** Ten years: past that the filter hides nothing a forge still holds. */
     public static final int MAX_INACTIVE_DAYS = 3_650;
@@ -77,7 +84,8 @@ public record SelectionFilter(
         FORK,
         ACTIVITY,
         LANGUAGE,
-        VISIBILITY;
+        VISIBILITY,
+        BRANCH;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
@@ -86,12 +94,16 @@ public record SelectionFilter(
 
     /** What the table shows before anybody touches a filter: no archived repository, no fork. */
     public static final SelectionFilter DEFAULT =
-            new SelectionFilter(Shown.HIDE, Shown.HIDE, null, null, null, null, null, Shown.SHOW, Shown.SHOW);
+            new SelectionFilter(Shown.HIDE, Shown.HIDE, null, null, null, null, null, Shown.SHOW, Shown.SHOW, Set.of());
+
+    public SelectionFilter {
+        branches = branches == null ? Set.of() : Set.copyOf(branches);
+    }
 
     /** The filters as a request spells them, each refused in words. */
     public static SelectionFilter parse(
             String archived, String forks, Integer inactiveDays, String language, String visibility, String namespace,
-            String path, String personal, String present) {
+            String path, String personal, String present, Collection<String> branches) {
         if (inactiveDays != null && (inactiveDays < 1 || inactiveDays > MAX_INACTIVE_DAYS)) {
             throw new InvalidInputException("inactiveDays is a number of days between 1 and " + MAX_INACTIVE_DAYS + ".");
         }
@@ -105,13 +117,43 @@ public record SelectionFilter(
                         .map(SelectionFilter::withoutSlashes).orElse(null),
                 BoundedText.optional(path, DiscoveredRepository.PATH_LENGTH, "The path pattern"),
                 Shown.parse(personal, Shown.SHOW, "personal"),
-                Shown.parse(present, Shown.SHOW, "present"));
+                Shown.parse(present, Shown.SHOW, "present"),
+                branchNames(branches));
+    }
+
+    /**
+     * The branch filter's names, refused in words when no tracked name could be one; whether each is tracked by
+     * this installation is the caller's to check, holding the list.
+     */
+    private static Set<String> branchNames(Collection<String> raw) {
+        if (raw == null) {
+            return Set.of();
+        }
+        Set<String> names = new LinkedHashSet<>();
+        for (String value : raw) {
+            String name = value == null ? "" : value.trim();
+            if (name.isEmpty()) {
+                continue;
+            }
+            String refusal = BranchPresence.refusal(name);
+            if (refusal != null) {
+                throw new InvalidInputException("\"" + BoundedText.clip(name, 40) + "\" is not a branch to filter on: "
+                        + refusal + ".");
+            }
+            names.add(name);
+        }
+        if (names.size() > BranchPresence.MAX_TRACKED) {
+            throw new InvalidInputException("The branch filter names at most " + BranchPresence.MAX_TRACKED
+                    + " branches.");
+        }
+        return Set.copyOf(names);
     }
 
     /**
      * One repository as the filters see it.
      *
      * @param present already a target, by identity or by an earlier import
+     * @param branches which tracked branches it has, as far as a discovery read them
      */
     public record Candidate(
             Boolean archived,
@@ -122,7 +164,8 @@ public record SelectionFilter(
             String namespacePath,
             String fullPath,
             boolean personal,
-            boolean present) {}
+            boolean present,
+            BranchPresence branches) {}
 
     /**
      * How the filters judged one repository.
@@ -150,6 +193,7 @@ public record SelectionFilter(
         }
         judgeRequired(language, candidate.language(), Judged.LANGUAGE, failed, unknown);
         judgeRequired(visibility, candidate.visibility(), Judged.VISIBILITY, failed, unknown);
+        judgeBranches(branches, candidate.branches(), failed, unknown);
 
         if (namespace != null) {
             String wanted = namespace.toLowerCase(Locale.ROOT);
@@ -204,6 +248,25 @@ public record SelectionFilter(
             failed.add(filter);
         } else if (!value.equalsIgnoreCase(wanted)) {
             failed.add(filter);
+        }
+    }
+
+    /** Any one of the names present keeps it; all of them absent leaves it out; otherwise it is unjudged and left out. */
+    private static void judgeBranches(Set<String> wanted, BranchPresence presence, Set<Judged> failed, Set<Judged> unknown) {
+        if (wanted.isEmpty()) {
+            return;
+        }
+        boolean unsaid = false;
+        for (String name : wanted) {
+            BranchPresence.Answer answer = presence == null ? BranchPresence.Answer.UNKNOWN : presence.of(name);
+            if (answer == BranchPresence.Answer.PRESENT) {
+                return;
+            }
+            unsaid |= answer == BranchPresence.Answer.UNKNOWN;
+        }
+        failed.add(Judged.BRANCH);
+        if (unsaid) {
+            unknown.add(Judged.BRANCH);
         }
     }
 

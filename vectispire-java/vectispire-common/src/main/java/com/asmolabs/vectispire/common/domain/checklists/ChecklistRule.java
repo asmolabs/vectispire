@@ -301,7 +301,9 @@ public sealed interface ChecklistRule {
      * @param minimumApprovals distinct approvals by people other than the author, 1 to {@link #MAX_APPROVALS}
      * @param windowDays how far back the merged changes are counted, 1 to {@link #MAX_AGE_DAYS}
      * @param minimumRatio the share of merged changes that must have them, above 0 to 1 — 1 for every one
-     * @param branch the branch changes are merged into; empty for the default branch the forge names
+     * @param branch the branch changes are merged into; empty for the branch each repository target scans — the
+     *     default branch the forge names only for a target that names none, so that a repository imported as one
+     *     target per branch has each read for its own
      */
     record ChangeReview(int maxAgeDays, int minimumApprovals, int windowDays, BigDecimal minimumRatio,
             Optional<String> branch) implements ChecklistRule {

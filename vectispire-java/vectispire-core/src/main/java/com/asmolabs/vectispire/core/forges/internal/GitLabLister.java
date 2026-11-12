@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
+import com.asmolabs.vectispire.common.domain.forges.BranchPresence;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveredRepository;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
@@ -36,7 +37,9 @@ import org.springframework.stereotype.Component;
  * ({@code forked_from_project}); a project without the field is stored {@code fork = null}, not {@code false}. An
  * empty repository has no default branch. The language costs one request per project and is asked only of the
  * projects that are new or active since it was last read; a 403 or a 404 there leaves it unknown and the run goes
- * on — a project whose code a Guest token cannot read is still a project.
+ * on — a project whose code a Guest token cannot read is still a project. The tracked branches ({@link
+ * TrackedBranches}) are asked of the same projects, a request per name but the default branch; a 404 there is an
+ * absent branch, a 403 an unknown one — and so, then, the project's whole reading.
  *
  * <p><b>A personal namespace</b> ({@code namespace.kind = user}) is listed and flagged, for the selection to
  * offer unticked (answer 7).
@@ -96,6 +99,29 @@ class GitLabLister implements ForgeLister {
                 default -> listing.language(forgeId, null);
             }
         }
+
+        TrackedBranches.read(listing, (question, name) -> branch(pager, api, question.forgeId(), name));
+    }
+
+    /**
+     * Whether one project has one branch: {@code GET /projects/:id/repository/branches/:branch}, the name encoded as
+     * one segment — {@code release/2.x} is {@code release%2F2.x} to GitLab. A 404 is the answer "no such branch" —
+     * the project itself was listed by this very run; a 403 (a Guest, who may not read the code) or any other status
+     * is no answer at all.
+     */
+    private static BranchPresence.Answer branch(OutboundPager pager, String api, String forgeId, String name) {
+        Optional<String> project = ForgePath.segment(forgeId);
+        Optional<String> branch = ForgePath.segment(name);
+        if (project.isEmpty() || branch.isEmpty()) {
+            return BranchPresence.Answer.UNKNOWN;
+        }
+        OutboundJson.Answer answer = pager.get(api + "/projects/" + project.get() + "/repository/branches/" + branch.get());
+        return switch (answer.status()) {
+            case 200 -> BranchPresence.Answer.PRESENT;
+            case 404 -> BranchPresence.Answer.ABSENT;
+            case 401 -> throw rejected();
+            default -> BranchPresence.Answer.UNKNOWN;
+        };
     }
 
     /** Reads every page of a listing, handing each element and then each page to the callers. */

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
+import com.asmolabs.vectispire.common.domain.forges.BranchPresence;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveredRepository;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
@@ -49,7 +50,8 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>The metadata is the listing's</b>: GitHub states every field in it — the language too, so no request per
  * repository — and states {@code fork} and {@code archived} always, so neither is unknown here. The size is in
- * kibibytes. An empty repository still names a default branch; its first scan says it is empty.
+ * kibibytes. An empty repository still names a default branch; its first scan says it is empty. The tracked branches
+ * ({@link TrackedBranches}) are the one thing asked per repository, of the new and the active ones only.
  */
 @Component
 class GitHubLister implements ForgeLister {
@@ -109,6 +111,35 @@ class GitHubLister implements ForgeLister {
             listing.namespace(login);
             walk(pager, api + USER_REPOS, login, true, listing);
         }
+
+        TrackedBranches.read(listing, (question, name) -> branch(pager, api, question.fullPath(), name));
+    }
+
+    /**
+     * Whether one repository has one branch: {@code GET /repos/{owner}/{repo}/branches/{branch}}, readable with
+     * <em>Metadata: read</em>, which every token the discovery runs with holds. A 404 is the answer "no such branch" —
+     * the repository was listed by this very run; a 403, a redirect (a repository renamed between the listing and
+     * the question) or any other status is no answer at all.
+     */
+    private static BranchPresence.Answer branch(OutboundPager pager, String api, String fullPath, String name) {
+        int slash = fullPath == null ? -1 : fullPath.indexOf('/');
+        if (slash < 0) {
+            return BranchPresence.Answer.UNKNOWN;
+        }
+        Optional<String> owner = ForgePath.segment(fullPath.substring(0, slash));
+        Optional<String> repository = ForgePath.segment(fullPath.substring(slash + 1));
+        Optional<String> branch = ForgePath.segment(name);
+        if (owner.isEmpty() || repository.isEmpty() || branch.isEmpty()) {
+            return BranchPresence.Answer.UNKNOWN;
+        }
+        OutboundJson.Answer answer = pager.get(api + "/repos/" + owner.get() + "/" + repository.get() + "/branches/"
+                + branch.get());
+        return switch (answer.status()) {
+            case 200 -> BranchPresence.Answer.PRESENT;
+            case 404 -> BranchPresence.Answer.ABSENT;
+            case 401 -> throw rejected();
+            default -> BranchPresence.Answer.UNKNOWN;
+        };
     }
 
     /** The organisations a classic token sees; what GitHub withholds is said to the listing, not guessed at. */

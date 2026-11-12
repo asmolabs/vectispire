@@ -166,6 +166,7 @@ public class ForgeImportService {
             Placement placement = target.placement();
             Long projectId = placement.filed() ? projectIds.get(key(placement.solution(), placement.project())) : null;
             String provenance = origin + ", forge id " + target.repository().getForgeId()
+                    + (plan.perBranch() ? ", branch " + target.changes().branch() : "")
                     + (placement.filed() ? ", into project " + placement.solution() + " / " + placement.project() : "");
             RepositoryView repository = batch.repository(target.changes(), projectId, plan.at(), provenance);
 
@@ -185,7 +186,7 @@ public class ForgeImportService {
             }
             created.add(new ForgeImportedTarget(target.repository().getForgeId(), target.repository().getFullPath(),
                     repository.id(), repository.url(), placement.solution(), placement.project(), scanId,
-                    target.firstScanNotBefore()));
+                    target.firstScanNotBefore(), target.changes().branch()));
         }
         // The link's unique keys are checked here, inside the transaction, rather than at a commit no catch sees.
         links.flush();

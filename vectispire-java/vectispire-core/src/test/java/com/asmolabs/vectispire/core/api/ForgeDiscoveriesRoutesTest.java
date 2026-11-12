@@ -228,7 +228,8 @@ class ForgeDiscoveriesRoutesTest extends ApiTestBase {
         assertThat(run.at("/reason").isNull()).isTrue();
         assertThat(run.at("/namespacesSeen").asInt()).as("acme, acme/backend, acme/frontend and ada's own").isEqualTo(4);
         assertThat(run.at("/repositoriesSeen").asInt()).isEqualTo(4);
-        assertThat(run.at("/requestsMade").asInt()).as("two pages of groups, two of projects, four languages").isEqualTo(8);
+        assertThat(run.at("/requestsMade").asInt()).as("two pages of groups, two of projects, four languages, and "
+                + "nine tracked branches — each project's main, master and develop but its default").isEqualTo(17);
         assertThat(run.at("/newCount").asInt()).isEqualTo(4);
         assertThat(run.at("/changedCount").asInt()).isZero();
         assertThat(run.at("/goneCount").asInt()).isZero();

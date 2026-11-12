@@ -116,8 +116,9 @@ class ChangeReviewRoutesTest extends ApiTestBase {
         project = project("Checkout");
         imported = repository("https://example.invalid/imported-under-another-name.git");
         link(imported, "42");
-        // The discovery listed acme/web with this clone URL: the same repository, by its identity.
-        byUrl = repository("https://git.example.org/acme/web.git");
+        // The discovery listed acme/web with this clone URL: the same repository, by its identity — scanned on its
+        // default branch, trunk, which is the branch a line naming none reads.
+        byUrl = repository("https://git.example.org/acme/web.git", "trunk");
         file(project, imported);
         file(project, byUrl);
     }
@@ -195,6 +196,33 @@ class ChangeReviewRoutesTest extends ApiTestBase {
         long requests = gitlab.seen.size();
         assertThat(reviews.readDue()).as("read an hour ago: not due again").isZero();
         assertThat(gitlab.seen).hasSize((int) requests);
+    }
+
+    @Test
+    @DisplayName("a line naming no branch reads the branch each target scans: main and develop of one repository apart")
+    void eachTargetItsOwnBranch() throws Exception {
+        communityEdition(42, "main", "[" + mergeRequest(5, Duration.ofDays(1), 7) + "]");
+        communityEdition(43, "trunk", "[" + mergeRequest(2, Duration.ofDays(2), 8) + "]");
+        gitlab.route("/api/v4/projects/43/merge_requests/2/approvals", Reply.json(approvedBy(7)));
+        gitlab.routePrefix(mergeRequestsPath(42, "develop"), Reply.json("[" + mergeRequest(6, Duration.ofDays(1), 7) + "]"));
+        gitlab.route("/api/v4/projects/42/merge_requests/5/approvals", Reply.json(approvedBy(8)));
+        gitlab.route("/api/v4/projects/42/merge_requests/6/approvals", Reply.json(approvedBy(7)));
+        // An import made of acme/app a second target, on develop, filed in the same project as the first.
+        long develop = repository("https://example.invalid/imported-develop.git", "develop");
+        link(develop, "42");
+        file(project, develop);
+        publishWithRule(EVERY_CHANGE);
+        open(project);
+
+        assertThat(readAll()).isEqualTo(3);
+
+        assertThat(readingOf(imported).getEvidence()).contains("\"main\"").doesNotContain("\"develop\"");
+        assertThat(readingOf(develop).getEvidence()).as("develop's own merge requests, not main's")
+                .contains("\"develop\"");
+        JsonNode measured = measurement();
+        assertThat(measured.at("/outcome").asText()).as("develop's self-approved change is not vouched for by main's")
+                .isEqualTo("fail");
+        assertThat(measured.at("/evidence/summary").asText()).contains("without: !6");
     }
 
     @Test
@@ -400,10 +428,14 @@ class ChangeReviewRoutesTest extends ApiTestBase {
     }
 
     private long repository(String url) {
+        return repository(url, "main");
+    }
+
+    private long repository(String url, String branch) {
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl(url);
         entity.setName(url.substring(url.lastIndexOf('/') + 1));
-        entity.setBranch("main");
+        entity.setBranch(branch);
         entity.setScanIntervalMinutes(1_440);
         return repositories.save(entity).getId();
     }

@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.forges.SelectionFilter.Judged;
 import com.asmolabs.vectispire.common.domain.forges.SelectionFilter.Verdict;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,11 +22,11 @@ class SelectionFilterTest {
     private static final Instant NOW = Instant.parse("2026-10-03T12:00:00Z");
 
     private static Candidate repository(Boolean archived, Boolean fork, Instant activity, String language) {
-        return new Candidate(archived, fork, activity, language, "private", "acme/backend", "acme/backend/api", false, false);
+        return new Candidate(archived, fork, activity, language, "private", "acme/backend", "acme/backend/api", false, false, null);
     }
 
     private static SelectionFilter filter(String archived, String forks, Integer inactiveDays, String language) {
-        return SelectionFilter.parse(archived, forks, inactiveDays, language, null, null, null, null, null);
+        return SelectionFilter.parse(archived, forks, inactiveDays, language, null, null, null, null, null, null);
     }
 
     @Test
@@ -70,7 +71,7 @@ class SelectionFilterTest {
         Verdict hiddenAnyway = SelectionFilter.DEFAULT.judge(repository(true, null, NOW, null), NOW);
         assertThat(hiddenAnyway.matches()).isFalse();
         assertThat(hiddenAnyway.unjudged()).as("archived hides it whatever its fork flag").isEmpty();
-        Verdict elsewhere = SelectionFilter.parse(null, null, null, null, null, "other", null, null, null)
+        Verdict elsewhere = SelectionFilter.parse(null, null, null, null, null, "other", null, null, null, null)
                 .judge(repository(null, null, NOW, null), NOW);
         assertThat(elsewhere.unjudged()).isEmpty();
     }
@@ -83,16 +84,16 @@ class SelectionFilterTest {
         assertThat(recent.judge(repository(false, false, NOW.minus(Duration.ofDays(31)), null), NOW).matches()).isFalse();
         assertThat(filter(null, null, null, "JAVA").judge(repository(false, false, NOW, "Java"), NOW).matches()).isTrue();
         assertThat(filter(null, null, null, "Go").judge(repository(false, false, NOW, "Java"), NOW).matches()).isFalse();
-        SelectionFilter visibility = SelectionFilter.parse(null, null, null, null, "Internal", null, null, null, null);
+        SelectionFilter visibility = SelectionFilter.parse(null, null, null, null, "Internal", null, null, null, null, null);
         assertThat(visibility.judge(repository(false, false, NOW, null), NOW).matches()).isFalse();
     }
 
     @Test
     @DisplayName("a namespace covers itself and what lies below, by whole segments")
     void namespace() {
-        SelectionFilter acme = SelectionFilter.parse(null, null, null, null, null, "/ACME/", null, null, null);
+        SelectionFilter acme = SelectionFilter.parse(null, null, null, null, null, "/ACME/", null, null, null, null);
         assertThat(acme.judge(repository(false, false, NOW, null), NOW).matches()).isTrue();
-        SelectionFilter partial = SelectionFilter.parse(null, null, null, null, null, "acme/back", null, null, null);
+        SelectionFilter partial = SelectionFilter.parse(null, null, null, null, null, "acme/back", null, null, null, null);
         assertThat(partial.judge(repository(false, false, NOW, null), NOW).matches()).isFalse();
     }
 
@@ -129,10 +130,10 @@ class SelectionFilterTest {
     @Test
     @DisplayName("personal and present: show, hide or only")
     void personalAndPresent() {
-        Candidate personal = new Candidate(false, false, NOW, null, null, "ada", "ada/notes", true, false);
-        Candidate present = new Candidate(false, false, NOW, null, null, "acme", "acme/api", false, true);
-        SelectionFilter hidePersonal = SelectionFilter.parse(null, null, null, null, null, null, null, "hide", null);
-        SelectionFilter onlyPresent = SelectionFilter.parse(null, null, null, null, null, null, null, null, "only");
+        Candidate personal = new Candidate(false, false, NOW, null, null, "ada", "ada/notes", true, false, null);
+        Candidate present = new Candidate(false, false, NOW, null, null, "acme", "acme/api", false, true, null);
+        SelectionFilter hidePersonal = SelectionFilter.parse(null, null, null, null, null, null, null, "hide", null, null);
+        SelectionFilter onlyPresent = SelectionFilter.parse(null, null, null, null, null, null, null, null, "only", null);
         assertThat(SelectionFilter.DEFAULT.judge(personal, NOW).matches()).isTrue();
         assertThat(SelectionFilter.DEFAULT.judge(present, NOW).matches()).isTrue();
         assertThat(hidePersonal.judge(personal, NOW).matches()).isFalse();
@@ -148,6 +149,47 @@ class SelectionFilterTest {
         assertThatThrownBy(() -> filter(null, null, 0, null)).isInstanceOf(InvalidInputException.class)
                 .hasMessageContaining("between 1 and");
         assertThat(Set.of(Judged.values())).extracting(Judged::wireName)
-                .containsExactlyInAnyOrder("archived", "fork", "activity", "language", "visibility");
+                .containsExactlyInAnyOrder("archived", "fork", "activity", "language", "visibility", "branch");
+    }
+
+    private static Candidate withBranches(BranchPresence branches) {
+        return new Candidate(false, false, NOW, null, null, "acme", "acme/api", false, false, branches);
+    }
+
+    private static SelectionFilter branches(String... names) {
+        return SelectionFilter.parse(null, null, null, null, null, null, null, null, null, List.of(names));
+    }
+
+    @Test
+    @DisplayName("the branch filter: any one of the names present keeps it; all absent leaves it out; unread is unjudged")
+    void branches() {
+        Set<String> tracked = Set.of("main", "master", "develop");
+        SelectionFilter developOrMaster = branches("develop", " master ", "");
+
+        assertThat(developOrMaster.branches()).as("trimmed, the blank dropped").containsExactlyInAnyOrder("develop", "master");
+        assertThat(developOrMaster.judge(withBranches(new BranchPresence("main", tracked, Set.of("main", "develop"))), NOW)
+                .matches()).as("develop present: any one is enough").isTrue();
+        Verdict absent = developOrMaster.judge(withBranches(new BranchPresence("main", tracked, Set.of("main"))), NOW);
+        assertThat(absent.matches()).isFalse();
+        assertThat(absent.unjudged()).as("both read absent: judged").isEmpty();
+
+        Verdict unread = developOrMaster.judge(withBranches(new BranchPresence("main", null, null)), NOW);
+        assertThat(unread.matches()).as("never read: not a repository with develop").isFalse();
+        assertThat(unread.unjudged()).containsExactly(Judged.BRANCH);
+        Verdict unanswered = developOrMaster.judge(withBranches(new BranchPresence("main", tracked, null)), NOW);
+        assertThat(unanswered.unjudged()).as("the forge did not answer for one of them").containsExactly(Judged.BRANCH);
+        Verdict notAsked = developOrMaster.judge(withBranches(new BranchPresence("main", Set.of("main"), Set.of())), NOW);
+        assertThat(notAsked.unjudged()).as("a name the reading did not ask is unknown, not absent")
+                .containsExactly(Judged.BRANCH);
+
+        assertThat(developOrMaster.judge(withBranches(new BranchPresence("master", null, null)), NOW).matches())
+                .as("the default branch needs no reading").isTrue();
+        assertThat(SelectionFilter.DEFAULT.judge(withBranches(new BranchPresence(null, null, null)), NOW).matches())
+                .as("no branch filter, nothing judged").isTrue();
+
+        assertThatThrownBy(() -> branches("feature x")).isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("whitespace");
+        assertThatThrownBy(() -> branches("default")).isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("default branch");
     }
 }
