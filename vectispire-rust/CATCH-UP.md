@@ -160,6 +160,10 @@ causes rather than one by one. Counts are recordings.
       `_recording.txt`; find what the eight requests before it wait on — the built-in worker's Docker check is the
       first suspect — and remove the line.
 
+- [ ] **`security/mutants/p2-7-scanning.py` runs 43 of its engine mutants on PostgreSQL only** (the `PG` selector): since
+      PostgreSQL left the port's jobs, those tests return at once under `VECTISPIRE_TEST_ENGINES=mysql` and a mutant can
+      only survive. Switch the selector to MySQL and rerun the script whole.
+
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.
 
