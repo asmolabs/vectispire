@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as \"is_active: bool\",\n               github_id, keycloak_id, created_at as \"created_at: _\", updated_at as \"updated_at: _\",\n               must_change_password as \"must_change_password: bool\", mfa_enabled as \"mfa_enabled: bool\"\n               from t_user where keycloak_id = ?",
+  "query": "/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as \"is_active: bool\",\n               github_id, keycloak_id, created_at as \"created_at: _\", updated_at as \"updated_at: _\",\n               must_change_password as \"must_change_password: bool\", mfa_enabled as \"mfa_enabled: bool\",\n               scim_managed as \"scim_managed: bool\" from t_user where keycloak_id = ?",
   "describe": {
     "columns": [
       {
@@ -210,6 +210,22 @@
             "name": "mfa_enabled"
           }
         }
+      },
+      {
+        "ordinal": 13,
+        "name": "scim_managed: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "scim_managed"
+          }
+        }
       }
     ],
     "parameters": {
@@ -228,8 +244,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "4b85730ad77be9adfc14710ff3e2c7e441728ad9f08a8476276e875190d8b066"
+  "hash": "d2035a48bd9ee89bcab1f0f3070690f0a2dbdeaec6659feba78ed1ef52381b50"
 }

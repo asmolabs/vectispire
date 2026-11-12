@@ -1,7 +1,7 @@
 //! The sign-in's tables — `t_login_attempt` (`LoginAttemptRepository`), `t_mfa_challenge` (`MfaChallengeRepository`),
-//! `t_rate_window` (`RateWindowRepository`), and the second factor's columns of `t_user` (`UserRepository`'s
-//! `advanceTotpStep`, `replaceBackupCodes`, the two enrolment counts, and the writes `TotpService` makes through
-//! `save`).
+//! `t_rate_window` (`RateWindowRepository`), `t_sign_in_client` (`SignInClientRepository`, V101), and the second
+//! factor's columns of `t_user` (`UserRepository`'s `advanceTotpStep`, `replaceBackupCodes`, the two enrolment counts,
+//! and the writes `TotpService` makes through `save`).
 //!
 //! **Behind ports, as the accounts' store is** ([`SignInStore`], [`RateWindowStore`]): the services above are written
 //! against the traits, so that their order of operations is tested with a store in memory, and every statement is run
@@ -19,6 +19,7 @@
 
 mod attempts;
 mod challenges;
+mod known_clients;
 mod rate_windows;
 mod second_factor;
 
@@ -77,6 +78,31 @@ pub trait SignInStore: Send + Sync {
     fn delete_attempts(&self, ids: &[Uuid]) -> impl Future<Output = Result<u64, StoreError>> + Send;
     /// `deleteBefore`: strictly before `cutoff`.
     fn delete_attempts_before(&self, cutoff: OffsetDateTime) -> impl Future<Output = Result<u64, StoreError>> + Send;
+
+    /// `SignInClientRepository.existsByClientKeyAndLastSignedInAtAfter`: strictly after `after`.
+    fn known_client_after(
+        &self,
+        client_key: &str,
+        after: OffsetDateTime,
+    ) -> impl Future<Output = Result<bool, StoreError>> + Send;
+    /// `touch`: 0 when the client is new to the account, and the caller inserts it.
+    fn touch_known_client(
+        &self,
+        client_key: &str,
+        at: OffsetDateTime,
+    ) -> impl Future<Output = Result<u64, StoreError>> + Send;
+    /// `save(new SignInClientEntity)`: refused by the primary key when the client is already known.
+    fn insert_known_client(
+        &self,
+        client_key: &str,
+        account_id: i64,
+        at: OffsetDateTime,
+    ) -> impl Future<Output = Result<(), StoreError>> + Send;
+    /// `deleteBefore`: last signed in strictly before `cutoff`.
+    fn delete_known_clients_before(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> impl Future<Output = Result<u64, StoreError>> + Send;
 
     /// `findById(tokenHash)`.
     fn find_challenge(&self, token_hash: &str) -> impl Future<Output = Result<Option<Challenge>, StoreError>> + Send;
@@ -185,6 +211,27 @@ impl SignInStore for SqlSignInStore {
 
     async fn delete_attempts_before(&self, cutoff: OffsetDateTime) -> Result<u64, StoreError> {
         attempts::delete_before(&self.db, cutoff).await
+    }
+
+    async fn known_client_after(&self, client_key: &str, after: OffsetDateTime) -> Result<bool, StoreError> {
+        known_clients::exists_after(&self.db, client_key, after).await
+    }
+
+    async fn touch_known_client(&self, client_key: &str, at: OffsetDateTime) -> Result<u64, StoreError> {
+        known_clients::touch(&self.db, client_key, at).await
+    }
+
+    async fn insert_known_client(
+        &self,
+        client_key: &str,
+        account_id: i64,
+        at: OffsetDateTime,
+    ) -> Result<(), StoreError> {
+        known_clients::insert(&self.db, client_key, account_id, at).await
+    }
+
+    async fn delete_known_clients_before(&self, cutoff: OffsetDateTime) -> Result<u64, StoreError> {
+        known_clients::delete_before(&self.db, cutoff).await
     }
 
     async fn find_challenge(&self, token_hash: &str) -> Result<Option<Challenge>, StoreError> {

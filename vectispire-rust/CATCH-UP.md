@@ -17,16 +17,37 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       `known-client-retention` (P30D), and bounds password derivations (`derivations.concurrent`, `queue-wait`).
       Buckets: IPv6 grouped by /64, and IPv4 in brackets and `host:port` spelled differently.
       Red: `cp-access --test sign_in_reference_set`, `cp-runtime --test java_parity`.
+      - [x] The settings, read with Java's defaults (`cp-runtime` `java_parity`, `settings`); the three counters, the
+            soft budget across clients, `t_sign_in_client` (remembered at every session, asked for unknown names too,
+            purged by `SESSION_CLEANUP`), the code sent with the password and the one-second deadline
+            (`sign_in_flow`, `sign_in_on_both_engines`).
+      - [ ] **The buckets** — `ClientBuckets.of` now reads through `AddressLiterals` (port dropped, brackets for IPv6
+            only); `client_bucket` is `cp-http`'s (`address.rs`), left to its owner. `sign_in_reference_set` stays red
+            on 6 addresses. `TrustedProxies` reads hops through `AddressLiterals` too (every `X-Forwarded-For` line, a
+            hop that is no address answering the nearest trusted proxy) — not on this list before.
+      - [ ] **The derivation gate** (`DerivationGate`, 503 `DerivationsSaturated` with `Retry-After`): not ported.
+      - [ ] `cp-app` composes neither `SignInFlow::with_limits` nor `session_cleanup_task_with_limits` with
+            `settings.sign_in` yet: the shipped ceilings hold until it does.
 - [ ] **Account requests**: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
       `ACCOUNT_REQUEST_FILED / _APPROVED / _REJECTED` (SIEM maps them to `ACCOUNT_CHANGED`). Not-yet-ported list.
 - [ ] **`DELETE /users/{id}/second-factor`**, and `UserView.scimManaged` (V102). Not-yet-ported list.
-- [ ] **OIDC**: settings bound by `OidcProperties` (no longer `@Value`), new `vectispire.oidc.link-by-claim` (true);
-      SCIM's link-privileged switch reads `OidcProperties.linkPrivilegedAccounts`. Red: `java_parity`.
-- [ ] **Mail** settings bound by a record (no longer `@Value`). Red: `java_parity`.
-- [ ] **Access reference set** — settings save: one transaction holding the notification channels; 409
-      `integration-disabled` when the tracker or the AI provider moves to a disabled integration, or AI review is turned
-      on over one; a secret administrator-only setting refused from a non-administrator even unchanged;
-      `checkAiEndpoint` hides the URL from a non-administrator. Red: `cp-access --test reference_set`.
+      - [x] `scim_managed` read on `User`, `UserView` and SCIM's rows, set by every provisioning write
+            (`scim_on_both_engines`).
+      - [ ] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — is not
+            ported: the Rust `AccountChange` has no e-mail at all yet (Java 1.0's `emailChange`), and SCIM's
+            `scimLoweredFrom` is not ported either. Neither was on this list.
+- [x] **OIDC**: settings bound by `OidcProperties` (no longer `@Value`), new `vectispire.oidc.link-by-claim` (true);
+      SCIM's link-privileged switch reads `OidcProperties.linkPrivilegedAccounts`. Red: `java_parity`. (The loader reads
+      `link-by-claim`; its consumer is the single sign-on, task 1.4, not ported.)
+- [x] **Mail** settings bound by a record (no longer `@Value`). Red: `java_parity`.
+- [x] **Access reference set** — red on `Sessions.bearerToken` only: Java 1.0 reads `^bearer\s+(\S+)$` in any case.
+      What this entry listed (settings saved in one transaction with the notification channels, 409
+      `integration-disabled`, a secret administrator-only setting refused unchanged, `checkAiEndpoint` hiding the URL)
+      is in no Rust test or reference set: it is the settings service's (`cp-settings` / `cp-platform`), still owed.
+- [ ] **Settings save and AI endpoint check** (moved from the line above, still owed): settings saved in one
+      transaction with the notification channels; 409 `integration-disabled` when the tracker or the AI provider moves
+      to a disabled integration, or AI review is turned on over one; a secret administrator-only setting refused from a
+      non-administrator even unchanged; `checkAiEndpoint` hides the URL from a non-administrator.
 
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 
@@ -57,7 +78,9 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
 - [ ] **Settings**: new `four_eyes_independence_days` (INTEGER, 30, TRIAGE), one setting became administrator-only,
       forge API roots with a query or fragment refused; `validation.json` moved. Red: `cp-settings --test reference_set`.
 - [ ] **Metrics**: `vectispire.metrics.scrape-token` / `-file` accepted as a bearer on `/actuator/prometheus` (declared
-      in the property table; not honoured yet).
+      in the property table; not honoured yet). The loader now reads it as `ScrapeTokenProperties` does — the file's
+      when named, read at each call, refused at start under 32 characters (`Settings::metrics`). Still owed: the Rust
+      actuator serves no `/actuator/prometheus`, and recognising the token is `cp-http`'s chain.
 - [ ] Audit operations list. Red: `cp-audit --test reference_set`.
 
 ## SIEM (`cp-siem`, `domain`)

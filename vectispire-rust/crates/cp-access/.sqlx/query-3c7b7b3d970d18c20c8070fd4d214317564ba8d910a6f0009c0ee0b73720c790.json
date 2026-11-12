@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user where id = $1",
+  "query": "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where id = $1 for update",
   "describe": {
     "columns": [
       {
@@ -145,6 +145,17 @@
             "name": "mfa_enabled"
           }
         }
+      },
+      {
+        "ordinal": 13,
+        "name": "scim_managed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "scim_managed"
+          }
+        }
       }
     ],
     "parameters": {
@@ -165,8 +176,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "68bff89173d96546be0819898aa419dde8ec26b1cda1fd8b39bbe78b1804e179"
+  "hash": "3c7b7b3d970d18c20c8070fd4d214317564ba8d910a6f0009c0ee0b73720c790"
 }

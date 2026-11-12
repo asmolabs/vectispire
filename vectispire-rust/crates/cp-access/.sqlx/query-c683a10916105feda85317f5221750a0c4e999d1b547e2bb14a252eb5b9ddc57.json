@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_sign_in_client where last_signed_in_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "c683a10916105feda85317f5221750a0c4e999d1b547e2bb14a252eb5b9ddc57"
+}

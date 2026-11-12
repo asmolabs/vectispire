@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_sign_in_client where last_signed_in_at < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1835be08938da611c6b3247efe14f9d9aed467715c46a45e303f051de05b0b53"
+}

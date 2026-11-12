@@ -220,6 +220,19 @@ async fn statements(engine: Engine) {
     assert_eq!(store.delete_expired(at + Duration::minutes(1)).await.unwrap(), 1, "closed strictly before");
     assert_eq!(store.delete_by_key_prefix("w%").await.unwrap(), 1);
     assert_eq!(rows(db, "t_rate_window").await, 0);
+
+    // t_sign_in_client (V101): known strictly after, refreshed in one statement, inserted once, aged out.
+    assert_eq!(store.touch_known_client("k", at).await.unwrap(), 0, "new to the account");
+    store.insert_known_client("k", alice, at).await.unwrap();
+    assert!(store.insert_known_client("k", alice, at).await.is_err(), "the primary key refuses a second");
+    assert!(store.known_client_after("k", at - Duration::microseconds(1)).await.unwrap());
+    assert!(!store.known_client_after("k", at).await.unwrap(), "strictly after");
+    assert!(!store.known_client_after("other", at - Duration::days(1)).await.unwrap());
+    assert_eq!(store.touch_known_client("k", later).await.unwrap(), 1);
+    assert!(store.known_client_after("k", at).await.unwrap(), "refreshed");
+    assert_eq!(store.delete_known_clients_before(later).await.unwrap(), 0, "strictly before");
+    assert_eq!(store.delete_known_clients_before(later + Duration::microseconds(1)).await.unwrap(), 1);
+    assert_eq!(rows(db, "t_sign_in_client").await, 0);
 }
 
 #[tokio::test]
@@ -270,16 +283,24 @@ async fn logging_in(engine: Engine) {
         vec![hash_of(issued.token.expose())]
     );
 
-    // The throttle counts real rows and locks after five: three rows per failure, none for the refusal.
+    // The success remembered its client, under the digest of the account and the address.
+    assert_eq!(
+        text(db, "select client_key from t_sign_in_client", "select client_key from t_sign_in_client").await,
+        vec![vectispire_cp_access::login_throttle::known_client_key(alice, "10.0.0.1")]
+    );
+
+    // The throttle counts real rows and locks after five: five rows per failure — the account and the name, each from
+    // this client and from everywhere, and the address — none for the refusal.
     for _ in 0..MAX_ATTEMPTS_PER_USER {
         let wrong = LoginRequest { password: "wrong", ..request("alice") };
         assert!(matches!(flow.login(&wrong).await.unwrap().outcome, LoginOutcome::Invalid));
     }
-    assert_eq!(rows(db, "t_login_attempt").await, 15);
+    assert_eq!(rows(db, "t_login_attempt").await, 25);
     assert!(matches!(flow.login(&request("alice")).await.unwrap().outcome, LoginOutcome::Blocked(_)));
-    assert_eq!(rows(db, "t_login_attempt").await, 15);
+    assert_eq!(rows(db, "t_login_attempt").await, 25);
 
-    // A success clears the account's and the name's counters and keeps the address's failures.
+    // A success clears the account's and the name's counters from this client and keeps the address's failures and
+    // the global ones, which other clients may have made.
     execute(db, "delete from t_login_attempt", "delete from t_login_attempt", &[]).await;
     for _ in 0..2 {
         let wrong = LoginRequest { password: "wrong", ..request("alice") };
@@ -287,8 +308,13 @@ async fn logging_in(engine: Engine) {
     }
     assert!(matches!(flow.login(&request("alice")).await.unwrap().outcome, LoginOutcome::Success { .. }));
     let keys = text(db, "select counter_key from t_login_attempt", "select counter_key from t_login_attempt").await;
-    assert_eq!(keys.len(), 2, "{keys:?}");
-    assert!(keys.iter().all(|key| key.starts_with("login:client:")), "{keys:?}");
+    assert_eq!(keys.len(), 6, "{keys:?}");
+    assert!(
+        keys.iter().all(|key| key.starts_with("login:client:")
+            || key == &format!("login:account:{alice}")
+            || key == "login:user:alice"),
+        "{keys:?}"
+    );
 
     // A deactivated account is refused like any other.
     execute(
@@ -493,16 +519,21 @@ async fn ceilings(engine: Engine) {
     assert!(admitted <= 5, "{admitted} admitted past a ceiling of five");
     assert_eq!(rows(db, "t_login_attempt").await, i64::try_from(admitted).unwrap(), "refused rows taken back");
 
-    // A burst of wrong passwords reaches the verification at most five times.
+    // A burst of wrong passwords from one client reaches the verification at most five times — the account's ceiling
+    // from that client; from many, the account's budget across clients is fifty and a budget, not a lock.
     let name = "burst";
     account(db, name, false).await;
     let mut tasks = Vec::new();
     for index in 0..BURST {
         let flow = flow.clone();
         tasks.push(tokio::spawn(async move {
-            let (password, address) = (format!("wrong-{index}"), format!("198.51.100.{index}"));
-            let attempt =
-                LoginRequest { username: name, password: &password, user_agent: None, ip_address: Some(&address) };
+            let password = format!("wrong-{index}");
+            let attempt = LoginRequest {
+                username: name,
+                password: &password,
+                user_agent: None,
+                ip_address: Some("198.51.100.1"),
+            };
             flow.login(&attempt).await.unwrap().outcome
         }));
     }
@@ -815,6 +846,8 @@ async fn cleanup(engine: Engine) {
     store.insert_challenge(&challenge("waiting", at + Duration::minutes(1))).await.unwrap();
     store.insert_first("webhook:0:closed", at - Duration::seconds(1)).await.unwrap();
     store.insert_first("webhook:1:open", at + Duration::minutes(1)).await.unwrap();
+    store.insert_known_client("stale", id, at - Duration::days(30) - Duration::seconds(1)).await.unwrap();
+    store.insert_known_client("recent", id, at - Duration::days(29)).await.unwrap();
 
     let task = session_cleanup_task(sessions.clone(), db.clone(), clock.clone());
     assert_eq!(task.sequence(), vectispire_cp_maintenance::Sequence::SessionCleanup);
@@ -835,6 +868,10 @@ async fn cleanup(engine: Engine) {
     assert_eq!(
         text(db, "select window_key from t_rate_window", "select window_key from t_rate_window").await,
         vec!["webhook:1:open"]
+    );
+    assert_eq!(
+        text(db, "select client_key from t_sign_in_client", "select client_key from t_sign_in_client").await,
+        vec!["recent"]
     );
 }
 

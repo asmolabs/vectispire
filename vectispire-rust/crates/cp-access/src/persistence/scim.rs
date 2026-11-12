@@ -33,6 +33,8 @@ pub struct AccountRow {
     pub updated_at: OffsetDateTime,
     pub must_change_password: bool,
     pub mfa_enabled: bool,
+    /// Written by the directory, which then owns the e-mail address (V102). Every write here sets it.
+    pub scim_managed: bool,
 }
 
 /// An account the directory creates: a password nobody knows, no obligation to change it, no second factor.
@@ -159,8 +161,8 @@ mod mysql {
             AccountRow,
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
-               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool"
-               from t_user where id = ?"#,
+               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
+               scim_managed as "scim_managed: bool" from t_user where id = ?"#,
             id
         )
         .fetch_optional(conn)
@@ -172,8 +174,8 @@ mod mysql {
             AccountRow,
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
-               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool"
-               from t_user where id = ? for update"#,
+               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
+               scim_managed as "scim_managed: bool" from t_user where id = ? for update"#,
             id
         )
         .fetch_optional(conn)
@@ -185,8 +187,8 @@ mod mysql {
             AccountRow,
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
-               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool"
-               from t_user where username = ?"#,
+               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
+               scim_managed as "scim_managed: bool" from t_user where username = ?"#,
             username
         )
         .fetch_optional(conn)
@@ -201,8 +203,8 @@ mod mysql {
             AccountRow,
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
-               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool"
-               from t_user where keycloak_id = ?"#,
+               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
+               scim_managed as "scim_managed: bool" from t_user where keycloak_id = ?"#,
             subject
         )
         .fetch_optional(conn)
@@ -214,8 +216,8 @@ mod mysql {
             AccountRow,
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
-               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool"
-               from t_user order by username asc"#
+               must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
+               scim_managed as "scim_managed: bool" from t_user order by username asc"#
         )
         .fetch_all(conn)
         .await
@@ -224,8 +226,8 @@ mod mysql {
     pub(super) async fn insert_account(conn: &mut MySqlConnection, row: &NewAccountRow) -> sqlx::Result<i64> {
         let done = sqlx::query!(
             "/* mysql */ insert into t_user (username, email, password, display_name, keycloak_id, role, is_active, \
-             created_at, updated_at, must_change_password, mfa_enabled) \
-             values (?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)",
+             created_at, updated_at, must_change_password, mfa_enabled, scim_managed) \
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, false, false, true)",
             row.username,
             row.email,
             row.password,
@@ -244,7 +246,7 @@ mod mysql {
     pub(super) async fn update_account(conn: &mut MySqlConnection, row: &AccountRow) -> sqlx::Result<()> {
         sqlx::query!(
             "/* mysql */ update t_user set display_name = ?, email = ?, keycloak_id = ?, is_active = ?, role = ?, \
-             updated_at = ? where id = ?",
+             scim_managed = true, updated_at = ? where id = ?",
             row.display_name,
             row.email,
             row.keycloak_id,
@@ -327,7 +329,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user where id = $1",
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where id = $1",
             id
         )
         .fetch_optional(conn)
@@ -338,7 +340,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user where id = $1 \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where id = $1 \
              for update",
             id
         )
@@ -350,7 +352,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user where username = $1",
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where username = $1",
             username
         )
         .fetch_optional(conn)
@@ -361,7 +363,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user \
              where keycloak_id = $1",
             subject
         )
@@ -373,7 +375,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled from t_user \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user \
              order by username asc"
         )
         .fetch_all(conn)
@@ -383,8 +385,8 @@ mod postgres {
     pub(super) async fn insert_account(conn: &mut PgConnection, row: &NewAccountRow) -> sqlx::Result<i64> {
         sqlx::query_scalar!(
             "/* postgres */ insert into t_user (username, email, password, display_name, keycloak_id, role, \
-             is_active, created_at, updated_at, must_change_password, mfa_enabled) \
-             values ($1, $2, $3, $4, $5, $6, $7, $8, $8, false, false) returning id",
+             is_active, created_at, updated_at, must_change_password, mfa_enabled, scim_managed) \
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $8, false, false, true) returning id",
             row.username,
             row.email,
             row.password,
@@ -401,7 +403,7 @@ mod postgres {
     pub(super) async fn update_account(conn: &mut PgConnection, row: &AccountRow) -> sqlx::Result<()> {
         sqlx::query!(
             "/* postgres */ update t_user set display_name = $1, email = $2, keycloak_id = $3, is_active = $4, \
-             role = $5, updated_at = $6 where id = $7",
+             role = $5, scim_managed = true, updated_at = $6 where id = $7",
             row.display_name,
             row.email,
             row.keycloak_id,

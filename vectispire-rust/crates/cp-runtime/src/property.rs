@@ -69,8 +69,9 @@ pub const PROPERTIES: &[Property] = &[
     yaml("spring.datasource.url", &["VECTISPIRE_DB_URL"], "jdbc:mysql://localhost:3306/vectispire"),
     yaml("spring.datasource.username", &["VECTISPIRE_DB_USER"], "vectispire"),
     secret(yaml("spring.datasource.password", &["VECTISPIRE_DB_PASSWORD"], "")),
-    // Metrics. Declared here so the table matches application.yaml; the Rust actuator does not accept the token yet
-    // (catch-up list, Phase 1): until it does, its Prometheus page answers an administrator's session only.
+    // Metrics: `ScrapeTokenProperties` binds them; the loader reads and checks the token (at least 32 characters, the
+    // file's when one is named). The Rust actuator serves no Prometheus page yet, so no route accepts it (cp-http's
+    // chain, not this crate's).
     secret(yaml("vectispire.metrics.scrape-token", &["VECTISPIRE_METRICS_SCRAPE_TOKEN"], "")),
     yaml("vectispire.metrics.scrape-token-file", &["VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE"], ""),
     // Scanning.
@@ -116,8 +117,21 @@ pub const PROPERTIES: &[Property] = &[
     yaml("vectispire.security.api-key-requests-per-minute", &["VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE"], "600"),
     yaml("vectispire.security.webhook-requests-per-window", &["VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW"], "300"),
     yaml("vectispire.security.webhook-request-window", &["VECTISPIRE_WEBHOOK_REQUEST_WINDOW"], "PT1M"),
-    value("vectispire.security.login-attempts-per-window", Some("10")),
-    value("vectispire.security.login-attempt-window", Some("PT1M")),
+    // Bound through `SecurityLimits` since 1.0, with no default there: an unset value is `LoginRateLimitFilter`'s
+    // shipped one, which is what these say.
+    record("vectispire.security.login-attempts-per-window", Some("10")),
+    record("vectispire.security.login-attempt-window", Some("PT1M")),
+    // The password throttle's ceilings (`SignInLimits`) and the derivations' bound (`PasswordDerivationLimits`).
+    yaml(
+        "vectispire.sign-in.failures-per-account-from-client",
+        &["VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT_FROM_CLIENT"],
+        "5",
+    ),
+    yaml("vectispire.sign-in.failures-per-account", &["VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT"], "50"),
+    yaml("vectispire.sign-in.failures-per-client", &["VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT"], "20"),
+    yaml("vectispire.sign-in.known-client-retention", &["VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION"], "P30D"),
+    yaml("vectispire.sign-in.derivations.concurrent", &["VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT"], "0"),
+    yaml("vectispire.sign-in.derivations.queue-wait", &["VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT"], "PT2S"),
     yaml("vectispire.http.max-body.default", &["VECTISPIRE_MAX_BODY_DEFAULT"], "1MB"),
     yaml("vectispire.http.max-body.rule-set-upload", &["VECTISPIRE_MAX_BODY_RULE_SET_UPLOAD"], "64MB"),
     yaml("vectispire.http.max-body.ticket-webhook", &["VECTISPIRE_MAX_BODY_TICKET_WEBHOOK"], "1MB"),
@@ -133,19 +147,22 @@ pub const PROPERTIES: &[Property] = &[
         &["VECTISPIRE_MAX_BODY_CHECKLIST_TEMPLATE_IMPORT"],
         "10MB",
     ),
-    value("vectispire.http.max-body.checklist-evidence", Some("25MB")),
+    // `RequestBodyLimits`' `@DefaultValue` since 1.0, no longer an `@Value`.
+    record("vectispire.http.max-body.checklist-evidence", Some("25MB")),
     yaml("vectispire.session.absolute-lifetime", &["VECTISPIRE_SESSION_LIFETIME"], "12h"),
     yaml("vectispire.session.idle-lifetime", &["VECTISPIRE_SESSION_IDLE"], "60m"),
     // Single sign-on.
     yaml("vectispire.oidc.password-login", &["VECTISPIRE_PASSWORD_LOGIN"], "true"),
     yaml("vectispire.oidc.link-privileged-accounts", &["VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS"], "false"),
+    yaml("vectispire.oidc.link-by-claim", &["VECTISPIRE_OIDC_LINK_BY_CLAIM"], "true"),
     yaml("vectispire.oidc.require-mfa", &["VECTISPIRE_OIDC_REQUIRE_MFA"], "false"),
     yaml("vectispire.oidc.mfa-amr", &["VECTISPIRE_OIDC_MFA_AMR"], "mfa,otp,hwk,fido"),
     yaml("vectispire.oidc.mfa-acr", &["VECTISPIRE_OIDC_MFA_ACR"], ""),
-    value("vectispire.oidc.issuer", None),
-    value("vectispire.oidc.client-id", None),
-    secret(value("vectispire.oidc.client-secret", Some(""))),
-    value("vectispire.oidc.name", Some("Single sign-on")),
+    // `OidcProperties` binds the provider since 1.0 (no longer `@Value`): `Optional`s, and the name's `@DefaultValue`.
+    record("vectispire.oidc.issuer", None),
+    record("vectispire.oidc.client-id", None),
+    secret(record("vectispire.oidc.client-secret", Some(""))),
+    record("vectispire.oidc.name", Some("Single sign-on")),
     // Git, audit.
     yaml("vectispire.git.allowed-hosts", &["VECTISPIRE_GIT_ALLOWED_HOSTS"], ""),
     yaml("vectispire.audit.mirror-path", &["VECTISPIRE_AUDIT_MIRROR"], ""),
@@ -193,12 +210,12 @@ pub const PROPERTIES: &[Property] = &[
     yaml("vectispire.jobs.relay-interval", &["VECTISPIRE_RELAY_INTERVAL"], "60s"),
     yaml("vectispire.jobs.scheduler-interval", &["VECTISPIRE_SCHEDULER_INTERVAL"], "60s"),
     yaml("vectispire.jobs.maintenance-interval", &["VECTISPIRE_MAINTENANCE_INTERVAL"], "1h"),
-    // Mail, when a host is named.
-    value("vectispire.mail.host", None),
-    value("vectispire.mail.port", Some("587")),
-    value("vectispire.mail.username", Some("")),
-    secret(value("vectispire.mail.password", Some(""))),
-    value("vectispire.mail.starttls", Some("true")),
+    // Mail, when a host is named — `MailProperties` since 1.0, no longer `@Value`.
+    record("vectispire.mail.host", None),
+    record("vectispire.mail.port", Some("587")),
+    record("vectispire.mail.username", Some("")),
+    secret(record("vectispire.mail.password", Some(""))),
+    record("vectispire.mail.starttls", Some("true")),
     // The API's own map.
     yaml("springdoc.swagger-ui.enabled", &["VECTISPIRE_SWAGGER_UI_ENABLED"], "false"),
     yaml("springdoc.api-docs.enabled", &["VECTISPIRE_API_DOCS_ENABLED"], "false"),

@@ -140,13 +140,25 @@ pub fn should_record_activity(last_seen_at: OffsetDateTime, now: OffsetDateTime,
     now >= plus(last_seen_at, grain)
 }
 
-/// `Sessions.bearerToken`: the token of a header that is exactly `Bearer <token>` once trimmed, empty otherwise.
+/// `Sessions.bearerToken`: the token of a header that is `^bearer\s+(\S+)$` once trimmed — the scheme in any ASCII
+/// case, then any run of Java's `\s` (space, tab, line feed, vertical tab, form feed, carriage return) — empty
+/// otherwise. Telling "absent", "malformed" and "unknown" apart would inform somebody probing.
 ///
-/// Stricter than the API-key path on purpose, and the two must not be confused: the scheme is spelt `Bearer` with
-/// one space, and the token holds none of Java's `\s` (space, tab, line feed, vertical tab, form feed, carriage
-/// return). Telling "absent", "malformed" and "unknown" apart would inform somebody probing.
+/// **The one reading of the header**, for the sessions, the keys and the ceiling on refused tokens alike, as RFC 7235
+/// reads it. The scheme was `Bearer` and one space only here, as Java read it before 1.0: a token separated by a tab
+/// was then resolved by one reader and never counted by the other.
 pub fn bearer_token(header: Option<&str>) -> Option<&str> {
-    let token = java_trim(header?).strip_prefix("Bearer ")?;
+    let trimmed = java_trim(header?);
+    // `Pattern.CASE_INSENSITIVE` without `UNICODE_CASE`: ASCII letters only, so six bytes are six characters.
+    let scheme = trimmed.get(..6)?;
+    if !scheme.eq_ignore_ascii_case("bearer") {
+        return None;
+    }
+    let rest = trimmed.get(6..)?;
+    let token = rest.trim_start_matches(is_java_regex_space);
+    if token.len() == rest.len() {
+        return None;
+    }
     is_session_token_shape(token).then_some(token)
 }
 
@@ -201,10 +213,24 @@ mod tests {
     }
 
     #[test]
-    fn the_session_header_is_exactly_bearer_space_token() {
+    fn the_session_header_is_the_scheme_in_any_case_then_whitespace_then_one_token() {
         assert_eq!(bearer_token(Some("Bearer abc123")), Some("abc123"));
         assert_eq!(bearer_token(Some("  Bearer abc123 \u{1}")), Some("abc123"));
-        for refused in ["", "   ", "abc123", "bearer abc123", "Bearer ", "Bearer a b", "Basic abc123", "Bearer  abc"] {
+        for accepted in ["bearer abc123", "BEARER abc123", "Bearer  abc123", "Bearer\tabc123", "bEaReR \t\u{0B}abc123"]
+        {
+            assert_eq!(bearer_token(Some(accepted)), Some("abc123"), "{accepted:?}");
+        }
+        for refused in [
+            "",
+            "   ",
+            "abc123",
+            "Bearer ",
+            "Bearer a b",
+            "Basic abc123",
+            "Bearerabc",
+            "\u{a0}Bearer abc",
+            "Bearer\u{a0}abc",
+        ] {
             assert_eq!(bearer_token(Some(refused)), None, "{refused:?}");
         }
         assert_eq!(bearer_token(None), None);

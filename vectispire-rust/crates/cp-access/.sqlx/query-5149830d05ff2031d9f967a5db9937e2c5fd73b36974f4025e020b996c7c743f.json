@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, totp_secret, mfa_backup_codes, totp_last_step\n               from t_user where username = $1",
+  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step\n               from t_user where username = $1",
   "describe": {
     "columns": [
       {
@@ -159,6 +159,17 @@
       },
       {
         "ordinal": 14,
+        "name": "scim_managed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "scim_managed"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "totp_secret",
         "type_info": "Text",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "mfa_backup_codes",
         "type_info": "Text",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "totp_last_step",
         "type_info": "Int8",
         "origin": {
@@ -211,10 +222,11 @@
       false,
       false,
       false,
+      false,
       true,
       true,
       true
     ]
   },
-  "hash": "1dd3bde10a1d8738340d4c0b2ccfd0d4426b282410c24c7b62703f93e1e5a3cb"
+  "hash": "5149830d05ff2031d9f967a5db9937e2c5fd73b36974f4025e020b996c7c743f"
 }

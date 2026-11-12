@@ -62,6 +62,12 @@ pub struct State {
     pub challenges: BTreeMap<String, vectispire_cp_access::sign_in::Challenge>,
     pub swept_at: Vec<OffsetDateTime>,
     pub windows: BTreeMap<String, (i32, OffsetDateTime)>,
+    /// `t_sign_in_client`: key → (account, last signed in).
+    pub known_clients: BTreeMap<String, (i64, OffsetDateTime)>,
+    /// Every key the known clients were asked about, in order.
+    pub known_client_questions: Vec<String>,
+    /// When set, recording a known client fails — the sign-in must not.
+    pub failing_known_clients: bool,
     /// When set, every statement fails.
     pub failing: bool,
     /// When set, `insert_first` fails once — another instance's insert won.
@@ -129,6 +135,7 @@ pub fn account(id: i64, username: &str, active: bool) -> User {
         updated_at: NOW,
         must_change_password: false,
         mfa_enabled: false,
+        scim_managed: false,
         totp_secret: None,
         mfa_backup_codes: None,
         totp_last_step: None,
@@ -245,6 +252,47 @@ impl SignInStore for Memory {
         let before = state.attempts.len();
         state.attempts.retain(|(_, _, at)| *at >= cutoff);
         Ok((before - state.attempts.len()) as u64)
+    }
+
+    async fn known_client_after(&self, client_key: &str, after: OffsetDateTime) -> Result<bool, StoreError> {
+        let mut state = self.guard()?;
+        state.known_client_questions.push(client_key.to_owned());
+        Ok(state.known_clients.get(client_key).is_some_and(|(_, at)| *at > after))
+    }
+
+    async fn touch_known_client(&self, client_key: &str, at: OffsetDateTime) -> Result<u64, StoreError> {
+        let mut state = self.guard()?;
+        if state.failing_known_clients {
+            return Err(failure());
+        }
+        Ok(match state.known_clients.get_mut(client_key) {
+            Some(known) => {
+                known.1 = at;
+                1
+            }
+            None => 0,
+        })
+    }
+
+    async fn insert_known_client(
+        &self,
+        client_key: &str,
+        account_id: i64,
+        at: OffsetDateTime,
+    ) -> Result<(), StoreError> {
+        let mut state = self.guard()?;
+        if state.known_clients.contains_key(client_key) {
+            return Err(StoreError("duplicate key".into()));
+        }
+        state.known_clients.insert(client_key.to_owned(), (account_id, at));
+        Ok(())
+    }
+
+    async fn delete_known_clients_before(&self, cutoff: OffsetDateTime) -> Result<u64, StoreError> {
+        let mut state = self.guard()?;
+        let before = state.known_clients.len();
+        state.known_clients.retain(|_, (_, at)| *at >= cutoff);
+        Ok((before - state.known_clients.len()) as u64)
     }
 
     async fn find_challenge(

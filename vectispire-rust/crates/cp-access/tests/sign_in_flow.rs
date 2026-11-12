@@ -13,8 +13,9 @@ use time::Duration;
 use vectispire_cp_access::accounts::{AuditOperation, PasswordChange, Sealed};
 use vectispire_cp_access::credentials::hash_of;
 use vectispire_cp_access::login_throttle::{
-    MAX_ATTEMPTS_PER_CLIENT, MAX_ATTEMPTS_PER_USER, MAX_SECOND_FACTOR_FAILURES, account_key, client_key,
-    second_factor_key, user_key,
+    MAX_ATTEMPTS_PER_ACCOUNT, MAX_ATTEMPTS_PER_CLIENT, MAX_ATTEMPTS_PER_USER, MAX_SECOND_FACTOR_FAILURES, SignInLimits,
+    account_key, account_key_from_client, client_key, known_client_key, second_factor_key, user_key,
+    user_key_from_client,
 };
 use vectispire_cp_access::rate_windows::{Limit, RateWindows};
 use vectispire_cp_access::second_factor::{
@@ -63,10 +64,14 @@ async fn opens_a_session_on_the_right_password() {
     assert_eq!(result.audit.operation, AuditOperation::LoginSuccess);
     assert_eq!((result.audit.resource.as_str(), result.audit.description.as_str()), ("alice", "Login succeeded"));
     assert_eq!(result.audit.username.as_deref(), Some("alice"));
-    // A success clears the account's and the name's counters.
+    // A success clears the account's and the name's counters from this client: five mistypes then the right password
+    // is not an attack on them. The global ones keep what other clients may have tried.
     let cleared = store.state().cleared_keys.clone();
-    assert!(cleared.contains(&account_key(1)), "{cleared:?}");
-    assert!(cleared.contains(&user_key("alice")), "{cleared:?}");
+    assert!(cleared.contains(&account_key_from_client(1, "10.0.0.1")), "{cleared:?}");
+    assert!(cleared.contains(&user_key_from_client("alice", "10.0.0.1")), "{cleared:?}");
+    assert!(!cleared.contains(&account_key(1)) && !cleared.contains(&user_key("alice")), "{cleared:?}");
+    // And the client is now known to the account.
+    assert!(store.state().known_clients.contains_key(&known_client_key(1, "10.0.0.1")));
 }
 
 /// The audit of 10 October 2026: a success erased the address's counter too.
@@ -114,13 +119,23 @@ async fn a_failure_counts_against_the_account_and_against_the_caller_s_address()
     flow.login(&request("alice", "wrong")).await.unwrap();
     flow.login(&request("nobody", "wrong")).await.unwrap();
 
-    // In the order Java's LinkedHashMap holds them: the account, the name, the address.
+    // In the order Java's LinkedHashMap holds them: an account that exists by its id and by the name typed, each from
+    // this client and from everywhere; a name that opens nothing by the name alone; the address after them.
     assert_eq!(
         store.state().recorded,
-        vec![account_key(1), user_key("alice"), client_key("10.0.0.1"), user_key("nobody"), client_key("10.0.0.1"),]
+        vec![
+            account_key_from_client(1, "10.0.0.1"),
+            account_key(1),
+            user_key_from_client("alice", "10.0.0.1"),
+            user_key("alice"),
+            client_key("10.0.0.1"),
+            user_key_from_client("nobody", "10.0.0.1"),
+            user_key("nobody"),
+            client_key("10.0.0.1"),
+        ]
     );
     // An admitted failure keeps its rows.
-    assert_eq!(store.state().attempts.len(), 5);
+    assert_eq!(store.state().attempts.len(), 8);
 }
 
 #[tokio::test]
@@ -128,7 +143,10 @@ async fn an_absent_address_is_counted_under_the_four_letters() {
     let clock = clock();
     let (flow, store, _, _) = flow(shared(&clock));
     flow.login(&LoginRequest { username: "nobody", password: "x", user_agent: None, ip_address: None }).await.unwrap();
-    assert_eq!(store.state().recorded, vec![user_key("nobody"), client_key("null")]);
+    assert_eq!(
+        store.state().recorded,
+        vec![user_key_from_client("nobody", "null"), user_key("nobody"), client_key("null")]
+    );
 }
 
 #[tokio::test]
@@ -142,7 +160,7 @@ async fn a_spelling_the_database_would_resolve_to_an_account_opens_nothing_and_m
     assert!(matches!(result.outcome, LoginOutcome::Invalid));
     assert!(!store.state().lookups.contains(&"ÀLICE".to_owned()), "never looked up");
 
-    store.seed_attempts(&user_key("alice"), MAX_ATTEMPTS_PER_USER, NOW);
+    store.seed_attempts(&user_key_from_client("alice", "10.0.0.1"), MAX_ATTEMPTS_PER_USER, NOW);
     assert!(matches!(flow.login(&request("ÀLICE", PASSWORD)).await.unwrap().outcome, LoginOutcome::Blocked(_)));
 }
 
@@ -153,13 +171,20 @@ async fn a_character_the_collation_ignores_opens_no_account_so_the_lockout_tells
     let typed = "ali\u{AD}ce";
     store.add(account(1, "alice", true));
     store.state().aliases.insert(typed.into(), 1);
-    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_USER, NOW);
+    store.seed_attempts(&account_key_from_client(1, "10.0.0.1"), MAX_ATTEMPTS_PER_USER, NOW);
 
     let result = flow.login(&request(typed, PASSWORD)).await.unwrap();
     assert!(matches!(result.outcome, LoginOutcome::Invalid), "answered as an unknown name: {:?}", result.outcome);
     assert!(!store.state().lookups.contains(&typed.to_owned()));
     let recorded = store.state().recorded.clone();
-    assert!(!recorded.contains(&account_key(1)) && recorded.contains(&user_key(typed)), "{recorded:?}");
+    assert!(
+        !recorded.contains(&account_key(1)) && !recorded.contains(&account_key_from_client(1, "10.0.0.1")),
+        "{recorded:?}"
+    );
+    assert!(
+        recorded.contains(&user_key(typed)) && recorded.contains(&user_key_from_client(typed, "10.0.0.1")),
+        "{recorded:?}"
+    );
 }
 
 #[tokio::test]
@@ -167,7 +192,7 @@ async fn an_unknown_name_meets_the_same_folded_counter_as_an_account() {
     let clock = clock();
     let (flow, store, _, _) = flow(shared(&clock));
     store.add(account(1, "alice", true));
-    store.seed_attempts(&user_key("alice"), MAX_ATTEMPTS_PER_USER, NOW);
+    store.seed_attempts(&user_key_from_client("alice", "10.0.0.1"), MAX_ATTEMPTS_PER_USER, NOW);
 
     assert_eq!(user_key("Àlice"), user_key("alice"));
     assert!(matches!(flow.login(&request("Àlice", PASSWORD)).await.unwrap().outcome, LoginOutcome::Blocked(_)));
@@ -183,7 +208,7 @@ async fn a_throttled_attempt_costs_no_password_verification_at_all() {
         vectispire_cp_access::passwords::hash_with(PASSWORD, 4096, 1, 1).unwrap(),
     ));
     store.add(stale);
-    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_USER, NOW);
+    store.seed_attempts(&account_key_from_client(1, "10.0.0.1"), MAX_ATTEMPTS_PER_USER, NOW);
 
     let result = flow.login(&request("alice", PASSWORD)).await.unwrap();
     let LoginOutcome::Blocked(wait) = result.outcome else { panic!("{:?}", result.outcome) };
@@ -275,7 +300,7 @@ async fn password_sign_in_switched_off_is_refused_and_recorded() {
 async fn the_login_s_entry_is_recorded_with_the_caller_s_address_and_its_signal() {
     let clock = clock();
     let (flow, store, log, _) = flow(shared(&clock));
-    store.seed_attempts(&user_key("alice"), MAX_ATTEMPTS_PER_USER, NOW);
+    store.seed_attempts(&user_key_from_client("alice", "10.0.0.1"), MAX_ATTEMPTS_PER_USER, NOW);
     let SignIn::Throttled(wait) = flow.sign_in(&request("alice", PASSWORD)).await.unwrap() else { panic!() };
     assert_eq!(wait, Duration::seconds(890));
     let entry = log.last();
@@ -552,14 +577,17 @@ async fn changing_one_s_password_spends_the_sign_in_s_budget() {
             flow.change_password(1, None, Some("wrong"), Some("a new password of length"), None, None).await.unwrap();
         assert_eq!(changed, PasswordChange::CurrentPasswordWrong);
     }
-    assert_eq!(store.attempts_under(&account_key(1)), MAX_ATTEMPTS_PER_USER, "each wrong one kept as a failure");
+    // The account's counter from this client (an absent address is "null"), and the account's from everywhere.
+    let from_here = account_key_from_client(1, "null");
+    assert_eq!(store.attempts_under(&from_here), MAX_ATTEMPTS_PER_USER, "each wrong one kept as a failure");
+    assert_eq!(store.attempts_under(&account_key(1)), MAX_ATTEMPTS_PER_USER);
     // Half a second later, the wait is truncated to whole seconds as `toSeconds()` truncates it.
     clock.advance(Duration::milliseconds(500));
     let changed =
         flow.change_password(1, None, Some(PASSWORD), Some("a new password of length"), None, None).await.unwrap();
     assert_eq!(changed, PasswordChange::Throttled { retry_after_seconds: 899 });
     assert_eq!(log.last().description, "Password change refused by the throttle (899s to wait)");
-    assert_eq!(store.attempts_under(&account_key(1)), MAX_ATTEMPTS_PER_USER, "a refusal takes its row back");
+    assert_eq!(store.attempts_under(&from_here), MAX_ATTEMPTS_PER_USER, "a refusal takes its row back");
 
     // And a sign-in's failures are the same counter.
     clock.advance(Duration::minutes(15));
@@ -567,7 +595,138 @@ async fn changing_one_s_password_spends_the_sign_in_s_budget() {
         flow.change_password(1, None, Some(PASSWORD), Some("a new password of length"), None, None).await.unwrap(),
         PasswordChange::Changed { .. }
     ));
-    assert_eq!(store.attempts_under(&account_key(1)), 0, "a right current password clears the account's counter");
+    assert_eq!(store.attempts_under(&from_here), 0, "a right current password clears this client's counter");
+    assert_eq!(store.attempts_under(&account_key(1)), MAX_ATTEMPTS_PER_USER + 1, "and not the account's global one");
+}
+
+// ── the account's budget across clients (SignInLimits, V101) ─────────────────────────────────────────────────
+
+fn from(username: &'static str, password: &'static str, ip: &'static str) -> LoginRequest<'static> {
+    LoginRequest { username, password, user_agent: Some("curl/8"), ip_address: Some(ip) }
+}
+
+#[tokio::test]
+async fn past_the_account_s_budget_a_new_client_is_refused_before_any_hashing_and_takes_its_rows_back() {
+    let clock = clock();
+    let (flow, store, _, doors) = flow(shared(&clock));
+    store.add(account(1, "alice", true));
+    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
+
+    let result = flow.login(&from("alice", PASSWORD, "203.0.113.9")).await.unwrap();
+    let LoginOutcome::AccountThrottled(wait) = result.outcome else { panic!("{:?}", result.outcome) };
+    assert_eq!(wait, Duration::seconds(890));
+    assert_eq!(result.audit.operation, AuditOperation::LoginBlocked);
+    assert_eq!(
+        result.audit.description,
+        "Attempt refused: the account's sign-in budget across clients is spent (890s to wait)"
+    );
+    assert_eq!(result.audit.signal, Some("SIGN_IN_THROTTLED"));
+    assert!(doors.opened().is_empty(), "a right password does not get past the budget alone");
+    assert_eq!(store.state().attempts.len(), MAX_ATTEMPTS_PER_ACCOUNT, "the refusal extends nothing");
+    assert!(store.state().known_client_questions.contains(&known_client_key(1, "203.0.113.9")));
+}
+
+#[tokio::test]
+async fn a_client_the_account_signed_in_from_goes_past_the_spent_budget() {
+    let clock = clock();
+    let (flow, store, _, doors) = flow(shared(&clock));
+    store.add(account(1, "alice", true));
+    // The owner signed in from the office yesterday; somebody else spent the budget since.
+    let known = known_client_key(1, "198.51.100.7");
+    store.state().known_clients.insert(known.clone(), (1, NOW - Duration::days(1)));
+    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
+
+    let result = flow.login(&from("alice", PASSWORD, "198.51.100.7")).await.unwrap();
+    assert!(matches!(result.outcome, LoginOutcome::Success { .. }), "{:?}", result.outcome);
+    assert_eq!(result.audit.description, "Login succeeded");
+    assert_eq!(doors.opened().len(), 1);
+    // Refreshed by the sign-in.
+    assert_eq!(store.state().known_clients[&known].1, NOW);
+
+    // Known beyond the retention is not known.
+    store.state().known_clients.insert(known, (1, NOW - Duration::days(30)));
+    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
+    assert!(matches!(
+        flow.login(&from("alice", PASSWORD, "198.51.100.7")).await.unwrap().outcome,
+        LoginOutcome::AccountThrottled(_)
+    ));
+}
+
+#[tokio::test]
+async fn an_unknown_name_past_its_budget_meets_the_same_refusal_and_is_asked_of_a_key_nobody_holds() {
+    let clock = clock();
+    let (flow, store, _, _) = flow(shared(&clock));
+    store.seed_attempts(&user_key("nobody"), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
+    let result = flow.login(&from("nobody", PASSWORD, "203.0.113.9")).await.unwrap();
+    assert!(matches!(result.outcome, LoginOutcome::AccountThrottled(_)), "{:?}", result.outcome);
+    // The question is asked all the same, or its absence would time the answer to "does it exist".
+    assert_eq!(store.state().known_client_questions.len(), 1);
+}
+
+#[tokio::test]
+async fn past_the_budget_the_second_factor_sent_with_the_password_opens_the_way_and_nothing_else_does() {
+    let clock = clock();
+    let (flow, store, log, doors) = flow(shared(&clock));
+    let secret = totp::generate_secret();
+    store.add(account(1, "carol", true));
+    // The step before: the code sent with the password must be a later one.
+    let enrolment = totp::generate_code(&secret, NOW - Duration::seconds(30)).unwrap();
+    flow.second_factor().enable(1, &secret, &enrolment).await.unwrap();
+    store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
+    let code = totp::generate_code(&secret, NOW).unwrap();
+
+    // A wrong password with the right code, then the right password with a wrong code: the same refusal, at the same
+    // deadline from the start of the attempt.
+    let started = std::time::Instant::now();
+    let wrong_password = flow.sign_in_with(&from("carol", "wrong", "203.0.113.9"), Some(&code)).await.unwrap();
+    assert!(matches!(wrong_password, SignIn::AccountThrottled(_)), "{wrong_password:?}");
+    assert!(started.elapsed() >= vectispire_cp_access::sign_in::PAST_BUDGET_DEADLINE);
+    let wrong_code = flow.sign_in_with(&from("carol", PASSWORD, "203.0.113.9"), Some("000000")).await.unwrap();
+    assert!(matches!(wrong_code, SignIn::AccountThrottled(_)), "{wrong_code:?}");
+    assert!(
+        log.entries().iter().any(|entry| entry.description == "Invalid MFA verification code sent with the password")
+    );
+    // A blank code is no code: refused before any hashing.
+    assert!(matches!(
+        flow.sign_in_with(&from("carol", PASSWORD, "203.0.113.9"), Some("  ")).await.unwrap(),
+        SignIn::AccountThrottled(_)
+    ));
+    assert!(doors.opened().is_empty());
+
+    // Both right: a session, no challenge — the code was just verified.
+    let SignIn::SignedIn { .. } =
+        flow.sign_in_with(&from("carol", PASSWORD, "203.0.113.9"), Some(&code)).await.unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(
+        log.last().description,
+        "Login succeeded with password and second factor, past the account's spent budget"
+    );
+    assert!(store.state().known_clients.contains_key(&known_client_key(1, "203.0.113.9")));
+}
+
+#[tokio::test]
+async fn the_ceilings_are_the_deployment_s() {
+    let clock = clock();
+    let (flow, store, _, _) = flow(shared(&clock));
+    let flow = flow.with_limits(SignInLimits::new(2, 3, 0, Duration::ZERO));
+    store.add(account(1, "alice", true));
+    store.seed_attempts(&account_key_from_client(1, "10.0.0.1"), 2, NOW);
+    assert!(matches!(flow.login(&request("alice", PASSWORD)).await.unwrap().outcome, LoginOutcome::Blocked(_)));
+    // A zero ceiling is the shipped one: the client's twenty, not "nobody gets in".
+    store.state().attempts.clear();
+    store.seed_attempts(&client_key("10.0.0.1"), MAX_ATTEMPTS_PER_CLIENT - 1, NOW);
+    assert!(matches!(flow.login(&request("alice", PASSWORD)).await.unwrap().outcome, LoginOutcome::Success { .. }));
+}
+
+#[tokio::test]
+async fn a_known_client_that_cannot_be_recorded_does_not_fail_the_sign_in() {
+    let clock = clock();
+    let (flow, store, _, _) = flow(shared(&clock));
+    store.add(account(1, "alice", true));
+    store.state().failing_known_clients = true;
+    assert!(matches!(flow.login(&request("alice", PASSWORD)).await.unwrap().outcome, LoginOutcome::Success { .. }));
 }
 
 // ── TotpService ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -824,17 +983,28 @@ async fn the_purge_takes_closed_windows_and_forget_takes_a_limit() {
 // ── SessionCleanupService ────────────────────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn the_cleanup_purges_four_tables_and_keeps_attempts_twice_the_window() {
+async fn the_cleanup_purges_five_tables_and_keeps_attempts_twice_the_window() {
     let clock = clock();
     let store = Memory::default();
     assert_eq!(ATTEMPT_RETENTION, Duration::minutes(30));
     store.seed_attempts("old", 1, NOW - Duration::minutes(30));
     store.seed_attempts("kept", 1, NOW - Duration::minutes(29));
     store.state().windows.insert("webhook:0:stale".into(), (3, NOW - Duration::seconds(1)));
+    // Known clients past the shipped thirty days go; one a second inside them stays.
+    store.state().known_clients.insert("stale".into(), (1, NOW - Duration::days(30) - Duration::seconds(1)));
+    store.state().known_clients.insert("recent".into(), (1, NOW - Duration::days(30) + Duration::seconds(1)));
     let cleanup = SessionCleanup::new(Doors::default(), store.clone(), store.clone(), shared(&clock));
     let result = cleanup.prune().await;
-    assert_eq!(result, CleanupResult { sessions: 2, attempts: 1, challenges: 0, rate_windows: 1 });
+    assert_eq!(result, CleanupResult { sessions: 2, attempts: 1, challenges: 0, rate_windows: 1, known_clients: 1 });
     assert_eq!(store.attempts_under("kept"), 1);
+    assert!(store.state().known_clients.contains_key("recent"));
+
+    // The retention is the deployment's.
+    let limits = SignInLimits::new(0, 0, 0, Duration::days(1));
+    let shorter =
+        SessionCleanup::new(Doors::default(), store.clone(), store.clone(), shared(&clock)).with_limits(limits);
+    assert_eq!(shorter.prune().await.known_clients, 1);
+    assert!(store.state().known_clients.is_empty());
 }
 
 #[tokio::test]
@@ -852,7 +1022,7 @@ async fn the_cleanup_never_fails_the_tick() {
     store.state().windows.insert("webhook:0:stale".into(), (3, NOW - Duration::seconds(1)));
     let doors = Doors { failing_purge: true, ..Doors::default() };
     let result = SessionCleanup::new(doors, store.clone(), store, shared(&clock)).prune().await;
-    assert_eq!(result, CleanupResult { sessions: 0, attempts: 0, challenges: 0, rate_windows: 1 });
+    assert_eq!(result, CleanupResult { sessions: 0, attempts: 0, challenges: 0, rate_windows: 1, known_clients: 0 });
 }
 
 // ── the throttle alone ───────────────────────────────────────────────────────────────────────────────────────

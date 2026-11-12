@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_sign_in_client set last_signed_in_at = ? where client_key = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a9950d40121c3356f6a4f2f44e335dea35ef71bd7fdfc21db0ddcbbe4d046295"
+}

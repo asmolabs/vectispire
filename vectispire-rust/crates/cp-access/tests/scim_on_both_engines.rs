@@ -1357,10 +1357,39 @@ async fn a_group_and_its_members_commit_together(fixture: &Fixture) {
     allow(fixture, "vs_rs_refuse_member", "t_team_member");
 }
 
+/// V102: every provisioning write marks the account as the directory's — a creation, a replacement and a patch alike —
+/// and an account made in Vectispire is not marked until the directory first writes it.
+async fn every_provisioning_write_marks_the_account_as_the_directory_s(fixture: &Fixture) {
+    let db = &fixture.db;
+    let scim = fixture.scim();
+    let scim_managed = |id: i64| async move {
+        count(db, &format!("select count(*) from t_user where id = {id} and scim_managed = true")).await == 1
+    };
+
+    let provisioned = created(scim.create_user(&attributes(&unique("scim-marked")), &directory()).await.unwrap());
+    assert!(provisioned.scim_managed && scim_managed(provisioned.id).await);
+
+    let (replaced, name) = account(db, "scim-claimed", "USER").await;
+    assert!(!scim_managed(replaced).await, "made in Vectispire: not the directory's");
+    assert!(!scim.user(replaced).await.unwrap().unwrap().scim_managed);
+    let view = changed(scim.replace_user(replaced, &attributes(&name), &directory()).await.unwrap());
+    assert!(view.scim_managed && scim_managed(replaced).await, "claimed by the directory's first write");
+
+    let (patched, _) = account(db, "scim-patched", "USER").await;
+    let view = scim
+        .patch_user(patched, Some(&[operation("replace", None, Some(json!({ "displayName": "P" })))]), &directory())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(view.scim_managed && scim_managed(patched).await);
+    fixture.log.take();
+}
+
 // ── the runs ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 async fn provisioning(engine: Engine) {
     let fixture = Fixture::start(engine).await;
+    every_provisioning_write_marks_the_account_as_the_directory_s(&fixture).await;
     a_patch_deactivates_and_closes_the_sessions(&fixture).await;
     administrative_accounts_are_protected(&fixture).await;
     an_attribute_past_its_column_is_refused(&fixture).await;

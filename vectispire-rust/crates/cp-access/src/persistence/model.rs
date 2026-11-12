@@ -69,6 +69,8 @@ pub struct User {
     pub updated_at: OffsetDateTime,
     pub must_change_password: bool,
     pub mfa_enabled: bool,
+    /// Written by the SCIM directory, which then owns the e-mail address (V102): set by every provisioning write.
+    pub scim_managed: bool,
     pub totp_secret: Option<Sealed>,
     pub mfa_backup_codes: Option<Sealed>,
     pub totp_last_step: Option<i64>,
