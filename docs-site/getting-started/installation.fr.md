@@ -126,12 +126,12 @@ docker compose --profile with-agent up -d
 La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
 
 ```
-ghcr.io/asmolabs/vectispire:1.0.0-rc.1
-ghcr.io/asmolabs/vectispire-agent:1.0.0-rc.1
+ghcr.io/asmolabs/vectispire:1.0.0-rc.2
+ghcr.io/asmolabs/vectispire-agent:1.0.0-rc.2
 ```
 
 Elles sont publiques — ni identifiant, ni jeton. Pour en tirer une seule,
-`docker pull ghcr.io/asmolabs/vectispire:1.0.0-rc.1` ; et lisez
+`docker pull ghcr.io/asmolabs/vectispire:1.0.0-rc.2` ; et lisez
 [Vérifier une release](#verifier-une-release) avant de l'exécuter.
 
 ## Avant le premier démarrage
@@ -645,10 +645,10 @@ parole est une contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-1.0.0-rc.1.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.1" \
+  --bundle vectispire-1.0.0-rc.2.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-1.0.0-rc.1.jar
+  vectispire-1.0.0-rc.2.jar
 ```
 
 Chaque option épingle quelque chose, et en retirer une seule rend l'essentiel de ce pour quoi
@@ -668,11 +668,11 @@ empreinte : vérifier le tag puis le tirer de nouveau vérifie une image que vou
 pas tourner. Résolvez le tag une fois, avec la commande qu'utilise le workflow de release lui-même :
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:1.0.0-rc.1 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:1.0.0-rc.2 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.1" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -685,7 +685,7 @@ fichier posé à côté d'une image est un fichier que n'importe qui peut rempla
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.1" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0-rc.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
