@@ -1,4 +1,4 @@
-import type { ForgeDiscoveryReason, ForgeDiscoveryState, ForgeSkipReason } from '../core/api.models';
+import type { ForgeDiscoveryReason, ForgeDiscoveryState, ForgeRepository, ForgeSkipReason } from '../core/api.models';
 
 /**
  * The words of decision 0037's closed vocabularies, as literal keys (decision 0019): a value added on the
@@ -35,7 +35,9 @@ export const SKIP_REASON_KEYS = {
     already_present: 'forges.skip.already_present',
     no_default_branch: 'forges.skip.no_default_branch',
     no_clone_url: 'forges.skip.no_clone_url',
-    duplicate_in_selection: 'forges.skip.duplicate_in_selection'
+    duplicate_in_selection: 'forges.skip.duplicate_in_selection',
+    branch_absent: 'forges.skip.branch_absent',
+    branch_unknown: 'forges.skip.branch_unknown'
 } as const satisfies Record<ForgeSkipReason, string>;
 
 /** `ForgeEdition.wireName()` — the document types it `string`. */
@@ -68,8 +70,22 @@ export const UNJUDGED_KEYS: Readonly<Record<string, string>> = {
     fork: 'forges.selection.unjudged_fork',
     activity: 'forges.selection.unjudged_activity',
     language: 'forges.selection.unjudged_language',
-    visibility: 'forges.selection.unjudged_visibility'
+    visibility: 'forges.selection.unjudged_visibility',
+    branch: 'forges.selection.unjudged_branch'
 };
+
+/** What an import's branch choice may name besides the tracked names: the repository's default branch, whatever it is called. */
+export const DEFAULT_BRANCH_CHOICE = 'default';
+
+/**
+ * The tracked branches a repository has besides its default one, or `null` when the forge did not say which
+ * it has — unknown, never none: a repository read with none of them shows only its default branch, one never
+ * read says so, since a branch filter leaves it out and an import naming a branch skips it.
+ */
+export function otherTrackedBranches(repository: ForgeRepository): string[] | null {
+    if (repository.trackedBranches === null) return null;
+    return repository.trackedBranches.filter((name) => name !== repository.defaultBranch);
+}
 
 /** What the screen can tell of a pasted CA before sending it; the server judges the rest. */
 export type CaProblem = 'private_key' | 'not_pem' | 'unbalanced' | 'too_many';

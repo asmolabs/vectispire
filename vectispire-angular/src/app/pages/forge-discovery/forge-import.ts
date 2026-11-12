@@ -36,7 +36,12 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { keyFor } from '../../core/i18n/literal-keys';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
-import { CLONE_CREDENTIAL_KEYS, SKIP_REASON_KEYS, forgeConflict } from '../../shared/forge-words';
+import {
+    CLONE_CREDENTIAL_KEYS,
+    DEFAULT_BRANCH_CHOICE,
+    SKIP_REASON_KEYS,
+    forgeConflict
+} from '../../shared/forge-words';
 
 /** Decision 0037, answer 8: an import holds at most a thousand repositories, in one transaction. */
 export const MAX_IMPORT = 1_000;
@@ -110,6 +115,8 @@ export class ForgeImportStep {
     readonly connectionId = input.required<string>();
     readonly discoveryId = input.required<number>();
     readonly forgeIds = input.required<string[]>();
+    /** The tracked branch names an import may name besides the default branch, as the selection's server gave them. */
+    readonly trackedBranches = input<string[]>([]);
     readonly result = input<ForgeImportResult | null>(null);
     readonly imported = output<ImportDone>();
     readonly back = output<void>();
@@ -136,6 +143,22 @@ export class ForgeImportStep {
     /** The credential chosen per host: `none`, `ssh:<id>` or `https:<id>`; a host absent takes the proposal. */
     readonly choices = signal<ReadonlyMap<string, string>>(new Map());
     readonly perRepository = signal(false);
+
+    /**
+     * The branches to make a target of, `default` standing for each repository's own default branch. Left at
+     * `default` alone the request names none, so an untouched form imports as before branches could be chosen:
+     * naming `default` would not be the same import — the server then judges each branch apart, and a
+     * repository already a target on another branch would gain one on its default instead of being skipped.
+     */
+    readonly branchChoice = signal<ReadonlySet<string>>(new Set([DEFAULT_BRANCH_CHOICE]));
+    readonly branchOptions = computed(() =>
+        [DEFAULT_BRANCH_CHOICE, ...this.trackedBranches()].map((value) => ({
+            value,
+            isDefault: value === DEFAULT_BRANCH_CHOICE,
+            ticked: this.branchChoice().has(value)
+        }))
+    );
+    readonly branchesValid = computed(() => this.branchChoice().size > 0);
 
     firstScan = false;
     spacingSeconds = DEFAULT_SPACING;
@@ -180,7 +203,10 @@ export class ForgeImportStep {
         }))
     );
 
-    /** Targets and refusals both carry a placement worth editing: a refusal is often a placement to fix. */
+    /**
+     * Targets and refusals both carry a placement worth editing: a refusal is often a placement to fix. Once
+     * per repository, since an import naming branches plans one target per branch, all placed alike.
+     */
     private readonly placed = computed(() => {
         const preview = this.preview();
         if (!preview) return [];
@@ -190,7 +216,12 @@ export class ForgeImportStep {
             solution: null as string | null,
             project: null as string | null
         }));
-        return [...preview.targets, ...refused];
+        const seen = new Set<string>();
+        return [...preview.targets, ...refused].filter((target) => {
+            if (seen.has(target.forgeId)) return false;
+            seen.add(target.forgeId);
+            return true;
+        });
     });
 
     /** The placements the table shows, each marked when the person wrote a rule over its proposal. */
@@ -246,6 +277,7 @@ export class ForgeImportStep {
             !this.previewing() &&
             !this.importing() &&
             this.spacingValid() &&
+            this.branchesValid() &&
             (this.preview()?.refused.length ?? 0) === 0 &&
             (this.preview()?.targets.length ?? 0) > 0
     );
@@ -286,12 +318,29 @@ export class ForgeImportStep {
             credentials,
             firstScan: this.firstScan,
             spacingSeconds: this.spacingSeconds,
-            requiredAgentLabel: this.requiredAgentLabel.trim() || undefined
+            requiredAgentLabel: this.requiredAgentLabel.trim() || undefined,
+            branches: this.namedBranches()
         };
     }
 
+    /** The branches the request names, in the order offered; none when the choice is the default branch alone. */
+    private namedBranches(): string[] | undefined {
+        const chosen = this.branchOptions()
+            .filter((option) => option.ticked)
+            .map((option) => option.value);
+        return chosen.length === 1 && chosen[0] === DEFAULT_BRANCH_CHOICE ? undefined : chosen;
+    }
+
+    chooseBranch(value: string, ticked: boolean): void {
+        const choice = new Set(this.branchChoice());
+        if (ticked) choice.add(value);
+        else choice.delete(value);
+        this.branchChoice.set(choice);
+        this.stale.set(true);
+    }
+
     runPreview(): void {
-        if (!this.checkSpacing()) return;
+        if (!this.checkSpacing() || !this.branchesValid()) return;
         this.previewing.set(true);
         this.previewError.set(null);
         this.importError.set(null);

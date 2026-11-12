@@ -3539,6 +3539,8 @@ export type ForgeRepository = Refine<
         sizeBytes: number | null;
         webUrl: string | null;
         changeSummary: string | null;
+        /** The tracked names its last reading found, the default branch among them or not; `null`: unknown. */
+        trackedBranches: string[] | null;
     }
 >;
 
@@ -3556,6 +3558,8 @@ export type ForgeCandidate = Refine<
         notSelectable: ForgeSkipReason | null;
         presentAs: number[] | null;
         importedAs: number | null;
+        /** Every target the imports from this connection made of it, one per branch. */
+        importedTargets: number[];
         proposedSolution: string | null;
         proposedProject: string | null;
     }
@@ -3564,7 +3568,12 @@ export type ForgeCandidate = Refine<
 /** `GET …/selection` — `unjudged` counts, per filter, the repositories it could not judge. */
 export type ForgeCandidatePage = Refine<
     Schema<'ForgeCandidatePage'>,
-    { items: ForgeCandidate[]; unjudged: Record<string, number> | null }
+    {
+        items: ForgeCandidate[];
+        unjudged: Record<string, number> | null;
+        /** The branch names this installation's discoveries read, which the filter and an import may name. */
+        trackedBranches: string[];
+    }
 >;
 
 /** The selection as the server answers it: what stays ticked, and the ids it could not tick. */
@@ -3599,7 +3608,14 @@ export type ForgePlannedTarget = Refine<
 
 export type ForgeSkippedImport = Refine<
     Schema<'ForgeSkippedImport'>,
-    { forgeId: string; fullPath: string; reason: ForgeSkipReason; repositoryIds: number[] | null }
+    {
+        forgeId: string;
+        fullPath: string;
+        reason: ForgeSkipReason;
+        repositoryIds: number[] | null;
+        /** The branch skipped when the import named branches; `null` when it judged the repository whole. */
+        branch: string | null;
+    }
 >;
 
 export type ForgeRefusedImport = Refine<
@@ -3646,6 +3662,7 @@ export type ForgeImportedTarget = Refine<
         project: string | null;
         firstScanId: number | null;
         firstScanNotBefore: string | null;
+        branch: string | null;
     }
 >;
 

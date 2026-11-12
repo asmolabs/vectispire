@@ -16,6 +16,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
+import { MultiSelectModule } from '@openng/optimus-ui/multiselect';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ForgesApi, type ForgeSelectionOperation } from '../../core/api/forges.api';
@@ -24,7 +25,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { keyFor } from '../../core/i18n/literal-keys';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
-import { SKIP_REASON_KEYS, UNJUDGED_KEYS, forgeConflict } from '../../shared/forge-words';
+import { SKIP_REASON_KEYS, UNJUDGED_KEYS, forgeConflict, otherTrackedBranches } from '../../shared/forge-words';
 
 const PAGE = 50;
 
@@ -39,6 +40,8 @@ export interface SelectionForm {
     path: string;
     personal: 'show' | 'hide' | 'only';
     present: 'show' | 'hide' | 'only';
+    /** Tracked branch names, any of which a repository must have; none ticked is no filter. */
+    branches: string[];
 }
 
 export function defaultFilters(): SelectionForm {
@@ -51,7 +54,8 @@ export function defaultFilters(): SelectionForm {
         namespace: '',
         path: '',
         personal: 'show',
-        present: 'show'
+        present: 'show',
+        branches: []
     };
 }
 
@@ -75,6 +79,7 @@ export function defaultFilters(): SelectionForm {
         CardModule,
         InputTextModule,
         MessageModule,
+        MultiSelectModule,
         TagModule,
         TranslatePipe
     ],
@@ -90,6 +95,8 @@ export class ForgeSelectionTable {
     readonly connectionId = input.required<string>();
     readonly discoveryId = input.required<number>();
     readonly selected = model<string[]>([]);
+    /** The branch names the installation's discoveries read, as the server names them; the import offers them. */
+    readonly trackedBranches = model<string[]>([]);
     readonly superseded = output<number>();
     readonly proceed = output<void>();
 
@@ -115,7 +122,8 @@ export class ForgeSelectionTable {
         return (this.page()?.items ?? []).map((candidate) => ({
             candidate,
             ticked: selected.has(candidate.repository.forgeId),
-            skipKey: keyFor(SKIP_REASON_KEYS, candidate.notSelectable)
+            skipKey: keyFor(SKIP_REASON_KEYS, candidate.notSelectable),
+            otherBranches: otherTrackedBranches(candidate.repository)
         }));
     });
     readonly unjudged = computed(() =>
@@ -151,7 +159,8 @@ export class ForgeSelectionTable {
             namespace: form.namespace.trim() || undefined,
             path: form.path.trim() || undefined,
             personal: form.personal,
-            present: form.present
+            present: form.present,
+            branches: form.branches.length > 0 ? [...form.branches] : undefined
         };
     }
 
@@ -163,6 +172,7 @@ export class ForgeSelectionTable {
             {
                 next: (page) => {
                     this.page.set(page);
+                    this.trackedBranches.set(page.trackedBranches);
                     this.blocked.set(null);
                     this.loading.set(false);
                 },

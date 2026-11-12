@@ -104,6 +104,8 @@ export class ForgeDiscoveryPage {
 
     readonly step = signal<DiscoveryStep>('discovery');
     readonly selected = signal<string[]>([]);
+    /** The branch names the selection's server answer said discoveries read, offered by the import. */
+    readonly trackedBranches = signal<string[]>([]);
     /** Set by the selection when the server names a newer discovery to select from. */
     readonly selectionDiscoveryId = signal<number | null>(null);
     readonly imported = signal<ForgeImportResult | null>(null);

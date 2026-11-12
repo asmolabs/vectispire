@@ -1000,11 +1000,15 @@ const forgeRepository = (forgeId: string, fullPath: string, changes: Record<stri
         lastSeenAt: '2026-09-18T08:01:00Z',
         lastSeenBy: 12,
         changeSummary: null,
+        trackedBranches: ['main'],
         ...changes
     };
 };
 const FORGE_NEW = [
-    forgeRepository('201', 'payments/orion/gateway', { lastActivityAt: '2026-09-17T16:20:00Z' }),
+    forgeRepository('201', 'payments/orion/gateway', {
+        lastActivityAt: '2026-09-17T16:20:00Z',
+        trackedBranches: ['develop', 'main']
+    }),
     forgeRepository('202', 'payments/orion/ledger', { language: 'Kotlin', lastActivityAt: '2026-09-16T09:45:00Z' }),
     forgeRepository('203', 'data/reporting/report-builder', {
         language: 'Python',
@@ -3872,6 +3876,7 @@ test.describe('documentation screenshots', () => {
             offered: true,
             presentAs: [],
             importedAs: null,
+            importedTargets: [],
             proposedSolution: repository.namespacePath.split('/')[0],
             proposedProject: repository.namespacePath.split('/').slice(1).join('/') || null,
             ...changes
@@ -3884,6 +3889,7 @@ test.describe('documentation screenshots', () => {
                 listed: 41,
                 total: 5,
                 unjudged: { fork: 2 },
+                trackedBranches: ['main', 'master', 'develop'],
                 items: [
                     ...FORGE_NEW.map((repository) => candidate(repository)),
                     candidate(forgeRepository('118', 'customer/helios/helios-portal'), {
@@ -3892,11 +3898,18 @@ test.describe('documentation screenshots', () => {
                         offered: false,
                         presentAs: [5]
                     }),
-                    candidate(forgeRepository('164', 'j.martin/sandbox', { personal: true, language: null }), {
-                        offered: false,
-                        proposedSolution: null,
-                        proposedProject: null
-                    })
+                    candidate(
+                        forgeRepository('164', 'j.martin/sandbox', {
+                            personal: true,
+                            language: null,
+                            trackedBranches: null
+                        }),
+                        {
+                            offered: false,
+                            proposedSolution: null,
+                            proposedProject: null
+                        }
+                    )
                 ]
             },
             POST: { discoveryId: 12, count: 2, selected: ['201', '202'], dropped: [] }
