@@ -201,10 +201,10 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [x] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
-      `«pem:…»` request bodies of SSH-key and CA tests the recorder hides.
+- [ ] **Recordings that cannot be replayed yet** — 63 (was 64): a request of the test the replay cannot rebuild.
+      The `«pem:…»` request bodies of SSH-key and CA tests are done; the rest are other kinds of hidden input.
 
-      *Fixed 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a
+      *`pem:` part done 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a
       word, a PKCS#8 header with no scalar), hidden because the recorder hid every private-key PEM. Gathered in
       `core/golden/FixturePrivateKeys.java`, they are recorded as they are, by fingerprint only; the recordings' scan
       allows their exact text. A whole recording holds no `«pem:…»` any more: 22 of the 23 lines replay green, with
