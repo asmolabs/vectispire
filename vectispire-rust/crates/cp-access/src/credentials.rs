@@ -21,7 +21,7 @@ pub use crate::internal::credentials::sessions::{
 pub use crate::internal::credentials::{
     AccountView, AgentDirectory, AgentRef, Clock, CredentialService, Integration, IssueError, IssuedIntegrationKey,
     IssuedSession, IssuerSees, KeyRequest, KeyView, Resolved, ScimToken, SessionView, StoreError, SystemClock,
-    attribution,
+    attribution, saturation,
 };
 
 /// The Argon2id PHC string an API key's — and a password's — stored hash is. `PasswordHasher`.

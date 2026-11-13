@@ -24,6 +24,11 @@ pub enum AgentError {
     #[error("{0}")]
     Unauthorized(String),
 
+    /// No derivation permit came free for the agent's key: `DerivationsSaturated`, which Java's handler answers 503
+    /// with the wait — not a 500 with a reference, since retrying is all there is to do.
+    #[error(transparent)]
+    Busy(vectispire_cp_access::derivations::DerivationsSaturated),
+
     #[error(transparent)]
     Unexpected(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -80,6 +85,7 @@ impl From<AgentError> for Problem {
             AgentError::PreconditionFailed(msg) => Problem::handler(http::StatusCode::PRECONDITION_FAILED, msg),
             AgentError::Forbidden(msg) => Problem::handler(http::StatusCode::FORBIDDEN, msg),
             AgentError::Unauthorized(msg) => Problem::handler(http::StatusCode::UNAUTHORIZED, msg),
+            AgentError::Busy(saturated) => saturated.problem(),
             AgentError::Unexpected(failure) => {
                 let reference = uuid::Uuid::new_v4().as_hyphenated().to_string();
                 tracing::error!(reference = %reference, error = %failure, "Unexpected failure in agents module");

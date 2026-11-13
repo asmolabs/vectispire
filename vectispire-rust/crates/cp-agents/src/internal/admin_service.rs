@@ -339,8 +339,12 @@ impl AgentAdministrationService {
         };
 
         let key_name = format!("{KEY_NAME_PREFIX}{name}");
-        let (api_key_id, secret) =
-            self.credentials.issue_agent_key(&key_name).await.map_err(|e| AgentError::Unexpected(Box::new(e)))?;
+        let (api_key_id, secret) = self.credentials.issue_agent_key(&key_name).await.map_err(|failure| {
+            match vectispire_cp_access::credentials::saturation(&failure) {
+                Some(saturated) => AgentError::Busy(*saturated),
+                None => AgentError::Unexpected(Box::new(failure)),
+            }
+        })?;
 
         let now = self.clock.now();
         let agent_row = AgentRow {

@@ -92,8 +92,10 @@ not serve at all yet is ported with that module, not stood up alone during the c
       free, Java answers 503 (`DerivationsSaturated`); cp-http's `Credentials::api_key` can only say a key is absent.
       *Done 2026-11-13: `Credentials::api_key_lookup` → `KeyLookup::Busy`, which the chain answers 503 with
       `Retry-After` and `retryAfterSeconds` (`tests/busy_key.rs`); cp-access returns it on `DerivationsSaturated`.*
-- [ ] **Issuing an API key derives outside the gate** (`issue_agent_key`, `issue_integration_key`): their error types
-      have no "busy" case yet.
+- [x] **Issuing an API key derives outside the gate** (`issue_agent_key`, `issue_integration_key`): their error types
+      have no "busy" case yet. *Done 2026-11-13: both hash under the bound; saturated, nothing is stored and the
+      failure is the gate's (`credentials::saturation`), which `AgentError::Busy` answers 503
+      (`tests/derivations.rs`).*
 
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 

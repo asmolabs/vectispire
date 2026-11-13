@@ -481,9 +481,8 @@ impl CredentialService {
         for candidate in key_store::find_by_prefix(&self.db, prefix).await? {
             // **An API key is verified as a password is, under the same bound** (`crate::derivations`): a key is
             // presented anonymously, and each candidate costs a derivation. Saturated, nothing was compared — the key
-            // was not refused, it was not looked at — and the failure goes up as the store's; the chain answers it as
-            // no credential, where Java's bearer filter answers 503 with `Retry-After` (owed to cp-http's
-            // `Credentials`, which has no way to say "busy" yet — CATCH-UP.md).
+            // was not refused, it was not looked at — and the failure goes up as the store's, which `api_key_lookup`
+            // turns into the chain's 503 with `Retry-After`, as Java's bearer filter answers.
             let matches = crate::derivations::gate()
                 .run(|| phc::verify(trimmed, &candidate.key_hash))
                 .await
@@ -562,12 +561,13 @@ impl CredentialService {
         }
 
         let issued = api_keys::generate();
+        let key_hash = hash_key_bounded(issued.full_key.expose()).await?;
         let now = self.clock.now();
         let (target_kind, target_id) = target.map(api_keys::kind_of).map_or((None, None), |(k, i)| (Some(k), Some(i)));
         let row = KeyRow {
             id: random_uuid(),
             name,
-            key_hash: phc::hash(issued.full_key.expose()),
+            key_hash,
             prefix: Some(issued.prefix),
             created_at: now,
             last_used_at: None,
@@ -586,10 +586,11 @@ impl CredentialService {
     /// agent row that points at it is saved with after.
     pub async fn issue_agent_key(&self, name: &str) -> Result<(Uuid, Secret), StoreError> {
         let issued = api_keys::generate();
+        let key_hash = hash_key_bounded(issued.full_key.expose()).await?;
         let row = KeyRow {
             id: random_uuid(),
             name: name.to_owned(),
-            key_hash: phc::hash(issued.full_key.expose()),
+            key_hash,
             prefix: Some(issued.prefix),
             created_at: self.clock.now(),
             last_used_at: None,
@@ -658,8 +659,19 @@ fn random_uuid() -> Uuid {
 /// 401 every unknown credential meets. Java's filter let the exception through, a 500; neither tells the caller
 /// anything, and failing closed is the half that matters.
 /// The derivation gate's refusal, when that is what a store error carries ([`StoreError::from_port`]).
-fn saturation(failure: &StoreError) -> Option<&crate::derivations::DerivationsSaturated> {
+pub fn saturation(failure: &StoreError) -> Option<&crate::derivations::DerivationsSaturated> {
     failure.port_cause()?.downcast_ref::<crate::derivations::DerivationsSaturated>()
+}
+
+/// An issued key's hash, derived under the bound in force — `ApiKeyAdministrationService.issue` and `AgentKeys.issue`
+/// reach `PasswordHasher.hash`, which takes a permit like every other derivation. Issuing outside it left one door the
+/// bound did not cover. Saturated, the failure goes up as the store's, which [`saturation`] recognises: the routes
+/// answer it 503 with `Retry-After`, nothing having been stored.
+async fn hash_key_bounded(full_key: &str) -> Result<String, StoreError> {
+    crate::derivations::gate()
+        .run(|| phc::hash(full_key))
+        .await
+        .map_err(|saturated| StoreError::from_port(Box::new(saturated)))
 }
 
 fn closed<T>(outcome: Result<Option<T>, StoreError>, what: &str) -> Option<T> {
