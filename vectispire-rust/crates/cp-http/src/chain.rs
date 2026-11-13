@@ -25,7 +25,7 @@
 use crate::access::{self, Gate, PROMETHEUS};
 use crate::address::{TrustedProxies, client_bucket};
 use crate::buckets::{Buckets, Clock, SystemClock};
-use crate::credentials::{AccessDenied, Audit, Credentials, ScrapeToken, SharedWindow, secret_equals};
+use crate::credentials::{AccessDenied, Audit, Credentials, KeyLookup, ScrapeToken, SharedWindow, secret_equals};
 use crate::extract::ClientAddress;
 use crate::limits::{BodyLimits, Counting, too_large_detail};
 use crate::principal::{Credential, Principal};
@@ -578,14 +578,22 @@ async fn bearer(State(chain): State<Arc<Chain>>, mut request: Request, next: Nex
             }
         }
         if principal.is_none() {
-            principal = chain.credentials.api_key(token).await;
+            match chain.credentials.api_key_lookup(token).await {
+                KeyLookup::Found(found) => principal = Some(found),
+                KeyLookup::Absent => {}
+                KeyLookup::Busy { detail, retry_after_seconds } => return busy(&path, &detail, retry_after_seconds),
+            }
         }
     }
     if principal.is_none() && header_value.is_none() {
         // `X-API-Key`, the alias the OpenAPI document has always announced. A key only: a session token or the SCIM
         // token presented there is not looked at.
         if let Some(key) = api_key_header.as_deref().filter(|value| !value.trim().is_empty()) {
-            principal = chain.credentials.api_key(key).await.filter(|found| !found.is_session());
+            match chain.credentials.api_key_lookup(key).await {
+                KeyLookup::Found(found) if !found.is_session() => principal = Some(found),
+                KeyLookup::Found(_) | KeyLookup::Absent => {}
+                KeyLookup::Busy { detail, retry_after_seconds } => return busy(&path, &detail, retry_after_seconds),
+            }
         }
     }
     let resolved = principal.is_some();
@@ -595,6 +603,17 @@ async fn bearer(State(chain): State<Arc<Chain>>, mut request: Request, next: Nex
     let mut response = next.run(request).await;
     response.extensions_mut().insert(Resolved(resolved));
     response
+}
+
+/// `BearerAuthenticationFilter`'s answer when the key could not be verified for want of a derivation permit: the
+/// chain's 503, with the wait in `Retry-After` and in the member `retryAfterSeconds`. Not anonymous — the key was not
+/// refused, it was not looked at — and not the container's 500 Java's filter avoids by writing it itself.
+fn busy(path: &str, detail: &str, retry_after_seconds: u64) -> Response {
+    Problem::chain(StatusCode::SERVICE_UNAVAILABLE, detail)
+        .at(path)
+        .with("retryAfterSeconds", retry_after_seconds)
+        .header("Retry-After", retry_after_seconds.to_string())
+        .into_response()
 }
 
 // ── access ────────────────────────────────────────────────────────────────────────────────

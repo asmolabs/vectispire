@@ -23,9 +23,34 @@ pub trait Credentials: Send + Sync + std::fmt::Debug {
     /// An API key, integration or agent — `ApiKeyAuthService.resolve`.
     fn api_key<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Option<Principal>>;
 
+    /// The same lookup, able to say it could not be made: a key is verified as a password is, under the bound on
+    /// password derivations, and with no permit free **nothing was compared** — the key was neither accepted nor
+    /// refused. Java's bearer filter answers that 503 with `Retry-After`; reading it as no credential would answer 401
+    /// to a valid key under load. By default, [`Credentials::api_key`]'s answer, never busy.
+    fn api_key_lookup<'a>(&'a self, token: &'a str) -> BoxFuture<'a, KeyLookup> {
+        Box::pin(async move {
+            match self.api_key(token).await {
+                Some(principal) => KeyLookup::Found(principal),
+                None => KeyLookup::Absent,
+            }
+        })
+    }
+
     /// Whether `token` is the SCIM token **and SCIM is switched on**. Compared in constant time
     /// ([`secret_equals`]); a token left in the environment of an installation that switched SCIM off does not match.
     fn scim<'a>(&'a self, token: &'a str) -> BoxFuture<'a, bool>;
+}
+
+/// What an API key's lookup came to ([`Credentials::api_key_lookup`]).
+#[derive(Debug, Clone)]
+pub enum KeyLookup {
+    Found(Principal),
+    Absent,
+    /// No derivation permit came free: the sentence and the wait, in seconds, the 503 says.
+    Busy {
+        detail: String,
+        retry_after_seconds: u64,
+    },
 }
 
 /// The metrics scrape token in force — `ScrapeTokenProperties.token()`: the file's when one is named, **read at each

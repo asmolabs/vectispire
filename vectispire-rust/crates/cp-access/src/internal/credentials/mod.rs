@@ -16,7 +16,7 @@ use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
-use vectispire_cp_http::credentials::{BoxFuture, Credentials, secret_equals};
+use vectispire_cp_http::credentials::{BoxFuture, Credentials, KeyLookup, secret_equals};
 use vectispire_cp_http::principal::Account;
 use vectispire_cp_http::{ApiKeyScope, Grounds, Principal, Restriction, Role};
 use vectispire_domain::secret::Secret;
@@ -657,6 +657,11 @@ fn random_uuid() -> Uuid {
 /// A store failure behind the chain's trait: logged, and answered as "no credential" — the request then meets the
 /// 401 every unknown credential meets. Java's filter let the exception through, a 500; neither tells the caller
 /// anything, and failing closed is the half that matters.
+/// The derivation gate's refusal, when that is what a store error carries ([`StoreError::from_port`]).
+fn saturation(failure: &StoreError) -> Option<&crate::derivations::DerivationsSaturated> {
+    failure.port_cause()?.downcast_ref::<crate::derivations::DerivationsSaturated>()
+}
+
 fn closed<T>(outcome: Result<Option<T>, StoreError>, what: &str) -> Option<T> {
     outcome.unwrap_or_else(|failure| {
         tracing::error!(error = %failure, "{what} could not be resolved; the request is treated as unauthenticated");
@@ -671,6 +676,25 @@ impl Credentials for CredentialService {
 
     fn api_key<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Option<Principal>> {
         Box::pin(async move { closed(self.authenticate_key(token).await, "an API key").map(|r| r.principal()) })
+    }
+
+    /// As [`Credentials::api_key`], and **busy** when the derivation gate had no permit: the key was not compared, and
+    /// the chain answers 503 as Java's bearer filter does rather than reading it as no credential.
+    fn api_key_lookup<'a>(&'a self, token: &'a str) -> BoxFuture<'a, KeyLookup> {
+        Box::pin(async move {
+            match self.authenticate_key(token).await {
+                Ok(Some(resolved)) => KeyLookup::Found(resolved.principal()),
+                Ok(None) => KeyLookup::Absent,
+                Err(failure) => match saturation(&failure) {
+                    Some(saturated) => KeyLookup::Busy {
+                        detail: saturated.to_string(),
+                        retry_after_seconds: saturated.retry_after_seconds(),
+                    },
+                    None => closed::<Resolved>(Err(failure), "an API key")
+                        .map_or(KeyLookup::Absent, |r| KeyLookup::Found(r.principal())),
+                },
+            }
+        })
     }
 
     fn scim<'a>(&'a self, token: &'a str) -> BoxFuture<'a, bool> {

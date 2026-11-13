@@ -28,6 +28,15 @@ impl StoreError {
         StoreError(sqlx::Error::Configuration(cause))
     }
 
+    /// The port's failure [`StoreError::from_port`] carried, to tell a cause the caller answers differently — the
+    /// derivation gate's refusal is a 503, not a store failure.
+    pub(crate) fn port_cause(&self) -> Option<&(dyn std::error::Error + Send + Sync + 'static)> {
+        match &self.0 {
+            sqlx::Error::Configuration(cause) => Some(cause.as_ref()),
+            _ => None,
+        }
+    }
+
     /// The database's engine has no statements in this build — only while the cache script prepares the other one.
     #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
     pub(crate) fn not_built() -> StoreError {

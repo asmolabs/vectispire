@@ -88,9 +88,10 @@ not serve at all yet is ported with that module, not stood up alone during the c
       `reservePassword` spent, 401 `CurrentPasswordWrong`, 429 `PasswordLocked`, each audited (`sign_in_flow`). Every
       one at the service: no access route is served yet.*
 
-- [ ] **A busy derivation on an API key answers "no credential"** (found 2026-11-13): when no derivation permit comes
+- [x] **A busy derivation on an API key answers "no credential"** (found 2026-11-13): when no derivation permit comes
       free, Java answers 503 (`DerivationsSaturated`); cp-http's `Credentials::api_key` can only say a key is absent.
-      It needs a "busy" outcome the chain answers 503 with.
+      *Done 2026-11-13: `Credentials::api_key_lookup` → `KeyLookup::Busy`, which the chain answers 503 with
+      `Retry-After` and `retryAfterSeconds` (`tests/busy_key.rs`); cp-access returns it on `DerivationsSaturated`.*
 - [ ] **Issuing an API key derives outside the gate** (`issue_agent_key`, `issue_integration_key`): their error types
       have no "busy" case yet.
 
