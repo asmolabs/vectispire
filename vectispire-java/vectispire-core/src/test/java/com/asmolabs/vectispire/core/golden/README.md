@@ -274,7 +274,7 @@ Then, on every string, in this order:
 
 | rule | placeholder |
 |---|---|
-| a PEM block, whole — **not a certificate nor a public key**, which stay literal | `«pem:<label>:N»`, such as `«pem:private-key:1»`. The suites generate their keys at every run, and no private key reaches a golden. A certificate is public and an answer states what it reads from one (a subject, an expiry): replaced, it left the SIEM's collector-CA recordings unreplayable. A public key is public too, and a signature is checked against it: replaced, the forger's key `CryptoRoutesTest` sends to `/api/v1/crypto/verify` left the replay nothing to verify with, and the context's own (`/api/v1/crypto/public-key.pub`) is the fixture `FixtureSigningKey`, the same in the replay. Its body is set aside while the other rules run, so no run of its base64 is read as a token |
+| a PEM block, whole — **not a certificate nor a public key**, which stay literal, **nor one of the suites' invented private keys** (`FixturePrivateKeys`, matched by the SHA-256 of the exact block) | `«pem:<label>:N»`, such as `«pem:private-key:1»`. No private key reaches a golden. The invented ones are no keys — `-----BEGIN DUMMY PRIVATE KEY-----` around a word, a PKCS#8 header with no scalar — the same at every run, and the replay has to send what the test sent: hidden, the SSH keys `POST /api/v1/ssh-keys` registers, the repositories bound to them and the key pasted where the SIEM's collector CA goes left 23 recordings with nothing to send. A block one character away from a fixture is a placeholder. A certificate is public and an answer states what it reads from one (a subject, an expiry): replaced, it left the SIEM's collector-CA recordings unreplayable. A public key is public too, and a signature is checked against it: replaced, the forger's key `CryptoRoutesTest` sends to `/api/v1/crypto/verify` left the replay nothing to verify with, and the context's own (`/api/v1/crypto/public-key.pub`) is the fixture `FixtureSigningKey`, the same in the replay. Its body is set aside while the other rules run, so no run of its base64 is read as a token |
 | an Argon2 or bcrypt hash | `«password-hash(correct horse battery staple)»`, `«password-hash(secret:N)»` when it verifies against that secret (a password sent in this test, or an API key), else `«password-hash(?)»`. A replay seeding the row hashes that value |
 | a sealed value, `v2:` and base64 (`SecretCipher`) | `«sealed»` |
 | the SHA-256 hex of a known secret | `«sha256(secret:N)»`. A session's `token_hash`: the replay mints a token, stores its hash and sends it |
@@ -324,7 +324,8 @@ password hashes, sealed values. A scan of a whole recording with the repository'
 (`gitleaks detect --no-git --source <dir>`) finds one value only: `AKIAPLANTEDSECRET7781`, an invented
 fixture `ProjectExportRoutesTest` plants in a finding to prove that the project export never carries
 it (rule `generic-api-key`, 10 files). It stays literal because the replay has to seed it to check the
-same thing. A CI job that scans recordings allows that value and nothing else. The goldens hold no
+same thing. The invented private keys of `FixturePrivateKeys` stay literal for the same reason. The CI job that
+scans recordings (`vectispire-rust/security/recordings.gitleaks.toml`) allows those values and nothing else. The goldens hold no
 `gitleaks:allow` marker, since generated files cannot carry one.
 
 ## What is not recorded

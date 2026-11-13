@@ -390,10 +390,11 @@ final class Placeholders {
         // place left the replay no key the signature was made with (a forger's key sent to /api/v1/crypto/verify);
         // the context's own is the suite's fixture (FixtureSigningKey), the same in the replay. Either is set aside
         // while the rules run, so that no base64 run of its body is read as a token. A private key is a
-        // placeholder: no private key reaches a golden.
+        // placeholder: no private key reaches a golden — but for the suites' invented ones (FixturePrivateKeys),
+        // matched by fingerprint: the replay has to send what the test sent, and a placeholder is nothing to send.
         List<String> certificates = new ArrayList<>();
         String out = replace(text, PEM, match -> {
-            if (isPublic(match.group(1))) {
+            if (isPublic(match.group(1)) || FixturePrivateKeys.isFixture(match.group())) {
                 certificates.add(match.group());
                 return CERTIFICATE_SET_ASIDE + (certificates.size() - 1) + CERTIFICATE_SET_ASIDE;
             }

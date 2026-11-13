@@ -83,6 +83,26 @@ class PlaceholdersTest {
     }
 
     @Test
+    @DisplayName("an invented fixture key stays literal, by fingerprint; a key one character away does not")
+    void aFixtureKeyIsKeptAndNoOtherKey() throws Exception {
+        // Hidden, the fixture left POST /api/v1/ssh-keys and the SIEM's refused paste with nothing to send: 23
+        // recordings deferred. The rule is the exact block, never its label or its shape.
+        String fixture = FixturePrivateKeys.PASTED_FOR_A_CA;
+        String near = fixture.replace("QQg", "QQh");
+        JsonNode record = MAPPER.readTree("{\"request\":{\"method\":\"PUT\",\"path\":\"/api/v1/siem/config\",\"body\":{\"json\":"
+                + "{\"tlsCaPem\":" + MAPPER.writeValueAsString(fixture) + ",\"other\":" + MAPPER.writeValueAsString(near)
+                + ",\"ssh\":" + MAPPER.writeValueAsString(FixturePrivateKeys.FORGE_IMPORT + "A".repeat(40)) + "}}}}");
+        Placeholders placeholders = new Placeholders();
+        placeholders.collect(record, null);
+        JsonNode body = placeholders.render(record).at("/request/body/json");
+
+        assertThat(body.path("tlsCaPem").asText()).isEqualTo(fixture);
+        assertThat(body.path("other").asText()).isEqualTo("«pem:private-key:1»");
+        // A fixture followed by padding, as IntegrationInputBoundsTest sends past the ceiling: the block is kept.
+        assertThat(body.path("ssh").asText()).isEqualTo(FixturePrivateKeys.FORGE_IMPORT + "A".repeat(40));
+    }
+
+    @Test
     @DisplayName("a signature the test sends and the public key it sends beside it are kept; the server's signature and a private key are not")
     void aSignatureSentAndAPublicKeyAreKept() throws Exception {
         // Generated here, as CryptoRoutesTest does: hidden, the replay could send no signature that verifies, and

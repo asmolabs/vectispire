@@ -2,13 +2,25 @@
 #
 # The recorder replaces every random credential with a placeholder, so a recording carries none — except the one
 # value a test plants on purpose to prove the export never carries it (`ProjectExportRoutesTest`), which the
-# replay must seed as it is. Generated files cannot carry a `gitleaks:allow` marker, so the one value is
-# allowed here by name and nothing else is: a second finding is a credential the recorder let through.
+# replay must seed as it is, and the invented PEMs below. Generated files cannot carry a `gitleaks:allow` marker, so
+# those values are allowed here by their text and nothing else is: another finding is a credential the recorder let
+# through.
 title = "Vectispire's recordings"
 
 [extend]
 useDefault = true
 
+# The suites' invented private-key PEMs (`core/golden/FixturePrivateKeys.java`), which the recorder keeps literal by
+# fingerprint because the replay has to send them: none is a key — `DUMMY PRIVATE KEY` around a word, four `A`s, a
+# P-256 PKCS#8 header with no scalar. Allowed by their exact text, as a recording spells it (JSON, `\n` escaped);
+# the private-key rule still reads every other block, and one character away from these is a finding.
 [allowlist]
-description = "the one invented fixture the export test plants"
-regexes = ['''AKIAPLANTEDSECRET7781''']
+description = "the invented fixtures the suites send: the export test's planted key, and FixturePrivateKeys' PEMs"
+regexes = [
+  '''AKIAPLANTEDSECRET7781''',
+  '''-----BEGIN DUMMY PRIVATE KEY-----\\nzq7-deploy-secret\\n-----END DUMMY PRIVATE KEY-----''',
+  '''-----BEGIN DUMMY PRIVATE KEY-----\\nforge-import\\n-----END DUMMY PRIVATE KEY-----''',
+  '''-----BEGIN DUMMY PRIVATE KEY-----\\ntest\\n-----END DUMMY PRIVATE KEY-----''',
+  '''-----BEGIN OPENSSH PRIVATE KEY-----\\nAAAA\\n-----END OPENSSH PRIVATE KEY-----''',
+  '''-----BEGIN PRIVATE KEY-----\\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg\\n-----END PRIVATE KEY-----''',
+]

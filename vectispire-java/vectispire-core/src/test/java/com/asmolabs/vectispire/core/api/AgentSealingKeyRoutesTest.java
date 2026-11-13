@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -48,7 +49,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @DisplayName("an agent's sealing key, and what is sealed for it")
 class AgentSealingKeyRoutesTest extends ApiTestBase {
 
-    private static final String DEPLOY_KEY = "-----BEGIN DUMMY PRIVATE KEY-----\nzq7-deploy-secret\n-----END DUMMY PRIVATE KEY-----";
+    private static final String DEPLOY_KEY = FixturePrivateKeys.DEPLOY;
 
     @Autowired
     private AgentRepository agents;
