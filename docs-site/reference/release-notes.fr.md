@@ -54,6 +54,10 @@ Ce qui suit se compare à 1.0.0-rc.2.
 ### Corrigé {#corrige-100-rc3}
 
 - **L'en-tête affiche le nom de l'instance avec sa casse** : `CloudSecElection`, et non plus `CLOUDSECELECTION`.
+- **Une ligne de checklist répondue automatiquement ne se lit plus *Déclaré, non mesuré* quand sa mesure
+  périme.** Le badge est daté (*Automatique — mesuré par Vectispire le …, sans données depuis*) et la mesure se
+  lit *Mesuré auparavant, sans données aujourd’hui*. Les libellés de la ligne gardent leur espace : *Réponse : Non*,
+  *Preuves : aucune jointe*, et *Mesurée par* devant sa règle.
 
 ## 1.0.0-rc.2 — 12 novembre 2026
 

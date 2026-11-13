@@ -55,6 +55,12 @@ export class LineMeasurement {
     /** Whether the person may answer the line now: the newest draft, a role that writes. */
     readonly answerable = input(false);
     readonly busy = input(false);
+    /**
+     * Whether the answer was recorded by Vectispire from a measurement (`answeredByKind: system`). With
+     * no data now, the server's `declared_not_measured` would read as a person's declaration: the answer
+     * rests on a measurement that has since lapsed, and the badge says that instead.
+     */
+    readonly automaticAnswer = input(false);
 
     /** "Answer as measured" — the page sends it, or opens the form it needs. */
     readonly answerAsMeasured = output<void>();
@@ -110,6 +116,12 @@ export class LineMeasurement {
     readonly reconciliation = computed(() => {
         const line = this.measured();
         if (!line) return null;
+        if (line.reconciliation === 'declared_not_measured' && this.automaticAnswer()) {
+            return {
+                severity: 'warn' as const,
+                label: this.i18n.t('project_checklist.reconciliation_measured_before')
+            };
+        }
         return {
             severity:
                 (RECONCILIATION_SEVERITIES as Record<string, 'success' | 'danger' | 'warn' | 'info' | 'secondary'>)[
