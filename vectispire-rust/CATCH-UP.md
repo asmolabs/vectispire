@@ -116,8 +116,11 @@ not serve at all yet is ported with that module, not stood up alone during the c
 ## Targets, scanning, checklists, compliance
 
 - [x] `GET /git-tokens`, `/repositories/duplicates`, `/ssh-keys` take `limit` and `offset`. Red: `cp-targets --test contract`.
-- [ ] `ScanningProperties` binds `bundledRules`, `hostSsh`, `pluginRegistry`, `pluginSignatureRequired`,
+- [x] `ScanningProperties` binds `bundledRules`, `hostSsh`, `pluginRegistry`, `pluginSignatureRequired`,
       `vulnerabilityDbDir`, `images` (the property table already says `bundled-rules` is a record).
+      *Checked 2026-11-13: nothing to change — `cp-runtime`'s table reads each from `application.yaml` with Java's
+      default (`java_parity` green), `bundled-rules` as a record, and a blank `image-platform` reads as absent, as the
+      record's constructor makes it.*
 - [x] Checklists: NO_DATA reason `forge_integration_disabled`, and the suspended reading checked first. Nothing feeds
       `ReviewFacts::Suspended` yet: the facts reader learns it with the integrations registry (decision 0040). Red: `cp-checklists --test reference_set`.
 - [→] `GET /owasp/coverage/export.csv` *(moved 2026-11-13 to compliance, wave 1: a route of a module Rust does not serve yet is ported with its module)*. Not-yet-ported list.
@@ -158,10 +161,11 @@ causes rather than one by one. Counts are recordings.
 - [→] **The published keys' list in the read-cost sweep** *(moved 2026-11-13 to compliance's exports, wave 1: a route of a module Rust does not serve yet is ported with its module)* — 2: an export Rust does not serve wrote the key record in
       Java's run, and the replay cannot rebuild its `«sealed»` value; ends with the compliance exports.
 
-- [ ] **Why `AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing` takes over a second in the replay** — 1: its
-      activity reads a scan queued "1" second ago where Java read 0 (whole seconds of wall clock). Listed in
-      `_recording.txt`; find what the eight requests before it wait on — the built-in worker's Docker check is the
-      first suspect — and remove the line.
+- [ ] **`AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing`'s wait reads 1 where Java's read 0** — 1, listed in
+      `_recording.txt`. *Cause found 2026-11-13: not a slower Rust — the replay's own overhead (it seeds, snapshots and
+      compares every table between two requests) passes a second of wall clock, and the agents' activity reads the
+      system clock.* Remedy: give `AgentAdministrationService` a clock, as Java's takes one, and hand the replay one it
+      pauses between requests, as `AnsweringTime` does for the limiters; then remove the line.
 
 - [ ] **`security/mutants/p2-7-scanning.py` runs 43 of its engine mutants on PostgreSQL only** (the `PG` selector): since
       PostgreSQL left the port's jobs, those tests return at once under `VECTISPIRE_TEST_ENGINES=mysql` and a mutant can

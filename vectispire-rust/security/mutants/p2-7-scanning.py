@@ -19,6 +19,9 @@ Q, L, DISP, SCHED, RET, TRIG, QUERY, VIEWS, PURGE, WEB, INT = (
 )
 SCH, SQ, INST = "crates/domain/src/schedules.rs", "crates/domain/src/scan_queue.rs", "crates/domain/src/instant.rs"
 
+# The engine mutants run on MySQL (2026-11-13): they ran on PostgreSQL, which left the port's jobs on 2026-11-12 —
+# under VECTISPIRE_TEST_ENGINES=mysql the `on_postgresql` case returns at once, and a mutant run against it could only
+# survive. PG stays named for a run that selects PostgreSQL on purpose.
 PG = ["-p", "vectispire-cp-scanning", "--test", "engines", "on_postgresql"]
 MY = ["-p", "vectispire-cp-scanning", "--test", "engines", "on_mysql"]
 REF = ["-p", "vectispire-cp-scanning", "--test", "reference"]
@@ -29,26 +32,26 @@ DOMU = ["-p", "vectispire-domain", "--lib"]
 
 MUTANTS = [
     # ── the claim ──
-    ("a take that lost counts as taken", Q, "            Ok(1) => tx.commit().await.is_ok(),", "            Ok(_) => tx.commit().await.is_ok(),", PG),
-    ("the count behind the lock is skipped", Q, "        if persistence::count_held(tx, worker, SCANNING, claimed_at).await? >= limit {\n            return Ok(Taken::Full);", "        if false {\n            return Ok(Taken::Full);", PG),
-    ("no lock before the count", Q, "        if !self.agents.lock_for_claim(tx, agent, claimed_at).await? {\n            return Ok(Taken::Full);\n        }\n", "", PG),
-    ("a deleted agent still claims", Q, "        if !self.agents.lock_for_claim(tx, agent, claimed_at).await? {", "        if self.agents.lock_for_claim(tx, agent, claimed_at).await? && false {", PG),
-    ("a lost take is the end of the claim", Q, "                Taken::Lost => {}", "                Taken::Lost => return Ok(AgentClaim { scan: None, kept }),", PG),
-    ("the take ignores a lost row", Q, "            if persistence::take(tx, *candidate, PENDING, SCANNING, worker, claimed_at, lease_expires_at).await? == 1 {", "            if persistence::take(tx, *candidate, PENDING, SCANNING, worker, claimed_at, lease_expires_at).await? <= 1 {", PG),
-    ("an excluding agent takes an excluded repository", Q, "                if row.repo_id.is_none_or(|repository| !excluded.contains(&repository)) {", "                if row.repo_id.is_none_or(|_| true) {", PG),
-    ("an excluding agent leaves image scans", Q, "                if row.repo_id.is_none_or(|repository| !excluded.contains(&repository)) {", "                if row.repo_id.is_some_and(|repository| !excluded.contains(&repository)) {", PG),
-    ("kept is never told", Q, "                kept = true;\n", "", PG),
-    ("the walk stops at the first page", Q, "            if rows.len() < PAGE {\n                break;\n            }", "            if rows.len() <= PAGE {\n                break;\n            }", PG),
-    ("the next page restarts at the first", Q, "            after = rows.last().map(|last| (last.created_at, last.id));", "            after = None;", PG),
+    ("a take that lost counts as taken", Q, "            Ok(1) => tx.commit().await.is_ok(),", "            Ok(_) => tx.commit().await.is_ok(),", MY),
+    ("the count behind the lock is skipped", Q, "        if persistence::count_held(tx, worker, SCANNING, claimed_at).await? >= limit {\n            return Ok(Taken::Full);", "        if false {\n            return Ok(Taken::Full);", MY),
+    ("no lock before the count", Q, "        if !self.agents.lock_for_claim(tx, agent, claimed_at).await? {\n            return Ok(Taken::Full);\n        }\n", "", MY),
+    ("a deleted agent still claims", Q, "        if !self.agents.lock_for_claim(tx, agent, claimed_at).await? {", "        if self.agents.lock_for_claim(tx, agent, claimed_at).await? && false {", MY),
+    ("a lost take is the end of the claim", Q, "                Taken::Lost => {}", "                Taken::Lost => return Ok(AgentClaim { scan: None, kept }),", MY),
+    ("the take ignores a lost row", Q, "            if persistence::take(tx, *candidate, PENDING, SCANNING, worker, claimed_at, lease_expires_at).await? == 1 {", "            if persistence::take(tx, *candidate, PENDING, SCANNING, worker, claimed_at, lease_expires_at).await? <= 1 {", MY),
+    ("an excluding agent takes an excluded repository", Q, "                if row.repo_id.is_none_or(|repository| !excluded.contains(&repository)) {", "                if row.repo_id.is_none_or(|_| true) {", MY),
+    ("an excluding agent leaves image scans", Q, "                if row.repo_id.is_none_or(|repository| !excluded.contains(&repository)) {", "                if row.repo_id.is_some_and(|repository| !excluded.contains(&repository)) {", MY),
+    ("kept is never told", Q, "                kept = true;\n", "", MY),
+    ("the walk stops at the first page", Q, "            if rows.len() < PAGE {\n                break;\n            }", "            if rows.len() <= PAGE {\n                break;\n            }", MY),
+    ("the next page restarts at the first", Q, "            after = rows.last().map(|last| (last.created_at, last.id));", "            after = None;", MY),
     # MySQL first (1.0 is MySQL only): `on_postgresql` alone returns at once under VECTISPIRE_TEST_ENGINES=mysql, and
     # the mutant then survives by the suite not running.
     ("the exclusion is never asked", Q, "            let excluded = if repositories.is_empty() || exclusion.excludes_nothing() {", "            let excluded = if true {", [MY, PG]),
     # ── attempts ──
-    ("another worker's report is applied", Q, "scan.status == SCANNING && scan.claimed_by.as_deref() == Some(worker) && scan.attempts == attempt", "scan.status == SCANNING && scan.attempts == attempt", PG),
-    ("a retried scan is failed", Q, "        let to = if abandoned.retried() { PENDING } else { FAILED };", "        let to = FAILED;", PG),
-    ("the reason is stored whole", Q, "        let sentence = truncate(&reason(&abandoned));", "        let sentence = reason(&abandoned);", UNIT + PG),
-    ("a lapse exhausted is requeued", Q, "                        FAILED,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", "                        PENDING,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", PG),
-    ("a lapse waits for nothing", Q, "                        PENDING,\n                        None,\n                        Some(offset(not_before)),", "                        PENDING,\n                        None,\n                        None,", PG),
+    ("another worker's report is applied", Q, "scan.status == SCANNING && scan.claimed_by.as_deref() == Some(worker) && scan.attempts == attempt", "scan.status == SCANNING && scan.attempts == attempt", MY),
+    ("a retried scan is failed", Q, "        let to = if abandoned.retried() { PENDING } else { FAILED };", "        let to = FAILED;", MY),
+    ("the reason is stored whole", Q, "        let sentence = truncate(&reason(&abandoned));", "        let sentence = reason(&abandoned);", UNIT + MY),
+    ("a lapse exhausted is requeued", Q, "                        FAILED,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", "                        PENDING,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", MY),
+    ("a lapse waits for nothing", Q, "                        PENDING,\n                        None,\n                        Some(offset(not_before)),", "                        PENDING,\n                        None,\n                        None,", MY),
     ("a reason cut a unit late", Q, "        if units.saturating_add(width) > length {", "        if units.saturating_add(width) > length.saturating_add(1) {", UNIT),
     ("a cut pair leaves no ?", Q, "            if units < length {\n                kept.push('?');", "            if false {\n                kept.push('?');", UNIT),
     ("a permanent failure retries", SQ, "    if kind == FailureKind::Permanent {\n        return Next::Fail { permanent: true };", "    if false {\n        return Next::Fail { permanent: true };", DOM),
@@ -58,18 +61,18 @@ MUTANTS = [
     ("no delays wait the lease", SQ, "    if delays.is_empty() {\n        return Duration::ZERO;", "    if delays.is_empty() {\n        return policy.lease;", DOM),
     ("an instant's fraction never carries", INST, "let (carry, nano) = if total >= 1_000_000_000 { (1, total.saturating_sub(1_000_000_000)) } else { (0, total) };", "let (carry, nano) = if total > 1_000_000_000 { (1, total.saturating_sub(1_000_000_000)) } else { (0, total) };", DOMU),
     # ── the leader lease ──
-    ("a live lease is stolen", L, "        if !mine && !expired {", "        if !mine && false {", PG),
-    ("an expiry at the instant is live", L, "        let expired = lease.expires_at.is_none_or(|expiry| expiry <= at);", "        let expired = lease.expires_at.is_none_or(|expiry| expiry < at);", PG),
-    ("a takeover ignores what was read", L, "                    persistence::take_over_from(&mut tx, name, holder, expires_at, at, previous, expiry).await", "                    persistence::renew_leadership(&mut tx, name, holder, expires_at, at).await", PG),
-    ("a lost insert wins", L, "            Err(_) => {\n                let _ = tx.rollback().await;\n                false\n            }", "            Err(_) => {\n                let _ = tx.rollback().await;\n                true\n            }", PG),
-    ("a stale lease has a holder", L, "            (Some(holder), Some(expiry)) if expiry > at => Some(holder),", "            (Some(holder), Some(_)) => Some(holder),", PG),
-    ("the scheduler ticks without the lease", SCHED, "        if !self.hold_leadership(at).await {\n            return 0;", "        if false {\n            return 0;", PG),
-    ("an unreachable lease is believed held", SCHED, "                tracing::warn!(error = %failure, \"Scheduling lease unreachable — tick skipped.\");\n                false", "                tracing::warn!(error = %failure, \"Scheduling lease unreachable — tick skipped.\");\n                true", PG),
+    ("a live lease is stolen", L, "        if !mine && !expired {", "        if !mine && false {", MY),
+    ("an expiry at the instant is live", L, "        let expired = lease.expires_at.is_none_or(|expiry| expiry <= at);", "        let expired = lease.expires_at.is_none_or(|expiry| expiry < at);", MY),
+    ("a takeover ignores what was read", L, "                    persistence::take_over_from(&mut tx, name, holder, expires_at, at, previous, expiry).await", "                    persistence::renew_leadership(&mut tx, name, holder, expires_at, at).await", MY),
+    ("a lost insert wins", L, "            Err(_) => {\n                let _ = tx.rollback().await;\n                false\n            }", "            Err(_) => {\n                let _ = tx.rollback().await;\n                true\n            }", MY),
+    ("a stale lease has a holder", L, "            (Some(holder), Some(expiry)) if expiry > at => Some(holder),", "            (Some(holder), Some(_)) => Some(holder),", MY),
+    ("the scheduler ticks without the lease", SCHED, "        if !self.hold_leadership(at).await {\n            return 0;", "        if false {\n            return 0;", MY),
+    ("an unreachable lease is believed held", SCHED, "                tracing::warn!(error = %failure, \"Scheduling lease unreachable — tick skipped.\");\n                false", "                tracing::warn!(error = %failure, \"Scheduling lease unreachable — tick skipped.\");\n                true", MY),
     # ── the scheduler ──
-    ("a target under way is queued again", SCHED, "        if under_way > 0 {\n            return Ok(0);", "        if under_way > 1 {\n            return Ok(0);", PG),
-    ("the stamp is skipped", SCHED, "        self.targets.stamp_scheduled(tx, target, at).await.map_err(|failure| StoreError(Box::new(failure)))?;\n", "", PG),
-    ("the default interval read in days", SCHED, "            Ok(days) => i64::from(days).saturating_mul(24 * 60),", "            Ok(days) => i64::from(days),", PG),
-    ("images are not scheduled", SCHED, "                    if due_container(container, default_minutes, now) {", "                    if false {", PG),
+    ("a target under way is queued again", SCHED, "        if under_way > 0 {\n            return Ok(0);", "        if under_way > 1 {\n            return Ok(0);", MY),
+    ("the stamp is skipped", SCHED, "        self.targets.stamp_scheduled(tx, target, at).await.map_err(|failure| StoreError(Box::new(failure)))?;\n", "", MY),
+    ("the default interval read in days", SCHED, "            Ok(days) => i64::from(days).saturating_mul(24 * 60),", "            Ok(days) => i64::from(days),", MY),
+    ("images are not scheduled", SCHED, "                    if due_container(container, default_minutes, now) {", "                    if false {", MY),
     ("a manual target is due", SCH, "    match target.mode() {\n        Mode::Manual => false,", "    match target.mode() {\n        Mode::Manual => true,", DOM),
     ("an interval due a second late", SCH, "Some(last) => last.plus_seconds(interval_seconds).is_some_and(|due| now >= due),", "Some(last) => last.plus_seconds(interval_seconds).is_some_and(|due| now > due),", [DOM, DOMU]),
     ("a never-scheduled interval waits", SCH, "    if interval_seconds <= 0 {\n        return false;\n    }\n    match last {\n        None => true,", "    if interval_seconds <= 0 {\n        return false;\n    }\n    match last {\n        None => false,", DOM),
@@ -90,14 +93,14 @@ MUTANTS = [
     ("an interval longer than the period passes", SCH, "    period_seconds > 0 && interval_seconds > 0 && interval_seconds <= period_seconds", "    period_seconds > 0 && interval_seconds > 0", DOM),
     ("a manual target runs often enough", SCH, "    match in_force.mode {\n        Mode::Manual => false,", "    match in_force.mode {\n        Mode::Manual => true,", DOM),
     # ── retention ──
-    ("the keep window ignored", RET, "            keep_per_target: u32::try_from(keep).unwrap_or(0),", "            keep_per_target: 0,", PG),
-    ("the age limit read in seconds", RET, "max_age: Duration::from_secs(u64::try_from(days).unwrap_or(0).saturating_mul(86_400)),", "max_age: Duration::from_secs(u64::try_from(days).unwrap_or(0)),", PG),
+    ("the keep window ignored", RET, "            keep_per_target: u32::try_from(keep).unwrap_or(0),", "            keep_per_target: 0,", MY),
+    ("the age limit read in seconds", RET, "max_age: Duration::from_secs(u64::try_from(days).unwrap_or(0).saturating_mul(86_400)),", "max_age: Duration::from_secs(u64::try_from(days).unwrap_or(0)),", MY),
     # ── the trigger, the purge, the figures ──
-    ("a waiting scan is stacked", TRIG, "            if persistence::count_of_repository(&mut tx, \"pending\", repository.id).await? > 0 {", "            if persistence::count_of_repository(&mut tx, \"pending\", repository.id).await? > 1 {", PG),
-    ("an image scan without its branch", TRIG, "            branch: IMAGE_BRANCH.to_owned(),", "            branch: String::new(),", PG),
-    ("the purge keeps the findings", PURGE, "                persistence::delete_findings_of_scans(tx, batch).await?;", "                let _ = batch;", PG),
-    ("the latest scan forgets its status", INT, "LatestScan { id: row.scan_id, status: row.status, created_at: row.created_at, error: row.error },", "LatestScan { id: row.scan_id, status: String::new(), created_at: row.created_at, error: row.error },", PG),
-    ("an unrecorded census read as none", S + "catalog.rs", "                if let Some(languages) = detected_languages::read(column.as_deref()) {\n                    detected.insert(repository, languages);\n                }", "                detected.insert(repository, detected_languages::read(column.as_deref()).unwrap_or_default());", PG),
+    ("a waiting scan is stacked", TRIG, "            if persistence::count_of_repository(&mut tx, \"pending\", repository.id).await? > 0 {", "            if persistence::count_of_repository(&mut tx, \"pending\", repository.id).await? > 1 {", MY),
+    ("an image scan without its branch", TRIG, "            branch: IMAGE_BRANCH.to_owned(),", "            branch: String::new(),", MY),
+    ("the purge keeps the findings", PURGE, "                persistence::delete_findings_of_scans(tx, batch).await?;", "                let _ = batch;", MY),
+    ("the latest scan forgets its status", INT, "LatestScan { id: row.scan_id, status: row.status, created_at: row.created_at, error: row.error },", "LatestScan { id: row.scan_id, status: String::new(), created_at: row.created_at, error: row.error },", MY),
+    ("an unrecorded census read as none", S + "catalog.rs", "                if let Some(languages) = detected_languages::read(column.as_deref()) {\n                    detected.insert(repository, languages);\n                }", "                detected.insert(repository, detected_languages::read(column.as_deref()).unwrap_or_default());", MY),
     # ── the dispatcher ──
     ("a delegated agent without a sealing key is handed credentials", DISP, "    !agent.mode().delivers_credentials() || agent.sealing_public_key.as_deref().is_some_and(is_usable_sealing_key)", "    true", REF),
     ("a local agent is excluded", DISP, "    !agent.mode().delivers_credentials() || agent.sealing_public_key.as_deref().is_some_and(is_usable_sealing_key)", "    agent.sealing_public_key.as_deref().is_some_and(is_usable_sealing_key)", REF),
@@ -119,16 +122,16 @@ MUTANTS = [
     ("SAST languages recorded without SAST", DISP, "        let column = if steps.contains(&Step::Sast) {", "        let column = if true {", REF),
     ("SAST always on", DISP, "        if self.sast.sast_enabled().await.map_err(TaskFailure::transient)? {", "        if true {", REF),
     ("a refusal retries", DISP, "        TaskFailure { message: message.into(), kind: FailureKind::Permanent }", "        TaskFailure { message: message.into(), kind: FailureKind::Transient }", REF),
-    ("a failure reason is not scrubbed", DISP, "        let reason = failure_reason::scrub(&failure.message, secrets);", "        let reason = { let _ = secrets; failure.message.clone() };", PG),
+    ("a failure reason is not scrubbed", DISP, "        let reason = failure_reason::scrub(&failure.message, secrets);", "        let reason = { let _ = secrets; failure.message.clone() };", MY),
     ("the retry's instant keeps its fraction", DISP, "                epoch_second: not_before.epoch_second,\n                nano: 0,", "                epoch_second: not_before.epoch_second,\n                nano: not_before.nano,", REF),
-    ("the worker's room counts the agents' scans", DISP, "        let held = i32::try_from(self.queue.count_held(worker).await?).unwrap_or(i32::MAX);", "        let held = 1;", PG),
-    ("a scan taken over is run anyway", DISP, "        if !self.queue.renew_lease(scan.id, worker).await? {", "        if !self.queue.renew_lease(scan.id, worker).await? && false {", PG),
-    ("a scan that examined nothing is completed", DISP, "    let nothing_examined = artifacts.observed_nothing() && !artifacts.failures.is_empty();", "    let nothing_examined = false;", PG),
-    ("a clean scan is failed", DISP, "    let nothing_examined = artifacts.observed_nothing() && !artifacts.failures.is_empty();", "    let nothing_examined = artifacts.observed_nothing();", PG),
-    ("a stolen scan's result is written", DISP, "        if !self.queue.hold_for_write(tx, scan_id, worker).await? {\n            return Ok(false);", "        if !self.queue.hold_for_write(tx, scan_id, worker).await? && false {\n            return Ok(false);", PG),
-    ("the SBOM stored as sent", DISP, "    Ok(vectispire_domain::wire::to_wire_string(&tree))", "    let _ = tree;\n    Ok(raw.to_owned())", PG),
-    ("the failures not summarised", DISP, "        error: failure_summary(artifacts)?,", "        error: None,", PG),
-    ("a project absent blanks the columns", DISP, "        project: artifacts.project.as_ref().map(|project| (project.kind.clone(), project.version.clone())),", "        project: Some(artifacts.project.as_ref().map_or((None, None), |project| (project.kind.clone(), project.version.clone()))),", PG),
+    ("the worker's room counts the agents' scans", DISP, "        let held = i32::try_from(self.queue.count_held(worker).await?).unwrap_or(i32::MAX);", "        let held = 1;", MY),
+    ("a scan taken over is run anyway", DISP, "        if !self.queue.renew_lease(scan.id, worker).await? {", "        if !self.queue.renew_lease(scan.id, worker).await? && false {", MY),
+    ("a scan that examined nothing is completed", DISP, "    let nothing_examined = artifacts.observed_nothing() && !artifacts.failures.is_empty();", "    let nothing_examined = false;", MY),
+    ("a clean scan is failed", DISP, "    let nothing_examined = artifacts.observed_nothing() && !artifacts.failures.is_empty();", "    let nothing_examined = artifacts.observed_nothing();", MY),
+    ("a stolen scan's result is written", DISP, "        if !self.queue.hold_for_write(tx, scan_id, worker).await? {\n            return Ok(false);", "        if !self.queue.hold_for_write(tx, scan_id, worker).await? && false {\n            return Ok(false);", MY),
+    ("the SBOM stored as sent", DISP, "    Ok(vectispire_domain::wire::to_wire_string(&tree))", "    let _ = tree;\n    Ok(raw.to_owned())", MY),
+    ("the failures not summarised", DISP, "        error: failure_summary(artifacts)?,", "        error: None,", MY),
+    ("a project absent blanks the columns", DISP, "        project: artifacts.project.as_ref().map(|project| (project.kind.clone(), project.version.clone())),", "        project: Some(artifacts.project.as_ref().map_or((None, None), |project| (project.kind.clone(), project.version.clone()))),", MY),
     # ── the reads and the routes ──
     ("a restricted history reads the estate", QUERY, "            Visibility::Everything => {\n                let mut tx = persistence::read(&self.db).await?;", "            _ => {\n                let mut tx = persistence::read(&self.db).await?;", RT),
     ("a hidden scan's detail is served", QUERY, "    Ok(rows::require_visible_scan(scan, ScanView::target, allowed)?)", "    Ok(rows::require_visible_scan(scan, ScanView::target, &Visibility::Everything)?)", RT),
