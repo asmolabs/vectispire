@@ -220,10 +220,15 @@ causes rather than one by one. Counts are recordings.
       2026-11-13: the agents' administration takes a clock, as Java's does, and the replay hands it one that runs only
       while the router answers; the wall clock counted the replay's own seeding and comparing. 37 of 37 green, twice.
 
-- [ ] **Six scanning mutants survive on MySQL** (`security/mutants/p2-7-scanning.py`, re-pointed from PostgreSQL to
+- [x] **Six scanning mutants survive on MySQL** (`security/mutants/p2-7-scanning.py`, re-pointed from PostgreSQL to
       MySQL on 2026-11-13: 96 of 102 killed). Survivors: "a deleted agent still claims", "another worker's report is
       applied", "the reason is stored whole", "the purge keeps the findings", "the latest scan forgets its status",
-      "a clean scan is failed" — each a guard no test on MySQL holds; a test per guard is owed.
+      "a clean scan is failed" — each a guard no test on MySQL holds; a test per guard is owed. Done 2026-11-13: 101 of
+      101 killed. Four engine cases added or extended ("a deleted agent claims nothing", the latest scan's status, the
+      findings phase alone inside its transaction — the FK's cascade had hidden it —, a result with every step absent
+      and nothing broken); "the reason is stored whole" is killed by "a long reason is kept within its column" and
+      did not survive again in three runs; "another worker's report is applied" is equivalent — the release's
+      statement repeats the owner — and is named as such in the script.
 
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.

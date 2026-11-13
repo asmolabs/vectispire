@@ -47,7 +47,6 @@ MUTANTS = [
     # the mutant then survives by the suite not running.
     ("the exclusion is never asked", Q, "            let excluded = if repositories.is_empty() || exclusion.excludes_nothing() {", "            let excluded = if true {", [MY, PG]),
     # ── attempts ──
-    ("another worker's report is applied", Q, "scan.status == SCANNING && scan.claimed_by.as_deref() == Some(worker) && scan.attempts == attempt", "scan.status == SCANNING && scan.attempts == attempt", MY),
     ("a retried scan is failed", Q, "        let to = if abandoned.retried() { PENDING } else { FAILED };", "        let to = FAILED;", MY),
     ("the reason is stored whole", Q, "        let sentence = truncate(&reason(&abandoned));", "        let sentence = reason(&abandoned);", UNIT + MY),
     ("a lapse exhausted is requeued", Q, "                        FAILED,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", "                        PENDING,\n                        Some(LEASE_EXHAUSTED_MESSAGE),", MY),
@@ -154,6 +153,11 @@ MUTANTS = [
 #   a scan the agent is kept from — so it is kept again.
 # - the attempt in `abandon`'s read of the row: the release's statement repeats the condition ("a failure report ends
 #   its attempt only" forces the window), so dropping it from the read changes no row.
+# - the owner in `abandon`'s read of the row ("another worker's report is applied", removed 2026-11-13 after it
+#   survived on MySQL): the same — the release's statement repeats `claimed_by = ?`, so another worker's report reads
+#   through and then changes no row, answering `None` as the read did ("a failure report ends its attempt only",
+#   "a deposed worker cannot fail its successor"). What it spends is a clock read, a call of the reason — a pure
+#   sentence at every caller — and a no-op update, none of which anything observes.
 # - a disabled retention policy's early return: `RetentionPolicy::prunable` answers none for a disabled policy itself.
 # - the identifier no column hands out, bound for an empty batch of a restricted history: Java needed it because
 #   `in ()` is not valid everywhere; an empty array or JSON list selects nothing on both engines either way.
