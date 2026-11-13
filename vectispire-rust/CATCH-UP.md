@@ -164,8 +164,15 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
+- [x] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
       `«pem:…»` request bodies of SSH-key and CA tests the recorder hides.
+
+      *Fixed 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a
+      word, a PKCS#8 header with no scalar), hidden because the recorder hid every private-key PEM. Gathered in
+      `core/golden/FixturePrivateKeys.java`, they are recorded as they are, by fingerprint only; the recordings' scan
+      allows their exact text. A whole recording holds no `«pem:…»` any more: 22 of the 23 lines replay green, with
+      the two `withheldPollsCostNoAttempt` lines their requests unblocked; `theCredentialIsSealedForTheVerifiedKeyOnly--006`
+      stays, its audit entry chaining onto a sealing-key announcement the recorder hides (`_recording.txt`, 87 → 63).*
 - [x] **`ListPagingEstateRoutesTest/refusesWhatItCannotServe`** — 36: the seed of `POST /plugins` (not served,
       played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
       are made concrete. A replay defect, not the port's.

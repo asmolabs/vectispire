@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
@@ -30,7 +31,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @DisplayName("the bounds of the integration forms")
 class IntegrationInputBoundsTest extends ApiTestBase {
 
-    private static final String KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----";
+    private static final String KEY = FixturePrivateKeys.BOUNDS;
 
     @Autowired
     private GitTokenRepository gitTokens;

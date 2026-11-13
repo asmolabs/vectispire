@@ -28,6 +28,7 @@ import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -248,7 +249,7 @@ class ForgeImportsRoutesTest extends ApiTestBase {
 
     private String sshKey() throws Exception {
         return ok(postJson("/api/v1/ssh-keys", Map.of("name", "deploy-" + System.nanoTime(), "private_key",
-                "-----BEGIN DUMMY PRIVATE KEY-----\nforge-import\n-----END DUMMY PRIVATE KEY-----"), asAdmin()))
+                FixturePrivateKeys.FORGE_IMPORT), asAdmin()))
                 .at("/id").asText();
     }
 

@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -113,7 +114,7 @@ class ClientRequestContractTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of(
                                 "name", "deploy",
-                                "private_key", "-----BEGIN DUMMY PRIVATE KEY-----\ntest\n-----END DUMMY PRIVATE KEY-----",
+                                "private_key", FixturePrivateKeys.CONTRACT,
                                 "public_key", "ssh-ed25519 AAAA"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.publicKey").value("ssh-ed25519 AAAA"));

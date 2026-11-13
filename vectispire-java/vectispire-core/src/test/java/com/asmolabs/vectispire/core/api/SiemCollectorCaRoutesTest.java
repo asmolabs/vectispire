@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemDelivery;
@@ -134,8 +135,7 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
                         "tlsCaPem", expired.caPem)).andExpect(status().isBadRequest()).andReturn()))
                 .contains("expired on");
         assertThat(detailOf(save(Map.of("protocol", "SYSLOG_TLS", "endpoint", "c.example.com:6514",
-                        "tlsCaPem", "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg\n"
-                                + "-----END PRIVATE KEY-----")).andExpect(status().isBadRequest()).andReturn()))
+                        "tlsCaPem", FixturePrivateKeys.PASTED_FOR_A_CA)).andExpect(status().isBadRequest()).andReturn()))
                 .contains("PEM");
         CollectorPki pki = CollectorPki.create("Corp Root");
         assertThat(detailOf(save(Map.of("protocol", "SYSLOG_TCP", "endpoint", "c.example.com:514",

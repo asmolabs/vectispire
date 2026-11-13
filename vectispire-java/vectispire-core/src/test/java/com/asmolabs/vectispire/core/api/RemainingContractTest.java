@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -310,7 +311,7 @@ class RemainingContractTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of(
                                 "name", "deploy",
-                                "private_key", "-----BEGIN DUMMY PRIVATE KEY-----\ntest\n-----END DUMMY PRIVATE KEY-----"))))
+                                "private_key", FixturePrivateKeys.CONTRACT))))
                 .andExpect(status().isOk());
 
         // `current | previous_key | unreadable`. The enum would arrive as `PREVIOUS_KEY`, and the
