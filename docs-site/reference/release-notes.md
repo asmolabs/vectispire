@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 1.0.0-rc.3 — unreleased
+## 1.0.0-rc.3 — 2026-11-13
 
 What follows is against 1.0.0-rc.2.
 
