@@ -167,9 +167,10 @@ causes rather than one by one. Counts are recordings.
       system clock.* Remedy: give `AgentAdministrationService` a clock, as Java's takes one, and hand the replay one it
       pauses between requests, as `AnsweringTime` does for the limiters; then remove the line.
 
-- [ ] **`security/mutants/p2-7-scanning.py` runs 43 of its engine mutants on PostgreSQL only** (the `PG` selector): since
-      PostgreSQL left the port's jobs, those tests return at once under `VECTISPIRE_TEST_ENGINES=mysql` and a mutant can
-      only survive. Switch the selector to MySQL and rerun the script whole.
+- [ ] **Six scanning mutants survive on MySQL** (`security/mutants/p2-7-scanning.py`, re-pointed from PostgreSQL to
+      MySQL on 2026-11-13: 96 of 102 killed). Survivors: "a deleted agent still claims", "another worker's report is
+      applied", "the reason is stored whole", "the purge keeps the findings", "the latest scan forgets its status",
+      "a clean scan is failed" — each a guard no test on MySQL holds; a test per guard is owed.
 
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.
