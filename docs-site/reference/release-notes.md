@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 1.0.0-rc.3 — unreleased
+## 1.0.0-rc.3 — 2026-11-13
 
 What follows is against 1.0.0-rc.2.
 
@@ -52,6 +52,10 @@ What follows is against 1.0.0-rc.2.
 ### Fixed {#fixed-100-rc3}
 
 - **The header shows the instance's name with its own case**: `CloudSecElection`, no longer `CLOUDSECELECTION`.
+- **A checklist line answered automatically no longer reads *Declared, not measured* once its measurement
+  lapses.** The badge is dated (*Automatic — measured by Vectispire on …, no data since*) and the measurement
+  reads *Measured before, no data now*. The line's labels keep their space: *Answer: No*, *Evidence: none
+  attached*, and *Measured by* before its rule.
 
 ## 1.0.0-rc.2 — 2026-11-12
 

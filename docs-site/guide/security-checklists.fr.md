@@ -393,7 +393,11 @@ cette preuve** — joignez-la, sinon la ligne retient la révision en *preuve re
 **Sur la page.** Une réponse automatique porte le badge **Automatique — mesuré par Vectispire** à
 côté d'elle, est *répondue par Vectispire*, et son commentaire généré s'affiche comme commentaire de la
 ligne. L'en-tête les compte — **N réponse(s) automatique(s)** — pour que vous voyiez d'un coup d'œil ce
-que les analyses ont rempli, et ce qui vous reste. La ligne reste à vous : **Changer la réponse** ouvre
+que les analyses ont rempli, et ce qui vous reste. Quand la mesure n'a plus de données — sa preuve la plus
+récente plus ancienne que la règle ne le permet — le badge est daté, **Automatique — mesuré par Vectispire le
+06/10/2026, sans données depuis**, et la mesure se lit **Mesuré auparavant, sans données aujourd’hui** plutôt
+que *Déclaré, non mesuré* : la réponse repose sur une mesure périmée, non sur la déclaration de quelqu'un.
+Une nouvelle analyse la rétablit. La ligne reste à vous : **Changer la réponse** ouvre
 le formulaire avec la réponse et le commentaire de Vectispire, et dit **Répondre remplace la réponse
 automatique : la ligne devient la vôtre.** Dans l'**historique** de la ligne, les entrées de Vectispire
 sont marquées *automatique*, et un retrait se lit **Réponse automatique retirée (plus de données)**.

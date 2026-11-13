@@ -373,7 +373,10 @@ proof** — attach it, or the line keeps the revision back as *evidence required
 **On the page.** An automatic answer carries the badge **Automatic — measured by Vectispire** beside
 it, is *answered by Vectispire*, and its generated comment shows as the line's comment. The header
 counts them — **N automatic answer(s)** — so that you see at a glance what the scans filled, and what
-is left for you. The line stays yours to answer: **Change the answer** opens the form with
+is left for you. When the measurement has no data any more — its newest evidence older than the rule
+allows — the badge is dated, **Automatic — measured by Vectispire on 06/10/2026, no data since**, and the
+measurement reads **Measured before, no data now** rather than *Declared, not measured*: the answer
+stands on a measurement that has lapsed, not on anyone's declaration. A new scan brings it back. The line stays yours to answer: **Change the answer** opens the form with
 Vectispire's answer and comment in it, and says **Answering replaces the automatic answer: the line
 becomes yours.** In the line's **History**, Vectispire's rows are marked *automatic*, and a withdrawal
 reads **Automatic answer withdrawn (no more data)**. **Answer every measured line as measured** is still

@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## 1.0.0-rc.3 — non publiée
+## 1.0.0-rc.3 — 13 novembre 2026
 
 Ce qui suit se compare à 1.0.0-rc.2.
 
@@ -54,6 +54,10 @@ Ce qui suit se compare à 1.0.0-rc.2.
 ### Corrigé {#corrige-100-rc3}
 
 - **L'en-tête affiche le nom de l'instance avec sa casse** : `CloudSecElection`, et non plus `CLOUDSECELECTION`.
+- **Une ligne de checklist répondue automatiquement ne se lit plus *Déclaré, non mesuré* quand sa mesure
+  périme.** Le badge est daté (*Automatique — mesuré par Vectispire le …, sans données depuis*) et la mesure se
+  lit *Mesuré auparavant, sans données aujourd’hui*. Les libellés de la ligne gardent leur espace : *Réponse : Non*,
+  *Preuves : aucune jointe*, et *Mesurée par* devant sa règle.
 
 ## 1.0.0-rc.2 — 12 novembre 2026
 
