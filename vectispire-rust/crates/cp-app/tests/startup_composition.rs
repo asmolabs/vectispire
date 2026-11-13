@@ -1,5 +1,5 @@
 //! The jobs the binary runs once it has started, held to Java's `ApplicationReadyEvent` listeners of the modules
-//! ported so far: the targets' orphan sweep and the agents' withheld-claim repair.
+//! ported so far: the targets' orphan sweep, the agents' withheld-claim repair and the encryption census's warning.
 //!
 //! The repair was ported, tested on both engines, and run by nothing — only the composition can show that. A module
 //! ported later adds its listener here and to `ready_jobs` in the same commit.
@@ -62,6 +62,15 @@ async fn the_ready_jobs_are_java_s_listeners() {
         Arc::new(vectispire_cp_maintenance::OneShotJobs::new(db, Arc::new(vectispire_cp_maintenance::SystemClock))),
     ));
 
-    let names: Vec<&str> = vectispire_cp_app::startup::ready_jobs(targets, repair).iter().map(|job| job.name).collect();
-    assert_eq!(names, vec!["targets: the orphan sweep", "agents: withheld-claim-repair"]);
+    let census = vectispire_cp_crypto::EncryptionCensus::new(vec![targets.clone()]);
+    let names: Vec<&str> =
+        vectispire_cp_app::startup::ready_jobs(targets, repair, census).iter().map(|job| job.name).collect();
+    assert_eq!(
+        names,
+        vec![
+            "targets: the orphan sweep",
+            "agents: withheld-claim-repair",
+            "crypto: the stores still under a previous key"
+        ]
+    );
 }

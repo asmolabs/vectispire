@@ -28,6 +28,7 @@ use vectispire_cp_settings::{Settings, SettingsError};
 use vectispire_domain::instant::Instant;
 use vectispire_domain::java;
 
+use crate::census::{CensusFuture, Counter, SealedStore};
 use crate::internal::cipher::BASIC;
 use crate::internal::cosign::{self, KeyRefusal};
 use crate::{Encryption, EncryptionError, MISSING_KEY, SecretState};
@@ -1076,6 +1077,25 @@ impl<S: KeyStore> SigningKeys<S> {
             return Err(SigningError::Unreadable);
         }
         Ok(KeyMaterial::of(cosign::parse_private_key(secret.plain_text())?))
+    }
+}
+
+/// The key and the record of published keys — `SigningKeyService.census()`. The rows as they are: the census reads
+/// them and does not start the service, so a census taken before the first signature counts what the last start left.
+impl<S: KeyStore + Send + Sync> SealedStore for SigningKeys<S> {
+    fn census(&self) -> CensusFuture<'_> {
+        Box::pin(async move {
+            let stored = self.store.internal_value(STORED_KEY).await.map_err(|error| error.to_string())?;
+            let record = self.store.internal_value(SEALED_KNOWN_KEYS).await.map_err(|error| error.to_string())?;
+            Ok(vec![
+                Counter::new("Document signing key", "re-sealed by the next start")
+                    .count(self.encryption.seal_of(stored.as_deref(), CONTEXT).await)
+                    .done(),
+                Counter::new("Published document signing keys", "re-sealed by the next start")
+                    .count(self.encryption.seal_of(record.as_deref(), KNOWN_KEYS_CONTEXT).await)
+                    .done(),
+            ])
+        })
     }
 }
 

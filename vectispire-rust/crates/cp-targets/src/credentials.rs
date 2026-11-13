@@ -16,7 +16,9 @@ use regex::Regex;
 use time::OffsetDateTime;
 use uuid::Uuid;
 use vectispire_cp_audit::{AuditOperation, RequestActor};
-use vectispire_cp_crypto::{SecretState, git_token_context, private_key_context};
+use vectispire_cp_crypto::{
+    CensusFuture, Counter, SealedStore, SecretState, StoreCensus, git_token_context, private_key_context,
+};
 use vectispire_domain::bounded_text::{self, TEXT_MAX};
 use vectispire_domain::{java, repository_url};
 
@@ -352,4 +354,38 @@ impl Targets {
 /// `PRIVATE_KEY_HEADER.matcher(key).find()`, for the reference set.
 pub fn looks_like_a_private_key(key: &str) -> bool {
     PRIVATE_KEY_HEADER.is_match(key)
+}
+
+impl Targets {
+    /// The clone credentials' lines of the encryption census — `GitTokenAdministrationService.census()` and
+    /// `SshKeyAdministrationService.census()`: every row, by the key that sealed it. A census that left them out
+    /// would call a rotation finished while every clone still needed the old key.
+    async fn credentials_census(&self) -> Result<Vec<StoreCensus>, TargetError> {
+        let mut tx = persistence::read(&self.db).await?;
+        let tokens = persistence::git_tokens(&mut tx).await?;
+        let keys = persistence::ssh_keys(&mut tx).await?;
+        tx.commit().await.map_err(StoreError::from)?;
+        let mut clone_tokens = Counter::new(
+            "HTTPS clone tokens",
+            "add the token again, move the repositories to it, and delete the old row",
+        );
+        for token in &tokens {
+            let context = git_token_context(&token.id.as_hyphenated().to_string());
+            clone_tokens = clone_tokens.count(self.encryption.seal_of(Some(&token.token), &context).await);
+        }
+        let mut deploy_keys =
+            Counter::new("SSH deploy keys", "add the key again, move the repositories to it, and delete the old row");
+        for key in &keys {
+            let sealed_for = private_key_context(&key.id.as_hyphenated().to_string());
+            deploy_keys = deploy_keys.count(self.encryption.seal_of(Some(&key.private_key), &sealed_for).await);
+        }
+        Ok(vec![clone_tokens.done(), deploy_keys.done()])
+    }
+}
+
+/// The encryption census reads the rows as they are when asked: with Vault, each seal read is a call to it.
+impl SealedStore for Targets {
+    fn census(&self) -> CensusFuture<'_> {
+        Box::pin(async move { self.credentials_census().await.map_err(|error| error.to_string()) })
+    }
 }

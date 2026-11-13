@@ -39,7 +39,7 @@ use vectispire_cp_agents::{
     AgentRowLock, Agents, NoAgentPlugins,
 };
 use vectispire_cp_audit::{AuditLog, AuditOperation, NoMirror, Record, Signal, SystemClock as AuditClock};
-use vectispire_cp_contract::recorded::deferred::{Deferred, coverage, describe, listed};
+use vectispire_cp_contract::recorded::deferred::{Deferred, coverage, describe, listed, served_outside};
 use vectispire_cp_contract::recorded::format::Recording;
 use vectispire_cp_contract::recorded::placeholders::Minting;
 use vectispire_cp_contract::recorded::replay::{Outcome, Replayed, Replayer};
@@ -167,6 +167,47 @@ async fn answering(
     response
 }
 
+/// `cp-runtime`'s actuator as the chain's router asks it — `cp-app/src/actuator.rs`'s `Pages`.
+struct ActuatorPagesOf(Arc<vectispire_cp_runtime::actuator::Actuator>);
+
+impl vectispire_cp_http::actuator::ActuatorPages for ActuatorPagesOf {
+    fn page<'a>(
+        &'a self,
+        path: &'a str,
+        query: &'a str,
+        base_url: &'a str,
+    ) -> BoxFuture<'a, Result<Option<vectispire_cp_http::actuator::ActuatorPage>, String>> {
+        Box::pin(async move {
+            let answer = self.0.respond(path, query, base_url).await?;
+            Ok(answer.map(|answer| vectispire_cp_http::actuator::ActuatorPage {
+                status: answer.status,
+                content_type: answer.content_type,
+                body: answer.body,
+            }))
+        })
+    }
+}
+
+/// `/actuator/encryption` — `cp-app/src/actuator.rs`'s `Census`.
+struct CensusReport(vectispire_cp_crypto::EncryptionCensus);
+
+impl vectispire_cp_runtime::actuator::Report for CensusReport {
+    fn read(&self) -> vectispire_cp_runtime::actuator::ReportFuture<'_> {
+        Box::pin(self.0.report())
+    }
+}
+
+/// The scrape token of the Java suite's configuration (`application-apitest.yaml`), which the recorder hides as a
+/// `«secret:N»` the replay mints anew: a scrape the recording made with it cannot be sent with it, and is listed.
+#[derive(Debug)]
+struct ReplayScrapeToken;
+
+impl vectispire_cp_http::credentials::ScrapeToken for ReplayScrapeToken {
+    fn token(&self) -> Result<Option<vectispire_domain::secret::Secret>, String> {
+        Ok(Some(vectispire_domain::secret::Secret::new("apitest-scrape-token-0123456789abcdef")))
+    }
+}
+
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Router {
@@ -200,6 +241,27 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
         runner: None,
         scanned: Vec::new(),
     }));
+    // The actuator as `cp-app/src/actuator.rs` composes it: the runtime's pages, the census of the stores the port has.
+    let census_exporter = Arc::new(vectispire_cp_siem::SiemExporterService::new(
+        db.clone(),
+        siem.sender.clone(),
+        support::encryption(),
+        (*audit).clone(),
+        Arc::new(AuditClock),
+    ));
+    let census = vectispire_cp_crypto::EncryptionCensus::new(vec![signing.clone(), targets.clone(), census_exporter]);
+    let actuator = Arc::new(vectispire_cp_runtime::actuator::Actuator::new(
+        Arc::new(vectispire_cp_runtime::actuator::Health::default()),
+        Arc::new(vectispire_cp_runtime::metrics::Metrics::new("vectispire")),
+        vectispire_cp_runtime::actuator::BuildInfo {
+            group: "vectispire".to_owned(),
+            artifact: "vectispire-core".to_owned(),
+            name: "vectispire-core".to_owned(),
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            time: None,
+        },
+    ));
+    actuator.serve_encryption(Arc::new(CensusReport(census)));
     let modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing);
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
@@ -236,7 +298,8 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
 
     let settings = Arc::new(StoredSettings(Settings::new(db.clone())));
     let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
-    let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
+    let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)))
+        .actuator(Arc::new(ActuatorPagesOf(actuator)));
     for entry in vectispire_cp_targets::routes(targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(scanning))
@@ -248,7 +311,10 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
     // The chain's entries signal too (`BEARER_TOKEN_THROTTLED`): the SIEM hears them as it hears the routes'.
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let time = Arc::new(AnsweringTime::default());
-    let chain = Arc::new(Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone()));
+    let chain = Arc::new(
+        Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone())
+            .with_scrape_token(Arc::new(ReplayScrapeToken)),
+    );
     routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }
 
@@ -389,6 +455,8 @@ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
         .chain(phase_three)
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
         .filter(|route| !deferred.routes.contains_key(route))
+        // And the actuator's pages, outside the contract, but those an `outside` line still covers.
+        .chain(served_outside(deferred, &vectispire_cp_runtime::actuator::PAGES))
         .collect()
 }
 

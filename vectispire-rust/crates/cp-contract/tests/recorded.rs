@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use vectispire_cp_contract::Document;
 use vectispire_cp_contract::Json;
-use vectispire_cp_contract::recorded::deferred::{Deferred, Listed, check_list, coverage};
+use vectispire_cp_contract::recorded::deferred::{Deferred, Listed, check_list, coverage, place, served_outside};
 use vectispire_cp_contract::recorded::format::Exchange;
 use vectispire_cp_contract::recorded::placeholders::{
     Bindings, Context, Minting, NumberText, PasswordOf, Placeholder, SecretKind, Segment, in_window, renders_alike,
@@ -482,6 +482,27 @@ fn every_recording_is_replayed_or_listed_and_no_line_is_stale() {
             .unwrap();
     assert!(coverage(&whole, &all, Some(&ok)).is_empty());
     assert_eq!(coverage(&whole, &all, Some(&green)).len(), 1);
+}
+
+/// A page the router serves outside the contract (the actuator's) is owed once no `outside` line covers it: placed at its
+/// own path, served; with its line, outside the contract as before; and a path that is neither stays outside.
+#[test]
+fn a_page_served_outside_the_contract_is_owed_once_its_line_is_gone() {
+    let document = Document::embedded();
+    let pages = ["/actuator/health", "/actuator/info"];
+    let listed = Deferred::parse("outside GET /actuator/info | still listed\n").unwrap();
+    let served = served_outside(&listed, &pages);
+    assert_eq!(served.iter().cloned().collect::<Vec<_>>(), vec![("GET".to_owned(), "/actuator/health".to_owned())]);
+    assert_eq!(
+        place(&document, &served, "get", "/actuator/health"),
+        (Some(("GET".to_owned(), "/actuator/health".to_owned())), true)
+    );
+    assert_eq!(place(&document, &served, "GET", "/actuator/info"), (None, false), "its line still covers it");
+    assert_eq!(place(&document, &served, "POST", "/actuator/health"), (None, false), "a GET page, not any method");
+    assert_eq!(place(&document, &served, "GET", "/actuator/health/x"), (None, false), "the page, not below it");
+    // A contract route is placed at its template whatever the outside pages are.
+    let (route, is_served) = place(&document, &served, "POST", "/api/v1/repositories/7/scan");
+    assert_eq!((route.map(|route| route.1), is_served), (Some("/api/v1/repositories/{id}/scan".to_owned()), false));
 }
 
 #[test]

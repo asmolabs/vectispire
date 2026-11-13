@@ -95,6 +95,7 @@ async fn run(engine: Engine) {
     a_lapsed_stored_ca_abandons_the_event(&db).await;
     the_private_switch_decides_the_reach(&db).await;
     the_header_is_encrypted_at_rest(&db).await;
+    the_census_says_how_the_header_is_sealed(&db).await;
     a_disabled_transport_is_neither_configured_nor_tested(&db).await;
     a_disabled_transport_holds_its_events(&db).await;
     no_stop_notice_over_a_disabled_transport(&db).await;
@@ -1162,6 +1163,43 @@ async fn the_header_is_encrypted_at_rest(db: &Db) {
     );
     // The audit entry never holds it.
     assert!(audit_descriptions(db).await.iter().all(|entry| !entry.contains("secret-siem-token")));
+}
+
+/// `SiemExporterService.census()`: one line, nothing in it before the first save, the header counted by the key that
+/// sealed it — and a header stored in the clear before encryption counted as such, not as sealed.
+async fn the_census_says_how_the_header_is_sealed(db: &Db) {
+    use vectispire_cp_crypto::SealedStore;
+    reset(db).await;
+    let module = compose(db, Arc::new(Recording::default()), TestClock::system(), None);
+    let counts =
+        |line: &vectispire_cp_crypto::StoreCensus| (line.current, line.previous_key, line.unreadable, line.clear);
+    let lines = module.exporter.census().await.unwrap();
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        (lines[0].store.as_str(), lines[0].reseal.as_str()),
+        ("SIEM authorization header", "set the header again on the SIEM settings")
+    );
+    assert_eq!(counts(&lines[0]), (0, 0, 0, 0));
+
+    let sealed = module.encryption.encrypt("Bearer census-token", AUTH_HEADER_CONTEXT).await.unwrap();
+    let at = OffsetDateTime::now_utc();
+    let row = |header: Option<String>| Row {
+        enabled: true,
+        protocol: "WEBHOOK",
+        endpoint: Some("https://siem.example.com/e"),
+        header,
+        ca: None,
+        min_severity: "HIGH",
+        at,
+    };
+    put(db, &row(Some(sealed))).await;
+    assert_eq!(counts(&module.exporter.census().await.unwrap()[0]), (1, 0, 0, 0));
+    put(db, &row(Some("Bearer legacy-clear".to_owned()))).await;
+    assert_eq!(counts(&module.exporter.census().await.unwrap()[0]), (0, 0, 0, 1));
+    put(db, &row(Some("v2:not-a-ciphertext-of-this-key".to_owned()))).await;
+    assert_eq!(counts(&module.exporter.census().await.unwrap()[0]), (0, 0, 1, 0));
+    put(db, &row(None)).await;
+    assert_eq!(counts(&module.exporter.census().await.unwrap()[0]), (0, 0, 0, 0));
 }
 
 // ---- the transports are integrations ----

@@ -1,17 +1,21 @@
 //! What `/actuator/**` answers, and to whom — as a document and a status, for the HTTP stack to serve.
 //!
-//! **No framework here**: the answers are produced from the health state and the meters, and the stack
-//! (`cp-http`) mounts them and enforces [`Access`]. Exposure is the Java configuration's —
-//! `management.endpoints.web.exposure.include: health,info,metrics`, with the probes on — and so is who
-//! may read what: `health` and its probe groups stay **anonymous** because a container probe has no
-//! session; everything else needs an **administrator's session**, not an agent or integration key and
-//! not a session that still owes a password change. A metrics endpoint names internal structure and
-//! volumes, which is not something to publish to whoever can reach the port.
+//! **No framework here**: the answers are produced from the health state, the meters and the reports the
+//! composition hands in, and the stack (`cp-http`) mounts them and enforces [`Access`]. Exposure is Java 1.0's —
+//! `management.endpoints.web.exposure.include: health,info,metrics,prometheus,encryption`, with the probes on — and
+//! so is who may read what: `health` and its probe groups stay **anonymous** because a container probe has no
+//! session; everything else needs an **administrator's session**, not an agent or integration key and not a session
+//! that still owes a password change. A metrics endpoint names internal structure and volumes, which is not
+//! something to publish to whoever can reach the port. `prometheus` alone also takes the **scrape token**
+//! (`vectispire.metrics.scrape-token`), since a Prometheus server holds no session: the stack recognises it on that
+//! path and no other.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use crate::json;
-use crate::metrics::Metrics;
+use crate::metrics::{Metrics, PROMETHEUS_CONTENT_TYPE};
 
 /// The content type Spring Boot gives actuator documents.
 pub const CONTENT_TYPE: &str = "application/vnd.spring-boot.actuator.v3+json";
@@ -23,19 +27,51 @@ pub enum Access {
     Anonymous,
     /// A session of an administrative role that owes no password change.
     AdministratorSession,
+    /// The same, or the scrape token: `/actuator/prometheus`, matched exactly.
+    AdministratorSessionOrScraper,
 }
 
 /// `GET /actuator/**` is served under this prefix.
 pub const PREFIX: &str = "/actuator";
 
-/// Who may read `path`: `permitAll()` for `/actuator/health/**` and the health document itself, an
-/// administrator's session for the rest of `/actuator/**`.
+/// The one path the scrape token opens, matched exactly — `ActuatorAccess.PROMETHEUS`.
+pub const PROMETHEUS: &str = "/actuator/prometheus";
+
+/// The encryption census — `EncryptionEndpoint`.
+pub const ENCRYPTION: &str = "/actuator/encryption";
+
+/// The pages the actuator answers at a fixed path — what the golden replay owes once no `outside` line covers one.
+/// `/actuator/metrics/{name}` and the health groups below the two probes are answered too, by name.
+pub const PAGES: [&str; 8] = [
+    "/actuator",
+    "/actuator/health",
+    "/actuator/health/liveness",
+    "/actuator/health/readiness",
+    "/actuator/info",
+    "/actuator/metrics",
+    PROMETHEUS,
+    ENCRYPTION,
+];
+
+/// Who may read `path`: `permitAll()` for `/actuator/health/**` and the health document itself, an administrator's
+/// session or the scrape token for the Prometheus page, an administrator's session for the rest of `/actuator/**`.
 pub fn access(path: &str) -> Access {
     if path == "/actuator/health" || path.starts_with("/actuator/health/") {
         Access::Anonymous
+    } else if path == PROMETHEUS {
+        Access::AdministratorSessionOrScraper
     } else {
         Access::AdministratorSession
     }
+}
+
+/// A report read when asked: a document the database holds the figures of.
+pub type ReportFuture<'a> = Pin<Box<dyn Future<Output = Result<String, String>> + Send + 'a>>;
+
+/// An endpoint whose document is read at each request — the encryption census, which counts rows. Nothing of it is
+/// read at start: the control plane starts without its database, and a request is what may wait on it.
+pub trait Report: Send + Sync {
+    fn read(&self) -> ReportFuture<'_>;
 }
 
 /// A health status, ordered the way Spring aggregates them: the worst wins.
@@ -182,14 +218,51 @@ pub struct BuildInfo {
 }
 
 /// The actuator.
-#[derive(Debug)]
 pub struct Actuator {
     pub health: Arc<Health>,
     pub metrics: Arc<Metrics>,
     pub build: BuildInfo,
+    /// `/actuator/encryption`, once the composition has handed the census in; before that the page is not there.
+    encryption: Mutex<Option<Arc<dyn Report>>>,
+}
+
+impl std::fmt::Debug for Actuator {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Actuator")
+            .field("health", &self.health)
+            .field("metrics", &self.metrics)
+            .field("build", &self.build)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Actuator {
+    pub fn new(health: Arc<Health>, metrics: Arc<Metrics>, build: BuildInfo) -> Actuator {
+        Actuator { health, metrics, build, encryption: Mutex::new(None) }
+    }
+
+    /// Serves `/actuator/encryption` from `census`.
+    pub fn serve_encryption(&self, census: Arc<dyn Report>) {
+        if let Ok(mut encryption) = self.encryption.lock() {
+            *encryption = Some(census);
+        }
+    }
+
+    /// The answer for `path`, the reports included: [`Actuator::answer`]'s, and `/actuator/encryption` read now.
+    /// `Err` is a report that could not be read — the database is down, say — which the stack answers as a failure,
+    /// never as a census of nothing.
+    pub async fn respond(&self, path: &str, query: &str, base_url: &str) -> Result<Option<Answer>, String> {
+        if path.trim_end_matches('/') == ENCRYPTION {
+            let report = self.encryption.lock().ok().and_then(|encryption| encryption.clone());
+            return match report {
+                Some(report) => Ok(Some(Answer::ok(report.read().await?))),
+                None => Ok(None),
+            };
+        }
+        Ok(self.answer(path, query, base_url))
+    }
+
     /// The answer for `path` (`/actuator`, `/actuator/health`, `/actuator/health/liveness`,
     /// `/actuator/info`, `/actuator/metrics`, `/actuator/metrics/{name}`) and its query string, or `None`
     /// for a path that is not exposed — which the stack answers as it answers any path with nothing under it.
@@ -213,6 +286,11 @@ impl Actuator {
             "/health/readiness" => Some(self.group(self.health.readiness())),
             "/info" => Some(Answer::ok(self.info())),
             "/metrics" => Some(Answer::ok(self.metrics.names_document())),
+            "/prometheus" => Some(Answer {
+                status: 200,
+                content_type: Some(PROMETHEUS_CONTENT_TYPE),
+                body: self.metrics.prometheus(),
+            }),
             other if other.starts_with("/health/") => Some(Answer::nothing_here()),
             other => {
                 let name = other.strip_prefix("/metrics/")?;
@@ -277,17 +355,17 @@ mod tests {
     fn actuator() -> Actuator {
         let metrics = Arc::new(Metrics::new("vectispire"));
         metrics.gauge("vectispire.scans.queued", "Scans waiting", || 2.0);
-        Actuator {
-            health: Arc::new(Health::default()),
+        Actuator::new(
+            Arc::new(Health::default()),
             metrics,
-            build: BuildInfo {
+            BuildInfo {
                 group: "com.asmolabs.vectispire".to_owned(),
                 artifact: "vectispire-core".to_owned(),
                 name: "vectispire-core".to_owned(),
                 version: "2.0.0-dev".to_owned(),
                 time: Some("2026-10-16T21:00:00.000Z".to_owned()),
             },
-        }
+        )
     }
 
     #[test]
@@ -303,11 +381,15 @@ mod tests {
             "/actuator/metrics",
             "/actuator/metrics/x",
             "/actuator/healthz",
-            "/actuator/prometheus",
+            "/actuator/encryption",
+            "/actuator/prometheus/",
+            "/actuator/prometheusx",
             "/actuator/env",
         ] {
             assert_eq!(access(path), Access::AdministratorSession, "{path}");
         }
+        // The scrape token's one page, matched exactly.
+        assert_eq!(access("/actuator/prometheus"), Access::AdministratorSessionOrScraper);
     }
 
     #[test]
@@ -373,7 +455,38 @@ mod tests {
         let group = actuator.answer("/actuator/health/nope", "", "http://h").unwrap();
         assert_eq!((group.status, group.content_type, group.body.as_str()), (404, None, ""));
         assert_eq!(actuator.answer("/actuator/env", "", "http://h"), None, "what is not exposed is not there");
-        assert_eq!(actuator.answer("/actuator/prometheus", "", "http://h"), None);
+    }
+
+    #[test]
+    fn prometheus_is_the_meters_as_text() {
+        let answer = actuator().answer("/actuator/prometheus", "", "http://h").unwrap();
+        assert_eq!((answer.status, answer.content_type), (200, Some("text/plain;version=0.0.4;charset=utf-8")));
+        assert!(answer.body.contains("vectispire_scans_queued{application=\"vectispire\"} 2.0\n"), "{}", answer.body);
+    }
+
+    struct Census(Result<String, String>);
+
+    impl Report for Census {
+        fn read(&self) -> ReportFuture<'_> {
+            let answer = self.0.clone();
+            Box::pin(async move { answer })
+        }
+    }
+
+    #[tokio::test]
+    async fn the_encryption_census_is_read_at_each_request_and_a_failure_is_not_an_empty_census() {
+        let actuator = actuator();
+        assert_eq!(actuator.respond("/actuator/encryption", "", "http://h").await, Ok(None), "not composed: not there");
+        actuator.serve_encryption(Arc::new(Census(Ok("{\"rotationFinished\":true,\"stores\":[]}".to_owned()))));
+        let answer = actuator.respond("/actuator/encryption", "", "http://h").await.unwrap().unwrap();
+        assert_eq!(
+            (answer.status, answer.content_type, answer.body.as_str()),
+            (200, Some(CONTENT_TYPE), "{\"rotationFinished\":true,\"stores\":[]}")
+        );
+        actuator.serve_encryption(Arc::new(Census(Err("down".to_owned()))));
+        assert_eq!(actuator.respond("/actuator/encryption", "", "http://h").await, Err("down".to_owned()));
+        // Every other page is the synchronous one.
+        assert_eq!(actuator.respond("/actuator/health/liveness", "", "http://h").await.unwrap().unwrap().status, 200);
     }
 
     #[test]

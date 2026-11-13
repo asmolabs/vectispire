@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod actuator;
 pub mod audit_mirror;
 pub mod chain_entries;
 pub mod gauges;

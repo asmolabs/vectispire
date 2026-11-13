@@ -19,10 +19,12 @@
 
 #![forbid(unsafe_code)]
 
+mod census;
 mod encryption;
 mod internal;
 mod signing;
 
+pub use census::{CensusFuture, Counter, EncryptionCensus, Seal, SealedStore, StoreCensus, report_document};
 pub use encryption::{
     Decrypted, Encryption, EncryptionConfig, EncryptionError, MISSING_KEY, SecretState, StartupRefusal, VaultDoor,
     refuse_a_weak_current_key,
