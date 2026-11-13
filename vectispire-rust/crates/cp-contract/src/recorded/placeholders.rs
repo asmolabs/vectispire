@@ -90,6 +90,14 @@ pub enum Placeholder {
         generation: i64,
         key: String,
     },
+    /// `«result-signature:failure:secret:S»`: an agent's attestation on what it sends to `/agent/jobs/{id}/result`
+    /// (`result`) or `/failure` (`failure`), by the Ed25519 seed `«secret:S»`. What it signs is the scan's id and the
+    /// request's own bytes, which only the request being sent knows: made by [`Bindings::result_signature`] once the
+    /// body is, never by [`Bindings::concrete`].
+    ResultSignature {
+        kind: String,
+        seed: u32,
+    },
 }
 
 /// Whose password a hash holds, as far as the recorder could tell.
@@ -118,6 +126,7 @@ struct Grammar {
     password: Regex,
     pem: Regex,
     sealing: Regex,
+    result: Regex,
 }
 
 static GRAMMAR: LazyLock<Grammar> = LazyLock::new(|| Grammar {
@@ -126,6 +135,7 @@ static GRAMMAR: LazyLock<Grammar> = LazyLock::new(|| Grammar {
     password: pattern(r"^password-hash\((.*)\)$"),
     pem: pattern(r"^pem:([a-z0-9-]+):([0-9]+)$"),
     sealing: pattern(r"^sealing-signature:(v[0-9]+):secret:([0-9]+):uuid:([0-9]+):([0-9]+):([A-Za-z0-9+/]+={0,2})$"),
+    result: pattern(r"^result-signature:(result|failure):secret:([0-9]+)$"),
 });
 
 fn ordinal_of(text: &str) -> Option<u32> {
@@ -195,6 +205,12 @@ pub fn placeholder(inner: &str) -> Option<Placeholder> {
             key: found.get(5)?.as_str().to_owned(),
         });
     }
+    if let Some(found) = grammar.result.captures(inner) {
+        return Some(Placeholder::ResultSignature {
+            kind: found.get(1)?.as_str().to_owned(),
+            seed: ordinal_of(found.get(2)?.as_str())?,
+        });
+    }
     if let Some(found) = grammar.pem.captures(inner) {
         return Some(Placeholder::Pem {
             label: found.get(1)?.as_str().to_owned(),
@@ -259,6 +275,12 @@ pub trait Minting: Send + Sync {
     /// context `version`), or `None` when this replay cannot make one: the agents' crypto is not the contract's.
     fn sealing_signature(&self, version: &str, seed: &str, agent: &str, generation: i64, key: &str) -> Option<String> {
         let _ = (version, seed, agent, generation, key);
+        None
+    }
+    /// The attestation an agent holding the Ed25519 `seed` puts on a result (`kind` `result`) or a failure report
+    /// (`failure`) for scan `scan_id` whose body is `body` (`ResultAttestation`), or `None` when this replay cannot.
+    fn result_signature(&self, kind: &str, seed: &str, scan_id: i64, body: &[u8]) -> Option<String> {
+        let _ = (kind, seed, scan_id, body);
         None
     }
 }
@@ -428,7 +450,7 @@ fn shape(placeholder: &Placeholder, sole_in_hash_field: bool) -> &'static str {
         Placeholder::ClockStep => r"-?[0-9]+",
         Placeholder::Pem { .. } => r"-----BEGIN [A-Z0-9 ]+-----[\s\S]*?-----END [A-Z0-9 ]+-----",
         // Ed25519's sixty-four bytes in base64.
-        Placeholder::SealingSignature { .. } => r"[A-Za-z0-9+/]{86}==",
+        Placeholder::SealingSignature { .. } | Placeholder::ResultSignature { .. } => r"[A-Za-z0-9+/]{86}==",
     }
 }
 
@@ -537,6 +559,25 @@ impl<'m> Bindings<'m> {
         let seed = self.bound(Family::Secret, *seed)?;
         let agent = self.bound(Family::Uuid, *agent)?;
         self.minting.sealing_signature(version, seed, agent, *generation, key)
+    }
+
+    /// Whether `text` is one `«result-signature:…»` alone: a header [`Bindings::result_signature`] fills, not
+    /// [`Bindings::concrete`].
+    #[must_use]
+    pub fn is_result_signature(&self, text: &str) -> bool {
+        matches!(segments(text).as_slice(), [Segment::Placeholder(Placeholder::ResultSignature { .. })])
+    }
+
+    /// The attestation `«result-signature:…»` names on a request to scan `scan_id` carrying `body`, made with the seed
+    /// bound so far: `None` when `text` is not one placeholder of that kind alone, or the seed is not known yet.
+    #[must_use]
+    pub fn result_signature(&self, text: &str, scan_id: i64, body: &[u8]) -> Option<String> {
+        let parts = segments(text);
+        let [Segment::Placeholder(Placeholder::ResultSignature { kind, seed })] = parts.as_slice() else {
+            return None;
+        };
+        let seed = self.bound(Family::Secret, *seed)?;
+        self.minting.result_signature(kind, seed, scan_id, body)
     }
 
     /// A clock value: the wall clock, and never before the previous one plus a microsecond — rows a test seeded one
@@ -720,6 +761,11 @@ impl<'m> Bindings<'m> {
                     describe(placeholder)
                 ))
             }),
+            // Signed over the request's bytes, which a value alone does not know (`result_signature`).
+            Placeholder::ResultSignature { .. } => Err(Unseedable(format!(
+                "{} in `{field}`: an attestation is made with the request it signs, not alone",
+                describe(placeholder)
+            ))),
         }
     }
 
@@ -920,6 +966,10 @@ impl<'m> Bindings<'m> {
                 Some(_) => Ok(()),
                 None => Err(format!("{} cannot be made by this replay", describe(placeholder))),
             },
+            // Only ever sent: an answer or a row holding one has nothing the replay made to hold it to.
+            Placeholder::ResultSignature { .. } => {
+                Err(format!("{} is only sent, never answered", describe(placeholder)))
+            }
         }
     }
 }

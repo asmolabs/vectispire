@@ -2,12 +2,14 @@ package com.asmolabs.vectispire.core.golden;
 
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -148,6 +150,8 @@ final class Placeholders {
     private final Map<String, Integer> ports = new HashMap<>();
     /** A sealing-key announcement's signature the recorder could re-make, and the computation that makes it. */
     private final Map<String, String> sealingSignatures = new HashMap<>();
+    /** The record being rendered's attestation on a result or a failure report, when the replay can make it again. */
+    private final Map<String, String> resultSignatures = new HashMap<>();
     /** Identity guards recognised as the digest of an identity the recording shows as it is. */
     private final Set<String> literalGuards = new java.util.HashSet<>();
     private List<String> secretsLongestFirst = List.of();
@@ -186,7 +190,8 @@ final class Placeholders {
     void registerSecret(String value) {
         if (value == null || value.length() < 6 || value.equals(FIXTURE_PASSWORD) || value.startsWith("«")
                 || secrets.containsKey(value) || FixtureSealingKeys.isFixture(value)
-                || sealingSignatures.containsKey(value) || oneCharacterRepeated(value)) {
+                || sealingSignatures.containsKey(value) || resultSignatures.containsKey(value)
+                || oneCharacterRepeated(value)) {
             return;
         }
         int ordinal = secrets.size() + 1;
@@ -244,6 +249,7 @@ final class Placeholders {
     void collect(JsonNode node, String fieldName) {
         if (fieldName == null && node != null && node.isObject()) {
             recogniseSealingSignature(node.path("request").path("body").path("json"));
+            recogniseResultSignature(node.path("request"));
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 collect(field.getValue(), field.getKey(), field.getKey().equals("request"));
             }
@@ -410,6 +416,9 @@ final class Placeholders {
         if (resigned != null) {
             return resigned;
         }
+        for (Map.Entry<String, String> attested : resultSignatures.entrySet()) {
+            text = text.replace(attested.getKey(), attested.getValue());
+        }
         // A PEM block whole, before anything inside it is read as a token. **A certificate stays literal**: it is
         // public, and an answer states what it reads from one — the subject, the expiry — so a replay sending a
         // placeholder in its place could answer nothing Java answered (the SIEM's collector CA, refused or pinned).
@@ -510,6 +519,62 @@ final class Placeholders {
                             + ":uuid:" + agent.getValue() + ":" + generation.asLong() + ":" + key.asText() + "»");
                     return;
                 }
+            }
+        }
+    }
+
+    /** {@code /api/v1/agent/jobs/{id}/result} or {@code /failure}: the routes {@link ResultAttestation} signs for. */
+    private static final Pattern ATTESTED_ROUTE = Pattern.compile("^/api/v1/agent/jobs/([0-9]+)/(result|failure)$");
+
+    /**
+     * An agent's attestation on a result or a failure report ({@link ResultAttestation#HEADER}), when the replay can
+     * make it again: {@code «result-signature:failure:secret:S»}, the Ed25519 signature by the seed {@code «secret:S»}
+     * of the scan the path names and of the request's bytes.
+     *
+     * <p><b>Why a computation, and not the value</b> — as for the sealing key: the seed is drawn by {@code
+     * "public_key": "generate"} and the scan's id by the server, so Java's signature verifies for neither of the
+     * replay's. Hidden as {@code «secret:N»}, the replay sent random bytes, and a result its agent had signed was
+     * refused. The bytes are the body as recorded (compact JSON, its members sorted, or its text): a test whose body
+     * was written otherwise does not verify here and stays a {@code «secret:N»}, the replay sending something else that
+     * does not verify. So does a signature by a key the test kept to itself.
+     */
+    private void recogniseResultSignature(JsonNode request) {
+        // This record's only: the same value sent again to another scan (noReplayAcrossScans) verifies for nothing
+        // there, and named as a computation the replay would sign it for that scan and see it accepted.
+        resultSignatures.clear();
+        Matcher route = ATTESTED_ROUTE.matcher(request.path("path").asText(""));
+        if (!route.matches()) {
+            return;
+        }
+        String signature = null;
+        for (JsonNode header : request.path("headers")) {
+            String line = header.asText();
+            if (line.regionMatches(true, 0, ResultAttestation.HEADER + ": ", 0, ResultAttestation.HEADER.length() + 2)) {
+                signature = line.substring(ResultAttestation.HEADER.length() + 2);
+            }
+        }
+        if (signature == null || resultSignatures.containsKey(signature)) {
+            return;
+        }
+        JsonNode body = request.path("body");
+        byte[] bytes = body.has("json") ? body.get("json").toString().getBytes(StandardCharsets.UTF_8)
+                : body.has("text") ? body.get("text").asText().getBytes(StandardCharsets.UTF_8)
+                : body.isMissingNode() ? new byte[0] : null;
+        if (bytes == null) {
+            return;
+        }
+        long scanId = Long.parseLong(route.group(1));
+        for (Map.Entry<String, Integer> seed : secrets.entrySet()) {
+            String publicKey = ed25519PublicKey(seed.getKey());
+            if (publicKey == null) {
+                continue;
+            }
+            String kind = ResultAttestation.verify(publicKey, scanId, bytes, signature) ? "result"
+                    : ResultAttestation.verifyFailure(publicKey, scanId, bytes, signature) ? "failure"
+                    : null;
+            if (kind != null) {
+                resultSignatures.put(signature, "«result-signature:" + kind + ":secret:" + seed.getValue() + "»");
+                return;
             }
         }
     }

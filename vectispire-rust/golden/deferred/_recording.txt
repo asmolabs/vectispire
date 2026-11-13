@@ -2,15 +2,13 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 6
+ceiling 4
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
 golden api.ProblemDetailsRoutesTest/theBodyLimit--001-POST-api_v1_repositories | a request body past 64 KiB, in a gzip sidecar this replay does not send yet
 
 # ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
-golden api.AgentFailureReportRoutesTest/signedLikeAResult--008-POST-api_v1_agent_jobs_t_scan_1_failure | the recorder hides the result's attestation (a secret placeholder): no signature the pinned key verifies can be rebuilt — recording limit
-golden api.AgentResultAttestationTest/pinnedKeyAcceptsItsOwnSignature--003-POST-api_v1_agent_jobs_1_result | the recorder hides the result's attestation (a secret placeholder): no signature the pinned key verifies can be rebuilt — recording limit
 golden api.RequestBodyLimitRoutesTest/largerCeilingsAreNotClamped--003-POST-api_v1_agent_jobs_1_result | a binary request body, which this replay does not send yet — recording limit
 
 # ── Met by the SIEM routes' replay (task 4.2, fourth stage): the five agents' lines were listed under siem, whose event they now queue; their key is what still keeps them red ──

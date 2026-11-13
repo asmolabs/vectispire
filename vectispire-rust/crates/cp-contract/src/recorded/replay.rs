@@ -419,7 +419,14 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         .map(|pair| pair.split_once('=').map_or(pair, |(name, _)| name).to_owned())
         .collect();
     let mut headers = Vec::new();
+    // A result's attestation signs the scan's id and the body's bytes: filled in once the body is made.
+    let mut attested = Vec::new();
     for (name, value) in &request.headers {
+        if bindings.is_result_signature(value) {
+            attested.push((headers.len(), value));
+            headers.push((name.clone(), String::new()));
+            continue;
+        }
         headers.push((name.clone(), bindings.concrete(value, &name.to_ascii_lowercase(), Context::Wire)?));
     }
     if !request.cookies.is_empty() {
@@ -461,10 +468,29 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
             query_parts.push(extra.join("&"));
         }
     }
+    for (index, value) in attested {
+        let scan_id = attested_scan(&target).ok_or_else(|| {
+            Unseedable(format!("an attestation {value} on {target}, which names no scan of the agent's routes"))
+        })?;
+        let signature = bindings.result_signature(value, scan_id, &body).ok_or_else(|| {
+            Unseedable(format!("{value}: the seed it names is not known yet, or this replay cannot sign it"))
+        })?;
+        if let Some(header) = headers.get_mut(index) {
+            header.1 = signature;
+        }
+    }
     if !query_parts.is_empty() {
         target = format!("{target}?{}", query_parts.join("&"));
     }
     Ok(Outgoing { method: request.method.clone(), target, headers, peer, body })
+}
+
+/// The scan `/api/v1/agent/jobs/{id}/result` or `/failure` names: what `ResultAttestation` signs beside the body.
+fn attested_scan(path: &str) -> Option<i64> {
+    let rest = path.strip_prefix("/api/v1/agent/jobs/")?;
+    let (id, route) = rest.split_once('/')?;
+    matches!(route, "result" | "failure").then_some(())?;
+    id.parse().ok()
 }
 
 /// **A long poll's two records, played as the one request they are** (task 2.9).

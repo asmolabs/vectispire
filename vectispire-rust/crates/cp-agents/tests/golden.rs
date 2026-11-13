@@ -96,6 +96,16 @@ impl Minting for AccessMinting {
             _ => None,
         }
     }
+
+    /// What the Rust agent puts on a result or a failure report: the same `ResultSigner`, over the bytes sent.
+    fn result_signature(&self, kind: &str, seed: &str, scan_id: i64, body: &[u8]) -> Option<String> {
+        let signer = vectispire_crypto::ResultSigner::from_base64_seed(seed).ok()?;
+        match kind {
+            "result" => Some(signer.sign_result(scan_id, body)),
+            "failure" => Some(signer.sign_failure(scan_id, body)),
+            _ => None,
+        }
+    }
 }
 
 /// `target_visibility` as the settings store holds it — a test that switches the installation to `assigned` seeds

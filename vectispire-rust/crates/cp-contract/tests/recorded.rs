@@ -645,6 +645,34 @@ impl Minting for Signs {
     fn sealing_signature(&self, version: &str, seed: &str, agent: &str, generation: i64, key: &str) -> Option<String> {
         Some(format!("{version}|{seed}|{agent}|{generation}|{key}"))
     }
+    fn result_signature(&self, kind: &str, seed: &str, scan_id: i64, body: &[u8]) -> Option<String> {
+        Some(format!("{kind}|{seed}|{scan_id}|{}", String::from_utf8_lossy(body)))
+    }
+}
+
+/// A result's attestation is made with the request it signs — the scan's id and the bytes sent — so a value alone
+/// never makes it; before the seed is known nothing is made either.
+#[test]
+fn a_result_signature_is_made_with_the_request_it_signs() {
+    let template = "«result-signature:failure:secret:2»";
+    assert_eq!(
+        segments(template),
+        vec![Segment::Placeholder(Placeholder::ResultSignature { kind: "failure".into(), seed: 2 })]
+    );
+    assert!(segments("«result-signature:other:secret:2»").iter().all(|part| matches!(part, Segment::Literal(_))));
+
+    let mut b = Bindings::new(BTreeMap::new(), BTreeMap::new(), &Signs, OffsetDateTime::now_utc());
+    assert!(b.is_result_signature(template));
+    assert!(!b.is_result_signature("x «result-signature:failure:secret:2»"), "a placeholder alone, nothing beside it");
+    assert_eq!(b.result_signature(template, 7, b"{}"), None, "no seed bound yet");
+    assert!(b.match_text("«secret:2»", "the-replays-own-seed", "privatekey").is_ok());
+    assert_eq!(b.result_signature(template, 7, b"{}").as_deref(), Some("failure|the-replays-own-seed|7|{}"));
+    assert!(b.concrete(template, "x-vectispire-agent-signature", Context::Wire).is_err(), "never without its request");
+    assert!(b.match_text(template, "anything", "signature").is_err(), "only ever sent");
+
+    let mut unable = bindings();
+    assert!(unable.match_text("«secret:2»", "the-replays-own-seed", "privatekey").is_ok());
+    assert_eq!(unable.result_signature(template, 7, b"{}"), None, "a replay that cannot sign sends nothing");
 }
 
 /// The sealing-key announcement's signature is made again, with the seed and the agent's id this replay bound: Java's

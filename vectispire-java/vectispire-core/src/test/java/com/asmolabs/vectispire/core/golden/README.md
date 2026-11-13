@@ -281,6 +281,13 @@ the test was shown, for the agent `«uuid:U»` it named, over a fixture key. Ed2
 id and the pinned seed are the server's draws: the value would sign Java's agent, so the replay signs again with the
 seed its server answered and for its own agent's id. Any other signature is a secret, as before.
 
+**A result's attestation** (`X-Vectispire-Agent-Signature` on `POST /api/v1/agent/jobs/{id}/result` or `/failure`)
+is written `«result-signature:result:secret:S»` or `«result-signature:failure:secret:S»` when it verifies —
+`ResultAttestation`'s result or failure context — under a seed `«secret:S»` the test was shown, over the scan the path
+names and the body as recorded (compact JSON, its members sorted, or its text). The replay signs the scan of the path
+it sends and the bytes it sends, once the body is made. Recognised for that record only: the same value sent to another
+scan verifies for nothing there and stays a secret.
+
 Then, on every string, in this order:
 
 | rule | placeholder |

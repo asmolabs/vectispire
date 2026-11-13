@@ -201,10 +201,14 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 6 (was 64): a request of the test the replay cannot rebuild.
-      Left: two result attestations the recorder hides (the sealing signature's treatment would fit them), two 2 MiB
-      bodies in a gzip sidecar (a decompressor is a new crate to vet), a TLS collector nothing runs during the replay,
-      and MockMvc's charset (an accepted difference, pinned by cp-http's own capture).
+- [ ] **Recordings that cannot be replayed yet** — 4 (was 64): a request of the test the replay cannot rebuild.
+      Left: two 2 MiB bodies in a gzip sidecar (a decompressor is a new crate to vet), a TLS collector nothing runs
+      during the replay, and MockMvc's charset (an accepted difference, pinned by cp-http's own capture).
+
+      *Result attestations done 2026-11-13: a signature on `/agent/jobs/{id}/result` or `/failure` that verifies under
+      a seed the test was shown is written `«result-signature:result|failure:secret:S»`, and the replay signs the
+      scan its path names and the bytes it sends with `ResultSigner`, as the Rust agent does. Recognised for its own
+      record only: the same value sent to another scan (`noReplayAcrossScans`) stays `«secret:N»` (6 → 4).*
       The `«pem:…»` request bodies of SSH-key and CA tests are done; the rest are other kinds of hidden input.
 
       *`pem:` part done 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a

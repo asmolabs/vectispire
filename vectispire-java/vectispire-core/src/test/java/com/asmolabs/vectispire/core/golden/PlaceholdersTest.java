@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.golden;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -118,6 +119,46 @@ class PlaceholdersTest {
     private static JsonNode announcement(String key, String signature) throws Exception {
         return MAPPER.readTree("{\"request\":{\"method\":\"POST\",\"path\":\"/api/v1/agent/sealing-key\",\"body\":{\"json\":"
                 + "{\"generation\":1000,\"public_key\":\"" + key + "\",\"signature\":\"" + signature + "\"}}}}");
+    }
+
+    @Test
+    @DisplayName("a result's attestation by a seed the test showed, over the scan its path names and its body, is the computation the replay repeats")
+    void aResultSignatureIsWrittenAsItsComputation() throws Exception {
+        // As AgentResultAttestationTest and AgentFailureReportRoutesTest: the server draws the pinned seed and the
+        // scan's id, the agent signs both with the body. Java's value verifies for neither of the replay's.
+        String seed = ResultAttestation.generate().privateKey();
+        String stranger = ResultAttestation.generate().privateKey();
+        String body = "{\"attempt\":1,\"reason\":\"clone refused\"}";
+        byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Placeholders placeholders = new Placeholders();
+        JsonNode pinned = MAPPER.readTree("{\"response\":{\"status\":200,\"body\":{\"json\":{\"privateKey\":\""
+                + seed + "\"}}}}");
+        placeholders.collect(pinned, null);
+        placeholders.render(pinned);
+
+        assertThat(attestation(placeholders, "failure", 7L, body, ResultAttestation.signFailure(seed, 7L, bytes)))
+                .isEqualTo("X-Vectispire-Agent-Signature: «result-signature:failure:secret:1»");
+        assertThat(attestation(placeholders, "failure", 7L, body, ResultAttestation.sign(seed, 7L, bytes)))
+                .isEqualTo("X-Vectispire-Agent-Signature: «result-signature:result:secret:1»");
+        assertThat(attestation(placeholders, "result", 1L, "{}", ResultAttestation.sign(seed, 1L, "{}".getBytes())))
+                .isEqualTo("X-Vectispire-Agent-Signature: «result-signature:result:secret:1»");
+
+        // By a key the test kept to itself, for another scan, or over another body: a secret, as before.
+        for (String other : List.of(
+                attestation(placeholders, "failure", 7L, body, ResultAttestation.signFailure(stranger, 7L, bytes)),
+                attestation(placeholders, "failure", 8L, body, ResultAttestation.signFailure(seed, 7L, bytes)),
+                attestation(placeholders, "failure", 7L, "{\"attempt\":2}", ResultAttestation.signFailure(seed, 7L, bytes)))) {
+            assertThat(other).matches("X-Vectispire-Agent-Signature: «secret:\\d+»");
+        }
+    }
+
+    private static String attestation(Placeholders placeholders, String route, long scanId, String body, String signature)
+            throws Exception {
+        JsonNode record = MAPPER.readTree("{\"request\":{\"method\":\"POST\",\"path\":\"/api/v1/agent/jobs/" + scanId
+                + "/" + route + "\",\"headers\":[\"X-Vectispire-Agent-Signature: " + signature + "\"],\"body\":{\"json\":"
+                + body + "}}}");
+        placeholders.collect(record, null);
+        return placeholders.render(record).at("/request/headers/0").asText();
     }
 
     @Test
