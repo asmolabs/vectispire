@@ -29,6 +29,8 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -279,7 +281,7 @@ public final class TrafficRecorder {
                     return new Pending(number, dispatch ? "dispatch" : null, null, null, overlapped);
                 }
                 RowSnapshots.Snapshot before = rows.snapshot();
-                JsonNode seed = rows.diff(lastState, before);
+                JsonNode seed = markRewoundTimes(rows.diff(lastState, before), LocalDateTime.now(ZoneOffset.UTC));
                 return new Pending(number, dispatch ? "dispatch" : null, before, seed, false);
             }
         }
@@ -445,6 +447,54 @@ public final class TrafficRecorder {
 
     private static String safe(String name) {
         return name.replaceAll("[^A-Za-z0-9._#-]", "_");
+    }
+
+    /** The mark {@link #markRewoundTimes} writes, which no ISO pattern reads and the replay seeds before now. */
+    static final String PAST = "\u00abdatetime:past\u00bb";
+
+    /**
+     * A time the test moved back across the present keeps that it is past. A test that rewinds a lease
+     * ({@code setLeaseExpiresAt(now - 60 s)}) or a retry's wait writes through a repository, so the change shows in
+     * the next request's seed — as {@code «datetime»} to {@code «datetime»}, which {@link #dropUnchangedUpdates}
+     * then drops: the replay never learnt the lease had lapsed, and seeded it a day ahead. Only a change that moved
+     * the time backwards and across the present is marked — a lease renewed or a session's last sight moves forward
+     * and stays dropped. The stored times are UTC, as Hibernate writes an {@code Instant}; read in another zone, no
+     * change would cross and nothing would be marked: the recording would stay as it was, never wrong.
+     */
+    static JsonNode markRewoundTimes(JsonNode seed, LocalDateTime present) {
+        if (seed == null || !seed.isObject()) {
+            return seed;
+        }
+        seed.properties().forEach(table -> {
+            JsonNode updated = table.getValue().get("updated");
+            if (updated == null) {
+                return;
+            }
+            for (JsonNode update : updated) {
+                ObjectNode changed = (ObjectNode) update.get("changed");
+                changed.properties().forEach(column -> {
+                    Optional<LocalDateTime> from = localDateTime(column.getValue().get("from"));
+                    Optional<LocalDateTime> to = localDateTime(column.getValue().get("to"));
+                    if (from.isPresent() && to.isPresent() && to.get().isBefore(from.get())) {
+                        if (!to.get().isAfter(present) && from.get().isAfter(present)) {
+                            ((ObjectNode) column.getValue()).put("to", PAST);
+                        }
+                    }
+                });
+            }
+        });
+        return seed;
+    }
+
+    private static Optional<LocalDateTime> localDateTime(JsonNode node) {
+        if (node == null || !node.isTextual()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(LocalDateTime.parse(node.asText()));
+        } catch (java.time.format.DateTimeParseException notOne) {
+            return Optional.empty();
+        }
     }
 
     /**

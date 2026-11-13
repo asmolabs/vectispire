@@ -245,6 +245,11 @@ fn a_clock_value_must_be_in_the_recorders_window() {
     let created = b.concrete("«datetime»", "created_at", Context::Row).unwrap();
     assert!(seeded > created, "{seeded} after {created}");
     assert!(seeded.contains(' ') && !seeded.contains('T'), "a row's datetime: {seeded}");
+    // A lease the test rewound is seeded lapsed, whatever its column's name says (`TrafficRecorder.markRewoundTimes`).
+    let rewound = b.concrete("«datetime:past»", "lease_expires_at", Context::Row).unwrap();
+    let later = b.concrete("«datetime»", "created_at", Context::Row).unwrap();
+    assert!(rewound < later && rewound < seeded, "{rewound} before {later}");
+    assert!(b.match_text("«datetime:past»", &now, "lease_expires_at").is_ok());
 }
 
 #[test]

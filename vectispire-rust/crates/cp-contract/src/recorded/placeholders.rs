@@ -61,6 +61,10 @@ pub enum Placeholder {
     Date,
     DateTime,
     Instant,
+    /// `«datetime:past»`: a time the test moved back across the present — a lease or a retry's wait it rewound through
+    /// a repository (`TrafficRecorder.markRewoundTimes`). Seeded a minute before the replay's clock: what the test
+    /// wrote was "already lapsed", and a `«datetime»` there would be seeded a day ahead for an `…expires…` column.
+    PastDateTime,
     /// `«http-date»`: RFC 1123, within the window.
     HttpDate,
     /// `«stamp»`: `20261016T101500Z`, `20261016-1015`, within the window.
@@ -124,6 +128,7 @@ pub fn placeholder(inner: &str) -> Option<Placeholder> {
         "sealed" => Some(Placeholder::Sealed),
         "date" => Some(Placeholder::Date),
         "datetime" => Some(Placeholder::DateTime),
+        "datetime:past" => Some(Placeholder::PastDateTime),
         "instant" => Some(Placeholder::Instant),
         "http-date" => Some(Placeholder::HttpDate),
         "stamp" => Some(Placeholder::Stamp),
@@ -380,7 +385,9 @@ fn shape(placeholder: &Placeholder, sole_in_hash_field: bool) -> &'static str {
         Placeholder::Port(_) => r"[0-9]{2,5}",
         Placeholder::Uuid(_) => r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
         Placeholder::Date => r"[0-9]{4}-[0-9]{2}-[0-9]{2}",
-        Placeholder::DateTime => r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?",
+        Placeholder::DateTime | Placeholder::PastDateTime => {
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?"
+        }
         Placeholder::Instant => {
             r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})"
         }
@@ -624,6 +631,9 @@ impl<'m> Bindings<'m> {
                 Ok(fresh)
             }
             Placeholder::Date => Ok(self.tick().date().to_string()),
+            Placeholder::PastDateTime => {
+                Ok(clock_text(self.tick().saturating_sub(Duration::minutes(1)), context, false))
+            }
             Placeholder::DateTime | Placeholder::Instant => {
                 let lower = field.to_ascii_lowercase();
                 let mut at = self.tick();
@@ -827,7 +837,11 @@ impl<'m> Bindings<'m> {
             Placeholder::Uuid(n) => ordinal(Family::Uuid, *n, text.to_ascii_lowercase(), proposed),
             Placeholder::Long(n) => ordinal(Family::Long, *n, text.to_owned(), proposed),
             Placeholder::Pem { ordinal: n, .. } => ordinal(Family::Pem, *n, text.to_owned(), proposed),
-            Placeholder::Date | Placeholder::DateTime | Placeholder::Instant | Placeholder::Stamp => {
+            Placeholder::Date
+            | Placeholder::DateTime
+            | Placeholder::PastDateTime
+            | Placeholder::Instant
+            | Placeholder::Stamp => {
                 let (year, month, day) = digits_of(text).ok_or_else(|| format!("{text:?} is not a date"))?;
                 if in_window(self.today, year, month, day) {
                     Ok(())
