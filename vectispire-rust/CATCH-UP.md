@@ -149,10 +149,13 @@ causes rather than one by one. Counts are recordings.
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
 - [ ] **Recordings that cannot be replayed yet** — 64: a request of the test the replay cannot rebuild, mostly
       `«pem:…»` request bodies of SSH-key and CA tests the recorder hides.
-- [ ] **`ListPagingEstateRoutesTest/refusesWhatItCannotServe`** — 36: the seed of `POST /plugins` (not served,
+- [x] **`ListPagingEstateRoutesTest/refusesWhatItCannotServe`** — 36: the seed of `POST /plugins` (not served,
       played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
       are made concrete. A replay defect, not the port's.
 
+      *Fixed 2026-11-13: a long placeholder was made concrete with fifteen digits where Java's tests used thirteen
+      (a millisecond timestamp): twice in the description, past its column. The base is thirteen digits now; the
+      test's 24 recordings replay green and its 18 lines left `_recording.txt`.*
 - [x] **An issue's decisions read oldest first, with `requestedStatus`** — 5, `HistoryTest`: Rust read them newest
       first, an older defect the 1.0 history recordings exposed; the decision view lacked V88's `requestedStatus`.
 - [→] **A notification channel in use cannot be switched off** *(moved 2026-11-13 to notifications, wave 2: a route of a module Rust does not serve yet is ported with its module)* — 21, `NotificationChannelSwitchRoutesTest`: Java's
