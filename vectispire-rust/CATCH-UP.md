@@ -9,6 +9,9 @@ leaves it in the commit that makes its tests green. **No test was ignored or loo
 State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspace`: 1,307 passed, 19 failed, in the
 13 targets named below.
 
+**`[→]` marks an item moved to the wave that ports its module** (2026-11-13): a route of a module whose routes Rust does
+not serve at all yet is ported with that module, not stood up alone during the catch-up.
+
 ## Access (`cp-access`, `cp-runtime`)
 
 - [ ] **Sign-in throttling was redesigned** (V101 `sign_in_known_clients`). `vectispire.security.login-attempts-per-window`
@@ -28,9 +31,9 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       - [ ] **The derivation gate** (`DerivationGate`, 503 `DerivationsSaturated` with `Retry-After`): not ported.
       - [ ] `cp-app` composes neither `SignInFlow::with_limits` nor `session_cleanup_task_with_limits` with
             `settings.sign_in` yet: the shipped ceilings hold until it does.
-- [ ] **Account requests**: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
+- [→] **Account requests** *(moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
       `ACCOUNT_REQUEST_FILED / _APPROVED / _REJECTED` (SIEM maps them to `ACCOUNT_CHANGED`). Not-yet-ported list.
-- [ ] **`DELETE /users/{id}/second-factor`**, and `UserView.scimManaged` (V102). Not-yet-ported list.
+- [→] **`DELETE /users/{id}/second-factor`** *(moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
       - [x] `scim_managed` read on `User`, `UserView` and SCIM's rows, set by every provisioning write
             (`scim_on_both_engines`).
       - [ ] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — is not
@@ -117,7 +120,7 @@ State at the end of Phase 0, `VECTISPIRE_TEST_ENGINES=mysql cargo test --workspa
       `vulnerabilityDbDir`, `images` (the property table already says `bundled-rules` is a record).
 - [x] Checklists: NO_DATA reason `forge_integration_disabled`, and the suspended reading checked first. Nothing feeds
       `ReviewFacts::Suspended` yet: the facts reader learns it with the integrations registry (decision 0040). Red: `cp-checklists --test reference_set`.
-- [ ] `GET /owasp/coverage/export.csv`. Not-yet-ported list.
+- [→] `GET /owasp/coverage/export.csv` *(moved 2026-11-13 to compliance, wave 1: a route of a module Rust does not serve yet is ported with its module)*. Not-yet-ported list.
 
 ## The golden replay of Java 1.0's traffic
 
@@ -149,10 +152,10 @@ causes rather than one by one. Counts are recordings.
 
 - [x] **An issue's decisions read oldest first, with `requestedStatus`** — 5, `HistoryTest`: Rust read them newest
       first, an older defect the 1.0 history recordings exposed; the decision view lacked V88's `requestedStatus`.
-- [ ] **A notification channel in use cannot be switched off** — 21, `NotificationChannelSwitchRoutesTest`: Java's
+- [→] **A notification channel in use cannot be switched off** *(moved 2026-11-13 to notifications, wave 2: a route of a module Rust does not serve yet is ported with its module)* — 21, `NotificationChannelSwitchRoutesTest`: Java's
       `NotificationDestinations` answers the integrations registry `integration-in-use`; Rust has no notifications
       module yet (wave 2), so its switch-off is accepted.
-- [ ] **The published keys' list in the read-cost sweep** — 2: an export Rust does not serve wrote the key record in
+- [→] **The published keys' list in the read-cost sweep** *(moved 2026-11-13 to compliance's exports, wave 1: a route of a module Rust does not serve yet is ported with its module)* — 2: an export Rust does not serve wrote the key record in
       Java's run, and the replay cannot rebuild its `«sealed»` value; ends with the compliance exports.
 
 - [ ] **Why `AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing` takes over a second in the replay** — 1: its
