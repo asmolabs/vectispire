@@ -620,8 +620,12 @@ async fn a_save_does_not_start_using_a_disabled_integration(engine: Engine) {
         .expect("review already on over a provider switched off since: suspended, not refused");
 
     // A notification channel, held in the write's transaction: a value that sends, never one that clears.
+    f.save(&[("checklist_reminders_enabled", Some("true"))], &admin).await.unwrap();
     f.switch("notification.slack", false).await;
     f.switch("notification.mail", false).await;
+    f.save(&[("checklist_reminders_enabled", Some("false"))], &admin)
+        .await
+        .expect("a switch turned off configures nothing, though it changed");
     f.switch("notification.teams", false).await;
     assert_eq!(
         disabled(
