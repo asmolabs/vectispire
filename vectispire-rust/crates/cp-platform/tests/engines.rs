@@ -18,10 +18,11 @@ use vectispire_cp_audit::{
 };
 use vectispire_cp_db::{Db, Engine, Tx};
 use vectispire_cp_platform::{
-    AdministrationError, AiAfter, AiDestination, Applied, Approvers, Caller, CollaboratorError,
-    SECURITY_SETTING_CHANGED, SettingsAdministration, Tracker,
+    AdministrationError, AiAfter, AiDestination, AiEndpoint, Applied, Approvers, Caller, CollaboratorError,
+    EndpointCheck, SECURITY_SETTING_CHANGED, SettingsAdministration, SettingsParts, Tracker,
 };
-use vectispire_cp_settings::{Setting, Settings};
+use vectispire_cp_settings::{Integrations, Setting, Settings};
+use vectispire_domain::integrations::Integration;
 
 const AT: i64 = 1_792_224_000; // 2026-10-17T08:00:00Z
 
@@ -85,6 +86,7 @@ impl AiDestination for Model {
     }
     fn record_risk_acknowledgement<'a>(
         &'a self,
+        _tx: &'a mut Tx,
         by: &'a str,
         at: OffsetDateTime,
     ) -> BoxFuture<'a, Result<(), CollaboratorError>> {
@@ -93,11 +95,56 @@ impl AiDestination for Model {
             Ok(())
         })
     }
-    fn clear_risk_acknowledgement(&self) -> BoxFuture<'_, Result<(), CollaboratorError>> {
+    fn clear_risk_acknowledgement<'a>(&'a self, _tx: &'a mut Tx) -> BoxFuture<'a, Result<(), CollaboratorError>> {
         Box::pin(async move {
             self.acknowledged.lock().unwrap().push("cleared".to_owned());
             Ok(())
         })
+    }
+}
+
+/// `ai`'s endpoint, as each test sets it: `url` refused by the guard when `refusal` is set, and `models` its answer.
+struct Endpoint {
+    provider: Mutex<&'static str>,
+    refusal: Mutex<Option<String>>,
+    key: AtomicBool,
+    models: Mutex<Option<Vec<String>>>,
+}
+
+const OLLAMA_AT: &str = "http://10.20.30.40:11434";
+
+impl Default for Endpoint {
+    fn default() -> Endpoint {
+        Endpoint {
+            provider: Mutex::new("ollama"),
+            refusal: Mutex::new(None),
+            key: AtomicBool::new(false),
+            models: Mutex::new(Some(vec!["llama3".to_owned(), "qwen".to_owned()])),
+        }
+    }
+}
+
+impl AiEndpoint for Endpoint {
+    fn provider(&self) -> BoxFuture<'_, Result<String, CollaboratorError>> {
+        Box::pin(async move { Ok((*self.provider.lock().unwrap()).to_owned()) })
+    }
+    fn selected_model(&self) -> BoxFuture<'_, Result<String, CollaboratorError>> {
+        Box::pin(async move { Ok("llama3".to_owned()) })
+    }
+    fn allow_remote(&self) -> BoxFuture<'_, Result<bool, CollaboratorError>> {
+        Box::pin(async move { Ok(false) })
+    }
+    fn validated_url(&self) -> BoxFuture<'_, Result<Result<String, String>, CollaboratorError>> {
+        Box::pin(async move { Ok(self.refusal.lock().unwrap().clone().map_or(Ok(OLLAMA_AT.to_owned()), Err)) })
+    }
+    fn base_url(&self) -> BoxFuture<'_, Result<String, CollaboratorError>> {
+        Box::pin(async move { Ok(OLLAMA_AT.to_owned()) })
+    }
+    fn has_openai_key(&self) -> BoxFuture<'_, Result<bool, CollaboratorError>> {
+        Box::pin(async move { Ok(self.key.load(Ordering::SeqCst)) })
+    }
+    fn available_models(&self) -> BoxFuture<'_, Result<Option<Vec<String>>, CollaboratorError>> {
+        Box::pin(async move { Ok(self.models.lock().unwrap().clone()) })
     }
 }
 
@@ -136,6 +183,8 @@ struct Fixture {
     service: SettingsAdministration,
     people: Arc<People>,
     model: Arc<Model>,
+    endpoint: Arc<Endpoint>,
+    integrations: Integrations,
     signals: Arc<Signals>,
 }
 
@@ -151,15 +200,35 @@ impl Fixture {
             signers: AtomicBool::new(true),
         });
         let model = Arc::new(Model::default());
-        let service = SettingsAdministration::new(
-            db.clone(),
-            audit.clone(),
-            people.clone(),
-            Arc::new(Pins),
-            model.clone(),
-            Arc::new(FixedClock),
-        );
-        Fixture { _server: server, settings: Settings::new(db.clone()), db, audit, service, people, model, signals }
+        let endpoint = Arc::new(Endpoint::default());
+        let integrations = Integrations::new(db.clone(), Vec::new(), Arc::new(|| FixedClock.now()));
+        let service = SettingsAdministration::new(SettingsParts {
+            db: db.clone(),
+            audit: audit.clone(),
+            approvers: people.clone(),
+            tracker: Arc::new(Pins),
+            ai: model.clone(),
+            endpoint: endpoint.clone(),
+            integrations: integrations.clone(),
+            clock: Arc::new(FixedClock),
+        });
+        Fixture {
+            _server: server,
+            settings: Settings::new(db.clone()),
+            db,
+            audit,
+            service,
+            people,
+            model,
+            endpoint,
+            integrations,
+            signals,
+        }
+    }
+
+    /// A governor's switch.
+    async fn switch(&self, key: &str, enabled: bool) {
+        self.integrations.switch_to(Integration::by_key(key).unwrap(), enabled, "governor").await.unwrap();
     }
 
     async fn entries(&self) -> Vec<StoredEntry> {
@@ -350,9 +419,23 @@ async fn every_refusal(engine: Engine) {
         "Allow a private SIEM destination decides how far a channel configured by a security lead may reach, and \
          only an administrator may change it."
     );
-    f.save(&[("ticket_base_url", Some("")), ("ticket_allow_private_url", Some(" true "))], &lead)
+    assert_eq!(
+        denied(f.refused(&[("ai_review_ollama_url", Some("http://elsewhere:11434"))], &lead).await),
+        "Ollama service URL decides which host receives the findings sent for review, and only an administrator may change it."
+    );
+    f.save(&[("ticket_allow_private_url", Some(" true "))], &lead)
         .await
-        .expect("the stored values sent back unchanged, trimmed");
+        .expect("a plain value sent back unchanged, trimmed");
+    // **But never a secret one**: "unchanged is accepted" answered whether a guess was the stored value, one 200 or
+    // 403 at a time — refused from anyone but an administrator, whatever it holds, the stored value included.
+    for setting in ["ticket_base_url", "ticket_ca_pem", "ai_review_ollama_url"] {
+        let stored = f.settings.get(Setting::by_key(setting).unwrap()).await.unwrap();
+        assert!(
+            matches!(f.refused(&[(setting, Some(stored.as_str()))], &lead).await, AdministrationError::AccessDenied(_)),
+            "{setting}"
+        );
+    }
+    f.save(&[("ticket_base_url", Some(""))], &admin).await.expect("an administrator sends it back");
 
     // Four-eyes on needs people to honour it, each check in turn; off needs nobody.
     f.people.approver.store(false, Ordering::SeqCst);
@@ -489,6 +572,193 @@ async fn the_ai_destination_and_its_acknowledgement(engine: Engine) {
     assert_eq!(f.settings.get(Setting::AiReviewAllowRemote).await.unwrap(), "false");
 }
 
+fn disabled(refusal: AdministrationError) -> String {
+    match refusal {
+        AdministrationError::IntegrationDisabled { integration, .. } => integration.key(),
+        other => panic!("expected a 409 integration-disabled, got {other:?}"),
+    }
+}
+
+/// Decision 0040: a save does not start using an integration a governor switched off — 409 `integration-disabled`,
+/// naming it, nothing written — and is not refused for one it does not move: the tracker or the AI provider chosen
+/// again, the section sent back unchanged, a channel cleared.
+async fn a_save_does_not_start_using_a_disabled_integration(engine: Engine) {
+    let f = Fixture::start(engine).await;
+    let admin = caller("admin", true, false);
+
+    // The tracker, on a change of tracker only; `none` uses nothing.
+    f.save(&[("ticket_provider", Some("jira"))], &admin).await.unwrap();
+    f.switch("tracker.jira", false).await;
+    f.switch("tracker.gitlab", false).await;
+    let refusal = f.refused(&[("ticket_labels", Some("x")), ("ticket_provider", Some(" GitLab "))], &admin).await;
+    assert_eq!(
+        refusal.to_string(),
+        "The integration \"tracker.gitlab\" is disabled on this installation; a platform governor enables it with PUT \
+         /api/v1/integrations/tracker.gitlab/enabled."
+    );
+    assert_eq!(disabled(refusal), "tracker.gitlab");
+    f.save(&[("ticket_provider", Some("jira")), ("ticket_project", Some("SEC"))], &admin)
+        .await
+        .expect("the suspended tracker sent back unchanged, beside the rest of the section");
+    f.save(&[("ticket_provider", Some("none"))], &admin).await.expect("no tracker uses nothing");
+
+    // The AI provider: when it moves to a disabled one, or review is turned on over one.
+    f.switch("ai.openai", false).await;
+    let asked = f.model.asked.lock().unwrap().len();
+    assert_eq!(disabled(f.refused(&[("ai_review_provider", Some("openai"))], &admin).await), "ai.openai");
+    assert_eq!(f.model.asked.lock().unwrap().len(), asked, "refused before the destination is judged");
+    f.switch("ai.ollama", false).await;
+    assert_eq!(disabled(f.refused(&[("ai_review_enabled", Some("true"))], &admin).await), "ai.ollama");
+    f.save(&[("ai_review_provider", Some("ollama")), ("ai_review_enabled", Some("false"))], &admin)
+        .await
+        .expect("the provider it has, and review off, start nothing");
+    f.switch("ai.ollama", true).await;
+    f.save(&[("ai_review_enabled", Some("true"))], &admin).await.unwrap();
+    f.switch("ai.ollama", false).await;
+    f.save(&[("ai_review_enabled", Some("true")), ("ai_review_model", Some("qwen"))], &admin)
+        .await
+        .expect("review already on over a provider switched off since: suspended, not refused");
+
+    // A notification channel, held in the write's transaction: a value that sends, never one that clears.
+    f.save(&[("checklist_reminders_enabled", Some("true"))], &admin).await.unwrap();
+    f.switch("notification.slack", false).await;
+    f.switch("notification.mail", false).await;
+    f.save(&[("checklist_reminders_enabled", Some("false"))], &admin)
+        .await
+        .expect("a switch turned off configures nothing, though it changed");
+    f.switch("notification.teams", false).await;
+    assert_eq!(
+        disabled(
+            f.refused(
+                &[("sla_high_days", Some("40")), ("notification_slack_url", Some("https://hooks.slack.example/x"))],
+                &admin
+            )
+            .await
+        ),
+        "notification.slack"
+    );
+    assert_eq!(
+        disabled(f.refused(&[("checklist_reminders_enabled", Some("true"))], &admin).await),
+        "notification.mail"
+    );
+    assert_eq!(
+        disabled(f.refused(&[("notification_teams_url", Some("https://teams.example/x"))], &admin).await),
+        "notification.teams"
+    );
+    f.save(
+        &[
+            ("notification_slack_url", Some("")),
+            ("checklist_reminders_enabled", Some("false")),
+            ("notification_mail_to", Some(" ")),
+        ],
+        &admin,
+    )
+    .await
+    .expect("clearing a channel configures nothing");
+    // A plain value sent back as stored configures nothing; a secret one sent at all does — it is never compared.
+    let mut tx = f.db.begin(vectispire_cp_db::Mode::ReadWrite).await.unwrap();
+    f.settings.set(&mut tx, Setting::MailRecipients, "soc@example.org").await.unwrap();
+    f.settings.set(&mut tx, Setting::SlackWebhookUrl, "https://hooks.slack.example/kept").await.unwrap();
+    tx.commit().await.unwrap();
+    f.save(&[("notification_mail_to", Some(" soc@example.org "))], &admin).await.expect("the stored recipients");
+    assert_eq!(
+        disabled(f.refused(&[("notification_slack_url", Some("https://hooks.slack.example/kept"))], &admin).await),
+        "notification.slack"
+    );
+    f.switch("notification.slack", true).await;
+    f.save(&[("notification_slack_url", Some("https://hooks.slack.example/y"))], &admin).await.unwrap();
+}
+
+/// `checkAiEndpoint`: the provider switched off is not asked — the refusal every AI feature gives — and the address is
+/// named to an administrator only: a security lead, who runs the test, reads "the configured endpoint" and no URL.
+async fn the_ai_endpoint_check_names_the_address_to_an_administrator_only(engine: Engine) {
+    let f = Fixture::start(engine).await;
+    let admin = caller("admin", true, false);
+    let lead = caller("lead", false, false);
+
+    let seen = f.service.check_ai_endpoint(Some(&admin)).await.unwrap();
+    assert_eq!(
+        seen,
+        EndpointCheck {
+            reachable: true,
+            model_installed: true,
+            model: "llama3".to_owned(),
+            url: Some(OLLAMA_AT.to_owned()),
+            models: vec!["llama3".to_owned(), "qwen".to_owned()],
+            detail: "Reachable, and \"llama3\" is available.".to_owned(),
+            provider: "ollama".to_owned(),
+            remote_allowed: false,
+        }
+    );
+    let hidden = f.service.check_ai_endpoint(Some(&lead)).await.unwrap();
+    assert_eq!(hidden, EndpointCheck { url: None, ..seen.clone() }, "everything but the address");
+    assert_eq!(f.service.check_ai_endpoint(None).await.unwrap().url, None);
+
+    *f.endpoint.models.lock().unwrap() = Some(vec!["qwen".to_owned()]);
+    let missing = f.service.check_ai_endpoint(Some(&lead)).await.unwrap();
+    assert_eq!(
+        (missing.reachable, missing.model_installed, missing.detail.as_str()),
+        (true, false, "Reachable, but \"llama3\" is not available there. Pick one of the 1 it offers.")
+    );
+
+    *f.endpoint.models.lock().unwrap() = None;
+    let silent = |check: EndpointCheck| (check.reachable, check.url, check.detail, check.models);
+    assert_eq!(
+        silent(f.service.check_ai_endpoint(Some(&admin)).await.unwrap()),
+        (
+            false,
+            Some(OLLAMA_AT.to_owned()),
+            format!("No answer from {OLLAMA_AT}. Is Ollama running, and reachable from this process?"),
+            Vec::new()
+        )
+    );
+    assert_eq!(
+        silent(f.service.check_ai_endpoint(Some(&lead)).await.unwrap()),
+        (
+            false,
+            None,
+            "No answer from the configured endpoint. Is Ollama running, and reachable from this process?".to_owned(),
+            Vec::new()
+        )
+    );
+
+    // The guard's refusal quotes the address: the administrator reads it, the security lead is told who can.
+    *f.endpoint.refusal.lock().unwrap() = Some(format!("{OLLAMA_AT} resolves to a public address."));
+    let refused = f.service.check_ai_endpoint(Some(&admin)).await.unwrap();
+    assert_eq!(
+        (refused.url.as_deref(), refused.detail.as_str()),
+        (Some(OLLAMA_AT), "http://10.20.30.40:11434 resolves to a public address.")
+    );
+    let refused = f.service.check_ai_endpoint(Some(&lead)).await.unwrap();
+    assert_eq!(
+        (refused.url, refused.detail.as_str()),
+        (None, "The configured URL is refused by the outbound policy; an administrator can see why.")
+    );
+    *f.endpoint.refusal.lock().unwrap() = None;
+
+    // OpenAI with no key is said before any call.
+    *f.endpoint.provider.lock().unwrap() = "openai";
+    let keyless = f.service.check_ai_endpoint(Some(&lead)).await.unwrap();
+    assert_eq!(
+        (keyless.provider.as_str(), keyless.detail.as_str()),
+        (
+            "openai",
+            "No API key is stored for the configured endpoint. Set one, or point this at a local endpoint that authenticates nobody."
+        )
+    );
+
+    // Switched off, the provider is not asked: the refusal every AI feature gives.
+    f.switch("ai.openai", false).await;
+    let refusal = f.service.check_ai_endpoint(Some(&admin)).await.unwrap_err();
+    assert_eq!(
+        refusal.to_string(),
+        "AI unavailable — provider disabled. Nothing is sent to the other provider in its place. The integration \
+         \"ai.openai\" is disabled on this installation; a platform governor enables it with PUT \
+         /api/v1/integrations/ai.openai/enabled."
+    );
+    assert_eq!(disabled(refusal), "ai.openai");
+}
+
 macro_rules! on_both_engines {
     ($($name:ident),* $(,)?) => {
         mod mysql {
@@ -502,4 +772,10 @@ macro_rules! on_both_engines {
     };
 }
 
-on_both_engines!(the_catalog_and_a_save, every_refusal, the_ai_destination_and_its_acknowledgement);
+on_both_engines!(
+    the_catalog_and_a_save,
+    every_refusal,
+    the_ai_destination_and_its_acknowledgement,
+    a_save_does_not_start_using_a_disabled_integration,
+    the_ai_endpoint_check_names_the_address_to_an_administrator_only,
+);

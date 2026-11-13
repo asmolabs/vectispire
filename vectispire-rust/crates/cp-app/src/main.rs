@@ -472,6 +472,10 @@ async fn serve() -> ExitCode {
         },
     ));
 
+    // `vectispire.sign-in.*` in force: the derivation bound for the process, before the first request; the ceilings
+    // and the known clients' retention for the sign-in and the session cleanup.
+    let access = vectispire_cp_app::access::compose(&settings.sign_in, creds.clone(), db.clone(), access_clock.clone());
+
     let built_in =
         vectispire_cp_app::worker::BuiltInWorker::of(&settings.worker, scanning.dispatcher().runs_scans_here());
     let admin = Arc::new(
@@ -522,7 +526,7 @@ async fn serve() -> ExitCode {
         gate.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
-        vectispire_cp_access::session_cleanup::session_cleanup_task(creds.clone(), db.clone(), access_clock.clone()),
+        access.session_cleanup.clone(),
         &gauges,
     ) {
         Ok(turns) => turns,

@@ -49,6 +49,45 @@ pub fn validate_password(password: Option<&str>) -> Option<String> {
     }
 }
 
+/// `AccountRules.validateEmail`: `None` when a trimmed, present address reads as one, otherwise the message to show.
+///
+/// **A shape, not a deliverability check** — `part@part.part`, matched whole, where a part is one or more characters
+/// that are none of Java's `\s` (the six ASCII spaces, the pattern having no Unicode flag), `\p{Z}`, `\p{C}` (the
+/// zero-width ones and the unassigned included), `@ < > ( ) [ ] , ; : "` and the backslash. The separators are refused
+/// because the address goes into a message's `To:`, where a comma or a line break is a second recipient. Non-ASCII
+/// letters are accepted: an internationalised address is one.
+pub fn validate_email(email: Option<&str>) -> Option<String> {
+    let reads = email.is_some_and(|email| {
+        let Some((local, domain)) = email.split_once('@') else {
+            return false;
+        };
+        // The domain is `part.part`: some dot that is neither its first nor its last character, every character a
+        // part's — a part may hold dots itself, so any such dot serves.
+        let dotted = domain.char_indices().any(|(at, c)| c == '.' && at > 0 && at < domain.len().saturating_sub(1));
+        !local.is_empty() && local.chars().all(address_character) && domain.chars().all(address_character) && dotted
+    });
+    (!reads).then(|| "The e-mail address must read like name@example.org.".to_owned())
+}
+
+/// A character of `ADDRESS_PART`.
+fn address_character(c: char) -> bool {
+    use unicode_general_category::{GeneralCategory as G, get_general_category};
+    let refused_category = matches!(
+        get_general_category(c),
+        G::SpaceSeparator
+            | G::LineSeparator
+            | G::ParagraphSeparator
+            | G::Control
+            | G::Format
+            | G::Surrogate
+            | G::PrivateUse
+            | G::Unassigned
+    );
+    !refused_category
+        && !matches!(c, ' ' | '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | '@' | '<' | '>' | '(' | ')')
+        && !matches!(c, '[' | ']' | ',' | ';' | ':' | '"' | '\\')
+}
+
 /// `AccountRules.Change`.
 ///
 /// `remaining_active_admins` counts active administrators **other than this account**.

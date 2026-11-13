@@ -352,7 +352,10 @@ async fn second_factor_both_ways(http: &reqwest::Client, base: &str, db: &Db, ad
 
     // Rust enables it.
     let secret = totp::generate_secret();
-    let codes = factor.enable(admin_id, &secret, &totp::generate_code(&secret, now()).unwrap()).await.unwrap();
+    let codes = factor
+        .enable(admin_id, ROTATED_PASSWORD, &secret, &totp::generate_code(&secret, now()).unwrap(), None, None)
+        .await
+        .unwrap();
 
     // Java asks for the code, and accepts the next one.
     let challenge: Value = http

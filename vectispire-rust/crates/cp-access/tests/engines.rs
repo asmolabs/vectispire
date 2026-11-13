@@ -98,6 +98,7 @@ async fn round_trip(engine: Engine) {
     changed.keycloak_id = Some("subject-alice".to_owned());
     changed.github_id = Some("4242".to_owned());
     changed.avatar_url = Some("https://example.org/a.png".to_owned());
+    changed.scim_lowered_from = Some("CISO".to_owned());
     changed.updated_at = LATER;
     session(&migrated, inserted.id, "s-one");
     store.save(&changed, false).await.unwrap();
@@ -105,6 +106,14 @@ async fn round_trip(engine: Engine) {
     assert_eq!(sessions_of(&migrated, inserted.id), ["s-one"], "no revocation asked");
     store.save(&changed, true).await.unwrap();
     assert!(sessions_of(&migrated, inserted.id).is_empty(), "{engine}: the sessions close with the save");
+    changed.scim_lowered_from = None;
+    store.save(&changed, false).await.unwrap();
+    assert_eq!(store.find_by_id(inserted.id).await.unwrap().unwrap().scim_lowered_from, None, "{engine}: cleared");
+
+    // ── another account's address, without case; one's own is not another's
+    assert!(store.email_taken("ALICE@Example.org", 999_999).await.unwrap(), "{engine}: upper() on both sides");
+    assert!(!store.email_taken("alice@example.org", inserted.id).await.unwrap());
+    assert!(!store.email_taken("nobody@example.org", -1).await.unwrap());
 
     // ── one's own password: the spared session stays, the flag clears
     let bob = store.insert(new_user("bob", "USER")).await.unwrap();

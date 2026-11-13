@@ -136,6 +136,7 @@ pub fn account(id: i64, username: &str, active: bool) -> User {
         must_change_password: false,
         mfa_enabled: false,
         scim_managed: false,
+        scim_lowered_from: None,
         totp_secret: None,
         mfa_backup_codes: None,
         totp_last_step: None,
@@ -161,6 +162,10 @@ impl AccountStore for Memory {
     }
 
     async fn insert(&self, _: NewUser) -> Result<User, StoreError> {
+        Err(StoreError("not used by the sign-in".into()))
+    }
+
+    async fn email_taken(&self, _: &str, _: i64) -> Result<bool, StoreError> {
         Err(StoreError("not used by the sign-in".into()))
     }
 

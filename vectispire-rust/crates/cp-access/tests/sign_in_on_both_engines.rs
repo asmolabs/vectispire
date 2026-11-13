@@ -358,7 +358,10 @@ async fn second_factor(engine: Engine) {
     let id = account(db, "dana", false).await;
     let at = clock.now();
     let secret = factor.setup("dana").secret;
-    let codes = factor.enable(id, secret.expose(), &totp::generate_code(secret.expose(), at).unwrap()).await.unwrap();
+    let codes = factor
+        .enable(id, PASSWORD, secret.expose(), &totp::generate_code(secret.expose(), at).unwrap(), None, None)
+        .await
+        .unwrap();
     let after = factor.enrolment().await.unwrap();
     assert_eq!(
         (after.password_accounts - before.password_accounts, after.without_second_factor),
@@ -393,7 +396,8 @@ async fn second_factor(engine: Engine) {
 
     // Enrolling over an active factor is refused, and the factor still opens.
     let attacker = totp::generate_secret();
-    let refused = factor.enable(id, &attacker, &totp::generate_code(&attacker, at).unwrap()).await;
+    let refused =
+        factor.enable(id, PASSWORD, &attacker, &totp::generate_code(&attacker, at).unwrap(), None, None).await;
     assert!(matches!(refused, Err(SecondFactorError::InvalidInput(message)) if message.contains("already enabled")));
     assert!(factor.verify(&users.find_by_id(id).await.unwrap().unwrap(), Some(codes[2].expose())).await.unwrap());
 

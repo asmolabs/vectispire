@@ -9,7 +9,7 @@
 //! `crates/cp-access/.sqlx/`.
 //!
 //! **An account write sets the directory's columns only** (`display_name`, `email`, `keycloak_id`, `is_active`,
-//! `role`, `updated_at`), where Java saves the whole entity read at the start of the request: a second factor enrolled
+//! `role`, `scim_lowered_from`, `updated_at`), where Java saves the whole entity read at the start of the request: a second factor enrolled
 //! or a password changed in between was written back as it was read.
 
 use time::OffsetDateTime;
@@ -35,6 +35,9 @@ pub struct AccountRow {
     pub mfa_enabled: bool,
     /// Written by the directory, which then owns the e-mail address (V102). Every write here sets it.
     pub scim_managed: bool,
+    /// The privileged role this directory lowered the unbound account out of (V93), which refuses its binding until an
+    /// administrator sets its role in Vectispire. Every write here writes it.
+    pub scim_lowered_from: Option<String>,
 }
 
 /// An account the directory creates: a password nobody knows, no obligation to change it, no second factor.
@@ -162,7 +165,7 @@ mod mysql {
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
                must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
-               scim_managed as "scim_managed: bool" from t_user where id = ?"#,
+               scim_managed as "scim_managed: bool", scim_lowered_from from t_user where id = ?"#,
             id
         )
         .fetch_optional(conn)
@@ -175,7 +178,7 @@ mod mysql {
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
                must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
-               scim_managed as "scim_managed: bool" from t_user where id = ? for update"#,
+               scim_managed as "scim_managed: bool", scim_lowered_from from t_user where id = ? for update"#,
             id
         )
         .fetch_optional(conn)
@@ -188,7 +191,7 @@ mod mysql {
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
                must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
-               scim_managed as "scim_managed: bool" from t_user where username = ?"#,
+               scim_managed as "scim_managed: bool", scim_lowered_from from t_user where username = ?"#,
             username
         )
         .fetch_optional(conn)
@@ -204,7 +207,7 @@ mod mysql {
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
                must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
-               scim_managed as "scim_managed: bool" from t_user where keycloak_id = ?"#,
+               scim_managed as "scim_managed: bool", scim_lowered_from from t_user where keycloak_id = ?"#,
             subject
         )
         .fetch_optional(conn)
@@ -217,7 +220,7 @@ mod mysql {
             r#"/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as "is_active: bool",
                github_id, keycloak_id, created_at as "created_at: _", updated_at as "updated_at: _",
                must_change_password as "must_change_password: bool", mfa_enabled as "mfa_enabled: bool",
-               scim_managed as "scim_managed: bool" from t_user order by username asc"#
+               scim_managed as "scim_managed: bool", scim_lowered_from from t_user order by username asc"#
         )
         .fetch_all(conn)
         .await
@@ -246,12 +249,13 @@ mod mysql {
     pub(super) async fn update_account(conn: &mut MySqlConnection, row: &AccountRow) -> sqlx::Result<()> {
         sqlx::query!(
             "/* mysql */ update t_user set display_name = ?, email = ?, keycloak_id = ?, is_active = ?, role = ?, \
-             scim_managed = true, updated_at = ? where id = ?",
+             scim_lowered_from = ?, scim_managed = true, updated_at = ? where id = ?",
             row.display_name,
             row.email,
             row.keycloak_id,
             row.is_active,
             row.role,
+            row.scim_lowered_from,
             UtcInstant(row.updated_at),
             row.id
         )
@@ -329,7 +333,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where id = $1",
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user where id = $1",
             id
         )
         .fetch_optional(conn)
@@ -340,7 +344,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where id = $1 \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user where id = $1 \
              for update",
             id
         )
@@ -352,7 +356,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where username = $1",
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user where username = $1",
             username
         )
         .fetch_optional(conn)
@@ -363,7 +367,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user \
              where keycloak_id = $1",
             subject
         )
@@ -375,7 +379,7 @@ mod postgres {
         sqlx::query_as!(
             AccountRow,
             "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, \
-             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user \
+             keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user \
              order by username asc"
         )
         .fetch_all(conn)
@@ -403,12 +407,13 @@ mod postgres {
     pub(super) async fn update_account(conn: &mut PgConnection, row: &AccountRow) -> sqlx::Result<()> {
         sqlx::query!(
             "/* postgres */ update t_user set display_name = $1, email = $2, keycloak_id = $3, is_active = $4, \
-             role = $5, scim_managed = true, updated_at = $6 where id = $7",
+             role = $5, scim_lowered_from = $6, scim_managed = true, updated_at = $7 where id = $8",
             row.display_name,
             row.email,
             row.keycloak_id,
             row.is_active,
             row.role,
+            row.scim_lowered_from,
             row.updated_at,
             row.id
         )

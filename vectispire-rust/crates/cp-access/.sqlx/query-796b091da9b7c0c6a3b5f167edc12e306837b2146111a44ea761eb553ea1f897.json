@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(*) from t_user where upper(email) = upper(?) and id <> ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count(*)",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "796b091da9b7c0c6a3b5f167edc12e306837b2146111a44ea761eb553ea1f897"
+}

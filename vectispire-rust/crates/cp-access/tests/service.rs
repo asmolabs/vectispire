@@ -72,6 +72,12 @@ impl AccountStore for Memory {
         users.sort_by(|a, b| a.username.cmp(&b.username));
         Ok(users)
     }
+    async fn email_taken(&self, email: &str, excluding: i64) -> Result<bool, StoreError> {
+        Ok(self.0.lock().unwrap().users.values().any(|user| {
+            user.id != excluding
+                && user.email.as_deref().is_some_and(|held| held.to_uppercase() == email.to_uppercase())
+        }))
+    }
     async fn insert(&self, user: NewUser) -> Result<User, StoreError> {
         let mut state = self.0.lock().unwrap();
         state.next_id += 1;
@@ -91,6 +97,7 @@ impl AccountStore for Memory {
             must_change_password: user.must_change_password,
             mfa_enabled: false,
             scim_managed: false,
+            scim_lowered_from: None,
             totp_secret: None,
             mfa_backup_codes: None,
             totp_last_step: None,
@@ -187,16 +194,23 @@ impl Clock for Fixed {
 struct Budget {
     refused: Option<u64>,
     reserved: Mutex<Vec<i64>>,
+    released: Mutex<Vec<i64>>,
     cleared: Mutex<Vec<i64>>,
 }
 
 impl PasswordAttempts for Budget {
-    async fn reserve(&self, account_id: i64, _: Option<&str>) -> Result<(), StoreOr<u64>> {
+    type Held = i64;
+
+    async fn reserve(&self, account_id: i64, _: Option<&str>) -> Result<i64, StoreOr<u64>> {
         self.reserved.lock().unwrap().push(account_id);
         match self.refused {
             Some(seconds) => Err(StoreOr::Refused(seconds)),
-            None => Ok(()),
+            None => Ok(account_id),
         }
+    }
+    async fn release(&self, held: &i64) -> Result<(), StoreError> {
+        self.released.lock().unwrap().push(*held);
+        Ok(())
     }
     async fn clear(&self, account_id: i64, _: Option<&str>) -> Result<(), StoreError> {
         self.cleared.lock().unwrap().push(account_id);
@@ -221,6 +235,7 @@ fn account(id: i64, username: &str, role: &str) -> User {
         must_change_password: false,
         mfa_enabled: false,
         scim_managed: false,
+        scim_lowered_from: None,
         totp_secret: None,
         mfa_backup_codes: None,
         totp_last_step: None,
@@ -463,6 +478,159 @@ async fn the_last_active_administrator_stays_one() {
         message,
         "This is the last active administrator: deleting them would leave Vectispire with nobody able to administer it."
     );
+}
+
+// ── the e-mail address (V102) ────────────────────────────────────────────────────────────────────────────────
+
+fn email(address: &str) -> AccountChange {
+    AccountChange { email: Some(address.to_owned()), ..AccountChange::default() }
+}
+
+/// `AccountAdministrationServiceTest`'s e-mail cases: set, changed, cleared, each audited without the address; read
+/// as an address and bounded; refused when another account holds it, whatever its case.
+#[tokio::test]
+async fn an_e_mail_address_is_set_changed_and_cleared_and_the_entry_never_names_it() {
+    let (accounts, store, log) = service();
+    store.with(account(1, "admin", "ADMIN"));
+    store.with(account(2, "ivy", "USER"));
+
+    let set = accounts.update(2, email("  ivy@example.org "), Some(1), &actor()).await.unwrap();
+    assert_eq!(set.user.email.as_deref(), Some("ivy@example.org"));
+    accounts.update(2, email("ivy@corp.example"), Some(1), &actor()).await.unwrap();
+    // The address it holds, sent back: no change, no entry.
+    accounts.update(2, email("ivy@corp.example"), Some(1), &actor()).await.unwrap();
+    let cleared = accounts.update(2, email("   "), Some(1), &actor()).await.unwrap();
+    assert_eq!(cleared.user.email, None);
+    let said: Vec<String> = log.entries().into_iter().map(|entry| entry.description).collect();
+    assert_eq!(
+        said,
+        [
+            "Account ivy: e-mail address set",
+            "Account ivy: e-mail address changed",
+            "Account ivy: e-mail address cleared"
+        ]
+    );
+    assert!(!store.writes().contains(&Write::Save { id: 2, revoke_sessions: true }), "an address closes no session");
+
+    for typed in
+        ["jdoe", "jdoe at corp", "a@b", "a,b@example.org", "a@exa\u{200B}mple.org", "a@example.org\nBcc: x@y.z"]
+    {
+        assert_eq!(
+            invalid(accounts.update(2, email(typed), Some(1), &actor()).await),
+            "The e-mail address must read like name@example.org.",
+            "{typed:?}"
+        );
+    }
+    assert_eq!(
+        invalid(accounts.update(2, email(&format!("{}@example.org", "e".repeat(250))), Some(1), &actor()).await),
+        "The e-mail address is longer than 255 characters."
+    );
+    accounts.update(1, email("root@example.org"), Some(1), &actor()).await.unwrap();
+    assert_eq!(
+        invalid(accounts.update(2, email("ROOT@Example.org"), Some(1), &actor()).await),
+        "The e-mail address ROOT@Example.org is already used by another account."
+    );
+    // An internationalised address is one.
+    accounts.update(2, email("åsa@exämple.org"), Some(1), &actor()).await.unwrap();
+}
+
+/// **An account the SCIM directory writes keeps the directory's address** (V102): a real change is 409
+/// `managed-by-directory`, before anything else of the change is applied; resending the address it holds is no change
+/// and passes, so a screen sending the whole form is not refused.
+#[tokio::test]
+async fn the_address_of_an_account_the_directory_writes_is_the_directory_s() {
+    let (accounts, store, log) = service();
+    store.with(account(1, "admin", "ADMIN"));
+    let managed = User { email: Some("joe@corp.example".to_owned()), scim_managed: true, ..account(2, "joe", "USER") };
+    store.with(managed);
+
+    let refused = accounts
+        .update(
+            2,
+            AccountChange {
+                email: Some("joe@elsewhere.example".to_owned()),
+                is_active: Some(false),
+                ..AccountChange::default()
+            },
+            Some(1),
+            &actor(),
+        )
+        .await;
+    let Err(AccountError::ManagedByDirectory(username)) = &refused else { panic!("{refused:?}") };
+    assert_eq!(username, "joe");
+    assert_eq!(
+        refused.unwrap_err().to_string(),
+        "The e-mail address of joe is written by the SCIM directory, which would replace it on its next \
+         synchronisation: change it in the directory."
+    );
+    assert_eq!(vectispire_cp_access::accounts::MANAGED_BY_DIRECTORY, "managed-by-directory");
+    assert!(store.user(2).is_active, "nothing of the change applied");
+    assert!(store.writes().is_empty() && log.entries().is_empty());
+    assert!(matches!(accounts.update(2, email(""), Some(1), &actor()).await, Err(AccountError::ManagedByDirectory(_))));
+
+    // The address it holds, with its whitespace: no change, and the rest of the change goes through.
+    let kept = accounts
+        .update(
+            2,
+            AccountChange {
+                email: Some(" joe@corp.example ".to_owned()),
+                role: Some("CISO".to_owned()),
+                ..AccountChange::default()
+            },
+            Some(1),
+            &actor(),
+        )
+        .await
+        .unwrap();
+    assert_eq!((kept.user.email.as_deref(), kept.user.role.as_str()), (Some("joe@corp.example"), "CISO"));
+}
+
+/// A role an administrator sets clears the directory's record of the role it lowered the account out of (V93), and
+/// says so; a change that sets no role keeps it.
+#[tokio::test]
+async fn an_administrator_setting_the_role_lifts_the_directory_s_lowering() {
+    let (accounts, store, log) = service();
+    store.with(account(1, "admin", "ADMIN"));
+    store.with(User { scim_lowered_from: Some("CISO".to_owned()), ..account(2, "kim", "USER") });
+
+    accounts
+        .update(2, AccountChange { is_active: Some(false), ..AccountChange::default() }, Some(1), &actor())
+        .await
+        .unwrap();
+    assert_eq!(store.user(2).scim_lowered_from.as_deref(), Some("CISO"), "no role set, the record stays");
+
+    // The same role, set: the administrator has looked at the account.
+    accounts
+        .update(2, AccountChange { role: Some("user".to_owned()), ..AccountChange::default() }, Some(1), &actor())
+        .await
+        .unwrap();
+    assert_eq!(store.user(2).scim_lowered_from, None);
+    assert_eq!(
+        log.entries().last().unwrap().description,
+        "Account kim: role confirmed after the directory lowered it from CISO"
+    );
+}
+
+/// A creation reads the address as one too, and refuses one another account holds.
+#[tokio::test]
+async fn a_creation_s_address_is_read_and_checked_as_a_change_s() {
+    let (accounts, store, _) = service();
+    store.with(User { email: Some("taken@example.org".to_owned()), ..account(1, "admin", "ADMIN") });
+    let with = |address: &str| NewAccount {
+        username: Some("lee".to_owned()),
+        password: secret(PASSWORD),
+        email: Some(address.to_owned()),
+        ..NewAccount::default()
+    };
+    assert_eq!(
+        invalid(accounts.create(with("lee"), Some(1), &actor()).await),
+        "The e-mail address must read like name@example.org."
+    );
+    assert_eq!(
+        invalid(accounts.create(with("Taken@example.org"), Some(1), &actor()).await),
+        "The e-mail address Taken@example.org is already used by another account."
+    );
+    assert!(accounts.create(with("lee@example.org"), Some(1), &actor()).await.is_ok());
 }
 
 // ── lifting the password-change requirement ─────────────────────────────────────────────────────────────────

@@ -114,38 +114,90 @@ pub fn hash_with_salt(
 /// corrupt hash fails authentication rather than the endpoint, and an attacker cannot tell the two apart. The
 /// comparison is constant-time — an ordinary one stops at the first differing byte, and its duration measures how
 /// much of the hash was right.
+///
+/// **Unbounded**: a service calls [`verify_bounded`], under the process's [`crate::derivations`] bound. This one is
+/// the primitive, for the reference sets and the tests.
 pub fn verify(password: Option<&str>, encoded: Option<&str>) -> bool {
+    prepare(password, encoded).is_some_and(Prepared::matches)
+}
+
+/// [`verify`] under the derivation bound in force — `PasswordHasher.verify`, whose derivation runs through the gate.
+/// The permit is asked for only once the hash is one Argon2 derives — as Java's `derive` is reached only then — and
+/// for the stand-in hash exactly as for an account's, so a refusal says nothing about the account.
+///
+/// `Err` is **not** an answer about the password and must never be read as `false`: nothing was compared.
+pub async fn verify_bounded(
+    password: Option<&str>,
+    encoded: Option<&str>,
+) -> Result<bool, crate::derivations::DerivationsSaturated> {
+    match prepare(password, encoded) {
+        None => Ok(false),
+        Some(prepared) => crate::derivations::gate().run(move || prepared.matches()).await,
+    }
+}
+
+/// [`hash`] under the derivation bound in force — what an account created, a password reset or changed, and a rehash
+/// call.
+pub async fn hash_bounded(password: &str) -> Result<String, crate::derivations::DerivationsSaturated> {
+    crate::derivations::gate().run(|| hash(password)).await
+}
+
+/// [`hash_of_nothing_anybody_knows`] under the bound in force.
+pub async fn hash_of_nothing_anybody_knows_bounded() -> Result<String, crate::derivations::DerivationsSaturated> {
+    crate::derivations::gate().run(hash_of_nothing_anybody_knows).await
+}
+
+/// A hash read and found to be one Argon2 derives, and the password to derive: what is left of `verify` is the
+/// derivation and the comparison.
+struct Prepared<'a> {
+    password: &'a str,
+    salt: Vec<u8>,
+    expected: Vec<u8>,
+    memory: u32,
+    iterations: u32,
+    parallelism: u32,
+}
+
+impl Prepared<'_> {
+    fn matches(self) -> bool {
+        let Some(actual) = derive(self.password.as_bytes(), &self.salt, self.memory, self.iterations, self.parallelism)
+        else {
+            return false;
+        };
+        actual.as_slice().ct_eq(self.expected.as_slice()).into()
+    }
+}
+
+/// `PasswordHasher.verify` up to the derivation: `None` for every case it answers `false` before deriving.
+fn prepare<'a>(password: Option<&'a str>, encoded: Option<&str>) -> Option<Prepared<'a>> {
     let (Some(password), Some(encoded)) = (password, encoded) else {
-        return false;
+        return None;
     };
     if java_is_blank(encoded) {
-        return false;
+        return None;
     }
     let parts = java_split(encoded, '$');
     // ["", "argon2id", "v=19", "m=…,t=…,p=…", salt, hash] — `v=` is not read, as Java does not read it.
     let [_, algorithm, _, parameters, salt, expected] = parts.as_slice() else {
-        return false;
+        return None;
     };
     if *algorithm != "argon2id" {
-        return false;
+        return None;
     }
     let (Some(memory), Some(iterations), Some(parallelism)) =
         (int_parameter(parameters, "m="), int_parameter(parameters, "t="), int_parameter(parameters, "p="))
     else {
-        return false;
+        return None;
     };
     let (Ok(salt), Ok(expected)) = (DECODER.decode(salt), DECODER.decode(expected)) else {
-        return false;
+        return None;
     };
     let (Ok(memory), Ok(iterations), Ok(parallelism)) =
         (u32::try_from(memory), u32::try_from(iterations), u32::try_from(parallelism))
     else {
-        return false;
+        return None;
     };
-    let Some(actual) = derive(password.as_bytes(), &salt, memory, iterations, parallelism) else {
-        return false;
-    };
-    actual.as_slice().ct_eq(expected.as_slice()).into()
+    Some(Prepared { password, salt, expected, memory, iterations, parallelism })
 }
 
 /// Whether a stored hash was made under weaker parameters than today's — `PasswordHasher.needsRehash`, which

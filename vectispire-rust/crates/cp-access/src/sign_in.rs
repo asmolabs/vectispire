@@ -263,12 +263,17 @@ pub enum SignInError {
     Store(#[from] StoreError),
     #[error(transparent)]
     Encryption(#[from] EncryptionError),
+    /// `DerivationsSaturated`: every derivation permit was taken and the password was never compared — 503 with
+    /// `Retry-After` ([`crate::derivations::DerivationsSaturated::problem`]), the attempt's rows taken back.
+    #[error(transparent)]
+    Saturated(#[from] crate::derivations::DerivationsSaturated),
 }
 
 impl From<AccountError> for SignInError {
     fn from(error: AccountError) -> SignInError {
         match error {
             AccountError::Store(store) => SignInError::Store(store),
+            AccountError::Saturated(saturated) => SignInError::Saturated(saturated),
             // The lookup and the derivation raise nothing else; kept opaque rather than lost.
             other => SignInError::Store(StoreError(other.to_string().into())),
         }
@@ -280,6 +285,7 @@ impl From<SecondFactorError> for SignInError {
         match error {
             SecondFactorError::Store(store) => SignInError::Store(store),
             SecondFactorError::Encryption(encryption) => SignInError::Encryption(encryption),
+            SecondFactorError::Saturated(saturated) => SignInError::Saturated(saturated),
             // `verify` raises neither a refusal nor a missing account.
             other => SignInError::Store(StoreError(other.to_string().into())),
         }
@@ -457,7 +463,16 @@ where
 
         // **One key derivation whatever the name**, so the answer's timing says nothing.
         let account = user.clone();
-        let authenticated = verify_sign_in(user, Some(request.password));
+        let authenticated = match verify_sign_in(user, Some(request.password)).await {
+            Ok(authenticated) => authenticated,
+            Err(saturated) => {
+                // **Busy is not a failure.** Every derivation permit is taken: the password was never compared, so the
+                // attempt's rows are taken back — counted, a person retrying through a saturated minute would lock
+                // themselves out. It goes up as a 503 with `Retry-After`, the same for every name.
+                self.throttle().release(&throttle).await?;
+                return Err(saturated.into());
+            }
+        };
 
         // Past the budget, a right password is not enough and is answered as a wrong one is — the rows stay, nothing is
         // cleared — or the refusal would say which passwords were right. Only the code the owner sent with it, verified

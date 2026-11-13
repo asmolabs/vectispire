@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed from t_user where username = $1",
+  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, scim_managed, scim_lowered_from, totp_secret, mfa_backup_codes,\n               totp_last_step\n               from t_user where username = $1",
   "describe": {
     "columns": [
       {
@@ -38,6 +38,17 @@
       },
       {
         "ordinal": 3,
+        "name": "password",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "password"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "display_name",
         "type_info": "Varchar",
         "origin": {
@@ -48,7 +59,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "avatar_url",
         "type_info": "Varchar",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "role",
         "type_info": "Varchar",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "is_active",
         "type_info": "Bool",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "github_id",
         "type_info": "Varchar",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "keycloak_id",
         "type_info": "Varchar",
         "origin": {
@@ -103,8 +114,8 @@
         }
       },
       {
-        "ordinal": 9,
-        "name": "created_at",
+        "ordinal": 10,
+        "name": "created_at: UtcInstant",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -114,8 +125,8 @@
         }
       },
       {
-        "ordinal": 10,
-        "name": "updated_at",
+        "ordinal": 11,
+        "name": "updated_at: UtcInstant",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "must_change_password",
         "type_info": "Bool",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "mfa_enabled",
         "type_info": "Bool",
         "origin": {
@@ -147,13 +158,57 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "scim_managed",
         "type_info": "Bool",
         "origin": {
           "Table": {
             "table": "t_user",
             "name": "scim_managed"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "scim_lowered_from",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "scim_lowered_from"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "totp_secret",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "totp_secret"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "mfa_backup_codes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "mfa_backup_codes"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "totp_last_step",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "totp_last_step"
           }
         }
       }
@@ -169,6 +224,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       true,
@@ -177,8 +233,12 @@
       false,
       false,
       false,
-      false
+      false,
+      true,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "f642b3be407e8c9833b2574f788f3c0d2865f5584d5f0dd3c6eaa2b0a727f711"
+  "hash": "5c0f61f7c4e0988da60aae70da6e457cf3425045153f92df84e7dc4583b40872"
 }

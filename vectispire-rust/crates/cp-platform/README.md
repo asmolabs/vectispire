@@ -42,18 +42,16 @@ entries the compliance exports write, played in Java's place with invented hashe
 
 **Seams for the modules not ported yet.** `platform` may use any module in Java (decision 0029); it stays open in `cp-arch-tests`'
 `edges.toml`, and the crate uses `audit` and `settings`; the rest is asked through traits the binary fills: `Approvers`
-(`access`' `TriageApprovers`), `Tracker` (`tickets`' CA pinning), `AiDestination` (`ai`'s guard and acceptance record).
+(`access`' `TriageApprovers`), `Tracker` (`tickets`' CA pinning), `AiDestination` (`ai`'s guard and acceptance record), `AiEndpoint` (what `checkAiEndpoint` asks of `ai`); the
+notification channels a save configures are read here (`NotificationDestinations.configuredBy`) until `notifications`
+lands, and held through `settings`' integrations registry.
 The writer's two role properties come as a `Caller`, resolved by `access`.
 
 ## Differences from Java, on purpose
 
-- **A save's changes are written in one transaction.** `SettingsAdministrationService.update` validates every change
-  first and then writes each in a transaction of its own (`SettingsService.set`), so a write that fails half-way
-  leaves the earlier ones committed — the configuration between two intended states, which the validation-first
-  rule exists to prevent. `SettingsAdministration::update` writes them all in one read-write transaction: every
-  change or none. This was decided when the streams of Phase 1 were merged, and is kept: nothing a reader sees
-  differs when every write succeeds, and when one fails nothing of the save is left written here.
-  The acknowledgement of a remote AI destination is still stamped or erased after that commit, as in Java.
+- None left in the settings save: Java 1.0 writes a save's changes in one transaction as this crate did before it
+  (decision 0040, lot I6, which holds the notification channels a save configures in that transaction), and stamps or
+  erases the AI acknowledgement inside it — as `SettingsAdministration::update` now does too.
 
 ## Not here yet
 
@@ -61,7 +59,6 @@ The writer's two role properties come as a `Caller`, resolved by `access`.
   in the binary; the token, CA and secret states and doors need `tickets`, `notifications` and `ai`.
 - The four credential doors (tracker token, webhook signing secret, OpenAI key, inbound webhook secret), which encrypt
   before storing and ask the tracker about its token: `crypto`, `tickets`, `notifications`, `ai`.
-- The AI endpoint check (`checkAiEndpoint`): `ai`.
 
 ```sh
 cargo test -p vectispire-cp-platform     # the forms' and routes' unit tests, the contract, the service on both engines (Docker)

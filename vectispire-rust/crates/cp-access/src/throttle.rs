@@ -255,9 +255,15 @@ pub(crate) fn client(ip_address: Option<&str>) -> &str {
 /// The password budget [`crate::accounts::Accounts::change_own_password`] spends: `reservePassword` and
 /// `clearPasswordFailures`, the wait truncated to whole seconds as Java's `toSeconds()` truncates it.
 impl<T: SignInStore> PasswordAttempts for Throttle<T> {
-    async fn reserve(&self, account_id: i64, ip_address: Option<&str>) -> Result<(), StoreOr<u64>> {
+    type Held = Reservation;
+
+    async fn reserve(&self, account_id: i64, ip_address: Option<&str>) -> Result<Reservation, StoreOr<u64>> {
         let reservation = self.reserve_password(account_id, ip_address).await.map_err(StoreOr::Store)?;
-        if reservation.admitted() { Ok(()) } else { Err(StoreOr::Refused(reservation.retry_after_seconds())) }
+        if reservation.admitted() { Ok(reservation) } else { Err(StoreOr::Refused(reservation.retry_after_seconds())) }
+    }
+
+    async fn release(&self, held: &Reservation) -> Result<(), StoreError> {
+        Throttle::release(self, held).await
     }
 
     async fn clear(&self, account_id: i64, ip_address: Option<&str>) -> Result<(), StoreError> {

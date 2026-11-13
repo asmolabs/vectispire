@@ -375,7 +375,7 @@ async fn enrolled_and_challenged(
     let secret = totp::generate_secret();
     let codes = flow
         .second_factor()
-        .enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap())
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
         .await
         .unwrap()
         .into_iter()
@@ -671,7 +671,7 @@ async fn past_the_budget_the_second_factor_sent_with_the_password_opens_the_way_
     store.add(account(1, "carol", true));
     // The step before: the code sent with the password must be a later one.
     let enrolment = totp::generate_code(&secret, NOW - Duration::seconds(30)).unwrap();
-    flow.second_factor().enable(1, &secret, &enrolment).await.unwrap();
+    flow.second_factor().enable(1, PASSWORD, &secret, &enrolment, None, None).await.unwrap();
     store.seed_attempts(&account_key(1), MAX_ATTEMPTS_PER_ACCOUNT, NOW);
     let code = totp::generate_code(&secret, NOW).unwrap();
 
@@ -737,7 +737,11 @@ async fn enrolment_seals_the_secret_and_eight_codes_under_java_s_contexts() {
     let (flow, store, log, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    let codes = flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    let codes = flow
+        .second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     assert_eq!(codes.len(), 8);
 
     let user = store.user(3);
@@ -759,19 +763,85 @@ async fn enrolment_refuses_a_wrong_code_and_an_active_factor() {
     let (flow, store, _, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    let wrong = flow.second_factor().enable(3, &secret, "000000").await;
+    let wrong = flow.second_factor().enable(3, PASSWORD, &secret, "000000", None, None).await;
     assert!(matches!(wrong, Err(SecondFactorError::InvalidInput(INVALID_ENROLMENT_CODE))), "{wrong:?}");
     assert!(!store.user(3).mfa_enabled);
 
-    flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    flow.second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     let attacker = totp::generate_secret();
-    let over = flow.second_factor().enable(3, &attacker, &totp::generate_code(&attacker, NOW).unwrap()).await;
+    let over = flow
+        .second_factor()
+        .enable(3, PASSWORD, &attacker, &totp::generate_code(&attacker, NOW).unwrap(), None, None)
+        .await;
     assert!(matches!(over, Err(SecondFactorError::InvalidInput(ALREADY_ENABLED))), "{over:?}");
     assert_eq!(
         ALREADY_ENABLED,
         "MFA is already enabled. Disable it with a current code before enrolling a new device."
     );
-    assert!(matches!(flow.second_factor().enable(99, &secret, "0").await, Err(SecondFactorError::AccountMissing)));
+    assert!(matches!(
+        flow.second_factor().enable(99, PASSWORD, &secret, "0", None, None).await,
+        Err(SecondFactorError::AccountMissing)
+    ));
+}
+
+/// `TotpService.enable` asks the current password again (`MfaEnableRequest.password`): a session alone — stolen, or
+/// left open on a desk — put the account's second factor on somebody else's phone. A wrong password spends the
+/// account's budget and is recorded; past the budget the attempt is refused before any derivation, and recorded too;
+/// the right one clears this client's failures.
+#[tokio::test]
+async fn enrolment_asks_the_current_password_and_spends_the_account_s_budget() {
+    let clock = clock();
+    let (flow, store, log, _) = flow(shared(&clock));
+    store.add(account(3, "carol", true));
+    let secret = totp::generate_secret();
+    let code = totp::generate_code(&secret, NOW).unwrap();
+    let from_here = account_key_from_client(3, "198.51.100.4");
+
+    let wrong = flow
+        .second_factor()
+        .enable(3, "not the password at all", &secret, &code, Some("198.51.100.4"), Some("ua"))
+        .await;
+    assert!(matches!(wrong, Err(SecondFactorError::CurrentPasswordWrong)), "{wrong:?}");
+    assert_eq!(SecondFactorError::CurrentPasswordWrong.to_string(), "Current password is incorrect.");
+    assert!(!store.user(3).mfa_enabled, "nothing enrolled on a wrong password");
+    assert_eq!(store.attempts_under(&from_here), 1, "the reservation stays: it is this failure");
+    let entry = log.last();
+    assert_eq!(entry.operation, AuditOperation::LoginFailure);
+    assert_eq!(
+        (entry.resource.as_str(), entry.description.as_str(), entry.username.as_deref()),
+        ("3", "MFA enrolment refused: the current password was wrong", Some("carol"))
+    );
+    assert_eq!(
+        (entry.ip_address.as_deref(), entry.user_agent.as_deref(), entry.signal),
+        (Some("198.51.100.4"), Some("ua"), None)
+    );
+
+    // The right password clears this client's failures, then enrols.
+    flow.second_factor().enable(3, PASSWORD, &secret, &code, Some("198.51.100.4"), Some("ua")).await.unwrap();
+    assert!(store.user(3).mfa_enabled);
+    assert_eq!(store.attempts_under(&from_here), 0);
+
+    // Past the budget from this client: refused before any password is compared, the right one included.
+    store.add(account(4, "dave", true));
+    store.seed_attempts(&account_key_from_client(4, "198.51.100.4"), MAX_ATTEMPTS_PER_USER, NOW);
+    let locked = flow.second_factor().enable(4, PASSWORD, &secret, &code, Some("198.51.100.4"), None).await;
+    let Err(SecondFactorError::PasswordLocked { retry_after }) = locked else { panic!("{locked:?}") };
+    assert!(retry_after > Duration::ZERO);
+    assert_eq!(
+        SecondFactorError::PasswordLocked { retry_after }.to_string(),
+        "Too many wrong passwords. Try again later."
+    );
+    assert!(!store.user(4).mfa_enabled);
+    let entry = log.last();
+    assert_eq!(entry.operation, AuditOperation::LoginBlocked);
+    assert_eq!(
+        entry.description,
+        format!("MFA enrolment refused by the throttle ({}s to wait)", retry_after.whole_seconds())
+    );
+    assert_eq!((entry.resource.as_str(), entry.signal), ("4", Some("SIGN_IN_THROTTLED")));
 }
 
 #[tokio::test]
@@ -780,7 +850,10 @@ async fn a_code_opens_once_and_the_enrolment_s_code_never() {
     let (flow, store, _, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    flow.second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     let factor = flow.second_factor();
 
     assert!(!factor.verify(&store.user(3), totp::generate_code(&secret, NOW).as_deref()).await.unwrap(), "spent");
@@ -795,7 +868,11 @@ async fn nothing_opens_a_disabled_factor_and_a_blank_code_opens_nothing() {
     let (flow, store, _, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    let codes = flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    let codes = flow
+        .second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     let factor = flow.second_factor();
     for blank in [None, Some(""), Some("   "), Some("\u{2003}")] {
         assert!(!factor.verify(&store.user(3), blank).await.unwrap(), "{blank:?}");
@@ -811,7 +888,11 @@ async fn a_backup_code_is_spent_once_and_audited() {
     let (flow, store, log, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    let codes = flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    let codes = flow
+        .second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     let factor = flow.second_factor();
     let (first, second) = (store.user(3), store.user(3));
 
@@ -853,7 +934,11 @@ async fn disabling_spends_the_same_budget_and_wants_a_right_code() {
     let (flow, store, log, _) = flow(shared(&clock));
     store.add(account(3, "carol", true));
     let secret = totp::generate_secret();
-    let codes = flow.second_factor().enable(3, &secret, &totp::generate_code(&secret, NOW).unwrap()).await.unwrap();
+    let codes = flow
+        .second_factor()
+        .enable(3, PASSWORD, &secret, &totp::generate_code(&secret, NOW).unwrap(), None, None)
+        .await
+        .unwrap();
     let factor = flow.second_factor();
 
     let wrong = factor.disable(3, "000000").await;

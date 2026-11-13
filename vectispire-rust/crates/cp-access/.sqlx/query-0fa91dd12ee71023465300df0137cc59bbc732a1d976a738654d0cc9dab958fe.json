@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step\n               from t_user order by username asc",
+  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, scim_managed, scim_lowered_from, totp_secret, mfa_backup_codes,\n               totp_last_step\n               from t_user where id = $1",
   "describe": {
     "columns": [
       {
@@ -170,6 +170,17 @@
       },
       {
         "ordinal": 15,
+        "name": "scim_lowered_from",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_user",
+            "name": "scim_lowered_from"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
         "name": "totp_secret",
         "type_info": "Text",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "mfa_backup_codes",
         "type_info": "Text",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "totp_last_step",
         "type_info": "Int8",
         "origin": {
@@ -203,7 +214,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int8"
+      ]
     },
     "nullable": [
       false,
@@ -223,8 +236,9 @@
       false,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "07ff409fd2242b599d920ad416fee254d46741bef9cfa1f5d22c64f3d3369449"
+  "hash": "0fa91dd12ee71023465300df0137cc59bbc732a1d976a738654d0cc9dab958fe"
 }
