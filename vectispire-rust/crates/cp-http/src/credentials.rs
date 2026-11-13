@@ -28,6 +28,13 @@ pub trait Credentials: Send + Sync + std::fmt::Debug {
     fn scim<'a>(&'a self, token: &'a str) -> BoxFuture<'a, bool>;
 }
 
+/// The metrics scrape token in force — `ScrapeTokenProperties.token()`: the file's when one is named, **read at each
+/// call** so a rotated secret takes effect without a restart, else the value's. `Ok(None)`: no scraper is configured,
+/// and the Prometheus page answers an administrator's session only. `Err`: the file named cannot be read.
+pub trait ScrapeToken: Send + Sync + std::fmt::Debug {
+    fn token(&self) -> Result<Option<vectispire_domain::secret::Secret>, String>;
+}
+
 /// Constant-time equality of two secrets of any length — the comparison for every token, key hash and MAC.
 pub fn secret_equals(a: &str, b: &str) -> bool {
     a.as_bytes().ct_eq(b.as_bytes()).into()

@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use time::OffsetDateTime;
 use vectispire_cp_audit::{AuditLog, AuditOperation, Clock, RequestActor, Signal};
-use vectispire_cp_crypto::Encryption;
+use vectispire_cp_crypto::{CensusFuture, Counter, Encryption, SealedStore};
 use vectispire_cp_db::Tx;
 use vectispire_cp_db::{Db, Mode};
 use vectispire_cp_settings::{Integrations, THRESHOLDS};
@@ -190,6 +190,17 @@ impl SiemExporterService {
     ) -> SiemExporterService {
         let integrations = registry(&db, &clock);
         SiemExporterService { db, integrations, transport, encryption, audit, clock }
+    }
+
+    /// How the stored authorization header is sealed — `SiemExporterService.census()`: the one row, read when asked.
+    /// Before a rotation is called finished, a header still under the previous key would be dropped without a word
+    /// the day that key leaves: the collector would then be sent nothing it can authenticate.
+    async fn header_census(&self) -> Result<Vec<vectispire_cp_crypto::StoreCensus>, SiemError> {
+        let mut counter = Counter::new("SIEM authorization header", "set the header again on the SIEM settings");
+        if let Some(row) = persistence::find(&self.db).await? {
+            counter = counter.count(self.encryption.seal_of(row.auth_header.as_deref(), AUTH_HEADER_CONTEXT).await);
+        }
+        Ok(vec![counter.done()])
     }
 
     /// The stored configuration, or `None` before the first save.
@@ -605,4 +616,10 @@ fn require_usable_header(header: &str) -> Result<(), SiemError> {
         ));
     }
     Ok(())
+}
+
+impl SealedStore for SiemExporterService {
+    fn census(&self) -> CensusFuture<'_> {
+        Box::pin(async move { self.header_census().await.map_err(|error| error.to_string()) })
+    }
 }

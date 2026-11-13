@@ -155,6 +155,131 @@ fn a_database_that_does_not_answer_does_not_hold_the_stop() {
     drop(held);
 }
 
+/// One `GET`, as a scraper or a probe sends it: the status line and the body.
+fn get(port: u16, path: &str, authorization: Option<&str>) -> (String, String) {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(20))).unwrap();
+    let header = authorization.map(|value| format!("Authorization: {value}\r\n")).unwrap_or_default();
+    write!(stream, "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{header}Connection: close\r\n\r\n").unwrap();
+    let mut answer = String::new();
+    stream.read_to_string(&mut answer).unwrap();
+    let (head, body) = answer.split_once("\r\n\r\n").unwrap_or((&answer, ""));
+    (head.lines().next().unwrap_or_default().to_owned(), body.to_owned())
+}
+
+/// The binary while it serves; killed if a test fails before it stops it, so no process outlives the run holding its
+/// port.
+struct Serving {
+    child: std::process::Child,
+    lines: Option<std::io::Lines<BufReader<std::process::ChildStdout>>>,
+}
+
+impl Drop for Serving {
+    fn drop(&mut self) {
+        if self.lines.is_some() {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+}
+
+/// The binary, started, once it listens.
+fn serving(port: u16, variables: &[(&str, &str)]) -> Serving {
+    let mut child = command(variables).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let mut lines = BufReader::new(stdout).lines();
+    let mut seen = Vec::new();
+    loop {
+        let Some(line) = lines.next() else {
+            let mut stderr = String::new();
+            std::io::Read::read_to_string(&mut child.stderr.take().unwrap(), &mut stderr).unwrap();
+            panic!("the process ended before it started: {seen:#?}\n{stderr}");
+        };
+        let line = line.unwrap();
+        seen.push(line.clone());
+        if line.contains("Started vectispire") {
+            break;
+        }
+    }
+    let serving = Serving { child, lines: Some(lines) };
+    // The start line is written before the listener binds: wait for it.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while std::net::TcpStream::connect(("127.0.0.1", port)).is_err() {
+        assert!(Instant::now() < deadline, "nothing listens on {port}: {seen:#?}");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    serving
+}
+
+fn stop(mut serving: Serving) {
+    let killed = Command::new("kill").args(["-TERM", &serving.child.id().to_string()]).status().unwrap();
+    assert!(killed.success());
+    let rest: Vec<String> = serving.lines.take().into_iter().flatten().map(Result::unwrap).collect();
+    assert!(serving.child.wait().unwrap().success(), "{rest:#?}");
+}
+
+const SCRAPE_TOKEN: &str = "binary-test-scrape-token-0123456789abcdef";
+
+/// The actuator is mounted on the binary's router and answers with **no database**: the probe, and the refusals of
+/// what needs a credential. The address here refuses every connection, and neither the start nor these wait on it.
+#[test]
+fn the_actuator_is_mounted_and_its_probe_needs_no_database() {
+    let server = serving(
+        3183,
+        &[
+            ("VECTISPIRE_PORT", "3183"),
+            ("VECTISPIRE_DB_URL", "jdbc:mysql://127.0.0.1:9/vectispire"),
+            ("VECTISPIRE_METRICS_SCRAPE_TOKEN", SCRAPE_TOKEN),
+        ],
+    );
+    let (status, body) = get(3183, "/actuator/health/liveness", None);
+    assert!(status.contains(" 200 ") && body.contains("\"status\":\"UP\""), "{status}: {body}");
+    for page in ["/actuator/prometheus", "/actuator/encryption", "/actuator/metrics"] {
+        let (status, _) = get(3183, page, None);
+        assert!(status.contains(" 401 "), "{page}: {status}");
+    }
+    stop(server);
+}
+
+/// The scrape token configured in the environment reads the Prometheus page of the running binary — the gauges from
+/// their snapshot, NaN before the first tick — and nothing else. On a database, since a bearer is first looked up as a
+/// session, as Java's filter does.
+#[test]
+fn the_scrape_token_of_the_environment_reads_the_meters_of_the_running_binary() {
+    use vectispire_cp_db::Engine;
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let database = runtime.block_on(vectispire_cp_db::testing::TestDatabase::start(Engine::MySql));
+    // What this control plane reads of a URL: no driver parameter, TLS when the server offers it.
+    let url = database.jdbc_url().split('?').next().unwrap_or_default().to_owned();
+    let server = serving(
+        3184,
+        &[
+            ("VECTISPIRE_PORT", "3184"),
+            ("VECTISPIRE_DB_URL", &url),
+            ("VECTISPIRE_DB_USER", database.username()),
+            ("VECTISPIRE_DB_PASSWORD", database.password()),
+            ("VECTISPIRE_METRICS_SCRAPE_TOKEN", SCRAPE_TOKEN),
+        ],
+    );
+    let scraper = format!("Bearer {SCRAPE_TOKEN}");
+    let (status, page) = get(3184, "/actuator/prometheus", Some(&scraper));
+    assert!(status.contains(" 200 "), "{status}: {page}");
+    assert!(page.contains("# TYPE vectispire_scans_queued gauge\n"), "{page}");
+    assert!(page.contains("vectispire_scans_queued{application=\"vectispire\",kind=\"repository\"} NaN\n"), "{page}");
+    for elsewhere in ["/actuator/encryption", "/actuator/metrics", "/api/v1/auth/me"] {
+        let (status, _) = get(3184, elsewhere, Some(&scraper));
+        assert!(status.contains(" 401 "), "the token opens the Prometheus page alone: {elsewhere} {status}");
+    }
+    let (status, _) = get(3184, "/actuator/prometheus", Some("Bearer binary-test-scrape-token-0123456789abcdeX"));
+    assert!(status.contains(" 401 "), "{status}");
+    stop(server);
+    drop(database);
+}
+
 #[test]
 fn a_log_format_it_does_not_know_stops_it_before_it_serves() {
     let output = command(&[("VECTISPIRE_LOG_FORMAT", "xml")]).output().unwrap();

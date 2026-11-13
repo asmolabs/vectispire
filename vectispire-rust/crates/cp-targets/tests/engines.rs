@@ -504,8 +504,21 @@ async fn credentials_are_stored_encrypted_under_their_contexts(db: &Db) {
 
     let keys = targets.ssh_keys(None, None).await.unwrap();
     assert_eq!(keys.iter().find(|view| view.id == key.id).map(|view| view.encryption_state.as_str()), Some("current"));
+    // The encryption census counts both stores by the key that sealed each row (`/actuator/encryption`).
+    let census = |lines: Vec<vectispire_cp_crypto::StoreCensus>| -> Vec<(String, [u64; 4])> {
+        lines.into_iter().map(|l| (l.store, [l.current, l.previous_key, l.unreadable, l.clear])).collect()
+    };
+    let before = census(vectispire_cp_crypto::SealedStore::census(&*targets).await.unwrap());
+    assert_eq!(
+        before.iter().map(|(store, _)| store.as_str()).collect::<Vec<_>>(),
+        ["HTTPS clone tokens", "SSH deploy keys"]
+    );
+    assert!(before.iter().all(|(_, counts)| counts[0] >= 1 && counts[1..] == [0, 0, 0]), "{before:?}");
     // Unreadable once its ciphertext is not what this key wrote.
     exec(db, &format!("update t_ssh_key set private_key = 'v2:AAAA' where id = '{}'", key.id)).await;
+    let after = census(vectispire_cp_crypto::SealedStore::census(&*targets).await.unwrap());
+    assert_eq!(after[0], before[0]);
+    assert_eq!(after[1].1, [before[1].1[0] - 1, 0, 1, 0], "{after:?}");
     let keys = targets.ssh_keys(None, None).await.unwrap();
     assert_eq!(
         keys.iter().find(|view| view.id == key.id).map(|view| view.encryption_state.as_str()),

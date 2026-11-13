@@ -28,6 +28,9 @@ tokio.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 # Infrastructure under infrastructure (`edges.toml`: the contract uses no module): the pool and the engine.
 vectispire-cp-db = { path = "../cp-db", default-features = false }
+# …and the runtime, for the one thing of it the plan reads: the actuator's pages (`actuator::PAGES`), served outside the
+# contract by the binary.
+vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-domain.workspace = true
 tower = { version = "0.5", default-features = false, features = ["util"] }
 

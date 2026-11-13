@@ -6,10 +6,6 @@ ceiling 25
 # ── Requests outside the contract: the binary’s own answers, replayed once it composes the modules (2.11) ──
 outside DELETE /api/v1/auth/me | a method the route does not have: the binary’s 405, composed in 2.11
 outside GET / | the interface’s files and the error page: replayed with the composition (2.11)
-outside GET /actuator/health | the actuator, served by cp-runtime: replayed with the composition (2.11)
-outside GET /actuator/health/liveness | the actuator, served by cp-runtime: replayed with the composition (2.11)
-outside GET /actuator/info | the actuator, served by cp-runtime: replayed with the composition (2.11)
-outside GET /actuator/metrics | the actuator, served by cp-runtime: replayed with the composition (2.11)
 outside GET /api/v1/no-such-endpoint | a path no route answers: the binary's 404, composed in 2.11
 outside GET /api/v1/no-such-route | a path no route answers: the binary's 404, composed in 2.11
 outside GET /error | the interface’s files and the error page: replayed with the composition (2.11)
@@ -17,6 +13,14 @@ outside GET /security | a path no route answers: the binary's 404, composed in 2
 outside GET /swagger-ui.html | the embedded contract and its viewer: replayed with the composition (2.11)
 outside GET /v3/api-docs | the embedded contract and its viewer: replayed with the composition (2.11)
 outside GET /v3/api-docs/swagger-config | the embedded contract and its viewer: replayed with the composition (2.11)
+
+# ── The actuator, composed in the replay as cp-app mounts it (2026-11-13): its answers no port can reproduce ──
+golden api.PrometheusScrapeTest/areAnAdministratorsSessionsOnly--008-GET-actuator_metrics | the binary's own answer: Java's list names the JVM's, Tomcat's and Hikari's meters, which this binary does not have (cp-runtime metrics.rs); the Vectispire meters are held to Java's in cp-app tests/actuator_composition.rs
+golden api.PrometheusScrapeTest/areAnAdministratorsSessionsOnly--014-GET-actuator_info | the binary's own answer: the Rust build is 2.0.0 (decided 2026-11-12) where Java's says 1.0.0-rc.2
+golden api.PrometheusScrapeTest/areAnAdministratorsSessionsOnly--026-GET-actuator_prometheus | the binary's own answer: Java's page carries the JVM's, Tomcat's and Hikari's meters, which this binary does not have; the Vectispire gauges' lines are held to Java's in cp-app tests/actuator_composition.rs
+golden api.PrometheusScrapeTest/servesTheMetersToTheScrapeToken--001-GET-actuator_prometheus | the scrape token is the suite's configuration, which the recorder hides («secret:1») and the replay mints anew; the page is the JVM's as well (above); the token is held in cp-http tests/actuator.rs and cp-app tests/binary.rs
+golden api.PrometheusScrapeTest/areAnAdministratorsSessionsOnly--020-GET-actuator_encryption | the census lacks the stores of modules not ported: TOTP secrets and backup codes (access, wave 1), forge connection tokens (forges), the tracker's token and webhook secret (tickets), the notification signing secret (notifications), the OpenAI key (ai); each port adds its line to cp-app's actuator.rs
+golden api.EncryptionCensusRoutesTest/listsEveryStore--001-GET-actuator_encryption | the census lacks the stores of modules not ported: TOTP secrets and backup codes (access, wave 1), forge connection tokens (forges), the tracker's token and webhook secret (tickets), the notification signing secret (notifications), the OpenAI key (ai); each port adds its line to cp-app's actuator.rs
 
 # ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
 golden api.AgentResultAuditRoutesTest/aFailedWriteIsRetried--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
@@ -29,7 +33,3 @@ golden api.OwaspReportAfterScanRoutesTest/anImageScanAsksForNothing--004-POST-ap
 golden api.OwaspReportAfterScanRoutesTest/modelReviewOffAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
 golden api.OwaspReportAfterScanRoutesTest/offAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
 golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
-
-# ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
-outside GET /actuator/prometheus | the actuator, cp-runtime — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)
-outside GET /actuator/encryption | the actuator, cp-runtime — 1.0.0-rc.2 addition — Phase 1 catch-up (CATCH-UP.md)

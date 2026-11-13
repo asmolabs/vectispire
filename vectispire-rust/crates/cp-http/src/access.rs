@@ -69,7 +69,13 @@ pub enum Gate {
     /// An administrator's **session** — not an agent key, not an integration key, not a session that still owes a
     /// password change — for the actuator endpoints beyond `health`.
     AdministratorSession,
+    /// The same, or the metrics scrape token's principal: `/actuator/prometheus`, matched exactly
+    /// (`ActuatorAccess.administratorSessionOrScraper`).
+    AdministratorSessionOrScraper,
 }
+
+/// The one path the scrape token opens, matched exactly — by the gate and by the layer that recognises the token.
+pub const PROMETHEUS: &str = "/actuator/prometheus";
 
 /// `springdoc`'s three paths, matched on the prefix: it appends group names and a trailing config path a literal
 /// list would miss, and `/v3/api-docs/swagger-config` is the one that leaves the UI blank when only it is refused.
@@ -111,6 +117,9 @@ pub fn gate(method: &str, path: &str, anonymous_api_docs: bool) -> Gate {
     }
     if under(path, "/api/v1/agent") || under(path, "/api/v1/tickets/webhook") || under(path, "/actuator/health") {
         return Gate::Open;
+    }
+    if path == PROMETHEUS {
+        return Gate::AdministratorSessionOrScraper;
     }
     if under(path, "/actuator") {
         return Gate::AdministratorSession;
@@ -232,6 +241,11 @@ mod tests {
         assert_eq!(gate("GET", "/actuator/info", false), Gate::AdministratorSession);
         assert_eq!(gate("GET", "/actuator", false), Gate::AdministratorSession);
         assert_eq!(gate("GET", "/actuator/healthy", false), Gate::AdministratorSession);
+        assert_eq!(gate("GET", "/actuator/encryption", false), Gate::AdministratorSession);
+        // The scrape token's page, and only it: exactly that path.
+        assert_eq!(gate("GET", "/actuator/prometheus", false), Gate::AdministratorSessionOrScraper);
+        assert_eq!(gate("GET", "/actuator/prometheus/", false), Gate::AdministratorSession);
+        assert_eq!(gate("GET", "/actuator/prometheus/x", false), Gate::AdministratorSession);
     }
 
     #[test]

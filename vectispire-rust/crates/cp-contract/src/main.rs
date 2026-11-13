@@ -19,7 +19,7 @@ use std::process::ExitCode;
 
 use std::collections::BTreeSet;
 
-use vectispire_cp_contract::recorded::deferred::{Deferred, check_list, coverage, listed};
+use vectispire_cp_contract::recorded::deferred::{Deferred, check_list, coverage, listed, served_outside};
 use vectispire_cp_contract::recorded::format::Recording;
 use vectispire_cp_contract::{Allowlist, Document};
 
@@ -53,9 +53,12 @@ fn replay_plan(dir: Option<&str>) -> ExitCode {
         err(&problem);
         return ExitCode::FAILURE;
     }
-    // Served is what has left the list of routes not ported: the contract's view, whichever crate serves it.
-    let served: BTreeSet<(String, String)> =
+    // Served is what has left the list of routes not ported: the contract's view, whichever crate serves it — and the
+    // actuator's pages no `outside` line covers any more, which the binary serves outside the contract.
+    let deferred = Deferred::committed();
+    let mut served: BTreeSet<(String, String)> =
         document.routes().into_iter().filter(|route| !not_ported.entries().contains(route)).collect();
+    served.extend(served_outside(&deferred, &vectispire_cp_runtime::actuator::PAGES));
     let all = match listed(&recording, &document, &served) {
         Ok(all) => all,
         Err(error) => {
@@ -74,7 +77,6 @@ fn replay_plan(dir: Option<&str>) -> ExitCode {
         all.len(),
         all.len().saturating_sub(owed).saturating_sub(outside)
     ));
-    let deferred = Deferred::committed();
     let files: Vec<String> = deferred.files.iter().map(|(label, lines, _)| format!("{label} {lines}")).collect();
     out(&format!("golden/deferred/ holds {} lines: {}\n", deferred.len(), files.join(", ")));
     let mut problems = check_list(&deferred, &document);

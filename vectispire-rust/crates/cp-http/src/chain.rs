@@ -22,10 +22,10 @@
 //! [`CHAIN`] names the layers and the route stage; a test drives a request through all of them and compares the order in
 //! which they ran with it, so that a layer moved "for tidiness" fails a test that says where it was.
 
-use crate::access::{self, Gate};
+use crate::access::{self, Gate, PROMETHEUS};
 use crate::address::{TrustedProxies, client_bucket};
 use crate::buckets::{Buckets, Clock, SystemClock};
-use crate::credentials::{AccessDenied, Audit, Credentials, SharedWindow};
+use crate::credentials::{AccessDenied, Audit, Credentials, ScrapeToken, SharedWindow, secret_equals};
 use crate::extract::ClientAddress;
 use crate::limits::{BodyLimits, Counting, too_large_detail};
 use crate::principal::{Credential, Principal};
@@ -144,6 +144,8 @@ pub struct Chain {
     pub(crate) credentials: Arc<dyn Credentials>,
     pub(crate) audit: Arc<dyn Audit>,
     shared_webhook: Option<Arc<dyn SharedWindow>>,
+    /// `vectispire.metrics.scrape-token`: absent, no scraper is recognised anywhere.
+    scrape_token: Option<Arc<dyn ScrapeToken>>,
     trace: Option<Trace>,
 }
 
@@ -187,6 +189,7 @@ impl Chain {
             credentials,
             audit,
             shared_webhook: None,
+            scrape_token: None,
             trace: None,
         }
     }
@@ -194,6 +197,12 @@ impl Chain {
     /// The webhook's second budget, counted across instances.
     pub fn with_shared_webhook_window(mut self, shared: Arc<dyn SharedWindow>) -> Chain {
         self.shared_webhook = Some(shared);
+        self
+    }
+
+    /// The metrics scrape token, recognised as a bearer on `/actuator/prometheus` and nowhere else.
+    pub fn with_scrape_token(mut self, token: Arc<dyn ScrapeToken>) -> Chain {
+        self.scrape_token = Some(token);
         self
     }
 
@@ -263,6 +272,8 @@ fn who(principal: &Principal) -> String {
     match (&principal.account, &principal.credential) {
         (Some(account), _) => principal.actor().unwrap_or_else(|| account.username.clone()),
         (None, Credential::Agent { agent }) => agent.clone(),
+        // Named, so a refusal's entry says the scrape token was used rather than "anonymous".
+        (None, Credential::MetricsScraper) => "metrics-scraper".to_owned(),
         (None, _) => "scim".to_owned(),
     }
 }
@@ -541,6 +552,31 @@ async fn bearer(State(chain): State<Arc<Chain>>, mut request: Request, next: Nex
         if principal.is_none() && is_scim_path(&path) && chain.credentials.scim(token).await {
             principal = Some(Principal::scim());
         }
+        // **The scrape token is the SCIM token's twin**: a static secret held by a third system — the monitoring —
+        // recognised on `/actuator/prometheus` alone and granting that page alone. Anywhere else it is an unknown
+        // bearer, refused and counted by the ceiling, as is a wrong token here.
+        if principal.is_none()
+            && path == PROMETHEUS
+            && let Some(source) = &chain.scrape_token
+        {
+            match source.token() {
+                Ok(Some(expected)) if secret_equals(token, expected.expose()) => {
+                    principal = Some(Principal::metrics_scraper());
+                }
+                Ok(_) => {}
+                // A file named and unreadable is fatal to the request, as `SecretFile.read` is: not an anonymous
+                // scrape, and not a token quietly ignored.
+                Err(error) => {
+                    tracing::error!("The metrics scrape token could not be read: {error}");
+                    return Problem::handler(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "The metrics scrape token could not be read.",
+                    )
+                    .at(&path)
+                    .into_response();
+                }
+            }
+        }
         if principal.is_none() {
             principal = chain.credentials.api_key(token).await;
         }
@@ -569,19 +605,21 @@ async fn access(State(chain): State<Arc<Chain>>, request: Request, next: Next) -
     chain.visit("access");
     let path = request.uri().path().to_owned();
     let principal = request.extensions().get::<Principal>().cloned();
-    match access::gate(request.method().as_str(), &path, chain.config.anonymous_api_docs) {
+    let gate = access::gate(request.method().as_str(), &path, chain.config.anonymous_api_docs);
+    match gate {
         Gate::Open => {}
         Gate::Authenticated => {
             if principal.is_none() {
                 return unauthenticated(&path).into_response();
             }
         }
-        Gate::AdministratorSession => {
+        Gate::AdministratorSession | Gate::AdministratorSessionOrScraper => {
             let Some(principal) = principal else { return unauthenticated(&path).into_response() };
             let administrator = principal.is_session()
                 && !principal.must_change_password()
                 && principal.role().is_some_and(|role| role.is_administrative());
-            if !administrator {
+            let scraper = gate == Gate::AdministratorSessionOrScraper && principal.is_metrics_scraper();
+            if !administrator && !scraper {
                 return refuse_denied(&chain, &request, Some(&principal));
             }
         }

@@ -98,20 +98,37 @@ not serve at all yet is ported with that module, not stood up alone during the c
       channels' in-use answer joins with the notifications module.*
 - [x] **Settings**: new `four_eyes_independence_days` (INTEGER, 30, TRIAGE), one setting became administrator-only,
       forge API roots with a query or fragment refused; `validation.json` moved. Red: `cp-settings --test reference_set`.
-- [ ] **Metrics**: `vectispire.metrics.scrape-token` / `-file` accepted as a bearer on `/actuator/prometheus` (declared
+- [x] **Metrics**: `vectispire.metrics.scrape-token` / `-file` accepted as a bearer on `/actuator/prometheus` (declared
       in the property table; not honoured yet). The loader now reads it as `ScrapeTokenProperties` does — the file's
       when named, read at each call, refused at start under 32 characters (`Settings::metrics`). Still owed: the Rust
       actuator serves no `/actuator/prometheus`, and recognising the token is `cp-http`'s chain.
+      *Done 2026-11-13 (`rust/p1-actuator`): `cp-runtime` writes the meters in the text format 0.0.4 as Micrometer does
+      (`metrics::tests`; the gauges `cp-app` registers held line for line to the page Java 1.0 recorded,
+      `cp-app --test actuator_composition`); `cp-http` recognises the token on that exact path only, compared in
+      constant time, a file that cannot be read failing the scrape (`cp-http --test actuator`); the binary mounts the
+      actuator behind the chain (`cp-app --test binary`). **Found on the way**: the binary mounted no actuator at all —
+      `/actuator/health` and its probes answered 404 — it does now. The actuator's index (`/actuator`) still lists
+      0.11's links: its reference (`reference/actuator/rc3-answers.json`) is rc3's, and no 1.0 recording says where
+      Java puts `prometheus` and `encryption` among them. Java's counters beside the gauges (above) are still not
+      ported, so the page has no `_total` series yet.*
 - [x] Audit operations list. Red: `cp-audit --test reference_set`.
 
 ## SIEM (`cp-siem`, `domain`)
 
-- [ ] Each transport is an integration: a disabled one holds delivery (`HeldDeliveryException`, attempts not counted);
+- [x] Each transport is an integration: a disabled one holds delivery (`HeldDeliveryException`, attempts not counted);
       an enabled save or a test over one answers 409 `integration-disabled`; the save runs in a transaction; no stop
       notice over a disabled transport, and the audit text says so; `census()` reports how the stored authorization
       header is sealed. Red: `domain --test siem_reference_set`.
       *Phase 1: all but the census, green (`siem_reference_set`, `cp-siem --test engines`, the outbox's `Held`); the
       port has no `/actuator/encryption` and so no census to report into yet.*
+      *Census done 2026-11-13 (`rust/p1-actuator`): `/actuator/encryption` served from `cp-crypto`'s `EncryptionCensus`
+      with the contributors the port has — the signing key and its record (cp-crypto), the clone tokens and deploy keys
+      (cp-targets), the SIEM header (cp-siem, `cp-siem --test engines`) — and the start's warning while a store needs a
+      previous key. Java's other seven stores have no Rust module yet and are not in the census: TOTP secrets and backup
+      codes (access), forge connection tokens (forges), the tracker's token and inbound webhook secret (tickets), the
+      notification signing secret (notifications), the OpenAI key (ai) — each port adds its line to
+      `cp-app/src/actuator.rs` (`cp-app --test actuator_composition` lists them). Until then the census's two 200
+      recordings are listed in `golden/deferred/_composition.txt`.*
 
 ## Targets, scanning, checklists, compliance
 

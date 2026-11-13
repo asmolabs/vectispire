@@ -131,6 +131,9 @@ pub enum Credential {
     Agent { agent: String },
     /// The identity provider's SCIM token, a principal on `/scim` and nowhere else.
     Scim,
+    /// The metrics scrape token (`ScrapeTokenProperties`): a principal on `/actuator/prometheus` and nowhere else, with
+    /// no account, no role and no visibility — the one authority, which only that page accepts.
+    MetricsScraper,
 }
 
 /// What a credential may see on its own, before its account's grants: an integration key issued for one target is
@@ -193,6 +196,16 @@ impl Principal {
     /// The SCIM client acts as an administrator on `/scim`: its authorities are `ROLE_ADMIN` and `SCOPE_SCIM`.
     pub fn scim() -> Principal {
         Principal { account: None, credential: Credential::Scim, grounds: Grounds::default() }
+    }
+
+    /// Whoever holds the scrape token — `VectispirePrincipal.ofMetricsScraper()`. The token is recognised on
+    /// `/actuator/prometheus` alone, so this principal never meets a route of the application.
+    pub fn metrics_scraper() -> Principal {
+        Principal { account: None, credential: Credential::MetricsScraper, grounds: Grounds::default() }
+    }
+
+    pub fn is_metrics_scraper(&self) -> bool {
+        matches!(self.credential, Credential::MetricsScraper)
     }
 
     /// The roles the principal's authorities carry.

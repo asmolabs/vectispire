@@ -547,6 +547,19 @@ async fn serve() -> ExitCode {
         vectispire_cp_app::siem::chain_broken_listeners(&siem),
     ));
 
+    // The actuator, before the router that mounts it: the pages are the runtime's, the census the modules'. Nothing of
+    // either reads the database before a request does.
+    let build = BuildInfo {
+        group: "vectispire".to_owned(),
+        artifact: "vectispire-core".to_owned(),
+        name: "vectispire-core".to_owned(),
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        time: None,
+    };
+    let app = App::new(settings.clone(), "vectispire", build);
+    let census = vectispire_cp_app::actuator::encryption_census(signing.clone(), targets.clone(), siem_service.clone());
+    app.actuator.serve_encryption(Arc::new(vectispire_cp_app::actuator::Census(census.clone())));
+
     let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
     let visibility = vectispire_cp_access::VisibilityService::new(
         db.clone(),
@@ -597,12 +610,16 @@ async fn serve() -> ExitCode {
     };
     // The webhook's second budget, counted by every instance in `t_rate_window` (`RateWindows`): without it each
     // instance behind a load balancer kept a ceiling of its own.
-    let chain = Arc::new(vectispire_cp_http::Chain::new(chain_config, creds, chain_audit).with_shared_webhook_window(
-        vectispire_cp_access::rate_windows::shared_webhook_window(
-            vectispire_cp_access::SqlSignInStore::new(db.clone()),
-            access_clock.clone(),
-        ),
-    ));
+    let chain = Arc::new(
+        vectispire_cp_http::Chain::new(chain_config, creds, chain_audit)
+            .with_shared_webhook_window(vectispire_cp_access::rate_windows::shared_webhook_window(
+                vectispire_cp_access::SqlSignInStore::new(db.clone()),
+                access_clock.clone(),
+            ))
+            // `/actuator/prometheus` alone takes it: a Prometheus server holds no session.
+            .with_scrape_token(Arc::new(vectispire_cp_app::actuator::ScrapeTokenOf(settings.metrics.clone()))),
+    );
+    let routes = routes.actuator(Arc::new(vectispire_cp_app::actuator::Pages(app.actuator.clone())));
     let router = match routes.build(&chain, None) {
         Ok(r) => r,
         Err(error) => {
@@ -634,7 +651,7 @@ async fn serve() -> ExitCode {
             Arc::new(vectispire_cp_maintenance::SystemClock),
         )),
     ));
-    for job in vectispire_cp_app::startup::ready_jobs(targets.clone(), repair) {
+    for job in vectispire_cp_app::startup::ready_jobs(targets.clone(), repair, census) {
         tokio::spawn(job.run());
     }
 
@@ -648,14 +665,6 @@ async fn serve() -> ExitCode {
         scanning: scanning.clone(),
     };
 
-    let build = BuildInfo {
-        group: "vectispire".to_owned(),
-        artifact: "vectispire-core".to_owned(),
-        name: "vectispire-core".to_owned(),
-        version: env!("CARGO_PKG_VERSION").to_owned(),
-        time: None,
-    };
-    let app = App::new(settings, "vectispire", build);
     // Before the first scheduling turn has run: each gauge reads NaN until its snapshot is taken.
     gauges.register(&app.metrics);
     // Before the "Started" line: a stop sent as soon as it is read must find the handlers in place.

@@ -20,6 +20,7 @@
 //! is absent and for one the caller may not see, or a refusal confirms the thing exists.
 
 use crate::access::Access;
+use crate::actuator::{self, ActuatorPages};
 use crate::chain::{Chain, refuse_denied, unauthenticated};
 use crate::credentials::BoxFuture;
 use crate::extract::Scoped;
@@ -32,7 +33,7 @@ use axum::extract::{Request, State};
 use axum::handler::Handler;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{MethodFilter, MethodRouter, on};
+use axum::routing::{MethodFilter, MethodRouter, get, on};
 use http::{HeaderValue, Method, StatusCode, header};
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
@@ -234,6 +235,7 @@ pub struct DuplicateRoute {
 pub struct Routes<V> {
     entries: Vec<RouteEntry>,
     visibility: Arc<dyn VisibilityOf<V>>,
+    actuator: Option<Arc<dyn ActuatorPages>>,
 }
 
 impl<V> std::fmt::Debug for Routes<V> {
@@ -244,7 +246,14 @@ impl<V> std::fmt::Debug for Routes<V> {
 
 impl<V: Clone + Send + Sync + 'static> Routes<V> {
     pub fn new(visibility: impl VisibilityOf<V> + 'static) -> Routes<V> {
-        Routes { entries: Vec::new(), visibility: Arc::new(visibility) }
+        Routes { entries: Vec::new(), visibility: Arc::new(visibility), actuator: None }
+    }
+
+    /// `/actuator` and everything below it, answered by `pages` behind the chain — which alone decides who reads them
+    /// ([`crate::actuator`]).
+    pub fn actuator(mut self, pages: Arc<dyn ActuatorPages>) -> Routes<V> {
+        self.actuator = Some(pages);
+        self
     }
 
     pub fn route(mut self, entry: RouteEntry) -> Routes<V> {
@@ -332,6 +341,10 @@ impl<V: Clone + Send + Sync + 'static> Routes<V> {
                 }
                 router = router.route(&routed, merged);
             }
+        }
+        if let Some(pages) = self.actuator {
+            let page = get(actuator::serve).with_state(pages);
+            router = router.route("/actuator", page.clone()).route("/actuator/{*rest}", page);
         }
         let router = match interface {
             Some(interface) => router.fallback_service(interface.into_service()),

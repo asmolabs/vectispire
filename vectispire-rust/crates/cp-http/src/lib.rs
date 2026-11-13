@@ -8,6 +8,7 @@
 //! |---|---|
 //! | [`chain`] | `SecurityConfiguration`'s chain: the layers, their order ([`chain::CHAIN`]), the CSP |
 //! | [`access`] | the `@Requires*` markers and `authorizeHttpRequests`' rules |
+//! | [`actuator`] | `/actuator/**` mounted behind the chain, outside the routes' own stages |
 //! | [`routes`] | the route builder (type-state), the route table, the 404 refusal |
 //! | [`problem`] | `ProblemResponses` and `ProblemDetail`: two writers, two shapes, Jackson's escaping |
 //! | [`address`] | `TrustedProxies` and `ClientBuckets` |
@@ -25,6 +26,7 @@
 #![forbid(unsafe_code)]
 
 pub mod access;
+pub mod actuator;
 pub mod address;
 pub mod buckets;
 pub mod chain;

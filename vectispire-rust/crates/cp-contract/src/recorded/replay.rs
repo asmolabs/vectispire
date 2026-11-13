@@ -81,14 +81,7 @@ impl Replayer<'_> {
     /// The route `request` reaches, and whether the router serves it.
     #[must_use]
     pub fn route(&self, method: &str, path: &str) -> (Option<(String, String)>, bool) {
-        match self.document.find(method, path) {
-            Some(operation) => {
-                let route = (operation.method.to_ascii_uppercase(), operation.path.clone());
-                let served = self.served.contains(&route);
-                (Some(route), served)
-            }
-            None => (None, false),
-        }
+        crate::recorded::deferred::place(self.document, self.served, method, path)
     }
 
     /// Replays every recording of `test` against a router of its own: an application's caches belong to one test,

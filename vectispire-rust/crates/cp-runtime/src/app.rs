@@ -32,7 +32,7 @@ impl App {
     pub fn new(settings: Settings, application: &str, build: BuildInfo) -> App {
         let health = Arc::new(Health::default());
         let metrics = Arc::new(Metrics::new(application));
-        let actuator = Arc::new(Actuator { health: health.clone(), metrics: metrics.clone(), build });
+        let actuator = Arc::new(Actuator::new(health.clone(), metrics.clone(), build));
         App { settings, health, metrics, actuator }
     }
 

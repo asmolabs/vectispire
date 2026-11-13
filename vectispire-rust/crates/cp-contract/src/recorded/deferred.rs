@@ -158,6 +158,41 @@ pub struct Listed {
     pub served: bool,
 }
 
+/// The route a request reaches: the contract's operation, or — for a request no operation answers — the path itself
+/// when the router serves it outside the contract (the actuator's pages, [`served_outside`]). Anything else is outside
+/// the contract and not served: an `outside` line covers it.
+#[must_use]
+pub fn place(
+    document: &Document,
+    served: &BTreeSet<(String, String)>,
+    method: &str,
+    path: &str,
+) -> (Option<(String, String)>, bool) {
+    match document.find(method, path) {
+        Some(operation) => {
+            let route = (operation.method.to_ascii_uppercase(), operation.path.clone());
+            let is_served = served.contains(&route);
+            (Some(route), is_served)
+        }
+        None => {
+            let literal = (method.to_ascii_uppercase(), path.to_owned());
+            if served.contains(&literal) { (Some(literal), true) } else { (None, false) }
+        }
+    }
+}
+
+/// The pages the router answers outside the contract that are owed a replay: every `GET` of `pages`, but those an
+/// `outside` line still covers — derived as the contract's routes are, so that removing the line is what makes a page
+/// owed.
+#[must_use]
+pub fn served_outside(deferred: &Deferred, pages: &[&str]) -> BTreeSet<(String, String)> {
+    pages
+        .iter()
+        .map(|page| ("GET".to_owned(), (*page).to_owned()))
+        .filter(|page| !deferred.outside.contains_key(page))
+        .collect()
+}
+
 /// Every recording of a passed test, read and placed — what is owed without replaying anything.
 pub fn listed(
     recording: &Recording,
@@ -169,10 +204,7 @@ pub fn listed(
         for file in &test.files {
             let exchange = recording.exchange(test, file).map_err(|error| error.to_string())?;
             let request = &exchange.request;
-            let route = document
-                .find(&request.method, &request.path)
-                .map(|operation| (operation.method.to_ascii_uppercase(), operation.path.clone()));
-            let is_served = route.as_ref().is_some_and(|route| served.contains(route));
+            let (route, is_served) = place(document, served, &request.method, &request.path);
             out.push(Listed {
                 name: test.golden_name(file),
                 method: request.method.clone(),

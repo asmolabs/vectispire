@@ -18,17 +18,17 @@ fn every_recorded_answer_is_reproduced_byte_for_byte() {
 
     let metrics = Arc::new(Metrics::new("vectispire"));
     metrics.gauge("vectispire.scans.queued", "Scans waiting for a worker or an agent to claim them", || 0.0);
-    let actuator = Actuator {
-        health: Arc::new(Health::default()),
+    let actuator = Actuator::new(
+        Arc::new(Health::default()),
         metrics,
-        build: BuildInfo {
+        BuildInfo {
             group: text(&build["group"]),
             artifact: text(&build["artifact"]),
             name: text(&build["name"]),
             version: text(&build["version"]),
             time: None,
         },
-    };
+    );
 
     let cases = recorded["cases"].as_array().unwrap();
     assert!(cases.len() >= 8, "{} recorded answers", cases.len());
