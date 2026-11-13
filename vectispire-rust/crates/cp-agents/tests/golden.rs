@@ -83,6 +83,16 @@ impl Minting for AccessMinting {
     fn password_verifies(&self, plain: &str, hash: &str) -> bool {
         phc::verify(plain, hash)
     }
+
+    /// The agent's own signature (`vectispire-crypto`, what the Rust agent sends), for the context it signs: `v2`. An
+    /// agent from before bound envelopes signed `v1`, which no Rust code makes — that announcement is not replayed.
+    fn sealing_signature(&self, version: &str, seed: &str, agent: &str, generation: i64, key: &str) -> Option<String> {
+        if version != "v2" {
+            return None;
+        }
+        let agent = uuid::Uuid::parse_str(agent).ok()?;
+        vectispire_crypto::ResultSigner::from_base64_seed(seed).ok()?.sign_sealing_key(agent, generation, key).ok()
+    }
 }
 
 /// `target_visibility` as the settings store holds it — a test that switches the installation to `assigned` seeds

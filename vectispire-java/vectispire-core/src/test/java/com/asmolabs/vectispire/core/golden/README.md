@@ -270,6 +270,17 @@ response that minted the token. Collected from:
 `correct horse battery staple` is never a secret. It is `ApiTestBase`'s fixture passphrase, in the
 source.
 
+Nor is one character repeated (`"t".repeat(8_193)`, a bound's padding under a credential's name): it carries
+nothing to guess, and hidden it lost its length, which is what the bound is about. Nor are the agents' fixture
+sealing keys (`FixtureSealingKeys`, by fingerprint), which stay literal wherever they show.
+
+**A sealing-key announcement's signature** (`POST /api/v1/agent/sealing-key`, a body with `signature`, `public_key`
+and `generation`) is written `«sealing-signature:v2:secret:S:uuid:U:<generation>:<key>»` when it verifies — by
+`SealingKeyAttestation`, or its `v1` for an agent from before bound envelopes — under the Ed25519 seed `«secret:S»`
+the test was shown, for the agent `«uuid:U»` it named, over a fixture key. Ed25519 is deterministic, but the agent's
+id and the pinned seed are the server's draws: the value would sign Java's agent, so the replay signs again with the
+seed its server answered and for its own agent's id. Any other signature is a secret, as before.
+
 Then, on every string, in this order:
 
 | rule | placeholder |
@@ -297,6 +308,7 @@ field:
 |---|---|
 | `code`, `totp`, `totpCode`, `mfaCode`, `otp` holding 6 to 8 digits, or a backup code `xxxx-xxxx` | `«one-time-code»`. Derived from a random secret and the clock, or drawn at random |
 | `window_key` | `<limit>:«window»:<digest>`. `RateWindows` numbers windows from the epoch |
+| `identity_guard`, when its row shows the identity it hashes | kept literal: `RepositoryIdentity.guard`, the SHA-256 of a repository's public identity, branch and sub-path (`main` and the root when the row does not show them), recognised by computing it from the row's `url_identity` — and only when that identity holds nothing a rule replaces. Numbered, a guard the test seeded was replayed as a random digest that collided with nothing; kept for a `service-<nanoTime>` repository, it was a digest of a name the replay draws afresh |
 | `totp_last_step` (an integer) | `«clock-step»` |
 | any field whose name contains `hash` and whose value is, after the rules above, 32 to 128 hex digits | `«sha256:N»`, numbered with the digests above. An audit entry's `entry_hash` and `previous_hash` keep their links: entry 2's `previous_hash` is entry 1's `«sha256:N»` |
 | a JSON integer in a table's range | the string `«t_<table>#N»` |

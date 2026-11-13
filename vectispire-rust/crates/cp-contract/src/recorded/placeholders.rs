@@ -80,6 +80,16 @@ pub enum Placeholder {
         label: String,
         ordinal: u32,
     },
+    /// `«sealing-signature:v2:secret:S:uuid:U:<generation>:<key>»`: an agent's signature over the sealing key it
+    /// announces, by the Ed25519 seed `«secret:S»` for agent `«uuid:U»` — Java's value signed Java's agent's id, so the
+    /// replay signs again, with the seed its own server answered and for its own agent (`Minting::sealing_signature`).
+    SealingSignature {
+        version: String,
+        seed: u32,
+        agent: u32,
+        generation: i64,
+        key: String,
+    },
 }
 
 /// Whose password a hash holds, as far as the recorder could tell.
@@ -107,6 +117,7 @@ struct Grammar {
     ordinal: Regex,
     password: Regex,
     pem: Regex,
+    sealing: Regex,
 }
 
 static GRAMMAR: LazyLock<Grammar> = LazyLock::new(|| Grammar {
@@ -114,6 +125,7 @@ static GRAMMAR: LazyLock<Grammar> = LazyLock::new(|| Grammar {
     ordinal: pattern(r"^(secret|sha256|sha256-prefix|port|uuid|n):([0-9]+)$"),
     password: pattern(r"^password-hash\((.*)\)$"),
     pem: pattern(r"^pem:([a-z0-9-]+):([0-9]+)$"),
+    sealing: pattern(r"^sealing-signature:(v[0-9]+):secret:([0-9]+):uuid:([0-9]+):([0-9]+):([A-Za-z0-9+/]+={0,2})$"),
 });
 
 fn ordinal_of(text: &str) -> Option<u32> {
@@ -173,6 +185,15 @@ pub fn placeholder(inner: &str) -> Option<Placeholder> {
             "?" => PasswordOf::Unknown,
             other => PasswordOf::Secret(ordinal_of(other.strip_prefix("secret:")?)?),
         }));
+    }
+    if let Some(found) = grammar.sealing.captures(inner) {
+        return Some(Placeholder::SealingSignature {
+            version: found.get(1)?.as_str().to_owned(),
+            seed: ordinal_of(found.get(2)?.as_str())?,
+            agent: ordinal_of(found.get(3)?.as_str())?,
+            generation: found.get(4)?.as_str().parse().ok()?,
+            key: found.get(5)?.as_str().to_owned(),
+        });
     }
     if let Some(found) = grammar.pem.captures(inner) {
         return Some(Placeholder::Pem {
@@ -234,6 +255,12 @@ pub trait Minting: Send + Sync {
     fn password_hash(&self, plain: &str) -> String;
     /// Whether `hash` holds `plain`.
     fn password_verifies(&self, plain: &str, hash: &str) -> bool;
+    /// The signature an agent holding the Ed25519 `seed` puts on the sealing key it announces (`SealingKeyAttestation`,
+    /// context `version`), or `None` when this replay cannot make one: the agents' crypto is not the contract's.
+    fn sealing_signature(&self, version: &str, seed: &str, agent: &str, generation: i64, key: &str) -> Option<String> {
+        let _ = (version, seed, agent, generation, key);
+        None
+    }
 }
 
 /// How a secret the replay must mint itself is minted: an API key when the test ever shows its stored prefix,
@@ -400,6 +427,8 @@ fn shape(placeholder: &Placeholder, sole_in_hash_field: bool) -> &'static str {
         Placeholder::Window => r"[0-9]+",
         Placeholder::ClockStep => r"-?[0-9]+",
         Placeholder::Pem { .. } => r"-----BEGIN [A-Z0-9 ]+-----[\s\S]*?-----END [A-Z0-9 ]+-----",
+        // Ed25519's sixty-four bytes in base64.
+        Placeholder::SealingSignature { .. } => r"[A-Za-z0-9+/]{86}==",
     }
 }
 
@@ -498,6 +527,16 @@ impl<'m> Bindings<'m> {
         };
         self.bind_secret(ordinal, &minted);
         minted
+    }
+
+    /// The signature `«sealing-signature:…»` names, made with the seed and the agent's id bound so far.
+    fn sealing_signature(&self, placeholder: &Placeholder) -> Option<String> {
+        let Placeholder::SealingSignature { version, seed, agent, generation, key } = placeholder else {
+            return None;
+        };
+        let seed = self.bound(Family::Secret, *seed)?;
+        let agent = self.bound(Family::Uuid, *agent)?;
+        self.minting.sealing_signature(version, seed, agent, *generation, key)
     }
 
     /// A clock value: the wall clock, and never before the previous one plus a microsecond — rows a test seeded one
@@ -675,6 +714,12 @@ impl<'m> Bindings<'m> {
                 Ok(fresh)
             }
             Placeholder::Pem { label, ordinal } => hidden(&format!("«pem:{label}:{ordinal}»")),
+            Placeholder::SealingSignature { .. } => self.sealing_signature(placeholder).ok_or_else(|| {
+                Unseedable(format!(
+                    "{} in `{field}`: the seed or the agent it names is not known yet, or this replay cannot sign it",
+                    describe(placeholder)
+                ))
+            }),
         }
     }
 
@@ -736,6 +781,7 @@ impl<'m> Bindings<'m> {
             Placeholder::Secret(n) => self.bound(Family::Secret, *n)?.to_owned(),
             Placeholder::SecretPrefix(n) => self.bound(Family::Secret, *n)?.chars().take(12).collect(),
             Placeholder::SecretHash(n) => self.minting.sha256_hex(self.bound(Family::Secret, *n)?),
+            Placeholder::SealingSignature { .. } => self.sealing_signature(placeholder)?,
             _ => return None,
         };
         // A hex digest may come in either case; everything else is exact.
@@ -869,6 +915,11 @@ impl<'m> Bindings<'m> {
                 }
             }
             Placeholder::Window | Placeholder::Sealed | Placeholder::ClockStep => Ok(()),
+            // Pinned in the expression when it can be made; otherwise nothing is known to hold it to.
+            Placeholder::SealingSignature { .. } => match self.sealing_signature(placeholder) {
+                Some(_) => Ok(()),
+                None => Err(format!("{} cannot be made by this replay", describe(placeholder))),
+            },
         }
     }
 }

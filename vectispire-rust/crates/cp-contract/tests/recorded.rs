@@ -622,3 +622,59 @@ fn rows_are_matched_one_to_one_and_in_every_kind() {
     );
     assert!(!rows(recorded, &made).is_empty(), "an update to another value");
 }
+
+/// `Fake`, and an agent's signature that shows what it was made of.
+struct Signs;
+
+impl Minting for Signs {
+    fn session_token(&self) -> String {
+        Fake.session_token()
+    }
+    fn api_key(&self) -> String {
+        Fake.api_key()
+    }
+    fn sha256_hex(&self, text: &str) -> String {
+        Fake.sha256_hex(text)
+    }
+    fn password_hash(&self, plain: &str) -> String {
+        Fake.password_hash(plain)
+    }
+    fn password_verifies(&self, plain: &str, hash: &str) -> bool {
+        Fake.password_verifies(plain, hash)
+    }
+    fn sealing_signature(&self, version: &str, seed: &str, agent: &str, generation: i64, key: &str) -> Option<String> {
+        Some(format!("{version}|{seed}|{agent}|{generation}|{key}"))
+    }
+}
+
+/// The sealing-key announcement's signature is made again, with the seed and the agent's id this replay bound: Java's
+/// signed Java's agent. Before either is known it cannot be made, and a replay that cannot sign does not send one.
+#[test]
+fn a_sealing_signature_is_signed_again_for_the_replays_agent() {
+    let template = "«sealing-signature:v2:secret:3:uuid:1:1000:MCowBQYDK2VuAyEA+/9=»";
+    assert_eq!(
+        segments(template),
+        vec![Segment::Placeholder(Placeholder::SealingSignature {
+            version: "v2".into(),
+            seed: 3,
+            agent: 1,
+            generation: 1000,
+            key: "MCowBQYDK2VuAyEA+/9=".into(),
+        })]
+    );
+
+    let mut b = Bindings::new(BTreeMap::new(), BTreeMap::new(), &Signs, OffsetDateTime::now_utc());
+    assert!(b.concrete(template, "signature", Context::Wire).is_err(), "no seed nor agent bound yet");
+    let agent = "0b7a3c1e-5d2f-4a8b-9c6d-1e2f3a4b5c6d";
+    assert!(b.match_text("«uuid:1»", agent, "id").is_ok());
+    assert!(b.match_text("«secret:3»", "the-replays-own-seed", "privatekey").is_ok());
+    assert_eq!(
+        b.concrete(template, "signature", Context::Wire).unwrap(),
+        format!("v2|the-replays-own-seed|{agent}|1000|MCowBQYDK2VuAyEA+/9=")
+    );
+
+    let mut unable = bindings();
+    assert!(unable.match_text("«uuid:1»", agent, "id").is_ok());
+    assert!(unable.match_text("«secret:3»", "the-replays-own-seed", "privatekey").is_ok());
+    assert!(unable.concrete(template, "signature", Context::Wire).is_err(), "a replay that cannot sign sends nothing");
+}

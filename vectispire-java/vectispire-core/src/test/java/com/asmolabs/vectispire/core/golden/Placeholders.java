@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.golden;
 
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
 
 /**
  * One test's placeholders: what a golden file says instead of a value that changes from run to run.
@@ -144,6 +146,10 @@ final class Placeholders {
     private final Map<String, Integer> digests = new HashMap<>();
     private final Map<String, Integer> pems = new HashMap<>();
     private final Map<String, Integer> ports = new HashMap<>();
+    /** A sealing-key announcement's signature the recorder could re-make, and the computation that makes it. */
+    private final Map<String, String> sealingSignatures = new HashMap<>();
+    /** Identity guards recognised as the digest of an identity the recording shows as it is. */
+    private final Set<String> literalGuards = new java.util.HashSet<>();
     private List<String> secretsLongestFirst = List.of();
 
     /** A table's identities: its base, and the first one this test may create. */
@@ -179,7 +185,8 @@ final class Placeholders {
     /** Registers a credential: it, its SHA-256 and, for an API key, its stored prefix are replaced from now on. */
     void registerSecret(String value) {
         if (value == null || value.length() < 6 || value.equals(FIXTURE_PASSWORD) || value.startsWith("«")
-                || secrets.containsKey(value)) {
+                || secrets.containsKey(value) || FixtureSealingKeys.isFixture(value)
+                || sealingSignatures.containsKey(value) || oneCharacterRepeated(value)) {
             return;
         }
         int ordinal = secrets.size() + 1;
@@ -193,6 +200,15 @@ final class Placeholders {
         List<String> sorted = new ArrayList<>(secrets.keySet());
         sorted.sort(Comparator.comparingInt(String::length).reversed());
         secretsLongestFirst = sorted;
+    }
+
+    /**
+     * {@code "t".repeat(8_193)}: a bound's padding under a credential's name, not a credential — one character
+     * repeated carries nothing to guess. Hidden, its length went with it, and the replay sent a token the bound let
+     * through ({@code IntegrationInputBoundsTest}). A short token ({@code ghp_abc}) is still a secret.
+     */
+    private static boolean oneCharacterRepeated(String value) {
+        return value.chars().distinct().count() == 1;
     }
 
     /** A password-shaped secret, tried against the password hashes the rows hold. */
@@ -227,6 +243,7 @@ final class Placeholders {
      */
     void collect(JsonNode node, String fieldName) {
         if (fieldName == null && node != null && node.isObject()) {
+            recogniseSealingSignature(node.path("request").path("body").path("json"));
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 collect(field.getValue(), field.getKey(), field.getKey().equals("request"));
             }
@@ -334,6 +351,7 @@ final class Placeholders {
             return node;
         }
         if (node.isObject()) {
+            recogniseIdentityGuard(node);
             // An updated row's column holds {from, to}: both are still that column's values.
             boolean change = fieldName != null && node.size() == 2 && node.has("from") && node.has("to");
             ObjectNode copy = JsonNodeFactory.instance.objectNode();
@@ -352,6 +370,11 @@ final class Placeholders {
             String text = node.asText();
             if (ONE_TIME_CODE_FIELDS.contains(field) && ONE_TIME_CODE.matcher(text).matches()) {
                 return JsonNodeFactory.instance.textNode("«one-time-code»");
+            }
+            // t_repository.identity_guard, when it is the guard of an identity its own row shows literally
+            // (literalGuards): kept, so the replay seeds Java's digest and Rust's must equal it.
+            if (field.equals("identity_guard") && literalGuards.contains(text)) {
+                return JsonNodeFactory.instance.textNode(text);
             }
             if (field.equals("window_key")) {
                 text = RATE_WINDOW.matcher(text).replaceFirst("$1:«window»:");
@@ -382,6 +405,10 @@ final class Placeholders {
     String render(String text) {
         if (text == null || text.isEmpty()) {
             return text;
+        }
+        String resigned = sealingSignatures.get(text);
+        if (resigned != null) {
+            return resigned;
         }
         // A PEM block whole, before anything inside it is read as a token. **A certificate stays literal**: it is
         // public, and an answer states what it reads from one — the subject, the expiry — so a replay sending a
@@ -438,6 +465,126 @@ final class Placeholders {
             out = out.replace(CERTIFICATE_SET_ASIDE + i + CERTIFICATE_SET_ASIDE, certificates.get(i));
         }
         return out;
+    }
+
+    /**
+     * {@code POST /api/v1/agent/sealing-key}'s signature, when the replay can make it again: {@code
+     * «sealing-signature:v2:secret:S:uuid:U:<generation>:<key>»}, the Ed25519 signature of {@link SealingKeyAttestation}
+     * ({@code v1}: of an agent from before bound envelopes) by the seed {@code «secret:S»} over agent {@code «uuid:U»},
+     * that generation and that key.
+     *
+     * <p><b>Why a computation, and not the value.</b> Ed25519 is deterministic, but what it signs is not: the agent's
+     * id, which the server draws at enrolment, and the seed, which {@code "public_key": "generate"} draws at pinning.
+     * Hidden as {@code «secret:N»}, the replay sent a minted token and no announcement could be accepted; kept, it
+     * would be a signature over Java's agent, which the replay's agent is not. Named this way, the replay signs with
+     * the seed its own server answered and for its own agent's id — what an agent does.
+     *
+     * <p>Only when it verifies, under a seed the test has shown and for an agent the test has named, over a key that
+     * is a fixture ({@link FixtureSealingKeys}): a signature by a key the test kept to itself, or moved onto another
+     * key, is still a {@code «secret:N»} — the replay sends something else that does not verify, as Java's did not.
+     */
+    private void recogniseSealingSignature(JsonNode body) {
+        JsonNode signature = body.path("signature");
+        JsonNode key = body.path("public_key");
+        JsonNode generation = body.path("generation");
+        if (!signature.isTextual() || !key.isTextual() || !generation.canConvertToLong()
+                || !FixtureSealingKeys.isFixture(key.asText()) || sealingSignatures.containsKey(signature.asText())) {
+            return;
+        }
+        for (Map.Entry<String, Integer> seed : secrets.entrySet()) {
+            String publicKey = ed25519PublicKey(seed.getKey());
+            if (publicKey == null) {
+                continue;
+            }
+            for (Map.Entry<String, Integer> agent : uuids.entrySet()) {
+                java.util.UUID id = java.util.UUID.fromString(agent.getKey());
+                String version = SealingKeyAttestation.verify(
+                                publicKey, id, generation.asLong(), key.asText(), signature.asText())
+                        ? "v2"
+                        : SealingKeyAttestation.signedByAPreviousAgent(
+                                        publicKey, id, generation.asLong(), key.asText(), signature.asText())
+                                ? "v1"
+                                : null;
+                if (version != null) {
+                    sealingSignatures.put(signature.asText(), "«sealing-signature:" + version + ":secret:" + seed.getValue()
+                            + ":uuid:" + agent.getValue() + ":" + generation.asLong() + ":" + key.asText() + "»");
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * {@code t_repository.identity_guard} is {@code RepositoryIdentity.guard}: the SHA-256 of the repository's identity,
+     * branch and sub-path, all public. Numbered, a guard the test seeded was replayed as a random digest that collided
+     * with nothing, and a twin Java refused was accepted ({@code RepositoryDuplicatesRoutesTest}). Kept only when this
+     * row — an inserted one, or an update's changes — shows the identity it hashes (branch and sub-path from the row,
+     * {@code main} and the root when it does not show them), and that identity renders as it is: a repository named
+     * {@code service-<nanoTime>} has a guard the replay's own name changes, which only a placeholder matches.
+     */
+    private void recogniseIdentityGuard(JsonNode row) {
+        List<String> guards = columnValues(row.get("identity_guard"));
+        List<String> identities = columnValues(row.get("url_identity"));
+        if (guards.isEmpty() || identities.isEmpty()) {
+            return;
+        }
+        List<String> branches = columnValues(row.get("branch"));
+        List<String> subPaths = columnValues(row.get("sub_path"));
+        for (String identity : identities) {
+            if (!staysLiteral(identity)) {
+                continue;
+            }
+            for (String branch : branches.isEmpty() ? List.of("main") : branches) {
+                for (String subPath : subPaths.isEmpty() ? List.of("") : subPaths) {
+                    String guard = Digests.sha256Fields(identity, branch, subPath);
+                    if (guards.contains(guard)) {
+                        literalGuards.add(guard);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether no rule would replace anything in this text — asked without rendering it, which would number what it
+     * holds out of the order the file shows it in.
+     */
+    private boolean staysLiteral(String text) {
+        return !LONG_NUMBER.matcher(text).find() && !IDENTITY.matcher(text).find() && !UUID.matcher(text).find()
+                && !LOOPBACK_PORT.matcher(text).find() && !HEX_DIGEST.matcher(text).find()
+                && !ISO_DATE_TIME.matcher(text).find() && secrets.keySet().stream().noneMatch(text::contains);
+    }
+
+    /** A row's column as written: its value, or an update's {@code from} and {@code to}; nulls left out. */
+    private static List<String> columnValues(JsonNode column) {
+        if (column == null) {
+            return List.of();
+        }
+        if (column.isTextual()) {
+            return List.of(column.asText());
+        }
+        List<String> values = new ArrayList<>();
+        for (String side : List.of("from", "to")) {
+            if (column.path(side).isTextual()) {
+                values.add(column.path(side).asText());
+            }
+        }
+        return values;
+    }
+
+    /** The public half of an Ed25519 seed, base64 as the control plane pins it; null for anything else. */
+    private static String ed25519PublicKey(String base64Seed) {
+        byte[] seed;
+        try {
+            seed = java.util.Base64.getDecoder().decode(base64Seed);
+        } catch (IllegalArgumentException notBase64) {
+            return null;
+        }
+        if (seed.length != Ed25519PrivateKeyParameters.KEY_SIZE) {
+            return null;
+        }
+        return java.util.Base64.getEncoder().encodeToString(
+                new Ed25519PrivateKeyParameters(seed, 0).generatePublicKey().getEncoded());
     }
 
     /** A certificate or a public key: {@code CERTIFICATE}, {@code PUBLIC KEY}, {@code RSA PUBLIC KEY}. Not a private key. */

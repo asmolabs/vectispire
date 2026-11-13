@@ -28,7 +28,7 @@ MUTANTS = [
     ("any number for an identity", PH, "            (Json::Str(template), Json::Num(text)) if integer_placeholder(template) => {", "            (Json::Str(_), Json::Num(_)) => {}\n            (Json::Str(template), Json::Num(text)) if integer_placeholder(template) => {", T),
     ("any placeholder may be a number", PH, "        [Segment::Placeholder(Placeholder::Id { .. } | Placeholder::Long(_) | Placeholder::ClockStep)]", "        [Segment::Placeholder(_)]", T),
     # ── secrets ──
-    ("a secret's hash unchecked", PH, "            Placeholder::SecretHash(n) => self.minting.sha256_hex(self.bound(Family::Secret, *n)?),\n            _ => return None,", "            _ => return None,", T),
+    ("a secret's hash unchecked", PH, "            Placeholder::SecretHash(n) => self.minting.sha256_hex(self.bound(Family::Secret, *n)?),\n", "", T),
     ("an owed hash never checked", PH, "                    if !hash.eq_ignore_ascii_case(&wanted) {", "                    if false && !hash.eq_ignore_ascii_case(&wanted) {", T),
     ("an owed prefix never checked", PH, "                    if !value.starts_with(prefix.as_str()) {", "                    if false && !value.starts_with(prefix.as_str()) {", T),
     ("a secret already another's", PH, "                if let Some(other) = secrets_bound.and_then(|known| known.by_value.get(text)) {", "                if let Some(other) = secrets_bound.and_then(|known| known.by_value.get(text)).filter(|_| false) {", T),
@@ -46,7 +46,7 @@ MUTANTS = [
     ("a hash field's rule everywhere", PH, "shape(found, sole && field.contains(\"hash\")).to_owned()", "shape(found, true).to_owned()", T),
     ("a long number of any length", PH, 'Placeholder::Long(_) => r"[0-9]{12,19}",', 'Placeholder::Long(_) => r"[0-9]+",', T),
     ("an instant without its zone", PH, '(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})"', '(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?"', T),
-    ("a datetime may be a date", PH, 'Placeholder::DateTime => r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?",', 'Placeholder::DateTime => r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?)?",', T),
+    ("a datetime may be a date", PH, 'Placeholder::DateTime | Placeholder::PastDateTime => {\n            r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?"', 'Placeholder::DateTime | Placeholder::PastDateTime => {\n            r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:[.,][0-9]{1,9})?)?)?"', T),
     ("the window's end later", PH, "match (shift_years(today, -3), shift_years(today, 11)) {", "match (shift_years(today, -3), shift_years(today, 12)) {", T),
     ("the window's start earlier", PH, "match (shift_years(today, -3), shift_years(today, 11)) {", "match (shift_years(today, -4), shift_years(today, 11)) {", T),
     ("day 32", PH, "    if !(1..=31).contains(&day) {", "    if !(1..=32).contains(&day) {", T),

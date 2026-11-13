@@ -201,7 +201,7 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 63 (was 64): a request of the test the replay cannot rebuild.
+- [ ] **Recordings that cannot be replayed yet** — 15 (was 64): a request of the test the replay cannot rebuild.
       The `«pem:…»` request bodies of SSH-key and CA tests are done; the rest are other kinds of hidden input.
 
       *`pem:` part done 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a
@@ -210,6 +210,16 @@ causes rather than one by one. Counts are recordings.
       allows their exact text. A whole recording holds no `«pem:…»` any more: 22 of the 23 lines replay green, with
       the two `withheldPollsCostNoAttempt` lines their requests unblocked; `theCredentialIsSealedForTheVerifiedKeyOnly--006`
       stays, its audit entry chaining onto a sealing-key announcement the recorder hides (`_recording.txt`, 87 → 63).*
+
+      *Sealing part done 2026-11-13: the sealing keys `AgentSealingKeyRoutesTest` announces are fixtures
+      (`FixtureSealingKeys`), and a signature the pinned seed made over one is recorded as
+      `«sealing-signature:v2:secret:S:uuid:U:<generation>:<key>»` — Ed25519 is deterministic, but it signs the agent's id
+      and the seed the server drew, so the replay signs again for its own agent. Folded in the same recording: a
+      one-character padding under a credential's name stays literal (`gitTokenFieldsAreBounded--003`), an
+      `identity_guard` its row's identity accounts for stays literal (`twinsFiledBeforeTheRule`), and the 8 rewind lines
+      replay green with `«datetime:past»`. 43 lines removed, 58 → 15. Left from these: 8 claims answered 412 with
+      `code` `precondition-failed` where Java says `credential-withheld` (cp-agents), and the `v1` announcement no
+      Rust code signs or names (cp-agents).*
 - [x] **`ListPagingEstateRoutesTest/refusesWhatItCannotServe`** — 36: the seed of `POST /plugins` (not served,
       played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
       are made concrete. A replay defect, not the port's.

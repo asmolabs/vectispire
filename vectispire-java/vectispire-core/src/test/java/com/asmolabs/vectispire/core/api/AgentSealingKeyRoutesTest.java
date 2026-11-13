@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.golden.FixturePrivateKeys;
+import com.asmolabs.vectispire.core.golden.FixtureSealingKeys;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -138,7 +139,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("a key signed with the pinned key is accepted, recorded with its generation, and audited")
     void aSignedKeyIsAccepted() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
 
         announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
 
@@ -162,7 +163,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("an agent with no pinned signing key has no sealing key accepted, signed or not")
     void unpinnedIsRefused() throws Exception {
         Enrolled agent = delegatedAgent(false);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
         String selfSigned = SealingKeyAttestation.sign(ResultAttestation.generate().privateKey(), agent.id(), 1_000L, pair.publicKey());
 
         announce(agent, pair.publicKey(), 1_000L, selfSigned)
@@ -178,8 +179,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     void aSubstitutedKeyIsRefused() throws Exception {
         exportSiemEvents();
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair genuine = envelopes.generateKeyPair();
-        SealedEnvelope.KeyPair substitute = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair genuine = FixtureSealingKeys.pair(1);
+        SealedEnvelope.KeyPair substitute = FixtureSealingKeys.pair(2);
         String genuineSignature = SealingKeyAttestation.sign(agent.signingKey(), agent.id(), 1_000L, genuine.publicKey());
         String otherSigner = SealingKeyAttestation.sign(
                 ResultAttestation.generate().privateKey(), agent.id(), 1_000L, substitute.publicKey());
@@ -202,7 +203,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("an older agent's announcement is refused, and the refusal says to update it")
     void anOlderAgentsAnnouncementIsRefusedByName() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
 
         announce(agent, pair.publicKey(), 1_000L, signedAsVersionOne(agent, 1_000L, pair.publicKey()))
                 .andExpect(status().isForbidden());
@@ -247,7 +248,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
                         .content(write(Map.of("public_key", pinnedPublic))))
                 .andExpect(status().isOk());
 
-        SealedEnvelope.KeyPair firstsPair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair firstsPair = FixtureSealingKeys.pair(1);
         String forFirst = SealingKeyAttestation.sign(first.signingKey(), first.id(), 1_000L, firstsPair.publicKey());
 
         announce(second, firstsPair.publicKey(), 1_000L, forFirst).andExpect(status().isForbidden());
@@ -258,8 +259,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("a newer signed key replaces the old one; an older one is refused and audited")
     void rotationOnlyForwards() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair before = envelopes.generateKeyPair();
-        SealedEnvelope.KeyPair restarted = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair before = FixtureSealingKeys.pair(1);
+        SealedEnvelope.KeyPair restarted = FixtureSealingKeys.pair(2);
 
         announceSigned(agent, before, 1_000L).andExpect(status().isNoContent());
         announceSigned(agent, restarted, 2_000L).andExpect(status().isNoContent());
@@ -269,7 +270,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
         // The first announcement, recorded on the way and sent again: validly signed, and stale.
         announceSigned(agent, before, 1_000L).andExpect(status().isConflict());
         // A different key under the generation already held is no better.
-        announceSigned(agent, envelopes.generateKeyPair(), 2_000L).andExpect(status().isConflict());
+        announceSigned(agent, FixtureSealingKeys.pair(3), 2_000L).andExpect(status().isConflict());
 
         assertThat(row(agent).getSealingPublicKey()).isEqualTo(restarted.publicKey());
         assertThat(row(agent).getSealingKeyGeneration()).isEqualTo(2_000L);
@@ -280,13 +281,13 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("a hello with no key, or an unsigned one, leaves the accepted key where it is")
     void helloNeverTouchesTheKey() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
         announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
 
         hello(agent, null).andExpect(status().isOk());
         assertThat(row(agent).getSealingPublicKey()).isEqualTo(pair.publicKey());
 
-        hello(agent, envelopes.generateKeyPair().publicKey()).andExpect(status().isOk());
+        hello(agent, FixtureSealingKeys.pair(2).publicKey()).andExpect(status().isOk());
         assertThat(row(agent).getSealingPublicKey()).isEqualTo(pair.publicKey());
         assertThat(row(agent).getSealingKeyGeneration()).isEqualTo(1_000L);
     }
@@ -301,7 +302,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     void anOlderAgentIsNotBelieved() throws Exception {
         Enrolled agent = delegatedAgent(true);
 
-        hello(agent, envelopes.generateKeyPair().publicKey()).andExpect(status().isOk());
+        hello(agent, FixtureSealingKeys.pair(1).publicKey()).andExpect(status().isOk());
 
         assertThat(row(agent).getSealingPublicKey()).isNull();
         mvc.perform(authenticated(get("/api/v1/admin/agents"), asAdmin()))
@@ -312,13 +313,13 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("an administrator's change saved over a newer key does not put the old one back")
     void savingTheRowCannotRollTheKeyBack() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair before = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair before = FixtureSealingKeys.pair(1);
         announceSigned(agent, before, 1_000L).andExpect(status().isNoContent());
 
         // Read by an administrator's change, then the agent restarts and announces, then the change
         // is saved — the interleaving a read-then-save goes through.
         AgentEntity readBefore = row(agent);
-        SealedEnvelope.KeyPair restarted = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair restarted = FixtureSealingKeys.pair(2);
         announceSigned(agent, restarted, 2_000L).andExpect(status().isNoContent());
         readBefore.setLabels("dmz");
         agents.save(readBefore);
@@ -336,8 +337,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("a delegated credential is sealed for the verified key, and for no key a hello announced")
     void theCredentialIsSealedForTheVerifiedKeyOnly() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair genuine = envelopes.generateKeyPair();
-        SealedEnvelope.KeyPair proxys = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair genuine = FixtureSealingKeys.pair(1);
+        SealedEnvelope.KeyPair proxys = FixtureSealingKeys.pair(2);
         hello(agent, genuine.publicKey()).andExpect(status().isOk());
         announceSigned(agent, genuine, 1_000L).andExpect(status().isNoContent());
         // The proxy rewrites a later hello with its own key: read by nothing.
@@ -381,7 +382,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("an unpinned delegated agent is handed no credential, and told to have one pinned")
     void unpinnedDeliversNothing() throws Exception {
         Enrolled agent = delegatedAgent(false);
-        hello(agent, envelopes.generateKeyPair().publicKey()).andExpect(status().isOk());
+        hello(agent, FixtureSealingKeys.pair(1).publicKey()).andExpect(status().isOk());
         pendingScanWithDeployKey();
 
         poll(agent)
@@ -399,8 +400,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     void anAdministratorResetsTheKey() throws Exception {
         exportSiemEvents();
         Enrolled agent = delegatedAgent(true);
-        announceSigned(agent, envelopes.generateKeyPair(), 5_000L).andExpect(status().isNoContent());
-        SealedEnvelope.KeyPair afterClockWentBack = envelopes.generateKeyPair();
+        announceSigned(agent, FixtureSealingKeys.pair(1), 5_000L).andExpect(status().isNoContent());
+        SealedEnvelope.KeyPair afterClockWentBack = FixtureSealingKeys.pair(2);
         announceSigned(agent, afterClockWentBack, 4_000L).andExpect(status().isConflict());
         outbox.deleteAll();
 
@@ -423,7 +424,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("only an administrator resets a sealing key: not a reader, not the agent, and not an unknown agent")
     void onlyAnAdministratorResets() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
         announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
 
         mvc.perform(authenticated(delete("/api/v1/admin/agents/" + agent.id() + "/sealing-key"), asReader()))
@@ -442,14 +443,14 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
     @DisplayName("pinning a new signing key forgets the sealing key the old one vouched for")
     void aNewSigningKeyForgetsTheSealingKey() throws Exception {
         Enrolled agent = delegatedAgent(true);
-        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        SealedEnvelope.KeyPair pair = FixtureSealingKeys.pair(1);
         announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
 
         String replacement = pin(agent.id());
 
         assertThat(row(agent).getSealingPublicKey()).isNull();
         // The old signing key vouches for nothing any more, even for a newer key.
-        announceSigned(agent, envelopes.generateKeyPair(), 2_000L).andExpect(status().isForbidden());
+        announceSigned(agent, FixtureSealingKeys.pair(2), 2_000L).andExpect(status().isForbidden());
         Enrolled repinned = new Enrolled(agent.id(), agent.token(), replacement);
         announceSigned(repinned, pair, 1_000L).andExpect(status().isNoContent());
         assertThat(auditEntries.findAll())
@@ -480,7 +481,7 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
         assertThat(waiting.getClaimedBy()).isNull();
 
         Enrolled verified = delegatedAgent(true);
-        announceSigned(verified, envelopes.generateKeyPair(), 1_000L).andExpect(status().isNoContent());
+        announceSigned(verified, FixtureSealingKeys.pair(1), 1_000L).andExpect(status().isNoContent());
         JsonNode task = json.readTree(poll(verified).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(task.at("/scanId").asLong()).isEqualTo(scanId);
         assertThat(scans.findById(scanId).orElseThrow().getAttempts()).isEqualTo(1);
