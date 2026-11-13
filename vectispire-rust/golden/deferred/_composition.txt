@@ -1,7 +1,7 @@
 # The recordings not replayed yet that composing ends rather than a module's port: the binary's own answers outside
 # the contract (task 2.11), and the ingestion the replay composes as a stand-in (IngestionStandIn).
 # README.md beside this file says the format and the rules.
-ceiling 25
+ceiling 26
 
 # ── Requests outside the contract: the binary’s own answers, replayed once it composes the modules (2.11) ──
 outside DELETE /api/v1/auth/me | a method the route does not have: the binary’s 405, composed in 2.11
@@ -33,3 +33,6 @@ golden api.OwaspReportAfterScanRoutesTest/anImageScanAsksForNothing--004-POST-ap
 golden api.OwaspReportAfterScanRoutesTest/modelReviewOffAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
 golden api.OwaspReportAfterScanRoutesTest/offAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
 golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+# Moved from _recording.txt on 2026-11-13 (ceiling raised by as many): they were listed as an unmerged long poll,
+# which the replay merges since 2.9; what keeps them red is the stand-in of the request before them.
+golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--005-GET-api_v1_scans_t_scan_1_ | the scan read after the result --004 sent: ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)

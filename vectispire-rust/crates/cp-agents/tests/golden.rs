@@ -225,9 +225,21 @@ impl vectispire_cp_http::credentials::ScrapeToken for ReplayScrapeToken {
     }
 }
 
+/// **What a test class's own context sets** — its `@TestPropertySource` — which the recording does not carry: Java ran
+/// that class in a context of its own, so its answers were made under those values, and replayed under the defaults
+/// they would be another test's. Copied from the class, one line per property; a class not here ran on
+/// `application-apitest.yaml` alone.
+const TEST_PROPERTIES: &[(&str, &str, &str)] =
+    &[("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example")];
+
+fn property(class: &str, key: &str) -> Option<&'static str> {
+    TEST_PROPERTIES.iter().find(|(of, named, _)| *of == class && *named == key).map(|(_, _, value)| *value)
+}
+
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
-fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Router {
+fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str) -> axum::Router {
+    let allowed_hosts = GitHostAllowlist::parse(property(class, "vectispire.git.allowed-hosts")).unwrap();
     let time = Arc::new(AnsweringTime::default());
     let siem = Siem::over(db);
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
@@ -238,7 +250,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
         backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
         encryption: support::encryption(),
-        allowed_hosts: GitHostAllowlist::default(),
+        allowed_hosts: allowed_hosts.clone(),
         clock: Arc::new(SystemClock),
         visibility: None,
     }));
@@ -254,7 +266,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
         ingestor: Arc::new(IngestionStandIn::default()),
         policy: vectispire_domain::scan_queue::Policy::default(),
         leader_lease: vectispire_cp_scanning::DEFAULT_LEASE,
-        allowed_hosts: GitHostAllowlist::default(),
+        allowed_hosts,
         image_platform: None,
         runner: None,
         scanned: Vec::new(),
@@ -583,7 +595,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         };
         let mut outcomes = Vec::new();
         for test in &tests {
-            outcomes.extend(replayer.test(test, router(&db, signing.clone())).await);
+            outcomes.extend(replayer.test(test, router(&db, signing.clone(), &test.class)).await);
         }
         let green = outcomes.iter().filter(|replayed| replayed.served && replayed.outcome == Outcome::Green).count();
         let owed = outcomes.iter().filter(|replayed| replayed.served).count();

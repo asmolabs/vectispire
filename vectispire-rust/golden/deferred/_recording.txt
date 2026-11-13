@@ -2,20 +2,15 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 63
+ceiling 58
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.AgentSealingKeyRoutesTest/theCredentialIsSealedForTheVerifiedKeyOnly--006-POST-api_v1_ssh-keys | the SSH key is the fixture and replays, but its audit entry chains onto the sealing-key announcement of --004, which the replay cannot rebuild (the recorder hides the agent's sealing key and its signature): Java's entry links to that announcement's, the replay's to the one before — recording limit
-golden api.GitHostAllowlistRoutesTest/onlyListedHosts--001-POST-api_v1_repositories | the test’s context sets vectispire.git.allowed-hosts, which the recording does not carry
-golden api.GitHostAllowlistRoutesTest/onlyListedHosts--002-POST-api_v1_repositories | the test’s context sets vectispire.git.allowed-hosts, which the recording does not carry
 golden api.IntegrationInputBoundsTest/gitTokenFieldsAreBounded--003-POST-api_v1_git-tokens | the token past 8,192 characters is a «secret», whose length the recorder hides
-golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--008-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
-golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--008-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
 golden api.ProblemDetailsRoutesTest/theBodyLimit--001-POST-api_v1_repositories | a request body past 64 KiB, in a gzip sidecar this replay does not send yet
 golden api.RepositoryDuplicatesRoutesTest/twinsFiledBeforeTheRule--002-POST-api_v1_repositories | the seeded identity_guard is a digest the recorder hid («sha256:1»): a random one does not collide as Java’s does
 golden api.RepositoryDuplicatesRoutesTest/twinsFiledBeforeTheRule--003-PATCH-api_v1_repositories_t_repository_2_ | the seeded identity_guard is a digest the recorder hid («sha256:1»): a random one does not collide as Java’s does
-golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--005-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 
 # ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
 golden api.AgentConcurrencyRoutesTest/theClaimHonoursTheLimit--011-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
