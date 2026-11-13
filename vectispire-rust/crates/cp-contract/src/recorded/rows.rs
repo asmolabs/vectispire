@@ -51,6 +51,10 @@ pub struct Column {
     /// any value written to it, so a seed or a restore leaves it out and lets the engine compute it again. MySQL's
     /// `DEFAULT_GENERATED` is an expression default, not this: that column takes a written value.
     pub generated: bool,
+    /// A character column's length (`varchar(255)`): a seeded text made concrete longer than it is cut to it, as the
+    /// row Java stored was — Java's own code cut it, and the recorder's placeholders do not keep the width of what
+    /// they hide.
+    pub max_chars: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -128,7 +132,8 @@ impl Schema {
         let (columns_sql, keys_sql) = match engine {
             Engine::MySql => (
                 "select cast(lower(table_name) as char), cast(lower(column_name) as char), cast(lower(data_type) as char), \
-                 cast(lower(column_type) as char), cast(lower(extra) as char), '' from information_schema.columns \
+                 cast(lower(column_type) as char), cast(lower(extra) as char), '', \
+                 cast(character_maximum_length as char) from information_schema.columns \
                  where table_schema = database() order by table_name, ordinal_position",
                 "select cast(lower(table_name) as char), cast(lower(column_name) as char) from information_schema.key_column_usage \
                  where table_schema = database() and constraint_name = 'PRIMARY' order by table_name, ordinal_position",
@@ -138,7 +143,8 @@ impl Schema {
                  case when c.is_generated = 'ALWAYS' then 'stored generated' \
                       when c.is_identity = 'YES' then 'identity ' || lower(coalesce(c.identity_generation, '')) \
                       when c.column_default like 'nextval(%' then 'serial' else '' end, \
-                 coalesce(pg_get_serial_sequence(quote_ident(c.table_name), c.column_name), '') \
+                 coalesce(pg_get_serial_sequence(quote_ident(c.table_name), c.column_name), ''), \
+                 coalesce(c.character_maximum_length::text, '') \
                  from information_schema.columns c join information_schema.tables t \
                    on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE' \
                  where c.table_schema = current_schema() order by c.table_name, c.ordinal_position",
@@ -176,6 +182,7 @@ impl Schema {
                 cast: full_type.clone(),
                 zoned: engine == Engine::PostgreSql && full_type == "timestamptz",
                 generated: extra.contains("stored generated") || extra.contains("virtual generated"),
+                max_chars: cell(&row, 6).parse().ok(),
             });
         }
         for row in texts(db, keys_sql).await? {
@@ -504,6 +511,12 @@ fn concrete(engine: Engine, column: &Column, value: &Json, bindings: &mut Bindin
         ),
         // `2020-01-01T00:00`, as `LocalDateTime` printed it: both engines read `2020-01-01 00:00`.
         Kind::DateTime => Bound::Text(text.replacen('T', " ", 1)),
+        // Cut to the column, by characters as the column counts them: Java stored at most its width, and a value the
+        // replay made concrete — a hidden id, a digest — may come out wider than the one it stands for.
+        Kind::Text => match column.max_chars {
+            Some(width) if text.chars().count() > width => Bound::Text(text.chars().take(width).collect()),
+            _ => Bound::Text(text),
+        },
         _ => Bound::Text(text),
     })
 }

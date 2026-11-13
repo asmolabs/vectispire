@@ -420,11 +420,7 @@ impl<'m> Bindings<'m> {
             fixture_hash: None,
             today: now.date(),
             clock: now,
-            // Thirteen digits, a millisecond timestamp's width — what Java's tests put in a name (`pager-<millis>`) —
-            // and never more: a value made concrete wider than Java's grew a description Java had cut at 255 past its
-            // column (`ListPagingEstateRoutesTest`, a plugin's audit entry naming its id twice). Fifteen digits made it
-            // 259. Uniqueness is the bound values' check, not the width.
-            next_long: 1_000_000_000_000,
+            next_long: 100_000_000_000_000,
         }
     }
 

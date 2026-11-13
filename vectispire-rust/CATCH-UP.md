@@ -170,9 +170,9 @@ causes rather than one by one. Counts are recordings.
       played in Java's place) writes a `t_audit_log.description` longer than 255 once the recorder's placeholders
       are made concrete. A replay defect, not the port's.
 
-      *Fixed 2026-11-13: a long placeholder was made concrete with fifteen digits where Java's tests used thirteen
-      (a millisecond timestamp): twice in the description, past its column. The base is thirteen digits now; the
-      test's 24 recordings replay green and its 18 lines left `_recording.txt`.*
+      *Fixed 2026-11-13: the seed of a row Java had cut at its column's width came out wider once the recorder's
+      placeholders were made concrete (a hidden id is not kept at its width). A seeded text is now cut to its column, as
+      Java's database held it; the test's 24 recordings replay green and its 18 lines left `_recording.txt`.*
 - [x] **An issue's decisions read oldest first, with `requestedStatus`** — 5, `HistoryTest`: Rust read them newest
       first, an older defect the 1.0 history recordings exposed; the decision view lacked V88's `requestedStatus`.
 - [→] **A notification channel in use cannot be switched off** *(moved 2026-11-13 to notifications, wave 2: a route of a module Rust does not serve yet is ported with its module)* — 21, `NotificationChannelSwitchRoutesTest`: Java's
@@ -181,11 +181,9 @@ causes rather than one by one. Counts are recordings.
 - [→] **The published keys' list in the read-cost sweep** *(moved 2026-11-13 to compliance's exports, wave 1: a route of a module Rust does not serve yet is ported with its module)* — 2: an export Rust does not serve wrote the key record in
       Java's run, and the replay cannot rebuild its `«sealed»` value; ends with the compliance exports.
 
-- [ ] **`AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing`'s wait reads 1 where Java's read 0** — 1, listed in
-      `_recording.txt`. *Cause found 2026-11-13: not a slower Rust — the replay's own overhead (it seeds, snapshots and
-      compares every table between two requests) passes a second of wall clock, and the agents' activity reads the
-      system clock.* Remedy: give `AgentAdministrationService` a clock, as Java's takes one, and hand the replay one it
-      pauses between requests, as `AnsweringTime` does for the limiters; then remove the line.
+- [x] **`AgentExecutorsRoutesTest/anUnavailableExecutorClaimsNothing`'s wait reads 1 where Java's read 0** — fixed
+      2026-11-13: the agents' administration takes a clock, as Java's does, and the replay hands it one that runs only
+      while the router answers; the wall clock counted the replay's own seeding and comparing. 37 of 37 green, twice.
 
 - [ ] **Six scanning mutants survive on MySQL** (`security/mutants/p2-7-scanning.py`, re-pointed from PostgreSQL to
       MySQL on 2026-11-13: 96 of 102 killed). Survivors: "a deleted agent still claims", "another worker's report is

@@ -191,6 +191,10 @@ pub struct AgentAdministrationService {
     worker_enabled: bool,
     /// Where the built-in worker's last executor check is read; `None` with no worker composed.
     dispatcher: Option<Arc<ScanDispatcher>>,
+    /// The instant the screens are read at — an agent online, a scan's wait — as Java's service takes a `Clock`. The
+    /// system's by default; the golden replay hands one that runs only while the router answers, since its own seeding
+    /// and comparing between two requests would otherwise count as time a scan waited.
+    clock: Arc<dyn vectispire_cp_targets::Clock>,
 }
 
 impl std::fmt::Debug for AgentAdministrationService {
@@ -219,7 +223,15 @@ impl AgentAdministrationService {
             worker_runs,
             worker_enabled: worker_runs,
             dispatcher: None,
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
         }
+    }
+
+    /// Reads the screens at `clock`'s instant rather than the system's.
+    #[must_use]
+    pub fn with_clock(mut self, clock: Arc<dyn vectispire_cp_targets::Clock>) -> Self {
+        self.clock = clock;
+        self
     }
 
     /// The built-in worker's configuration switch, and the dispatcher whose round asks its executor — read by
@@ -260,7 +272,7 @@ impl AgentAdministrationService {
 
     pub async fn list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<AgentSummary>, AgentError> {
         let window = ListWindow::requested(limit, offset).map_err(AgentError::Invalid)?;
-        let as_of = OffsetDateTime::now_utc();
+        let as_of = self.clock.now();
         let running =
             self.scans.count_by_claimant("scanning").await.map_err(|e| AgentError::Unexpected(Box::new(e)))?;
         let fleet = agents::find_all_ordered(&self.db).await.map_err(AgentError::from)?;
@@ -330,7 +342,7 @@ impl AgentAdministrationService {
         let (api_key_id, secret) =
             self.credentials.issue_agent_key(&key_name).await.map_err(|e| AgentError::Unexpected(Box::new(e)))?;
 
-        let now = OffsetDateTime::now_utc();
+        let now = self.clock.now();
         let agent_row = AgentRow {
             id: Uuid::new_v4(),
             name: name.to_owned(),
@@ -571,7 +583,7 @@ impl AgentAdministrationService {
     }
 
     pub async fn activity(&self) -> Result<Activity, AgentError> {
-        let as_of = OffsetDateTime::now_utc();
+        let as_of = self.clock.now();
         let last24h = as_of.checked_sub(Duration::hours(24)).unwrap_or(as_of);
 
         let all_agents = agents::find_all_ordered(&self.db).await.map_err(AgentError::from)?;

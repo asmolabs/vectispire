@@ -316,8 +316,14 @@ fn a_change_the_recorder_would_not_keep_is_not_one() {
 }
 
 fn schema() -> Schema {
-    let column =
-        |name: &str, kind| Column { name: name.into(), kind, cast: "text".into(), zoned: false, generated: false };
+    let column = |name: &str, kind| Column {
+        name: name.into(),
+        kind,
+        cast: "text".into(),
+        zoned: false,
+        generated: false,
+        max_chars: None,
+    };
     Schema {
         engine: Engine::MySql,
         tables: vec![

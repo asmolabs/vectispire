@@ -156,6 +156,23 @@ impl BucketClock for AnsweringTime {
     }
 }
 
+/// The agents' screens read at the test's start plus the time the router spent answering — the instant Java's
+/// back-to-back requests saw, its suite's own overhead aside. The wall clock would add the replay's: it seeds, snapshots
+/// and compares every table between two requests, and a scan seeded at the start read as waiting a second
+/// (`AgentExecutorsRoutesTest`: 1 where Java's read 0) depending on how loaded the machine was.
+#[derive(Debug)]
+struct AnsweringClock {
+    since: time::OffsetDateTime,
+    time: Arc<AnsweringTime>,
+}
+
+impl vectispire_cp_targets::Clock for AnsweringClock {
+    fn now(&self) -> time::OffsetDateTime {
+        let answered = i64::try_from(self.time.nanos()).unwrap_or(i64::MAX);
+        self.since + time::Duration::nanoseconds(answered)
+    }
+}
+
 async fn answering(
     axum::extract::State(time): axum::extract::State<Arc<AnsweringTime>>,
     request: axum::extract::Request,
@@ -211,6 +228,7 @@ impl vectispire_cp_http::credentials::ScrapeToken for ReplayScrapeToken {
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Router {
+    let time = Arc::new(AnsweringTime::default());
     let siem = Siem::over(db);
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let targets = Arc::new(Targets::new(TargetsConfig {
@@ -276,15 +294,18 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
     let dispatcher = scanning.dispatcher_arc();
-    let admin = Arc::new(AgentAdministrationService::new(
-        db.clone(),
-        credentials.clone(),
-        Arc::new(scanning.catalog().clone()),
-        targets.clone(),
-        audit.clone(),
-        Vec::new(),
-        false,
-    ));
+    let admin = Arc::new(
+        AgentAdministrationService::new(
+            db.clone(),
+            credentials.clone(),
+            Arc::new(scanning.catalog().clone()),
+            targets.clone(),
+            audit.clone(),
+            Vec::new(),
+            false,
+        )
+        .with_clock(Arc::new(AnsweringClock { since: time::OffsetDateTime::now_utc(), time: time.clone() })),
+    );
     let protocol = Arc::new(AgentProtocolService::new(
         db.clone(),
         dispatcher.clone(),
@@ -310,7 +331,6 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>) -> axum::Rou
     }
     // The chain's entries signal too (`BEARER_TOKEN_THROTTLED`): the SIEM hears them as it hears the routes'.
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
-    let time = Arc::new(AnsweringTime::default());
     let chain = Arc::new(
         Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone())
             .with_scrape_token(Arc::new(ReplayScrapeToken)),
