@@ -29,6 +29,7 @@ use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_cp_scanning::ports::PortError;
 use vectispire_cp_scanning::{ClaimingAgent, Exclusion, NoExclusion, PAGE};
 use vectispire_cp_settings::Setting;
+use vectispire_cp_targets::{PurgeListener, TargetPurge};
 use vectispire_domain::FailureKind;
 use vectispire_domain::scan_queue::{LEASE_EXHAUSTED_MESSAGE, Policy};
 use vectispire_protocol::ScanArtifacts;
@@ -141,6 +142,7 @@ async fn suite(engine: Engine) {
         ("concurrent polls of one agent never pass its limit", |db| Box::pin(concurrent_polls(db))),
         ("the count waits for a concurrent take", |db| Box::pin(the_count_waits(db))),
         ("a lapsed lease does not count", |db| Box::pin(lapsed_does_not_count(db))),
+        ("a deleted agent claims nothing", |db| Box::pin(a_deleted_agent(db))),
         ("the claim takes only what the executors run", |db| Box::pin(executors_narrow_the_claim(db))),
         ("an exclusion leaves the scans where they are", |db| Box::pin(exclusion_leaves(db))),
         ("the exclusion is asked a page at a time", |db| Box::pin(exclusion_paged(db))),
@@ -345,6 +347,18 @@ async fn lapsed_does_not_count(db: Db) {
     );
     lapse(&db, held).await;
     assert!(queue.claim_within(edge, 1, &[], &NoExclusion).await.unwrap().scan.is_some());
+}
+
+/// An agent deleted while it polled claims nothing: its row is the claim's lock, and no row to lock is no claim — the
+/// unlocked checks before it (the count, the candidates) know nothing of the agent and let the poll through.
+async fn a_deleted_agent(db: Db) {
+    let id = enqueue(&db, 1, None).await[0];
+    let gone = support::agent(&db, "gone").await;
+    exec(&db, &format!("delete from t_agent where id = '{gone}'")).await;
+    let queue = composed(&db).scanning.queue().clone();
+    assert!(queue.claim_within(gone, 1, &[], &NoExclusion).await.unwrap().scan.is_none());
+    assert_eq!(status(&db, id).await, "pending");
+    assert_eq!(count(&db, &format!("select count(*) from t_scan where id = {id} and claimed_by is null")).await, 1);
 }
 
 /// The claim takes only the kinds of target the agent's available executors run (decision 0045): none available
@@ -1387,7 +1401,11 @@ async fn targets_side(db: Db) {
     );
     let latest = figures.latest_per_repository().await.unwrap();
     assert_eq!(latest[&repo].id, queued.id);
-    assert_eq!(figures.latest_per_container().await.unwrap().len(), 1);
+    // The status is what the listing shows beside the target: a latest scan without it reads as never scanned.
+    assert_eq!(latest[&repo].status, "pending");
+    let latest = figures.latest_per_container().await.unwrap();
+    assert_eq!(latest.len(), 1);
+    assert_eq!(latest[&image].status, "pending");
 
     // Languages: the newest completed scan's, unknown when it recorded none.
     exec(
@@ -1413,6 +1431,17 @@ async fn targets_side(db: Db) {
         if matches!(db, Db::MySql(_)) { "0" } else { "false" },
         literal(now())
     )).await;
+    // The findings phase takes the findings itself, the scans still there: the scans' cascade is not what empties the
+    // table, and the issues' phase in between finds no finding left naming an issue it deletes.
+    let mut tx = db.begin(vectispire_cp_db::Mode::ReadWrite).await.unwrap();
+    vectispire_cp_scanning::purge::PurgeFindings
+        .purge(&mut tx, &TargetPurge::Deleted(ScanTarget::Repository(repo)))
+        .await
+        .unwrap();
+    assert_eq!(in_tx(&mut tx, "select count(*) from t_finding").await, 0);
+    assert_eq!(in_tx(&mut tx, &format!("select count(*) from t_scan where repo_id = {repo}")).await, 1);
+    tx.rollback().await.unwrap();
+    assert_eq!(count(&db, "select count(*) from t_finding").await, 1);
     let actor =
         vectispire_cp_audit::RequestActor { username: Some("admin".to_owned()), ip_address: None, user_agent: None };
     composed.targets.delete_repository(repo, &Visibility::Everything, &actor).await.unwrap();
@@ -1428,6 +1457,17 @@ async fn targets_side(db: Db) {
         .collect();
     assert_eq!(names, vec!["ScanPurge.purgeFindings", "ScanPurge.purgeScans"]);
     let _ = ScanTarget::Repository(0);
+}
+
+/// A count read inside `tx`.
+async fn in_tx(tx: &mut vectispire_cp_db::Tx, sql: &str) -> i64 {
+    let statement = sqlx::AssertSqlSafe(sql.to_owned());
+    match tx {
+        vectispire_cp_db::Tx::MySql(tx) => sqlx::query_scalar::<_, i64>(statement).fetch_one(&mut **tx).await.unwrap(),
+        vectispire_cp_db::Tx::PostgreSql(tx) => {
+            sqlx::query_scalar::<_, i64>(statement).fetch_one(&mut **tx).await.unwrap()
+        }
+    }
 }
 
 // ── the result ───────────────────────────────────────────────────────────────────────────────
@@ -1475,6 +1515,11 @@ async fn results(db: Db) {
         text(&db, &format!("select error from t_scan where id = {id}")).await.as_deref(),
         Some("dependencies: pull access denied for temurin")
     );
+    // Every step absent and nothing broken: completed — a task asked to run no step is a configuration to look at, not
+    // a target that could not be examined.
+    let id = write(&db, &scanning, &agent, image, r#"{"duration":1.0}"#).await;
+    assert_eq!(status(&db, id).await, "completed");
+    assert_eq!(text(&db, &format!("select error from t_scan where id = {id}")).await, None);
     // No duration is unknown, not a crash; a step that ran and found nothing stays completed.
     let id = write(&db, &scanning, &agent, image, r#"{"secrets":[],"sbom":{"b" : 1.0, "a":[ 1e2 ,"é"]},"project":{"type":"maven","version":"1.2"},"languages":["Java","cobol"]}"#).await;
     assert_eq!(status(&db, id).await, "completed");
