@@ -201,7 +201,10 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 15 (was 64): a request of the test the replay cannot rebuild.
+- [ ] **Recordings that cannot be replayed yet** — 6 (was 64): a request of the test the replay cannot rebuild.
+      Left: two result attestations the recorder hides (the sealing signature's treatment would fit them), two 2 MiB
+      bodies in a gzip sidecar (a decompressor is a new crate to vet), a TLS collector nothing runs during the replay,
+      and MockMvc's charset (an accepted difference, pinned by cp-http's own capture).
       The `«pem:…»` request bodies of SSH-key and CA tests are done; the rest are other kinds of hidden input.
 
       *`pem:` part done 2026-11-13: no test generated those keys — each was an invented literal (`DUMMY PRIVATE KEY` around a
@@ -210,6 +213,10 @@ causes rather than one by one. Counts are recordings.
       allows their exact text. A whole recording holds no `«pem:…»` any more: 22 of the 23 lines replay green, with
       the two `withheldPollsCostNoAttempt` lines their requests unblocked; `theCredentialIsSealedForTheVerifiedKeyOnly--006`
       stays, its audit entry chaining onto a sealing-key announcement the recorder hides (`_recording.txt`, 87 → 63).*
+
+      *Also 2026-11-13: the 412 of a withheld credential answers code `credential-withheld` and a missing key
+      `encryption-key-missing`, as `ApiExceptionHandler.preconditionFailed` (both were `precondition-failed`); an older
+      agent's `v1` announcement is refused by name (`signed_by_a_previous_agent`). Nine lines replay green (15 → 6).*
 
       *Sealing part done 2026-11-13: the sealing keys `AgentSealingKeyRoutesTest` announces are fixtures
       (`FixtureSealingKeys`), and a signature the pinned seed made over one is recorded as

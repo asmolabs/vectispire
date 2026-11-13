@@ -31,6 +31,9 @@ const SEPARATOR: [u8; 1] = [0];
 const RESULT_CONTEXT: &[u8] = b"vectispire:agent-result:v1";
 const FAILURE_CONTEXT: &[u8] = b"vectispire:agent-failure:v1";
 const SEALING_KEY_CONTEXT: &[u8] = b"vectispire:agent-sealing-key:v2";
+/// `SealingKeyAttestation.PREVIOUS_CONTEXT`: what an agent from before envelopes were bound to what they carry signed.
+/// Never accepted — read only to name the refusal, so its operator updates the agent rather than hunts a forger.
+const PREVIOUS_SEALING_KEY_CONTEXT: &[u8] = b"vectispire:agent-sealing-key:v1";
 
 /// The header a result and a failure report carry their signature in.
 pub const SIGNATURE_HEADER: &str = "X-Vectispire-Agent-Signature";
@@ -123,6 +126,20 @@ impl ResultSigner {
             .ok_or(CryptoError::Unsignable)?;
         Ok(BASE64.encode(self.key.sign(&message).to_bytes()))
     }
+
+    /// The announcement as an agent older than this control plane signed it (`v1`) — which no agent of this version
+    /// sends, and the control plane refuses by name ([`signed_by_a_previous_agent`]). For the tests and the golden
+    /// replay, which have to send what such an agent sent.
+    pub fn sign_sealing_key_as_previous_agent(
+        &self,
+        agent_id: Uuid,
+        generation: i64,
+        sealing_public: &str,
+    ) -> Result<String, CryptoError> {
+        let message = sealing_key_message(PREVIOUS_SEALING_KEY_CONTEXT, agent_id, generation, sealing_public)
+            .ok_or(CryptoError::Unsignable)?;
+        Ok(BASE64.encode(self.key.sign(&message).to_bytes()))
+    }
 }
 
 fn sealing_key_message(context: &[u8], agent_id: Uuid, generation: i64, sealing_public: &str) -> Option<[u8; 32]> {
@@ -163,6 +180,19 @@ pub fn verify_sealing_key(
     signature: &str,
 ) -> bool {
     sealing_key_message(SEALING_KEY_CONTEXT, agent_id, generation, sealing_public)
+        .is_some_and(|message| verify(public_key, &message, signature))
+}
+
+/// `SealingKeyAttestation.signedByAPreviousAgent`: whether a signature that [`verify_sealing_key`] refused is the
+/// `v1` statement an older agent makes. Only names the refusal; it accepts nothing.
+pub fn signed_by_a_previous_agent(
+    public_key: &str,
+    agent_id: Uuid,
+    generation: i64,
+    sealing_public: &str,
+    signature: &str,
+) -> bool {
+    sealing_key_message(PREVIOUS_SEALING_KEY_CONTEXT, agent_id, generation, sealing_public)
         .is_some_and(|message| verify(public_key, &message, signature))
 }
 
@@ -385,6 +415,22 @@ mod tests {
         assert!(verify_result(&signer.public_key(), 1, b"{}", &signature));
         assert!(!verify_failure(&signer.public_key(), 1, b"{}", &signature));
         assert!(!verify_result(&signer.public_key(), 2, b"{}", &signature));
+    }
+
+    /// `SealingKeyAttestationTest`: the previous statement is never accepted, and is told apart from a forgery.
+    #[test]
+    fn an_older_agents_announcement_is_refused_and_recognised() {
+        let signer = ResultSigner::from_base64_seed(&BASE64.encode([7u8; 32])).unwrap();
+        let sealing = SealingKeyPair::generate().public_key();
+        let agent = Uuid::from_u128(1);
+        let older = signer.sign_sealing_key_as_previous_agent(agent, 1_000, &sealing).unwrap();
+        let current = signer.sign_sealing_key(agent, 1_000, &sealing).unwrap();
+        let public = signer.public_key();
+        assert!(!verify_sealing_key(&public, agent, 1_000, &sealing, &older), "v1 is never accepted");
+        assert!(signed_by_a_previous_agent(&public, agent, 1_000, &sealing, &older));
+        assert!(verify_sealing_key(&public, agent, 1_000, &sealing, &current));
+        assert!(!signed_by_a_previous_agent(&public, agent, 1_000, &sealing, &current), "v2 is not v1");
+        assert!(!signed_by_a_previous_agent(&public, Uuid::from_u128(2), 1_000, &sealing, &older), "another agent");
     }
 
     #[test]

@@ -241,15 +241,20 @@ impl AgentProtocolService {
         };
 
         if !verify_sealing_key(pinned, agent.id, gen_num, key, signature) {
+            // Still a refusal, and still audited — but named. An agent from before envelopes were bound to what they
+            // carry signs the previous statement; the operator's fix is to update it, not to look for a forger.
+            let cause = if vectispire_crypto::signed_by_a_previous_agent(pinned, agent.id, gen_num, key, signature) {
+                "it was signed by an agent older than this control plane, which opens envelopes bound to nothing. \
+                 Update the agent."
+            } else {
+                "its signature does not verify against the pinned signing key."
+            };
             self.record_audit(
                 agent,
                 origin,
                 AuditOperation::AgentSealingKeyRefused,
                 &agent.id.to_string(),
-                &format!(
-                    "Sealing key refused for agent \"{}\": its signature does not verify against the pinned signing key. No credential is sealed for it.",
-                    agent.name
-                ),
+                &format!("Sealing key refused for agent \"{}\": {cause} No credential is sealed for it.", agent.name),
             )
             .await;
             return Err(refusals::sealing_key_not_verified(&agent.name));

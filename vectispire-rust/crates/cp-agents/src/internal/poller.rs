@@ -93,7 +93,7 @@ impl AgentJobPoller {
         let immediate = match self.dispatcher.claim_for_agent(&claiming).await {
             Ok(task) => task,
             Err(ClaimError::Withheld(withheld)) => {
-                return Err(AgentError::PreconditionFailed(withheld.message().to_owned()));
+                return Err(AgentError::CredentialWithheld(withheld.message().to_owned()));
             }
             Err(ClaimError::Failed(err)) => {
                 return Err(AgentError::Unexpected(err));
@@ -120,7 +120,7 @@ impl AgentJobPoller {
                     }
                 }
                 Err(ClaimError::Withheld(withheld)) => {
-                    return Err(AgentError::PreconditionFailed(withheld.message().to_owned()));
+                    return Err(AgentError::CredentialWithheld(withheld.message().to_owned()));
                 }
                 Err(ClaimError::Failed(err)) => {
                     return Err(AgentError::Unexpected(err));

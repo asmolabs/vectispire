@@ -15,8 +15,14 @@ pub enum AgentError {
     #[error("{0}")]
     Conflict(String),
 
+    /// The deployment holds no encryption key: 412, code `encryption-key-missing` — an operator sets a variable.
     #[error("{0}")]
-    PreconditionFailed(String),
+    EncryptionKeyMissing(String),
+
+    /// A job whose credential the control plane will not hand this agent (no sealing key it can verify):
+    /// `CredentialWithheldException`, 412, code `credential-withheld` — the agent's operator acts, not a retry.
+    #[error("{0}")]
+    CredentialWithheld(String),
 
     #[error("{0}")]
     Forbidden(String),
@@ -63,7 +69,7 @@ impl From<vectispire_cp_targets::TargetError> for AgentError {
             vectispire_cp_targets::TargetError::Invalid(m) => AgentError::Invalid(m),
             vectispire_cp_targets::TargetError::NotFound(m) => AgentError::NotFound(m),
             vectispire_cp_targets::TargetError::Conflict { message, .. } => AgentError::Conflict(message),
-            vectispire_cp_targets::TargetError::MissingKey(m) => AgentError::PreconditionFailed(m),
+            vectispire_cp_targets::TargetError::MissingKey(m) => AgentError::EncryptionKeyMissing(m),
             vectispire_cp_targets::TargetError::UnsafeUrl(m) => AgentError::Invalid(m),
             vectispire_cp_targets::TargetError::Unexpected(e) => AgentError::Unexpected(e),
         }
@@ -82,7 +88,13 @@ impl From<AgentError> for Problem {
             AgentError::Invalid(msg) => Problem::handler(http::StatusCode::BAD_REQUEST, msg),
             AgentError::NotFound(msg) => Problem::handler(http::StatusCode::NOT_FOUND, msg),
             AgentError::Conflict(msg) => Problem::handler(http::StatusCode::CONFLICT, msg),
-            AgentError::PreconditionFailed(msg) => Problem::handler(http::StatusCode::PRECONDITION_FAILED, msg),
+            // `ApiExceptionHandler.preconditionFailed`: one status, a code each, which is what a client tells them by.
+            AgentError::EncryptionKeyMissing(msg) => {
+                Problem::handler(http::StatusCode::PRECONDITION_FAILED, msg).code("encryption-key-missing")
+            }
+            AgentError::CredentialWithheld(msg) => {
+                Problem::handler(http::StatusCode::PRECONDITION_FAILED, msg).code("credential-withheld")
+            }
             AgentError::Forbidden(msg) => Problem::handler(http::StatusCode::FORBIDDEN, msg),
             AgentError::Unauthorized(msg) => Problem::handler(http::StatusCode::UNAUTHORIZED, msg),
             AgentError::Busy(saturated) => saturated.problem(),
