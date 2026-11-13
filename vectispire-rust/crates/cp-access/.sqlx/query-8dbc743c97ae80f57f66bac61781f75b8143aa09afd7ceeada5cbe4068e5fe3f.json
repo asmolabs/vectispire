@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as \"is_active: bool\",\n               github_id, keycloak_id, created_at as \"created_at: _\", updated_at as \"updated_at: _\",\n               must_change_password as \"must_change_password: bool\", mfa_enabled as \"mfa_enabled: bool\",\n               scim_managed as \"scim_managed: bool\" from t_user where username = ?",
+  "query": "/* mysql */ select id, username, email, display_name, avatar_url, role, is_active as \"is_active: bool\",\n               github_id, keycloak_id, created_at as \"created_at: _\", updated_at as \"updated_at: _\",\n               must_change_password as \"must_change_password: bool\", mfa_enabled as \"mfa_enabled: bool\",\n               scim_managed as \"scim_managed: bool\", scim_lowered_from from t_user where id = ? for update",
   "describe": {
     "columns": [
       {
@@ -226,6 +226,22 @@
             "name": "scim_managed"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "scim_lowered_from",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 128
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_user",
+            "name": "scim_lowered_from"
+          }
+        }
       }
     ],
     "parameters": {
@@ -245,8 +261,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "9e14291195823db2e97bf1bac99162cd75dc7701f2f70318475602f4e805d3e7"
+  "hash": "8dbc743c97ae80f57f66bac61781f75b8143aa09afd7ceeada5cbe4068e5fe3f"
 }

@@ -284,7 +284,17 @@ calls with the throttle between the lookup and the derivation, so the account is
 
 **The binary composes two of them today**: `SESSION_CLEANUP` (its line left `cp-maintenance`'s `deferred.txt`) and the
 webhook's shared window (`Chain::with_shared_webhook_window`, `crates/cp-app/src/main.rs`). The sign-in flows have no
-route yet: they are composed with the routes (1.7).
+route yet: they are composed with the routes (1.7). `vectispire.sign-in.*` reaches them through `cp-app`'s
+`access::compose`: the cleanup's retention, the ceilings the flows will be built with, and the derivation bound.
+
+**The bound on password derivations** (`derivations` — `DerivationGate`, `DerivationsSaturated`,
+`PasswordDerivationBound`): fair permits awaited asynchronously, so a derivation waiting its turn holds no worker
+thread; one bound for the process (`bound`, `gate`), as Java's is `PasswordHasher`'s; every service derives through
+`passwords::verify_bounded` / `hash_bounded`, and API keys through the same gate. Saturated, a sign-in, a password change
+and an MFA enrolment take their attempt back and raise `DerivationsSaturated`, whose `problem()` is
+`ApiExceptionHandler`'s 503 (`tests/derivations.rs`, a binary of its own since the bound is the process's). **The
+shipped bound reads the container's memory limit** (cgroup v2's `memory.max`) where Java reads its heap's maximum: a
+Rust process has no heap ceiling of its own; without a limit the processors alone decide.
 
 ### Held to the Java side
 

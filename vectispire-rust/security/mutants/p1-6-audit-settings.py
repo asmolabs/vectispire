@@ -56,7 +56,7 @@ M = [
     ("values not trimmed", PLAT, P + "settings.rs", 'let value = java_trim(value.as_deref().unwrap_or("")).to_owned();', 'let value = value.as_deref().unwrap_or("").to_owned();'),
     ("acknowledgement settable from the wire", PLAT, P + "settings.rs", "        if matches!(setting, Setting::AiReviewRiskAcknowledgedBy | Setting::AiReviewRiskAcknowledgedAt) {", "        if matches!(setting, Setting::AiReviewRiskAcknowledgedBy) {"),
     ("governor-only for any administrator", PLAT, P + "settings.rs", "if setting.governor_only() && !writer.is_some_and(|writer| writer.governs_platform) {", "if setting.governor_only() && !writer.is_some_and(|writer| writer.administrative) {"),
-    ("administrator-only even unchanged", PLAT, P + "settings.rs", "            && value != self.settings.get(setting).await?\n", ""),
+    ("administrator-only even unchanged", PLAT, P + "settings.rs", "            && (setting.is_secret() || value != self.settings.get(setting).await?)\n", ""),
     ("administrator-only for anyone", PLAT, P + "settings.rs", "            && !writer.is_some_and(|writer| writer.administrative)\n", "            && false\n"),
     ("four-eyes on without an approver", PLAT, P + "settings.rs", "        if !self.approvers.any_active().await.map_err(collaborator)? {", "        if false {"),
     ("four-eyes on without two publishers", PLAT, P + "settings.rs", "        if !self.approvers.two_can_publish_templates().await.map_err(collaborator)? {", "        if false {"),

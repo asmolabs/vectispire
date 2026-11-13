@@ -102,6 +102,7 @@ macro_rules! user_from {
             must_change_password: row.must_change_password,
             mfa_enabled: row.mfa_enabled,
             scim_managed: row.scim_managed,
+            scim_lowered_from: row.scim_lowered_from,
             totp_secret: row.totp_secret.map(Sealed::new),
             mfa_backup_codes: row.mfa_backup_codes.map(Sealed::new),
             totp_last_step: row.totp_last_step,
@@ -124,8 +125,8 @@ mod mysql {
             r#"/* mysql */ select id, username, email, password, display_name, avatar_url, role,
                is_active as "is_active: bool", github_id, keycloak_id, created_at as "created_at: UtcInstant",
                updated_at as "updated_at: UtcInstant", must_change_password as "must_change_password: bool",
-               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", totp_secret,
-               mfa_backup_codes, totp_last_step
+               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", scim_lowered_from,
+               totp_secret, mfa_backup_codes, totp_last_step
                from t_user where id = ?"#,
             id
         )
@@ -139,8 +140,8 @@ mod mysql {
             r#"/* mysql */ select id, username, email, password, display_name, avatar_url, role,
                is_active as "is_active: bool", github_id, keycloak_id, created_at as "created_at: UtcInstant",
                updated_at as "updated_at: UtcInstant", must_change_password as "must_change_password: bool",
-               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", totp_secret,
-               mfa_backup_codes, totp_last_step
+               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", scim_lowered_from,
+               totp_secret, mfa_backup_codes, totp_last_step
                from t_user where username = ?"#,
             username
         )
@@ -154,13 +155,25 @@ mod mysql {
             r#"/* mysql */ select id, username, email, password, display_name, avatar_url, role,
                is_active as "is_active: bool", github_id, keycloak_id, created_at as "created_at: UtcInstant",
                updated_at as "updated_at: UtcInstant", must_change_password as "must_change_password: bool",
-               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", totp_secret,
-               mfa_backup_codes, totp_last_step
+               mfa_enabled as "mfa_enabled: bool", scim_managed as "scim_managed: bool", scim_lowered_from,
+               totp_secret, mfa_backup_codes, totp_last_step
                from t_user order by username asc"#
         )
         .fetch_all(pool)
         .await?;
         Ok(rows.into_iter().map(|row| user_from!(row)).collect())
+    }
+
+    /// Spring Data's `IgnoreCase` is `upper(…) = upper(…)`.
+    pub(super) async fn email_taken(pool: &MySqlPool, email: &str, excluding: i64) -> Result<bool, StoreError> {
+        let taken: i64 = sqlx::query_scalar!(
+            "/* mysql */ select count(*) from t_user where upper(email) = upper(?) and id <> ?",
+            email,
+            excluding
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(taken > 0)
     }
 
     pub(super) async fn insert(pool: &MySqlPool, user: &NewUser) -> Result<i64, StoreError> {
@@ -187,8 +200,8 @@ mod mysql {
         sqlx::query!(
             "/* mysql */ update t_user set username = ?, email = ?, password = ?, display_name = ?, avatar_url = ?, \
              role = ?, is_active = ?, github_id = ?, keycloak_id = ?, created_at = ?, updated_at = ?, \
-             must_change_password = ?, mfa_enabled = ?, scim_managed = ?, totp_secret = ?, mfa_backup_codes = ?, \
-             totp_last_step = ? where id = ?",
+             must_change_password = ?, mfa_enabled = ?, scim_managed = ?, scim_lowered_from = ?, totp_secret = ?, \
+             mfa_backup_codes = ?, totp_last_step = ? where id = ?",
             user.username,
             user.email,
             user.password.as_ref().map(PasswordHash::encoded),
@@ -203,6 +216,7 @@ mod mysql {
             user.must_change_password,
             user.mfa_enabled,
             user.scim_managed,
+            user.scim_lowered_from,
             user.totp_secret.as_ref().map(Sealed::expose),
             user.mfa_backup_codes.as_ref().map(Sealed::expose),
             user.totp_last_step,
@@ -273,7 +287,8 @@ mod postgres {
         let row = sqlx::query!(
             r#"/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,
                github_id, keycloak_id, created_at as "created_at: UtcInstant", updated_at as "updated_at: UtcInstant",
-               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step
+               must_change_password, mfa_enabled, scim_managed, scim_lowered_from, totp_secret, mfa_backup_codes,
+               totp_last_step
                from t_user where id = $1"#,
             id
         )
@@ -286,7 +301,8 @@ mod postgres {
         let row = sqlx::query!(
             r#"/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,
                github_id, keycloak_id, created_at as "created_at: UtcInstant", updated_at as "updated_at: UtcInstant",
-               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step
+               must_change_password, mfa_enabled, scim_managed, scim_lowered_from, totp_secret, mfa_backup_codes,
+               totp_last_step
                from t_user where username = $1"#,
             username
         )
@@ -299,12 +315,25 @@ mod postgres {
         let rows = sqlx::query!(
             r#"/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,
                github_id, keycloak_id, created_at as "created_at: UtcInstant", updated_at as "updated_at: UtcInstant",
-               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step
+               must_change_password, mfa_enabled, scim_managed, scim_lowered_from, totp_secret, mfa_backup_codes,
+               totp_last_step
                from t_user order by username asc"#
         )
         .fetch_all(pool)
         .await?;
         Ok(rows.into_iter().map(|row| user_from!(row)).collect())
+    }
+
+    /// Spring Data's `IgnoreCase` is `upper(…) = upper(…)`.
+    pub(super) async fn email_taken(pool: &PgPool, email: &str, excluding: i64) -> Result<bool, StoreError> {
+        let taken = sqlx::query_scalar!(
+            r#"/* postgres */ select exists(select 1 from t_user where upper(email) = upper($1) and id <> $2) as "taken!""#,
+            email,
+            excluding
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(taken)
     }
 
     pub(super) async fn insert(pool: &PgPool, user: &NewUser) -> Result<i64, StoreError> {
@@ -333,7 +362,7 @@ mod postgres {
             "/* postgres */ update t_user set username = $1, email = $2, password = $3, display_name = $4, \
              avatar_url = $5, role = $6, is_active = $7, github_id = $8, keycloak_id = $9, created_at = $10, \
              updated_at = $11, must_change_password = $12, mfa_enabled = $13, scim_managed = $14, \
-             totp_secret = $15, mfa_backup_codes = $16, totp_last_step = $17 where id = $18",
+             scim_lowered_from = $15, totp_secret = $16, mfa_backup_codes = $17, totp_last_step = $18 where id = $19",
             user.username,
             user.email,
             user.password.as_ref().map(PasswordHash::encoded),
@@ -348,6 +377,7 @@ mod postgres {
             user.must_change_password,
             user.mfa_enabled,
             user.scim_managed,
+            user.scim_lowered_from,
             user.totp_secret.as_ref().map(Sealed::expose),
             user.mfa_backup_codes.as_ref().map(Sealed::expose),
             user.totp_last_step,
@@ -433,6 +463,9 @@ mod unprepared {
     pub(super) async fn insert<P>(_: &P, _: &NewUser) -> Result<i64, StoreError> {
         absent()
     }
+    pub(super) async fn email_taken<P>(_: &P, _: &str, _: i64) -> Result<bool, StoreError> {
+        absent()
+    }
     pub(super) async fn update_row<C>(_: &mut C, _: &User) -> Result<(), StoreError> {
         absent()
     }
@@ -474,6 +507,13 @@ impl<K: SessionsAndKeys + Sync> AccountStore for SqlAccountStore<K> {
         match &self.db {
             Db::MySql(pool) => mysql::all_by_username(pool).await,
             Db::PostgreSql(pool) => postgres::all_by_username(pool).await,
+        }
+    }
+
+    async fn email_taken(&self, email: &str, excluding: i64) -> Result<bool, StoreError> {
+        match &self.db {
+            Db::MySql(pool) => mysql::email_taken(pool, email, excluding).await,
+            Db::PostgreSql(pool) => postgres::email_taken(pool, email, excluding).await,
         }
     }
 

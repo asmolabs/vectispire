@@ -134,6 +134,10 @@ async fn subject_of(db: &Db, id: i64) -> Option<String> {
     text(db, &format!("select keycloak_id from t_user where id = {id}")).await
 }
 
+async fn lowered_from(db: &Db, id: i64) -> Option<String> {
+    text(db, &format!("select scim_lowered_from from t_user where id = {id}")).await
+}
+
 async fn display_name_of(db: &Db, id: i64) -> Option<String> {
     text(db, &format!("select display_name from t_user where id = {id}")).await
 }
@@ -476,8 +480,10 @@ async fn an_external_id_is_bound_once(fixture: &Fixture) {
 /// directory; the operator's setting opens the first two, never the third.
 async fn a_privileged_or_second_factor_account_is_not_bound(fixture: &Fixture) {
     let db = &fixture.db;
+    // Java 1.0's sentences (`ScimProvisioningService.bindOnce`), which say what does work.
     let privileged = "This account holds a privileged role, so the directory does not bind it to an identity-provider \
-                      subject; an administrator does, in Vectispire.";
+                      subject. Provision a new account and have an administrator grant it the role in Vectispire, or \
+                      allow it with vectispire.oidc.link-privileged-accounts.";
     // Each is privileged by one flag at least: CISO by many, the champion by approving triage, the auditor by its
     // global scope; `admin` is no role Java reads, and an unreadable role counts as privileged.
     for role in ["CISO", "SECURITY_CHAMPION", "AUDITOR", "admin"] {
@@ -502,10 +508,44 @@ async fn a_privileged_or_second_factor_account_is_not_bound(fixture: &Fixture) {
         assert_eq!(
             invalid(fixture.provisioning(linking).replace_user(id, &bind, &directory()).await),
             "This account has a local second factor, so the directory does not bind it to an identity-provider \
-             subject; an administrator does, in Vectispire."
+             subject. Its owner turns the second factor off first, or the directory provisions a new account."
         );
     }
     assert_eq!(subject_of(db, id).await, None);
+    fixture.log.take();
+}
+
+/// The directory lowers a privileged unbound account and records what it held (V93): the binding that would have
+/// followed is refused until an administrator sets the role in Vectispire — whose change clears the record — and the
+/// operator's setting opens it as it opens a privileged account's.
+async fn a_lowered_account_is_not_bound_until_an_administrator_sets_its_role(fixture: &Fixture) {
+    let db = &fixture.db;
+    let scim = fixture.scim();
+    let (id, name) = account(db, "scim-lowered", "CISO").await;
+    let lower = UserAttributes { role: Some("USER".to_owned()), ..attributes(&name) };
+    assert_eq!(changed(scim.replace_user(id, &lower, &directory()).await.unwrap()).role, "USER");
+    assert_eq!(lowered_from(db, id).await.as_deref(), Some("CISO"), "the role it held is kept for the binding");
+    // Lowered again, the record keeps the privileged role, not the plain one it holds now.
+    changed(scim.replace_user(id, &lower, &directory()).await.unwrap());
+    assert_eq!(lowered_from(db, id).await.as_deref(), Some("CISO"));
+
+    let bind = UserAttributes { external_id: Some(unique("attacker")), ..lower.clone() };
+    assert_eq!(
+        invalid(scim.replace_user(id, &bind, &directory()).await),
+        "This account held the CISO role until the directory lowered it, so the directory does not bind it to an \
+         identity-provider subject until an administrator sets its role in Vectispire."
+    );
+    assert_eq!(subject_of(db, id).await, None);
+    let linked = changed(fixture.provisioning(true).replace_user(id, &bind, &directory()).await.unwrap());
+    assert_eq!(linked.keycloak_id, bind.external_id, "privileged linking allowed opens it");
+
+    // An account the directory lowers once it is bound has nothing left to bind: no record.
+    let (bound, bound_name) = account(db, "scim-lowered-bound", "CISO").await;
+    let subject = UserAttributes { external_id: Some(unique("subject")), ..attributes(&bound_name) };
+    changed(fixture.provisioning(true).replace_user(bound, &subject, &directory()).await.unwrap());
+    let lower_bound = UserAttributes { role: Some("USER".to_owned()), ..attributes(&bound_name) };
+    changed(scim.replace_user(bound, &lower_bound, &directory()).await.unwrap());
+    assert_eq!(lowered_from(db, bound).await, None);
     fixture.log.take();
 }
 
@@ -1397,6 +1437,7 @@ async fn provisioning(engine: Engine) {
     the_held_role_is_no_grant_and_no_role_no_demotion(&fixture).await;
     an_external_id_is_bound_once(&fixture).await;
     a_privileged_or_second_factor_account_is_not_bound(&fixture).await;
+    a_lowered_account_is_not_bound_until_an_administrator_sets_its_role(&fixture).await;
     an_account_is_provisioned(&fixture).await;
     a_role_change_or_a_deactivation_closes_the_sessions(&fixture).await;
     absent_and_taken(&fixture).await;

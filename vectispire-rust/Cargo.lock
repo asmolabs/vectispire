@@ -4040,6 +4040,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "unicode-general-category",
  "unicode-normalization",
  "uuid",
  "vectispire-cp-arch-tests",

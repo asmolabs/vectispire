@@ -14,7 +14,9 @@ use vectispire_cp_crypto::{Encryption, EncryptionError, SecretState};
 use vectispire_domain::java;
 use vectispire_domain::secret::Secret;
 
-use crate::accounts::{AccountStore, Audit, AuditOperation, AuditRecord, StoreError, User};
+use crate::accounts::{
+    AccountError, AccountStore, Audit, AuditOperation, AuditRecord, StoreError, User, verify_reserved,
+};
 use crate::login_throttle::SignInLimits;
 pub use crate::persistence::sign_in::Enrolled;
 use crate::persistence::sign_in::SignInStore;
@@ -35,6 +37,10 @@ pub const ALREADY_ENABLED: &str =
 pub const INVALID_ENROLMENT_CODE: &str = "Invalid TOTP verification code.";
 /// Disabling with a wrong code.
 pub const INVALID_DISABLE_CODE: &str = "Invalid code or backup code. MFA could not be disabled.";
+/// `CurrentPasswordWrongException`'s sentence, answered 401.
+pub const CURRENT_PASSWORD_WRONG: &str = "Current password is incorrect.";
+/// `PasswordLockedException`'s sentence, answered 429.
+pub const PASSWORD_LOCKED: &str = "Too many wrong passwords. Try again later.";
 
 /// Encryption at rest, as far as the second factor needs it — `EncryptionService.encrypt` and `inspect`.
 pub trait SecretSeal: Send + Sync {
@@ -92,6 +98,16 @@ pub enum SecondFactorError {
     /// The account is gone — only a deletion racing the request, which the bearer layer found active.
     #[error("Account not found.")]
     AccountMissing,
+    /// `CurrentPasswordWrongException`: enrolment's password was not the account's — 401, as at the password change:
+    /// what is missing is proof of identity.
+    #[error("{}", CURRENT_PASSWORD_WRONG)]
+    CurrentPasswordWrong,
+    /// `PasswordLockedException`: the account's password budget is spent — 429 with the wait.
+    #[error("{}", PASSWORD_LOCKED)]
+    PasswordLocked { retry_after: Duration },
+    /// `DerivationsSaturated`: no derivation permit came free, nothing was compared, the attempt was taken back — 503.
+    #[error(transparent)]
+    Saturated(#[from] crate::derivations::DerivationsSaturated),
     /// No key to encrypt with, or the KMS refused: Java's 412 or its sentence.
     #[error(transparent)]
     Encryption(#[from] EncryptionError),
@@ -145,10 +161,64 @@ where
 
     /// Enables the factor the code proves, and hands out the backup codes — their only copy in the clear.
     ///
+    /// **The password first** (`MfaEnableRequest.password`). Enrolling with a session alone let whoever held one —
+    /// stolen, or left open on a desk — put the account's second factor on their own phone, and the owner, who had no
+    /// code to disable it with, was out until somebody edited the database. A wrong password spends the account's
+    /// sign-in budget and is recorded, as at the password change, so this is no way to guess it either; past the
+    /// budget the attempt is refused before any derivation, and a derivation refused for want of a permit takes its
+    /// attempt back.
+    ///
     /// Enrolling over an active factor is refused: a session left open on somebody's desk was enough to move their
     /// second factor onto one's own phone. Replacing goes through disabling, which asks for a code.
-    pub async fn enable(&self, account_id: i64, secret: &str, code: &str) -> Result<Vec<Secret>, SecondFactorError> {
+    pub async fn enable(
+        &self,
+        account_id: i64,
+        password: &str,
+        secret: &str,
+        code: &str,
+        ip_address: Option<&str>,
+        user_agent: Option<&str>,
+    ) -> Result<Vec<Secret>, SecondFactorError> {
         let user = self.users.find_by_id(account_id).await?.ok_or(SecondFactorError::AccountMissing)?;
+        let entry = |operation, description: String, signal| AuditRecord {
+            operation,
+            resource: user.id.to_string(),
+            description,
+            username: Some(user.username.clone()),
+            ip_address: ip_address.map(str::to_owned),
+            user_agent: user_agent.map(str::to_owned),
+            signal,
+        };
+        let attempt = self.throttle.reserve_password(user.id, ip_address).await?;
+        if !attempt.admitted() {
+            self.audit
+                .record(entry(
+                    AuditOperation::LoginBlocked,
+                    format!("MFA enrolment refused by the throttle ({}s to wait)", attempt.retry_after_seconds()),
+                    Some("SIGN_IN_THROTTLED"),
+                ))
+                .await;
+            return Err(SecondFactorError::PasswordLocked { retry_after: attempt.retry_after });
+        }
+        let matches = match verify_reserved(&self.throttle, &attempt, Some(password), user.password.as_ref()).await {
+            Ok(matches) => matches,
+            Err(AccountError::Saturated(saturated)) => return Err(saturated.into()),
+            Err(AccountError::Store(store)) => return Err(store.into()),
+            // `verify_reserved` raises nothing else; kept opaque rather than lost.
+            Err(other) => return Err(SecondFactorError::Store(StoreError(other.to_string().into()))),
+        };
+        if !matches {
+            // The reservation stays: it is this failure.
+            self.audit
+                .record(entry(
+                    AuditOperation::LoginFailure,
+                    "MFA enrolment refused: the current password was wrong".to_owned(),
+                    None,
+                ))
+                .await;
+            return Err(SecondFactorError::CurrentPasswordWrong);
+        }
+        self.throttle.clear_password_failures(user.id, ip_address).await?;
         if user.mfa_enabled {
             return Err(SecondFactorError::InvalidInput(ALREADY_ENABLED));
         }

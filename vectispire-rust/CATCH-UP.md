@@ -28,17 +28,34 @@ not serve at all yet is ported with that module, not stood up alone during the c
             only); `client_bucket` is `cp-http`'s (`address.rs`), left to its owner. `sign_in_reference_set` stays red
             on 6 addresses. `TrustedProxies` reads hops through `AddressLiterals` too (every `X-Forwarded-For` line, a
             hop that is no address answering the nearest trusted proxy) — not on this list before.
-      - [ ] **The derivation gate** (`DerivationGate`, 503 `DerivationsSaturated` with `Retry-After`): not ported.
-      - [ ] `cp-app` composes neither `SignInFlow::with_limits` nor `session_cleanup_task_with_limits` with
-            `settings.sign_in` yet: the shipped ceilings hold until it does.
+      - [x] **The derivation gate** (`DerivationGate`, 503 `DerivationsSaturated` with `Retry-After`): `cp-access`
+            `derivations` — fair permits, the queue wait, the shipped bound (processors, at least two, a quarter of the
+            container's memory where Java reads its heap), one bound for the process installed at start; every
+            password derived through it (`passwords::verify_bounded` / `hash_bounded`: the sign-in, the stand-in's
+            included, the password change, the MFA enrolment, an account created or reset, the rehash) and the API
+            keys' verification. A saturated sign-in, password change or enrolment takes its attempt back
+            (`verifyReserved`); `DerivationsSaturated::problem` is `ApiExceptionHandler`'s 503 (`derivations`,
+            `p1-access-catch-up.py`). Still owed, not on this list before: **the bearer chain's 503** for an API key
+            refused for want of a permit — `cp-http`'s `Credentials::api_key` has no way to say "busy", so the key
+            path answers it as no credential (Java's `BearerAuthenticationFilter` writes 503 with `Retry-After`); and
+            **an API key's issuance** (`AgentKeys`, `ApiKeyAdministrationService` hash under the bound in Java) still
+            derives outside it.
+      - [x] `cp-app` composes `vectispire.sign-in.*` (`access::compose`): the derivation bound for the process, the
+            known clients' retention on `SESSION_CLEANUP` (`session_cleanup_task_with_limits`), and the ceilings the
+            sign-in flows are built with (`Access::limits`, for `SignInFlow::with_limits` — the binary builds no flow
+            while no access route is served). `cp-app --test access_composition`, on a real database.
 - [→] **Account requests** *(moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
       `ACCOUNT_REQUEST_FILED / _APPROVED / _REJECTED` (SIEM maps them to `ACCOUNT_CHANGED`). Not-yet-ported list.
 - [→] **`DELETE /users/{id}/second-factor`** *(moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
       - [x] `scim_managed` read on `User`, `UserView` and SCIM's rows, set by every provisioning write
             (`scim_on_both_engines`).
-      - [ ] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — is not
-            ported: the Rust `AccountChange` has no e-mail at all yet (Java 1.0's `emailChange`), and SCIM's
-            `scimLoweredFrom` is not ported either. Neither was on this list.
+      - [x] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — at the
+            service: `AccountChange.email` (`emailChange`: the address it holds is no change, read as an address,
+            refused when another account holds it, audited without the address; a creation's address read the same
+            way), `AccountError::ManagedByDirectory`. SCIM's `scimLoweredFrom` (V93): recorded when the directory lowers
+            a privileged unbound account, refusing its binding until an administrator sets its role, which clears it;
+            `bindOnce`'s refusals in Java 1.0's words (`service`, `engines`, `scim_on_both_engines`). The route's 409
+            is task 1.7's, with the route.
 - [x] **OIDC**: settings bound by `OidcProperties` (no longer `@Value`), new `vectispire.oidc.link-by-claim` (true);
       SCIM's link-privileged switch reads `OidcProperties.linkPrivilegedAccounts`. Red: `java_parity`. (The loader reads
       `link-by-claim`; its consumer is the single sign-on, task 1.4, not ported.)
@@ -47,18 +64,27 @@ not serve at all yet is ported with that module, not stood up alone during the c
       What this entry listed (settings saved in one transaction with the notification channels, 409
       `integration-disabled`, a secret administrator-only setting refused unchanged, `checkAiEndpoint` hiding the URL)
       is in no Rust test or reference set: it is the settings service's (`cp-settings` / `cp-platform`), still owed.
-- [ ] **Settings save and AI endpoint check** (moved from the line above, still owed): settings saved in one
+- [x] **Settings save and AI endpoint check** (moved from the line above): settings saved in one
       transaction with the notification channels; 409 `integration-disabled` when the tracker or the AI provider moves
       to a disabled integration, or AI review is turned on over one; a secret administrator-only setting refused from a
       non-administrator even unchanged; `checkAiEndpoint` hides the URL from a non-administrator.
+      *Done 2026-11-13 in `cp-platform`'s `SettingsAdministration` (`cp-platform --test engines`): the channels a save
+      configures (`NotificationDestinations.configuredBy`, read in cp-platform until the notifications module lands in
+      wave 2) held in the write's transaction, the risk acknowledgement written in it too; `check_ai_endpoint` over
+      an `AiEndpoint` seam the AI module will fill. Found on the way: the Ollama address's 403 had the channels'
+      sentence instead of its own. The settings routes stay unserved.*
 
-- [ ] **Found while catching up access** (2026-11-12): the derivation gate (`DerivationGate`, 503 when every password
+- [x] **Found while catching up access** (2026-11-12): the derivation gate (`DerivationGate`, 503 when every password
       derivation permit is taken — the `sign-in.derivations.*` settings are read, nothing uses them yet); cp-app does
       not pass `settings.sign_in` to the sign-in flow and the session cleanup (`with_limits`); an e-mail change on a
       directory-managed account → 409 `managed-by-directory` (V102; `AccountChange` has no e-mail yet) and SCIM's
       `scimLoweredFrom`; `POST /auth/mfa/enable` asks the current password again (`MfaEnableRequest.password`);
       ~~`TrustedProxies` reads every `X-Forwarded-For` line through `AddressLiterals`, and a hop that is no address
       answers the nearest trusted proxy (cp-http)~~ — done 2026-11-12, as are the address buckets.
+      *The rest done 2026-11-13 (the sub-items above): the gate, the composition, the e-mail refusal and
+      `scimLoweredFrom`, and the password asked again at enrolment — `SecondFactor::enable(account, password, …)`,
+      `reservePassword` spent, 401 `CurrentPasswordWrong`, 429 `PasswordLocked`, each audited (`sign_in_flow`). Every
+      one at the service: no access route is served yet.*
 
 ## Agents and the protocol (`cp-agents`, `protocol`, `agent`)
 

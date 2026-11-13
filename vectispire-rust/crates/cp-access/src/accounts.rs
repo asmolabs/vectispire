@@ -18,6 +18,7 @@ use crate::account_rules::{
     self, Change, Role, java_length, java_trim, java_upper, refuse_deletion, refuse_governor_administration,
     refuse_own_role_change, refuse_self_lockout, validate_password, validate_username,
 };
+pub use crate::derivations::DerivationsSaturated;
 use crate::passwords;
 pub use crate::persistence::model::StoreError;
 pub use crate::persistence::{AccountStore, NewUser, PasswordHash, RevokedKey, Sealed, SessionHash, User};
@@ -103,7 +104,13 @@ pub struct AccountChange {
     pub role: Option<String>,
     pub is_active: Option<bool>,
     pub password: Option<vectispire_domain::secret::Secret>,
+    /// The address to set — blank clears it. Refused with 409 [`MANAGED_BY_DIRECTORY`] on an account the SCIM
+    /// directory writes, unless it is the address the account already holds.
+    pub email: Option<String>,
 }
+
+/// `DirectoryManagedException.CAUSE`: the token the problem's `type` ends with, and its code.
+pub const MANAGED_BY_DIRECTORY: &str = "managed-by-directory";
 
 /// Who is asking, as the audit entry names them — `RequestActor`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -181,12 +188,18 @@ impl Clock for std::sync::Arc<dyn crate::credentials::Clock> {
 /// counters). A reservation not released is a failure counted. Both are keyed on the client too: the low ceiling is the
 /// account's from this client, and a right password clears that one only.
 pub trait PasswordAttempts {
-    /// `Ok(())` when admitted, otherwise the wait, in whole seconds as Java's `retryAfter().toSeconds()`.
+    /// The attempt counted — what [`PasswordAttempts::release`] takes back.
+    type Held: Send + Sync;
+    /// The attempt counted when admitted, otherwise the wait, in whole seconds as Java's `retryAfter().toSeconds()`.
     fn reserve(
         &self,
         account_id: i64,
         ip_address: Option<&str>,
-    ) -> impl std::future::Future<Output = Result<(), StoreOr<u64>>> + Send;
+    ) -> impl std::future::Future<Output = Result<Self::Held, StoreOr<u64>>> + Send;
+    /// `AuthService.release`: takes an admitted attempt back — one whose password was never compared, because no
+    /// derivation permit came free (`verifyReserved`). Counted, a person retrying through a busy minute would spend
+    /// their own budget on checks that never happened.
+    fn release(&self, held: &Self::Held) -> impl std::future::Future<Output = Result<(), StoreError>> + Send;
     fn clear(
         &self,
         account_id: i64,
@@ -213,6 +226,19 @@ pub enum AccountError {
     /// `AccessDeniedException`: 403.
     #[error("{0}")]
     AccessDenied(String),
+    /// `DirectoryManagedException`: 409, type `urn:vectispire:problem:managed-by-directory`, code
+    /// [`MANAGED_BY_DIRECTORY`]. A 409 rather than a 400: the request is well formed, and the same change succeeds on an
+    /// account the directory does not provision. Accepted, the address would last until the directory's next write
+    /// and then vanish, with nothing to say it had (V102). Carries the account's name.
+    #[error(
+        "The e-mail address of {0} is written by the SCIM directory, which would replace it on its next \
+         synchronisation: change it in the directory."
+    )]
+    ManagedByDirectory(String),
+    /// `DerivationsSaturated`: 503 with `Retry-After` ([`DerivationsSaturated::problem`]) — every password derivation
+    /// permit was taken, and nothing was compared or written.
+    #[error(transparent)]
+    Saturated(#[from] DerivationsSaturated),
     #[error(transparent)]
     Store(#[from] StoreError),
 }
@@ -279,6 +305,10 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
 
         refuse_if(validate_username(Some(&username)))?;
         refuse_if(validate_password(Some(password)))?;
+        // Bounded like every column a form writes — past 255 the database refused the row at the write, and the
+        // administrator got a 500 for a pasted signature block — and read as an address: "jdoe" went nowhere, and
+        // nobody heard of it until the reminders did not arrive.
+        let email = address(request.email.as_deref())?;
         let Some(granted) = Role::of(Some(&role)) else {
             return Err(AccountError::InvalidInput(format!("Unknown role: {role}.")));
         };
@@ -286,15 +316,15 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         if self.store.find_by_username(&username).await?.is_some() {
             return Err(AccountError::InvalidInput(format!("The username \"{username}\" is already taken.")));
         }
+        // `NO_ACCOUNT`: no id is excluded.
+        self.refuse_taken_address(email.as_deref(), -1).await?;
 
         let created_at = self.clock.now();
         let user = NewUser {
             username: username.clone(),
-            // Bounded like every column a form writes: past 255 the database refused the row at the write, and the
-            // administrator got a 500 for a pasted signature block.
-            email: bounded_optional(request.email.as_deref(), "The e-mail address")?,
+            email,
             display_name: bounded_optional(request.display_name.as_deref(), "The display name")?,
-            password: Some(PasswordHash::new(passwords::hash(password))),
+            password: Some(PasswordHash::new(passwords::hash_bounded(password).await?)),
             role: role.clone(),
             is_active: true,
             must_change_password: true,
@@ -333,6 +363,8 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         if let Some(password) = password {
             refuse_if(validate_password(Some(password)))?;
         }
+        // Before anything is applied, so a refusal of the address leaves nothing half done.
+        let email = self.email_change(&user, change.email.as_deref()).await?;
 
         // On every change, not only a role change: resetting a governor's password, or deactivating it, is
         // administering it just as much.
@@ -359,12 +391,34 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         if password.is_some() {
             changes.push("password reset".to_owned());
         }
+        if let Some(next) = email {
+            // Never the address itself: the audit log is read by people who are not the account's owner, and exported
+            // to a SIEM that keeps it longer than the account.
+            changes.push(
+                if next.is_empty() {
+                    "e-mail address cleared"
+                } else if user.email.is_none() {
+                    "e-mail address set"
+                } else {
+                    "e-mail address changed"
+                }
+                .to_owned(),
+            );
+            user.email = (!next.is_empty()).then_some(next);
+        }
+        if change.role.is_some()
+            && let Some(lowered) = user.scim_lowered_from.take()
+        {
+            // An administrator who sets the role has looked at the account: the directory's lowering no longer holds
+            // its binding back (V93).
+            changes.push(format!("role confirmed after the directory lowered it from {lowered}"));
+        }
 
         user.role = role.clone();
         user.is_active = is_active;
         user.updated_at = self.clock.now();
         if let Some(password) = password {
-            user.password = Some(PasswordHash::new(passwords::hash(password)));
+            user.password = Some(PasswordHash::new(passwords::hash_bounded(password).await?));
             user.must_change_password = true;
         }
         let revoke = !is_active || password.is_some() || role != previous_role;
@@ -452,7 +506,7 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         user.must_change_password = false;
         if user.password.is_some() {
             // Well-formed, so the sign-in's comparison runs as for any account, and nothing anybody typed matches.
-            user.password = Some(PasswordHash::new(passwords::hash_of_nothing_anybody_knows()));
+            user.password = Some(PasswordHash::new(passwords::hash_of_nothing_anybody_knows_bounded().await?));
         }
         user.updated_at = self.clock.now();
         self.store.save(&user, true).await?;
@@ -514,8 +568,8 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
             user_agent: user_agent.map(str::to_owned),
             signal,
         };
-        match attempts.reserve(user.id, ip_address).await {
-            Ok(()) => {}
+        let held = match attempts.reserve(user.id, ip_address).await {
+            Ok(held) => held,
             Err(StoreOr::Store(error)) => return Err(error.into()),
             Err(StoreOr::Refused(retry_after_seconds)) => {
                 self.audit
@@ -527,8 +581,8 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
                     .await;
                 return Ok(PasswordChange::Throttled { retry_after_seconds });
             }
-        }
-        if !passwords::verify(current_password, user.password.as_ref().map(PasswordHash::encoded)) {
+        };
+        if !verify_reserved(attempts, &held, current_password, user.password.as_ref()).await? {
             // The reservation stays: it is this failure.
             self.audit
                 .record(entry(
@@ -551,7 +605,7 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
             .store
             .change_own_password(
                 user.id,
-                PasswordHash::new(passwords::hash(new_password)),
+                PasswordHash::new(passwords::hash_bounded(new_password).await?),
                 self.clock.now(),
                 current_session,
             )
@@ -606,7 +660,7 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         password: Option<&str>,
     ) -> Result<Option<User>, AccountError> {
         let user = self.sign_in_lookup(username).await?;
-        let Some(found) = verify_sign_in(user, password) else {
+        let Some(found) = verify_sign_in(user, password).await? else {
             return Ok(None);
         };
         self.rehash_if_stale(&found, password).await;
@@ -631,7 +685,15 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
     /// refusing the session over a housekeeping write would turn a cost upgrade into an outage.
     pub async fn rehash_if_stale(&self, user: &User, password: Option<&str>) {
         if passwords::needs_rehash(user.password.as_ref().map(PasswordHash::encoded)) {
-            let rewritten = PasswordHash::new(passwords::hash(password.unwrap_or("")));
+            // Under the bound too, as Java's `PasswordHasher.hash` is; saturated, the rewrite waits for the next
+            // sign-in — Java's `catch (RuntimeException)` swallows the refusal the same way.
+            let rewritten = match passwords::hash_bounded(password.unwrap_or("")).await {
+                Ok(rewritten) => PasswordHash::new(rewritten),
+                Err(saturated) => {
+                    tracing::warn!(username = %user.username, %saturated, "Could not rewrite the password hash under current parameters.");
+                    return;
+                }
+            };
             if let Err(error) = self.store.rehash(user.id, rewritten).await {
                 tracing::warn!(username = %user.username, %error, "Could not rewrite the password hash under current parameters.");
             }
@@ -641,6 +703,43 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
     /// The account store, for the sign-in services that share it.
     pub(crate) fn store(&self) -> &S {
         &self.store
+    }
+
+    /// `emailChange`: what a change does to the account's address — `None` when it leaves it as it is (absent, or the
+    /// address it already holds), the empty string when it clears it, the address otherwise.
+    ///
+    /// **Resending the current address is no change**, so a screen that sends the whole form is not refused on an
+    /// account the directory writes, and writes no audit entry for nothing. A real change on such an account is
+    /// [`AccountError::ManagedByDirectory`]; an address another account holds is refused as a taken username is,
+    /// rather than left to the unique key, whose violation was a 500.
+    ///
+    /// Java asks again inside the write's transaction, since the directory may claim the account meanwhile; here the
+    /// row is written by [`AccountStore::save`] after this check, as every other rule of `update` is.
+    async fn email_change(&self, user: &User, typed: Option<&str>) -> Result<Option<String>, AccountError> {
+        let Some(typed) = typed else {
+            return Ok(None);
+        };
+        let email = address(Some(typed))?;
+        if email == user.email {
+            return Ok(None);
+        }
+        if user.scim_managed {
+            return Err(AccountError::ManagedByDirectory(user.username.clone()));
+        }
+        self.refuse_taken_address(email.as_deref(), user.id).await?;
+        Ok(Some(email.unwrap_or_default()))
+    }
+
+    /// `refuseTakenAddress`.
+    async fn refuse_taken_address(&self, email: Option<&str>, account_id: i64) -> Result<(), AccountError> {
+        if let Some(email) = email
+            && self.store.email_taken(email, account_id).await?
+        {
+            return Err(AccountError::InvalidInput(format!(
+                "The e-mail address {email} is already used by another account."
+            )));
+        }
+        Ok(())
     }
 
     async fn require_account(&self, id: i64) -> Result<User, AccountError> {
@@ -684,13 +783,36 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
 /// unknown name, a deactivated account and an account without a password — Java's `Optional.map` of a null password
 /// is empty, so that one is verified against the stand-in too. The account when the password is its own and it is
 /// active.
-pub fn verify_sign_in(user: Option<User>, password: Option<&str>) -> Option<User> {
+///
+/// Under the derivation bound ([`crate::derivations`]): **busy is not a failure** — `Err` when no permit came free,
+/// asked for in the same place whatever the name, the stand-in's included, so the refusal says nothing about whether
+/// the account exists.
+pub async fn verify_sign_in(user: Option<User>, password: Option<&str>) -> Result<Option<User>, DerivationsSaturated> {
     let active = user.filter(|found| found.is_active);
     let stand_in = stand_in_hash();
     let stored = active.as_ref().and_then(|found| found.password.as_ref().map(PasswordHash::encoded));
     let against = stored.unwrap_or(stand_in.as_str());
-    let matches = passwords::verify(password, Some(against));
-    active.filter(|_| matches)
+    let matches = passwords::verify_bounded(password, Some(against)).await?;
+    Ok(active.filter(|_| matches))
+}
+
+/// `AuthService.verifyReserved`: a password checked under a reservation already made. When no derivation permit came
+/// free, nothing was compared, so the reservation is taken back before [`DerivationsSaturated`] goes up as a 503 —
+/// counted, a person retrying through a busy minute would spend their own budget on checks that never happened and be
+/// locked out once it cleared. For the password asked of a signed-in account: a password change, an MFA enrolment.
+pub(crate) async fn verify_reserved<P: PasswordAttempts + Sync>(
+    attempts: &P,
+    held: &P::Held,
+    password: Option<&str>,
+    encoded: Option<&PasswordHash>,
+) -> Result<bool, AccountError> {
+    match passwords::verify_bounded(password, encoded.map(PasswordHash::encoded)).await {
+        Ok(matches) => Ok(matches),
+        Err(saturated) => {
+            attempts.release(held).await?;
+            Err(saturated.into())
+        }
+    }
 }
 
 /// A real Argon2 hash of nothing anybody knows, computed once per process, for the unknown-name path.
@@ -719,6 +841,15 @@ fn is_administrative(role: &str) -> bool {
 
 fn refuse_if(refusal: Option<String>) -> Result<(), AccountError> {
     refusal.map_or(Ok(()), |message| Err(AccountError::InvalidInput(message)))
+}
+
+/// `address`: an address as typed, bounded like every column a form writes and read as an address — `None` when blank.
+fn address(typed: Option<&str>) -> Result<Option<String>, AccountError> {
+    let email = bounded_optional(typed, "The e-mail address")?;
+    if let Some(email) = &email {
+        refuse_if(account_rules::validate_email(Some(email)))?;
+    }
+    Ok(email)
 }
 
 /// `BoundedText.optional`: trimmed as Java trims, `None` when blank, refused rather than cut when too long.

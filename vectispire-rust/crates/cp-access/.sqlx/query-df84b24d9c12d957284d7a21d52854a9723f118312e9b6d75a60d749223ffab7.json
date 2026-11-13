@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "/* postgres */ select id, username, email, password, display_name, avatar_url, role, is_active,\n               github_id, keycloak_id, created_at as \"created_at: UtcInstant\", updated_at as \"updated_at: UtcInstant\",\n               must_change_password, mfa_enabled, scim_managed, totp_secret, mfa_backup_codes, totp_last_step\n               from t_user where username = $1",
+  "query": "/* postgres */ select id, username, email, display_name, avatar_url, role, is_active, github_id, keycloak_id, created_at, updated_at, must_change_password, mfa_enabled, scim_managed, scim_lowered_from from t_user where id = $1 for update",
   "describe": {
     "columns": [
       {
@@ -38,17 +38,6 @@
       },
       {
         "ordinal": 3,
-        "name": "password",
-        "type_info": "Varchar",
-        "origin": {
-          "Table": {
-            "table": "t_user",
-            "name": "password"
-          }
-        }
-      },
-      {
-        "ordinal": 4,
         "name": "display_name",
         "type_info": "Varchar",
         "origin": {
@@ -59,7 +48,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "avatar_url",
         "type_info": "Varchar",
         "origin": {
@@ -70,7 +59,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "role",
         "type_info": "Varchar",
         "origin": {
@@ -81,7 +70,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 6,
         "name": "is_active",
         "type_info": "Bool",
         "origin": {
@@ -92,7 +81,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 7,
         "name": "github_id",
         "type_info": "Varchar",
         "origin": {
@@ -103,7 +92,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "keycloak_id",
         "type_info": "Varchar",
         "origin": {
@@ -114,8 +103,8 @@
         }
       },
       {
-        "ordinal": 10,
-        "name": "created_at: UtcInstant",
+        "ordinal": 9,
+        "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -125,8 +114,8 @@
         }
       },
       {
-        "ordinal": 11,
-        "name": "updated_at: UtcInstant",
+        "ordinal": 10,
+        "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -136,7 +125,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 11,
         "name": "must_change_password",
         "type_info": "Bool",
         "origin": {
@@ -147,7 +136,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 12,
         "name": "mfa_enabled",
         "type_info": "Bool",
         "origin": {
@@ -158,7 +147,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 13,
         "name": "scim_managed",
         "type_info": "Bool",
         "origin": {
@@ -169,42 +158,20 @@
         }
       },
       {
-        "ordinal": 15,
-        "name": "totp_secret",
-        "type_info": "Text",
+        "ordinal": 14,
+        "name": "scim_lowered_from",
+        "type_info": "Varchar",
         "origin": {
           "Table": {
             "table": "t_user",
-            "name": "totp_secret"
-          }
-        }
-      },
-      {
-        "ordinal": 16,
-        "name": "mfa_backup_codes",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "t_user",
-            "name": "mfa_backup_codes"
-          }
-        }
-      },
-      {
-        "ordinal": 17,
-        "name": "totp_last_step",
-        "type_info": "Int8",
-        "origin": {
-          "Table": {
-            "table": "t_user",
-            "name": "totp_last_step"
+            "name": "scim_lowered_from"
           }
         }
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int8"
       ]
     },
     "nullable": [
@@ -213,7 +180,6 @@
       true,
       true,
       true,
-      true,
       false,
       false,
       true,
@@ -223,10 +189,8 @@
       false,
       false,
       false,
-      true,
-      true,
       true
     ]
   },
-  "hash": "5149830d05ff2031d9f967a5db9937e2c5fd73b36974f4025e020b996c7c743f"
+  "hash": "df84b24d9c12d957284d7a21d52854a9723f118312e9b6d75a60d749223ffab7"
 }

@@ -71,6 +71,9 @@ pub struct User {
     pub mfa_enabled: bool,
     /// Written by the SCIM directory, which then owns the e-mail address (V102): set by every provisioning write.
     pub scim_managed: bool,
+    /// The privileged role the SCIM directory lowered this unbound account out of (V93): until an administrator sets
+    /// its role in Vectispire, the directory does not bind it to an identity-provider subject.
+    pub scim_lowered_from: Option<String>,
     pub totp_secret: Option<Sealed>,
     pub mfa_backup_codes: Option<Sealed>,
     pub totp_last_step: Option<i64>,
@@ -121,6 +124,12 @@ pub trait AccountStore {
         username: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, StoreError>> + Send;
     fn all_by_username(&self) -> impl std::future::Future<Output = Result<Vec<User>, StoreError>> + Send;
+    /// `existsByEmailIgnoreCaseAndIdNot`: another account holds this address, compared without case.
+    fn email_taken(
+        &self,
+        email: &str,
+        excluding: i64,
+    ) -> impl std::future::Future<Output = Result<bool, StoreError>> + Send;
     fn insert(&self, user: NewUser) -> impl std::future::Future<Output = Result<User, StoreError>> + Send;
     /// Saves the row, and closes the account's sessions in the same transaction when asked.
     fn save(

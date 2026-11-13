@@ -479,7 +479,16 @@ impl CredentialService {
         };
         let as_of = self.clock.now();
         for candidate in key_store::find_by_prefix(&self.db, prefix).await? {
-            if !phc::verify(trimmed, &candidate.key_hash) {
+            // **An API key is verified as a password is, under the same bound** (`crate::derivations`): a key is
+            // presented anonymously, and each candidate costs a derivation. Saturated, nothing was compared — the key
+            // was not refused, it was not looked at — and the failure goes up as the store's; the chain answers it as
+            // no credential, where Java's bearer filter answers 503 with `Retry-After` (owed to cp-http's
+            // `Credentials`, which has no way to say "busy" yet — CATCH-UP.md).
+            let matches = crate::derivations::gate()
+                .run(|| phc::verify(trimmed, &candidate.key_hash))
+                .await
+                .map_err(|saturated| StoreError::from_port(Box::new(saturated)))?;
+            if !matches {
                 continue;
             }
             // Refused, and its row kept: the audit trail needs to know it existed.

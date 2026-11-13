@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_user set display_name = ?, email = ?, keycloak_id = ?, is_active = ?, role = ?, scim_lowered_from = ?, scim_managed = true, updated_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "466912e521e670d78e9c33a4c00fdde088155d2f1e0a6ea944c687b315182108"
+}

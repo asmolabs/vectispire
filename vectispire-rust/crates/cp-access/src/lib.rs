@@ -33,6 +33,7 @@ pub mod administration;
 pub mod api_key_administration;
 pub mod approvers;
 pub mod credentials;
+pub mod derivations;
 pub mod four_eyes;
 mod internal;
 pub mod login_throttle;

@@ -34,8 +34,11 @@ sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio",
 subtle.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
 tracing.workspace = true
+# `\p{Z}` and `\p{C}` of `AccountRules.validateEmail`, as JDK 25 reads them. Already in the graph (cp-crypto,
+# cp-checklists); the regex crate's Unicode classes would need a feature the agent's graph shares.
+unicode-general-category = "1.1"
 # `Normalizer.normalize(NFKD)` and `\p{M}` in the sign-in throttle's user key. Already in the graph (idna, cp-crypto).
 unicode-normalization = "0.1"
 uuid = { workspace = true, features = ["v4"] }

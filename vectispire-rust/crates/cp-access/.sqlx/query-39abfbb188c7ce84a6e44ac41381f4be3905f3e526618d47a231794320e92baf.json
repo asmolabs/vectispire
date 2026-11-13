@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select exists(select 1 from t_user where upper(email) = upper($1) and id <> $2) as \"taken!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "taken!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "39abfbb188c7ce84a6e44ac41381f4be3905f3e526618d47a231794320e92baf"
+}

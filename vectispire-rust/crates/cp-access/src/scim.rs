@@ -316,6 +316,15 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
                 return Ok(UserChange::ExternalIdTaken);
             }
         }
+        if user.keycloak_id.is_none()
+            && user.scim_lowered_from.is_none()
+            && held_privilege(&previous_role)
+            && !held_privilege(&role)
+        {
+            // Lowering stays the directory's to do — taking a privilege away must not wait for anybody — but the
+            // account keeps what it held for the binding: see `bind_once`.
+            user.scim_lowered_from = Some(previous_role.clone());
+        }
         user.is_active = now_active;
         user.role = role.clone();
         // Marked by any write, not only a creation: an account made in Vectispire and then claimed by the directory has
@@ -696,7 +705,13 @@ fn bounded(value: Option<&str>, attribute: &str) -> Result<Option<String>, ScimE
 /// sign-in with the new subject lands on it. **A first binding is a takeover too, of an account that holds
 /// something**: a privileged account (`ExternalIdentityService.privileged`, an unreadable role counting as one) is
 /// not bound by the directory unless the operator allows privileged linking, and one with a local second factor never
-/// is. A binding the account already has is not a binding, and passes.
+/// is. A binding the account already has is not a binding, and passes. The refusals say what does work: nothing in
+/// Vectispire binds a subject to an existing account either.
+///
+/// **Nor an account the directory has just emptied.** The role is read at the binding, and the directory may lower
+/// one: a CISO lowered to User by one request was bound by the next. `replace_user` records the role it lowered an
+/// unbound account out of (`scim_lowered_from`, V93), and that record refuses the binding until an administrator sets
+/// the account's role in Vectispire.
 fn bind_once(user: &mut AccountRow, external_id: String, link_privileged: bool) -> Result<(), ScimError> {
     match &user.keycloak_id {
         Some(bound) if *bound != external_id => {
@@ -711,21 +726,36 @@ fn bind_once(user: &mut AccountRow, external_id: String, link_privileged: bool) 
             if user.mfa_enabled {
                 return Err(ScimError::InvalidInput(
                     "This account has a local second factor, so the directory does not bind it to an \
-                     identity-provider subject; an administrator does, in Vectispire."
+                     identity-provider subject. Its owner turns the second factor off first, or the directory \
+                     provisions a new account."
                         .to_owned(),
                 ));
             }
-            if Role::of(Some(&user.role)).is_none_or(privileged) && !link_privileged {
+            if held_privilege(&user.role) && !link_privileged {
                 return Err(ScimError::InvalidInput(
                     "This account holds a privileged role, so the directory does not bind it to an identity-provider \
-                     subject; an administrator does, in Vectispire."
+                     subject. Provision a new account and have an administrator grant it the role in Vectispire, or \
+                     allow it with vectispire.oidc.link-privileged-accounts."
                         .to_owned(),
                 ));
+            }
+            if let Some(lowered) = &user.scim_lowered_from
+                && !link_privileged
+            {
+                return Err(ScimError::InvalidInput(format!(
+                    "This account held the {lowered} role until the directory lowered it, so the directory does not \
+                     bind it to an identity-provider subject until an administrator sets its role in Vectispire."
+                )));
             }
         }
     }
     user.keycloak_id = Some(external_id);
     Ok(())
+}
+
+/// `heldPrivilege`: a privileged role, an unreadable one counting as one.
+fn held_privilege(role: &str) -> bool {
+    Role::of(Some(role)).is_none_or(privileged)
 }
 
 /// `ExternalIdentityService.privileged`: everything but a plain account — a role that administers, governs, sees the
