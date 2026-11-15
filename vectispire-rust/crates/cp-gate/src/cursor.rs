@@ -9,6 +9,7 @@
 //! when multiple verdicts share the exact same millisecond.
 
 use time::OffsetDateTime;
+use vectispire_domain::java;
 
 /// Where a register's next page starts.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,8 +29,10 @@ impl RegisterCursor {
     ///
     /// Unreadable reads as absent, which means "start at the beginning".
     pub fn parse(encoded: Option<&str>) -> Option<Self> {
-        let encoded = encoded?.trim();
-        if encoded.is_empty() {
+        // Java asks `isBlank` and reads the rest untrimmed: " 1757836800000:41" is no number to `Long.parseLong`, and a
+        // trailing space belongs to the identifier.
+        let encoded = encoded?;
+        if java::is_blank(encoded) {
             return None;
         }
         let split = encoded.find(SEPARATOR)?;
@@ -38,7 +41,8 @@ impl RegisterCursor {
         }
         let (millis_str, id_str) = encoded.split_at(split);
         let id = id_str.strip_prefix(SEPARATOR)?;
-        let millis = millis_str.parse::<i64>().ok()?;
+        // `Long.parseLong`, which reads every script's decimal digits, not only ASCII's.
+        let millis = java::read_long(millis_str)?;
         let nanos = i128::from(millis).checked_mul(1_000_000)?;
         let at = OffsetDateTime::from_unix_timestamp_nanos(nanos).ok()?;
         Some(Self { at, id: id.to_owned() })

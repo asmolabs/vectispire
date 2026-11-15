@@ -1,7 +1,7 @@
 //! The slice of an issue a verdict looks at.
 
 use vectispire_cp_issues::triage::TriageStatus;
-use vectispire_domain::{FindingType, Severity};
+use vectispire_domain::{FindingType, Severity, java};
 
 /// The slice of an issue a verdict looks at.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,9 +44,7 @@ impl GateIssue {
     }
 
     pub fn has_published_fix(&self) -> bool {
-        match &self.fix_versions {
-            Some(v) => !v.trim().is_empty(),
-            None => false,
-        }
+        // `isBlank`: a scanner writing "" or spaces for "no fix" has not published one — in Java's whitespace.
+        self.fix_versions.as_deref().is_some_and(|versions| !java::is_blank(versions))
     }
 }

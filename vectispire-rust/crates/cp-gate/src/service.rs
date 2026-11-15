@@ -16,7 +16,7 @@ use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::{Clock, Targets};
 use vectispire_domain::instant::Instant;
 use vectispire_domain::siem::{CefEvent, SecurityEventType};
-use vectispire_domain::{FindingType, ScanStatus, Severity, bounded_text};
+use vectispire_domain::{FindingType, ScanStatus, Severity, bounded_text, java};
 
 use crate::cursor::RegisterCursor;
 use crate::error::GateError;
@@ -237,8 +237,9 @@ impl ActiveGatePolicies {
     }
 
     fn threshold_of(stored: Option<&str>) -> Option<Severity> {
-        let stored = stored?.trim();
-        if stored.is_empty() {
+        // `isBlank`, in Java's whitespace; `Severity.of` trims what is left.
+        let stored = stored?;
+        if java::is_blank(stored) {
             return None;
         }
         let severity = Severity::of(Some(stored));
@@ -532,8 +533,8 @@ impl GateService {
             fail_on_uncovered_languages: policy.fail_on_uncovered_languages,
             include_plugins: policy.include_plugins,
             note: note.and_then(|n| {
-                let t = n.trim();
-                if t.is_empty() { None } else { Some(t.to_owned()) }
+                // `note.isBlank() ? null : note.trim()` — Java's whitespace for the test, `String.trim` for the cut.
+                if java::is_blank(n) { None } else { Some(java::trim(n).to_owned()) }
             }),
             created_by: author.map(str::to_owned),
             created_at: self.clock.now(),
@@ -976,6 +977,17 @@ mod tests {
         assert_eq!(observation_of(Some("a status from a later version")), Observation::NeverScanned);
         assert_eq!(observation_of(Some("failed")), Observation::LastScanFailed);
         assert_eq!(observation_of(Some("completed")), Observation::Ok);
+    }
+
+    /// Java's `ActiveGatePolicies.thresholdOf`: an empty column is the rule off, an unreadable one the built-in threshold
+    /// — never `UNKNOWN`, which every issue reaches. Blank is Java's: a no-break space is unreadable, not empty.
+    #[test]
+    fn a_stored_threshold_reads_as_java_reads_it() {
+        assert_eq!(ActiveGatePolicies::threshold_of(None), None);
+        assert_eq!(ActiveGatePolicies::threshold_of(Some(" \t")), None);
+        assert_eq!(ActiveGatePolicies::threshold_of(Some(" low ")), Some(Severity::Low));
+        assert_eq!(ActiveGatePolicies::threshold_of(Some("unknown")), Some(Severity::High));
+        assert_eq!(ActiveGatePolicies::threshold_of(Some("\u{a0}")), Some(Severity::High));
     }
 
     /// Java's `DecisionInputBoundsTest.aPolicyNoteIsBounded`: 16,000 characters fit, one more is refused in Java's words.

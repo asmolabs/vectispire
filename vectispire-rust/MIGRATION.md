@@ -119,7 +119,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 3.1 Rules | done: Semgrep rule sets, catalogue fetcher, rule coverage (`96154e9f9`) | `rust/p3-1-rules` |
 | 3.2 Inventory | done: components, build SBOM imports, license governance (`f1833c188` / `33b675466`) | `rust/p3-2-inventory` |
 | 3.3 Issues | done: triage, SLA, lifecycle, 10 OpenAPI endpoints, 86 routes composed (`de674ddee`) | `rust/p3-3-issues` |
-| 3.4 Gate | **in progress**: quality gates, policies, evaluations, verdicts, exemptions (`fe0860336`) | `rust/p3-4-gate` |
+| 3.4 Gate | **done** (2026-11-15): seven routes served and composed; every recording replays green on MySQL — `POST /api/v1/gate` left `golden/deferred/`, whose `gate.txt` is gone; engine tests on MySQL; route authorization held by `cp-app`'s registry test (the verdict route resolves a `Visibility`, 404 never 403); Java's domain tests ported (`tests/domain.rs`, 70 cases); 41/41 mutants killed (`p3-4-gate.py`); persistence is SeaORM, so no `.sqlx/` to regenerate. Seven whitespace/parsing parity slips fixed (`crates/cp-gate/README.md`). Not run: the replay on PostgreSQL | `rust/p3-4-gate-done` |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 35,000 of 66,000 are ported or in progress. Most of
@@ -399,7 +399,7 @@ Phase 3 ports the core decision and governance plane:
 - **3.1 Rules (`crates/cp-rules`)** — **done** (`96154e9f9`): Semgrep rule sets, catalogue fetcher, rule coverage.
 - **3.2 Inventory (`crates/cp-inventory`)** — **done** (`f1833c188`, `33b675466`): components, build SBOM imports, license governance.
 - **3.3 Issues (`crates/cp-issues`)** — **done** (`de674ddee`): triage, SLA, lifecycle, 10 OpenAPI endpoints, 86 total routes composed.
-- **3.4 Gate (`crates/cp-gate`)** — **in progress** (`fe0860336`): 1,612 Java lines, project gate policies, evaluations, verdicts and waivers.
+- **3.4 Gate (`crates/cp-gate`)** — **done** (2026-11-15, `rust/p3-4-gate-done`): policies, evaluations, verdicts, the register and the overview; replayed green, mutation-checked (see §4).
 
 #### Task 3.4 — Micro-tasks for `cp-gate` (Local / LLM-ready)
 
