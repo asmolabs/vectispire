@@ -271,7 +271,7 @@ impl Chain {
 fn who(principal: &Principal) -> String {
     match (&principal.account, &principal.credential) {
         (Some(account), _) => principal.actor().unwrap_or_else(|| account.username.clone()),
-        (None, Credential::Agent { agent }) => agent.clone(),
+        (None, Credential::Agent { agent, .. }) => agent.clone(),
         // Named, so a refusal's entry says the scrape token was used rather than "anonymous".
         (None, Credential::MetricsScraper) => "metrics-scraper".to_owned(),
         (None, _) => "scim".to_owned(),
@@ -702,7 +702,7 @@ mod tests {
         assert_eq!(who(&key), "governor (API key governor-pipeline)");
         // A principal a test double built without grounds is still its account.
         assert_eq!(who(&Principal::session(account)), "governor");
-        assert_eq!(who(&Principal::agent("builder-1")), "builder-1");
+        assert_eq!(who(&Principal::agent("builder-1", "8c1f0e7a-0000-4000-8000-000000000001")), "builder-1");
     }
 
     #[test]

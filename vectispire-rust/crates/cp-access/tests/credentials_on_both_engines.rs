@@ -320,9 +320,10 @@ async fn api_keys(engine: Engine) {
     // ── An agent's key is its agent; with no agent behind it, nobody — never an integration.
     let (agent_key_id, agent_secret) = credentials.issue_agent_key("builder-01").await.unwrap();
     assert!(credentials.api_key(agent_secret.expose()).await.is_none(), "no agent row yet");
-    agent(db, "builder-01", agent_key_id).await;
+    let agent_id = agent(db, "builder-01", agent_key_id).await;
     let principal = credentials.api_key(agent_secret.expose()).await.expect("the agent");
-    assert_eq!(principal.credential, Credential::Agent { agent: "agent:builder-01".into() });
+    // The row the key is bound to, by id: the protocol authenticates that, never the name (review 2026-11).
+    assert_eq!(principal.credential, Credential::Agent { agent: "agent:builder-01".into(), agent_id });
     assert!(principal.account.is_none());
     // A key with the agent scope and an owner is still not an integration.
     execute(

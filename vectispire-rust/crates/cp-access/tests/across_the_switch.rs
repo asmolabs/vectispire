@@ -239,7 +239,8 @@ async fn sessions_and_keys_cross_between_the_java_and_the_rust_control_planes() 
 
     // Java → Rust: the agent's key Java created.
     let principal = credentials.api_key(&java_agent_key).await.expect("Java's agent key resolves in Rust");
-    assert_eq!(principal.credential, Credential::Agent { agent: "agent:java-agent".into() });
+    let java_agent_id = declared["id"].as_str().unwrap_or_else(|| panic!("no agent id: {declared}")).to_owned();
+    assert_eq!(principal.credential, Credential::Agent { agent: "agent:java-agent".into(), agent_id: java_agent_id });
 
     // Rust → Java: a session Rust opened.
     let rust_session = credentials.open_session(admin_id, Some("rust"), Some("127.0.0.1")).await.unwrap();

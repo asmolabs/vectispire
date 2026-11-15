@@ -67,7 +67,7 @@ pub fn credentials() -> StaticCredentials {
             READ_KEY,
             Principal::integration(account("admin", Some(Role::Superuser), false), "key-1", vec![ApiKeyScope::Read]),
         )
-        .key(AGENT_KEY, Principal::agent("agent-1"))
+        .key(AGENT_KEY, Principal::agent("agent-1", "8c1f0e7a-0000-4000-8000-000000000001"))
         .scim_token(SCIM_TOKEN)
 }
 

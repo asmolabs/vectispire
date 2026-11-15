@@ -236,10 +236,15 @@ pub async fn clean(db: &Db) {
 }
 
 pub async fn agent(db: &Db, name: &str, credentials_mode: &str) -> uuid::Uuid {
-    let id = uuid::Uuid::new_v4();
-    let enabled = match db {
-        Db::MySql(_) => "1",
-        Db::PostgreSql(_) => "true",
+    agent_as(db, uuid::Uuid::new_v4(), name, credentials_mode, true).await
+}
+
+/// An agent row with the id the test chose — a key's principal names its row by id — enabled or not.
+pub async fn agent_as(db: &Db, id: uuid::Uuid, name: &str, credentials_mode: &str, enabled: bool) -> uuid::Uuid {
+    let enabled = match (db, enabled) {
+        (Db::MySql(_), true) => "1",
+        (Db::MySql(_), false) => "0",
+        (Db::PostgreSql(_), enabled) => if enabled { "true" } else { "false" },
     };
     exec(
         db,

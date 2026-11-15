@@ -48,13 +48,13 @@ impl ScanIngestor for Refusing {
     }
 }
 
-fn router(db: &Db, composed: Composed, name: &str) -> axum::Router {
+fn router(db: &Db, composed: Composed, name: &str, id: uuid::Uuid) -> axum::Router {
     support::router(
         db,
         composed.targets,
         composed.scanning,
         composed.agents,
-        StaticCredentials::default().key(TOKEN, Principal::agent(name)),
+        StaticCredentials::default().key(TOKEN, Principal::agent(&format!("agent:{name}"), &id.to_string())),
         "everyone",
     )
 }
@@ -94,10 +94,10 @@ async fn suite(engine: Engine) {
 
     // ── a failure is a 500; a refusal stays a 409 ──
     clean(&db).await;
-    agent(&db, "edge", "delegated").await;
+    let edge = agent(&db, "edge", "delegated").await;
     let image = container(&db, "img").await;
     let claimed = scan(&db, None, Some(image), "pending", 0).await;
-    let refusing = router(&db, compose_with_ingestor(&db, system_clock(), Arc::new(Refusing)), "edge");
+    let refusing = router(&db, compose_with_ingestor(&db, system_clock(), Arc::new(Refusing)), "edge", edge);
     let (answered, task) = claim(&refusing).await;
     assert_eq!(answered, StatusCode::OK, "{engine}: the claim");
     assert_eq!(task["scanId"], claimed, "{engine}: the claimed scan");
@@ -124,9 +124,9 @@ async fn suite(engine: Engine) {
 
     // ── a claim the agent never read goes back; one it read stays ──
     clean(&db).await;
-    agent(&db, "edge", "delegated").await;
+    let edge = agent(&db, "edge", "delegated").await;
     let image = container(&db, "img").await;
-    let plain = router(&db, compose(&db, system_clock()), "edge");
+    let plain = router(&db, compose(&db, system_clock()), "edge", edge);
 
     let dropped = scan(&db, None, Some(image), "pending", 0).await;
     let response = plain.clone().oneshot(request("GET", "/api/v1/agent/jobs", "")).await.unwrap();

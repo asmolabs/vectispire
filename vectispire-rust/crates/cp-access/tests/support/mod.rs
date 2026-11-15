@@ -158,7 +158,7 @@ impl AgentDirectory for AgentsTable {
 }
 
 /// An agent row pointing at `key_id`, inserted as the agents module would.
-pub async fn agent(db: &Db, name: &str, key_id: Uuid) {
+pub async fn agent(db: &Db, name: &str, key_id: Uuid) -> String {
     let id = random_id();
     execute(
         db,
@@ -169,6 +169,7 @@ pub async fn agent(db: &Db, name: &str, key_id: Uuid) {
         &[Bind::Text(&id), Bind::Text(name), Bind::Text(&key_id.as_hyphenated().to_string()), Bind::Instant(now())],
     )
     .await;
+    id
 }
 
 /// A random identifier, as Hibernate writes one into a `char(36)` column.
