@@ -223,6 +223,14 @@ fn verify(public_key: &str, message: &[u8], signature: &str) -> bool {
     let Ok(key) = ed25519_dalek::VerifyingKey::try_from(key.as_slice()) else {
         return false;
     };
+    // **A key of small order verifies nothing**, as BouncyCastle's `Ed25519PublicKeyParameters` refuses one
+    // (`checkPointFullVar`) and Java's attestation answers `false`. Under the identity point, `R` = identity and
+    // `s` = 0 verify for every message: a pinned weak key let anyone holding the agent's API key forge its results,
+    // failure reports and sealing-key announcement (review 2026-11). The pin route accepts such a key, as Java's does
+    // — it is every verification under it that fails closed.
+    if key.is_weak() {
+        return false;
+    }
     let Ok(signature) = ed25519_dalek::Signature::from_slice(&signature) else {
         return false;
     };
@@ -341,6 +349,10 @@ impl SealingKeyPair {
         let mut ephemeral = [0u8; 32];
         ephemeral.copy_from_slice(&ephemeral_spki[X25519_SPKI_PREFIX.len()..]);
         let shared = self.secret.diffie_hellman(&x25519_dalek::PublicKey::from(ephemeral));
+        // An ephemeral key of small order gives an agreement of zeros, which BouncyCastle refuses: see `seal_with`.
+        if !shared.was_contributory() {
+            return None;
+        }
         let session_key = session_key(shared.as_bytes(), ephemeral_spki, &self.public_spki)?;
         let cipher = Aes256Gcm::new_from_slice(&session_key).ok()?;
         let mut associated = ephemeral_spki.to_vec();
@@ -391,6 +403,13 @@ pub fn seal_with(
     // Clamped by the multiplication, as BouncyCastle clamps the bytes it drew: the same scalar either way.
     let ephemeral = SealingKeyPair::from_secret_bytes(ephemeral_secret);
     let shared = ephemeral.secret.diffie_hellman(&x25519_dalek::PublicKey::from(recipient));
+    // **A recipient of small order is no recipient.** The agreement is then all zeros whatever the ephemeral secret,
+    // the session key follows from the envelope's own public bytes, and anyone reading the claim's answer opens the
+    // deployment key or token. BouncyCastle throws "X25519 agreement failed" there and Java's claim is abandoned;
+    // `deliver` turns this error into the same transient failure (review 2026-11).
+    if !shared.was_contributory() {
+        return Err(CryptoError::Recipient);
+    }
     let session_key =
         session_key(shared.as_bytes(), &ephemeral.public_spki, &recipient_spki).ok_or(CryptoError::Recipient)?;
 
