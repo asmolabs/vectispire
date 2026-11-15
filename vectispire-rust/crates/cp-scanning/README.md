@@ -43,7 +43,7 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
 | `ingestion::Enricher` | threatintel (Phase 4, task 4.4) | `EnrichmentStandIn`: answers nothing, so no vulnerability is exploited — **the one stand-in that changes a gate verdict** |
 | `ingestion::EndOfLifeSource` | threatintel (Phase 4, task 4.4) | `EndOfLifeStandIn`: switched off, so the type is never examined and end-of-life issues stay as they are |
 | `RepositoryScanned` | checklists, compliance (Phase 5) | none composed |
-| `ScanRunner` | the built-in worker (2.10), composed by `cp-app` (`BuiltInScanRunner` over `vectispire-runner`) | none in this crate's tests: `dispatch` claims nothing, as Java's does without a runner; the binary refuses to start with the worker on and no runner |
+| `ScanRunner` | the built-in worker (2.10), composed by `cp-app` (`BuiltInScanRunner` over `vectispire-runner`, with `cp_app::worker::options` and the runtime's trust) | none in this crate's tests: `dispatch` claims nothing, as Java's does without a runner; the binary refuses to start with the worker on and no runner |
 
 `ClaimingAgent` is what the dispatcher reads of an agent's row (`AgentView`); 2.9 builds it.
 
@@ -70,13 +70,18 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
   `null-element:` cases hold it. Not reproduced: Java counts a `null` endpoint towards the inventory's ceiling of
   1,000 before it dereferences one, so a list past the ceiling that carries a `null` is read as absent there and
   refused here.
-- **What the built-in worker's runner does not do yet** (2.10 audit, 2026-10-22), each a gap of the shared runner
-  (`crates/runner`, the agent stream) and not of the worker: an **image target** is handed back as a transient
-  failure (`IMAGE_NOT_PORTED`) — with the built-in worker as the only executor, an image scan comes back to it and
-  fails when its attempts run out, where Java's built-in worker scans images; **plugins** are recorded absent
-  (`PLUGIN_NOT_PORTED`); **TLS** trusts the compiled-in authorities only, where Java's trusts the JVM's store, so a git
-  host behind a private authority cannot be cloned over HTTPS. `host-ssh: false` and a `bundled-rules` override are
-  refused at start rather than ignored (`cp-app::worker::images`).
+- **What the built-in worker's runner does, since 2.10 was finished** (2026-11-15): an **image target** is exported by
+  the process through the daemon and inventoried from the archive, as Java's is; `host-ssh: false` clones a repository
+  with no key with no identity and a `bundled-rules` directory is placed in place of the binary's rules (both refused
+  at start before); the clone trusts the **runtime's** authorities — `VECTISPIRE_TLS_CA_BUNDLE`, else the compiled-in
+  ones, as the JVM's store is Java's. Each is proven on a started binary (`cp-app/tests/worker_runs_a_scan.rs`).
+- **Plugins are recorded absent** (`PLUGIN_NOT_PORTED`) by the shared runner, but no task the worker claims names one:
+  the composition's `ScanPlugins` is `NoPlugins` until the plugins module (4.6) is ported, so a scan's plugin list is
+  empty exactly as on a Java install with no plugin turned on. Running them — manifests, `PluginScanner`, the bounded
+  output, `ImageSignatureVerifier` — comes with 4.6 and the agent's plugin stream, which share it.
+- **An image's save names no platform, as Java's does not.** On Docker's containerd image store that exports the host's
+  variant whatever the pull fetched (measured 2026-11-15, Docker 29.1 on arm64): with `image-platform` set to another
+  architecture than the host's, both sides inventory the wrong variant. Reproduced; the fix belongs to Java first.
 - **The worker's identity** is `$HOSTNAME` (else `$HOST`, else `unknown-host`) and a random suffix; Java asks the
   system for its host name. **No `vectispire.worker.initial-delay`**: the first round runs one interval after start.
   **A round in progress is not interrupted at shutdown**, where Java's `shutdownNow` interrupts it; its lease lapses.

@@ -317,7 +317,7 @@ async fn serve() -> ExitCode {
         vectispire_cp_app::siem::SiemSetup {
             db: db.clone(),
             guard: guard.clone(),
-            trust,
+            trust: trust.clone(),
             encryption: encryption.clone(),
             version: vectispire_cp_settings::about::product_version(
                 settings.exports.tool_version.as_deref(),
@@ -389,19 +389,15 @@ async fn serve() -> ExitCode {
     let rule_sets = rules_module.scan_rule_sets();
     let runner: Option<Arc<dyn vectispire_cp_scanning::ports::ScanRunner>> = if settings.worker.enabled {
         let places = vectispire_runner::Places::from_lookup(|k| std::env::var(k).ok());
-        let images = match vectispire_cp_app::worker::images(&settings.scanning) {
-            Ok(images) => images,
-            Err(refusal) => {
-                tracing::error!("{refusal}");
-                return ExitCode::FAILURE;
-            }
-        };
         match vectispire_cp_scanning::BuiltInScanRunner::new(
             rule_sets.clone(),
-            images,
+            vectispire_cp_app::worker::images(&settings.scanning),
             places,
             settings.scanning.vulnerability_db_dir.as_ref().map(std::path::PathBuf::from),
-            vectispire_tls::TlsTrust::BuiltIn,
+            // The runtime's trust, as the JVM's store is Java's: a forge behind a private authority is cloned over
+            // HTTPS with the bundle the operator gave, and a public authority they removed is not trusted again.
+            trust.clone(),
+            vectispire_cp_app::worker::options(&settings.scanning),
         ) {
             Ok(runner) => Some(Arc::new(runner)),
             // Refused, as a bean that fails is in Java: a worker switched on with no runner claims nothing, and every

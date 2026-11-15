@@ -231,8 +231,7 @@ impl RunContainers for ContainerRunner {
 /// Pulls an image for one platform and writes it to an archive — `ContainerRunner.exportImage`.
 ///
 /// **Vectispire pulls it, the container does not**: the cataloguer sees a file, and the socket is never
-/// mounted into a scanner. Not implemented for [`ContainerRunner`] yet — it is a pull and a save
-/// through the daemon, owned by the container crate's stream.
+/// mounted into a scanner.
 pub trait ExportImages: Send + Sync {
     fn export_image(
         &self,
@@ -240,6 +239,14 @@ pub trait ExportImages: Send + Sync {
         platform: &str,
         destination: &Path,
     ) -> impl Future<Output = Result<(), ScannerError>> + Send;
+}
+
+impl ExportImages for ContainerRunner {
+    async fn export_image(&self, reference: &str, platform: &str, destination: &Path) -> Result<(), ScannerError> {
+        ContainerRunner::export_image(self, reference, platform, destination)
+            .await
+            .map_err(|error| ScannerError::of(&image_sbom_label(reference), error.to_string()))
+    }
 }
 
 /// The generation of the vulnerability database a match mounts — [`crate::vulnerability_database`],

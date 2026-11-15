@@ -7,9 +7,9 @@ at once, opens the credentials they carry, beats for each, and hands back a sign
 scrubbed failure report — and it runs a repository scan: the clone and the four analyses
 (dependencies, secrets, IaC, SAST), as the Java agent does (`crates/agent/src/scan.rs`). **What is not
 ported yet is said, never read as "found nothing"**: the API discovery is recorded as a step that did
-not run, a plugin as an absent step under its name, and an image target goes back to the queue as a
-transient failure for an agent that can export images. Never point it at a control plane whose scans
-matter.
+not run and a plugin as an absent step under its name. An image target is exported through the daemon
+and inventoried from the archive, as on the Java agent (since 2026-11-15, task 2.10). Never point it at a
+control plane whose scans matter.
 
 The costed study behind the port is on branch `docs/rust-agent-study`
 (`docs/analysis/en/2026-10-16_rust_agent_port_study.en.md`). This directory is its Phase 0, built as
@@ -183,7 +183,7 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 
 **Read the Rust figures for what they are.**
 - The binary links the clone, the container runner, the whole protocol with its loop, the crypto and four
-  scanners. Plugins, the API discovery and image export are not ported yet.
+  scanners. Plugins and the API discovery are not ported yet; image export is, since 2026-11-15.
 - No scan-time figure is claimed: the scanners run in their own containers either way.
 
 ## Against a real control plane
@@ -256,7 +256,7 @@ additively.
 | Stream | Owns | Done when |
 |---|---|---|
 | **Protocol client** — *done* (branch `rust/protocol`) | `crates/protocol/**`; `crates/agent/src/serve.rs` and the loop in `main.rs` | Every route typed from `openapi.json`, with slots and claim concurrency, heartbeats, the unsealing of delegated credentials, and a graceful stop that waits for the running scans to be handed back (as the Java agent does: the protocol has no call to give one back unrun). `AgentProtocolTest`, `AgentHttpTest`, `AgentSealingKeyAnnouncementTest`, `AgentLoopTest`, `AgentLoopConcurrencyTest` and `AgentWireFormatTest` are ported against the stub; the end-to-end suite runs against a real control plane. **What a scanner stream plugs in:** `serve::Execute` (one scan in, `ScanArtifacts` or an `ExecutionFailure` with its kind out), `AgentClient::rule_set` for the SAST stream, `AgentClient::plugin` (with the plugins stream's digest function) for the plugins stream. |
-| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. **Image export is not implemented** (`ExportImages`: a pull and a save through the daemon, in the container crate). |
+| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. Image export is `ContainerRunner::export_image` (a pull for the platform, then a save), since 2026-11-15 (task 2.10). |
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
 | **Workspace, census, API discovery** | `crates/scanners/src/{census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) and the sub-path checks are ported in `agent/src/scan.rs`; `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` — which parse repository content in-process, and so need their own reference set — are not. |

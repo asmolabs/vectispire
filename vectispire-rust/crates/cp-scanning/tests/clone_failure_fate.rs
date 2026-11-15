@@ -135,6 +135,7 @@ async fn run_fate_suite(engine: Engine) {
             places,
             None,
             vectispire_tls::TlsTrust::BuiltIn,
+            vectispire_runner::Options::default(),
         )
         .expect("BuiltInScanRunner creation"),
     );

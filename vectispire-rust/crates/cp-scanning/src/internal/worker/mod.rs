@@ -18,7 +18,7 @@ use uuid::Uuid;
 use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_domain::FailureKind;
 use vectispire_protocol::{Received, ScanArtifacts, ScanTask};
-use vectispire_runner::{Images, Places, RuleProvider, Runner};
+use vectispire_runner::{Images, Options, Places, RuleProvider, Runner};
 use vectispire_tls::TlsTrust;
 
 use crate::dispatcher::{Dispatched, ScanDispatcher};
@@ -179,16 +179,19 @@ impl std::fmt::Debug for BuiltInScanRunner {
 }
 
 impl BuiltInScanRunner {
-    /// Constructs a runner using the provided rule sets, images, paths, and TLS trust.
+    /// `ScanningConfiguration.scanRunner`: the agent's runner, with the rule sets read from this side's tables and the
+    /// worker's own [`Options`] (`vectispire.scanning.host-ssh`, `bundled-rules`).
     pub fn new(
         rule_sets: Arc<dyn ScanRuleSets>,
         images: Images,
         places: Places,
         vulnerability_root: Option<PathBuf>,
         trust: TlsTrust,
+        options: Options,
     ) -> Result<Self, String> {
         let provider = Arc::new(ControlPlaneRuleProvider(rule_sets));
-        let runner = Arc::new(Runner::new(Some(provider), images, places, vulnerability_root, trust)?);
+        let runner =
+            Arc::new(Runner::with_options(Some(provider), images, places, vulnerability_root, trust, options)?);
         Ok(Self { runner })
     }
 
