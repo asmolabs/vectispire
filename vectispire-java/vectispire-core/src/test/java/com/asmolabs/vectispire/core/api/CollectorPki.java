@@ -53,8 +53,47 @@ final class CollectorPki {
         return create(caName, Instant.now().minus(Duration.ofDays(1)), Instant.now().plus(Duration.ofDays(365)));
     }
 
+    /**
+     * {@link #create(String)}, but the CA's key is {@link #FIXTURE_CA_SCALAR}: the one CA the Rust replay can issue a
+     * collector certificate under. The certificate the test pins is recorded literally, being public; the collector's
+     * key and certificate never cross HTTP, so the replay makes its own — with the same CA key, under the same name —
+     * and the pinned certificate vouches for it. Any other CA the test draws is refused there as it was here.
+     */
+    static CollectorPki fixture(String caName) throws Exception {
+        return create(caName, Instant.now().minus(Duration.ofDays(1)), Instant.now().plus(Duration.ofDays(365)),
+                fixtureCaKeys());
+    }
+
+    /**
+     * The fixture CA's P-256 private scalar: the ASCII bytes of {@code "vectispire collector fixture ca."}, read as a
+     * big-endian number — below the curve's order, so a key as it is. Written in {@code golden.rs} the same way.
+     */
+    static final byte[] FIXTURE_CA_SCALAR = "vectispire collector fixture ca.".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+
+    private static KeyPair fixtureCaKeys() throws Exception {
+        var curve = org.bouncycastle.asn1.x9.ECNamedCurveTable.getByName("secp256r1");
+        // Named, not explicit: the JDK's key factory decodes a named curve only.
+        var domain = new org.bouncycastle.crypto.params.ECNamedDomainParameters(
+                org.bouncycastle.asn1.sec.SECObjectIdentifiers.secp256r1, curve);
+        BigInteger scalar = new BigInteger(1, FIXTURE_CA_SCALAR);
+        var privateKey = new org.bouncycastle.crypto.params.ECPrivateKeyParameters(scalar, domain);
+        var publicKey = new org.bouncycastle.crypto.params.ECPublicKeyParameters(
+                curve.getG().multiply(scalar).normalize(), domain);
+        java.security.KeyFactory factory = java.security.KeyFactory.getInstance("EC");
+        return new KeyPair(
+                factory.generatePublic(new java.security.spec.X509EncodedKeySpec(
+                        org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(publicKey)
+                                .getEncoded())),
+                factory.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(
+                        org.bouncycastle.crypto.util.PrivateKeyInfoFactory.createPrivateKeyInfo(privateKey).getEncoded())));
+    }
+
     static CollectorPki create(String caName, Instant notBefore, Instant notAfter) throws Exception {
-        KeyPair caKeys = keys();
+        return create(caName, notBefore, notAfter, keys());
+    }
+
+    private static CollectorPki create(String caName, Instant notBefore, Instant notAfter, KeyPair caKeys)
+            throws Exception {
         X500Name ca = new X500Name("CN=" + caName);
         X509v3CertificateBuilder root = new X509v3CertificateBuilder(ca, BigInteger.valueOf(System.nanoTime()),
                 Date.from(notBefore), Date.from(notAfter), ca,

@@ -201,9 +201,19 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 4 (was 64): a request of the test the replay cannot rebuild.
-      Left: two 2 MiB bodies in a gzip sidecar (a decompressor is a new crate to vet), a TLS collector nothing runs
-      during the replay, and MockMvc's charset (an accepted difference, pinned by cp-http's own capture).
+- [ ] **Recordings that cannot be replayed yet** — 1 (was 64): a request of the test the replay cannot rebuild.
+      Left: MockMvc's charset on a wrong content type — an accepted difference, pinned by cp-http's own capture.
+
+      *Bodies and the collector done 2026-11-15:*
+      - *A sidecar body that is at most 64 runs of one byte (the bounds' padding) is also recorded as `runs`, which the
+        replay expands: no decompressor, no new crate.*
+      - *The recorder notes `undeclaredLength` on a body sent with no `Content-Length`; the replay declares the length
+        of what it sends on every other one. Undeclared, a 2 MiB body was counted while read and refused in the
+        handler's shape (no `;charset=UTF-8`) where Java's chain refused it before reading.*
+      - *`theTestVerifiesAgainstThePinnedCa` pins `CollectorPki.fixture`'s CA, whose P-256 key is a fixed scalar;
+        `golden.rs` issues a collector certificate under the same key and name with `openssl`, listens, and binds
+        `«port:1»` (`Replayer::test_with_ports`). The two refusals before it still meet a collector and are refused.*
+      - *Full replay on MySQL: 2,400 of 2,490 green (was 2,397); `_recording.txt` 4 → 1.*
 
       *Result attestations done 2026-11-13: a signature on `/agent/jobs/{id}/result` or `/failure` that verifies under
       a seed the test was shown is written `«result-signature:result|failure:secret:S»`, and the replay signs the

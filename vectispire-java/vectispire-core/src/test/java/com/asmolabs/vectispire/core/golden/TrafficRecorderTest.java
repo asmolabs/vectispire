@@ -23,6 +23,38 @@ class TrafficRecorderTest {
     }
 
     @Test
+    @DisplayName("notes a body sent with no declared length, and nothing on one that declared it")
+    void anUndeclaredLengthIsNoted() {
+        var declared = new org.springframework.mock.web.MockHttpServletRequest("PUT", "/api/v1/settings");
+        declared.setContent("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(TrafficRecorder.request(declared).has("undeclaredLength")).isFalse();
+
+        var chunked = new org.springframework.mock.web.MockHttpServletRequest("PUT", "/api/v1/settings") {
+            @Override
+            public long getContentLengthLong() {
+                return -1;
+            }
+        };
+        chunked.setContent("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(TrafficRecorder.request(chunked).path("undeclaredLength").asBoolean()).isTrue();
+        // No body, nothing to declare.
+        assertThat(TrafficRecorder.request(new org.springframework.mock.web.MockHttpServletRequest("GET", "/")).has("undeclaredLength"))
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("writes a padded body as its runs of one byte, and gives up past the bound")
+    void aPaddedBodyIsItsRuns() {
+        byte[] padded = ("{" + " ".repeat(10) + "}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(TrafficRecorder.runs(padded, 3).toString())
+                .isEqualTo("[{\"byte\":123,\"count\":1},{\"byte\":32,\"count\":10},{\"byte\":125,\"count\":1}]");
+        assertThat(TrafficRecorder.runs(new byte[] {0, 0, (byte) 0xff}, 3).toString())
+                .isEqualTo("[{\"byte\":0,\"count\":2},{\"byte\":255,\"count\":1}]");
+        assertThat(TrafficRecorder.runs(padded, 2)).isNull();
+        assertThat(TrafficRecorder.runs(new byte[0], 2)).isEmpty();
+    }
+
+    @Test
     @DisplayName("marks a time the test moved back across the present as past, and no other change")
     void aRewoundTimeIsMarkedPast() throws Exception {
         LocalDateTime present = LocalDateTime.parse("2026-11-13T10:00:00");

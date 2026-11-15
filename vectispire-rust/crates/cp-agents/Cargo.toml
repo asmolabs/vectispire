@@ -63,6 +63,12 @@ vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }
 vectispire-tls.workspace = true
+# The TLS collector a test of the SIEM's connection ran (`golden.rs`, COLLECTORS): the versions cp-siem links, and its
+# certificate made by the openssl command, as cp-siem's own tests make theirs.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = { version = "1", features = ["std"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true

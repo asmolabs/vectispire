@@ -561,6 +561,12 @@ impl<'m> Bindings<'m> {
         self.minting.sealing_signature(version, seed, agent, *generation, key)
     }
 
+    /// Binds `«port:N»` to a listener the replay runs itself — a collector the test stood up on a port of its own,
+    /// which the request names. Unbound, the port is any free-looking number and nothing answers there.
+    pub fn bind_port(&mut self, ordinal: u32, port: u16) {
+        self.family(Family::Port).bind(ordinal, &port.to_string());
+    }
+
     /// Whether `text` is one `«result-signature:…»` alone: a header [`Bindings::result_signature`] fills, not
     /// [`Bindings::concrete`].
     #[must_use]

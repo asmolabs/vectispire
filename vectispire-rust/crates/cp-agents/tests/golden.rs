@@ -252,6 +252,105 @@ impl vectispire_cp_http::credentials::ScrapeToken for ReplayScrapeToken {
 /// that class in a context of its own, so its answers were made under those values, and replayed under the defaults
 /// they would be another test's. Copied from the class, one line per property; a class not here ran on
 /// `application-apitest.yaml` alone.
+/// **A collector a test stood up, run again**: `(class, test, «port:N», CA name)`. The Java test listened with a
+/// certificate issued by `CollectorPki.fixture`'s CA, whose key is [`FIXTURE_CA_SCALAR`]; the CA's certificate is in the
+/// recording, the collector's never crossed HTTP. So the replay issues its own under the same key and name, listens, and
+/// binds the port — the pinned certificate vouches for it, any other CA the test pinned is refused, as in Java.
+const COLLECTORS: &[(&str, &str, u32, &str)] =
+    &[("api.SiemCollectorCaRoutesTest", "theTestVerifiesAgainstThePinnedCa", 1, "Corp SOC Root")];
+
+/// `CollectorPki.FIXTURE_CA_SCALAR`: the P-256 private scalar of the collector's CA, as ASCII.
+const FIXTURE_CA_SCALAR: &[u8; 32] = b"vectispire collector fixture ca.";
+
+fn openssl(directory: &std::path::Path, arguments: &[&str]) {
+    let output = std::process::Command::new("openssl")
+        .args(arguments)
+        .current_dir(directory)
+        .output()
+        .expect("the openssl command");
+    assert!(output.status.success(), "openssl {arguments:?}: {}", String::from_utf8_lossy(&output.stderr));
+}
+
+/// A TLS collector on loopback under the fixture CA named `ca_name`, accepting until the runtime ends: its port.
+async fn collector(ca_name: &str) -> u16 {
+    use p256::pkcs8::EncodePrivateKey;
+    use rustls_pki_types::pem::PemObject;
+    use tokio::io::AsyncReadExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path();
+    let ca_key = p256::SecretKey::from_slice(FIXTURE_CA_SCALAR).expect("the fixture scalar is below the order");
+    std::fs::write(path.join("ca.key"), ca_key.to_pkcs8_pem(p256::pkcs8::LineEnding::LF).unwrap().as_bytes()).unwrap();
+    // The issuer as Java named it; the certificate itself is never sent — the client holds Java's.
+    openssl(
+        path,
+        &[
+            "req",
+            "-x509",
+            "-new",
+            "-key",
+            "ca.key",
+            "-sha256",
+            "-days",
+            "2",
+            "-subj",
+            &format!("/CN={ca_name}"),
+            "-out",
+            "ca.pem",
+        ],
+    );
+    openssl(path, &["ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", "server.key"]);
+    openssl(path, &["req", "-new", "-key", "server.key", "-subj", "/CN=collector", "-out", "server.csr"]);
+    std::fs::write(path.join("server.ext"), "subjectAltName=IP:127.0.0.1\n").unwrap();
+    openssl(
+        path,
+        &[
+            "x509",
+            "-req",
+            "-in",
+            "server.csr",
+            "-CA",
+            "ca.pem",
+            "-CAkey",
+            "ca.key",
+            "-CAcreateserial",
+            "-days",
+            "2",
+            "-sha256",
+            "-extfile",
+            "server.ext",
+            "-out",
+            "server.pem",
+        ],
+    );
+    let chain: Vec<_> = rustls_pki_types::CertificateDer::pem_file_iter(path.join("server.pem"))
+        .unwrap()
+        .map(|certificate| certificate.unwrap())
+        .collect();
+    let key = rustls_pki_types::PrivateKeyDer::from_pem_file(path.join("server.key")).unwrap();
+    let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_single_cert(chain, key)
+        .unwrap();
+    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let acceptor = acceptor.clone();
+            tokio::spawn(async move {
+                if let Ok(mut tls) = acceptor.accept(stream).await {
+                    let mut bytes = Vec::new();
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), tls.read_to_end(&mut bytes)).await;
+                }
+            });
+        }
+    });
+    port
+}
+
 const TEST_PROPERTIES: &[(&str, &str, &str)] =
     &[("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example")];
 
@@ -618,7 +717,13 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         };
         let mut outcomes = Vec::new();
         for test in &tests {
-            outcomes.extend(replayer.test(test, router(&db, signing.clone(), &test.class)).await);
+            let mut ports = Vec::new();
+            for (_, _, ordinal, ca) in
+                COLLECTORS.iter().filter(|(class, name, _, _)| *class == test.class && *name == test.name)
+            {
+                ports.push((*ordinal, collector(ca).await));
+            }
+            outcomes.extend(replayer.test_with_ports(test, router(&db, signing.clone(), &test.class), &ports).await);
         }
         let green = outcomes.iter().filter(|replayed| replayed.served && replayed.outcome == Outcome::Green).count();
         let owed = outcomes.iter().filter(|replayed| replayed.served).count();

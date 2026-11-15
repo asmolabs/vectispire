@@ -88,6 +88,11 @@ impl Replayer<'_> {
     /// as the Java suite's contexts did not — which is why the recorder made its ids grow, and why a fresh router
     /// per test is the stricter choice here.
     pub async fn test(&self, test: &Test, router: Router) -> Vec<Replayed> {
+        self.test_with_ports(test, router, &[]).await
+    }
+
+    /// [`Replayer::test`], with `«port:N»` bound to a port the caller listens on — `(N, port)`.
+    pub async fn test_with_ports(&self, test: &Test, router: Router, ports: &[(u32, u16)]) -> Vec<Replayed> {
         let mut out = Vec::new();
         let mut exchanges = Vec::new();
         let mut texts = Vec::new();
@@ -118,6 +123,9 @@ impl Replayer<'_> {
         };
         let now = OffsetDateTime::now_utc();
         let mut bindings = Bindings::new(starts, secret_kinds(texts.iter().map(String::as_str)), self.minting, now);
+        for (ordinal, port) in ports {
+            bindings.bind_port(*ordinal, *port);
+        }
         for (names, exchange) in long_polls_merged(exchanges) {
             let name = names.first().cloned().unwrap_or_default();
             let exchange = match exchange {
@@ -455,9 +463,10 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         None => Vec::new(),
         Some(Body::Json { json, .. }) => concrete_json(json, "", bindings)?.to_text().into_bytes(),
         Some(Body::Text { text, .. }) => bindings.concrete(text, "", Context::Wire)?.into_bytes(),
-        Some(Body::Binary { .. }) => {
-            return Err(Unseedable("a binary request body, which this replay does not send yet".into()));
-        }
+        // Padding, written as its runs: rebuilt here. Other bytes are in a gzip sidecar this replay does not read.
+        Some(binary @ Body::Binary { .. }) => binary.expanded().ok_or_else(|| {
+            Unseedable("a binary request body that is not padding, which this replay does not send yet".into())
+        })?,
     };
     let mut target = path;
     let mut query_parts: Vec<String> = query.into_iter().collect();
@@ -478,6 +487,12 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         if let Some(header) = headers.get_mut(index) {
             header.1 = signature;
         }
+    }
+    // The recorder leaves `Content-Length` out — the replay's JSON is not Java's bytes — so it is declared here, for
+    // what is sent: a 2 MiB body is refused before it is read when declared, and counted while read when not, in
+    // two shapes (`limits.rs`). A body the test sent undeclared stays so.
+    if !body.is_empty() && !request.undeclared_length {
+        headers.push(("Content-Length".to_owned(), body.len().to_string()));
     }
     if !query_parts.is_empty() {
         target = format!("{target}?{}", query_parts.join("&"));

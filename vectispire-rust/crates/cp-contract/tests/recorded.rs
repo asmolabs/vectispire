@@ -11,7 +11,7 @@ use time::OffsetDateTime;
 use vectispire_cp_contract::Document;
 use vectispire_cp_contract::Json;
 use vectispire_cp_contract::recorded::deferred::{Deferred, Listed, check_list, coverage, place, served_outside};
-use vectispire_cp_contract::recorded::format::Exchange;
+use vectispire_cp_contract::recorded::format::{Body, Exchange};
 use vectispire_cp_contract::recorded::placeholders::{
     Bindings, Context, Minting, NumberText, PasswordOf, Placeholder, SecretKind, Segment, in_window, renders_alike,
     secret_kinds, segments,
@@ -705,4 +705,21 @@ fn a_sealing_signature_is_signed_again_for_the_replays_agent() {
     assert!(unable.match_text("«uuid:1»", agent, "id").is_ok());
     assert!(unable.match_text("«secret:3»", "the-replays-own-seed", "privatekey").is_ok());
     assert!(unable.concrete(template, "signature", Context::Wire).is_err(), "a replay that cannot sign sends nothing");
+}
+
+/// A padded body is sent from its runs, and only when they add up to its recorded length; one without runs is not sent.
+#[test]
+fn a_padded_body_is_rebuilt_from_its_runs() {
+    let binary = |length: i64, runs: Option<Vec<(u8, usize)>>| Body::Binary {
+        content_type: Some("application/json".into()),
+        length: Some(length),
+        sha256: None,
+        base64: None,
+        file: Some("x.body.gz".into()),
+        runs,
+    };
+    let padded = binary(5, Some(vec![(b'{', 1), (b' ', 3), (b'}', 1)]));
+    assert_eq!(padded.expanded().as_deref(), Some(&b"{   }"[..]));
+    assert_eq!(binary(6, Some(vec![(b'{', 1), (b' ', 3), (b'}', 1)])).expanded(), None, "a length the runs miss");
+    assert_eq!(binary(5, None).expanded(), None, "no runs, nothing to send");
 }

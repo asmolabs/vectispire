@@ -105,6 +105,7 @@ Names depend only on the tree: two recordings of the same commit have the same f
 | `remoteAddr` | only when not `127.0.0.1`. The test set the peer address; replay it through a trusted proxy's `X-Forwarded-For`, or skip the request if the runner cannot |
 | `scheme` | only when not `http` |
 | `body` | see *Bodies* |
+| `undeclaredLength` | `true` only when the test sent its body with no `Content-Length` (`withoutDeclaredLength()`): send it chunked. Every other body is sent with the length of the bytes the replay sends — a body past its ceiling is refused before it is read when declared, and in another shape while read when not |
 
 ### `response`
 
@@ -147,6 +148,9 @@ Names depend only on the tree: two recordings of the same commit have the same f
 - **A request body past 64 KiB**, whatever its type, is in a gzip sidecar (`file`) and is not
   normalised. These are the bounds' tests' padding: 365 MB of the first recording's 414 MB when they
   were inline. The JSON keeps its length and digest. Send the sidecar's bytes as they are.
+  When those bytes are at most 64 runs of one byte — padding — the JSON also holds them as `runs`,
+  `[{"byte": 123, "count": 1}, {"byte": 32, "count": 2097150}, …]`: the Rust replay rebuilds the body
+  from them and needs no decompressor.
 - Sidecars are written by `GZIPOutputStream`, which records no time and no name, so equal bytes give
   equal files.
 

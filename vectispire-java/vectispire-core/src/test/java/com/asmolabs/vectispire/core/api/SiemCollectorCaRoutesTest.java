@@ -64,7 +64,8 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("the connection test reaches a collector its pinned CA vouches for, and only then")
     void theTestVerifiesAgainstThePinnedCa() throws Exception {
-        CollectorPki pki = CollectorPki.create("Corp SOC Root");
+        // The fixture CA: the Rust replay runs a collector under it on this test's port (golden.rs, COLLECTORS).
+        CollectorPki pki = CollectorPki.fixture("Corp SOC Root");
         try (SSLServerSocket collector = pki.listen()) {
             String endpoint = "127.0.0.1:" + collector.getLocalPort();
 

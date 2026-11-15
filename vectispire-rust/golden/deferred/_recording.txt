@@ -2,16 +2,13 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 4
+ceiling 1
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
-golden api.ProblemDetailsRoutesTest/theBodyLimit--001-POST-api_v1_repositories | a request body past 64 KiB, in a gzip sidecar this replay does not send yet
 
 # ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
-golden api.RequestBodyLimitRoutesTest/largerCeilingsAreNotClamped--003-POST-api_v1_agent_jobs_1_result | a binary request body, which this replay does not send yet — recording limit
 
 # ── Met by the SIEM routes' replay (task 4.2, fourth stage): the five agents' lines were listed under siem, whose event they now queue; their key is what still keeps them red ──
-golden api.SiemCollectorCaRoutesTest/theTestVerifiesAgainstThePinnedCa--003-POST-api_v1_siem_test | the connection test reaches a TLS collector the Java test ran on a port of its own, with a certificate its CA issued: nothing listens there during the replay — recording limit
 
 # ── Added on 2026-11-12, Phase 1: recordings Java 1.0's tests made of routes the port now serves ──

@@ -86,6 +86,8 @@ public final class TrafficRecorder {
 
     /** A request body past this is written beside its golden, gzipped ({@code <golden>.body.gz}). */
     static final int SIDECAR_THRESHOLD = 64 * 1024;
+    /** A sidecar body made of at most this many runs of one byte is also written as those runs ({@link #runs}). */
+    static final int MOST_RUNS = 64;
     private static final String CORE_PACKAGE = "com.asmolabs.vectispire.core.";
 
     private static final Optional<Path> OUTPUT = Optional.ofNullable(System.getProperty(PROPERTY))
@@ -534,7 +536,7 @@ public final class TrafficRecorder {
         ((ObjectNode) diff).remove(emptyTables);
     }
 
-    private static ObjectNode request(MockHttpServletRequest request) {
+    static ObjectNode request(MockHttpServletRequest request) {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put("method", request.getMethod());
         node.put("path", request.getRequestURI());
@@ -576,6 +578,13 @@ public final class TrafficRecorder {
             node.put("scheme", request.getScheme());
         }
         byte[] content = request.getContentAsByteArray();
+        if (content != null && content.length > 0 && request.getContentLengthLong() < 0) {
+            // A body sent with no Content-Length — chunked, as withoutDeclaredLength() makes one — is counted as it is
+            // read and refused in the handler's shape; a declared one is refused before a byte is read, in the
+            // chain's. The header itself is left out above, since the replay's JSON is not Java's bytes: the replay
+            // declares the length of what it sends, unless this says the test declared none.
+            node.put("undeclaredLength", true);
+        }
         if (content != null && content.length > SIDECAR_THRESHOLD) {
             // The bounds' tests send megabytes of padding, most of the suite's bytes once inline: kept beside
             // the golden, compressed, and sent as they are — no placeholder is applied to them.
@@ -586,10 +595,37 @@ public final class TrafficRecorder {
             body.put("length", content.length);
             body.put("sha256", HexFormat.of().formatHex(Digests.sha256(content)));
             body.putNull("file");
+            ArrayNode runs = runs(content, MOST_RUNS);
+            if (runs != null) {
+                body.set("runs", runs);
+            }
         } else if (content != null && content.length > 0) {
             node.set("body", body(content, request.getContentType(), request.getCharacterEncoding(), true));
         }
         return node;
+    }
+
+    /**
+     * {@code [{"byte": 123, "count": 1}, {"byte": 32, "count": 2097150}, …]}: the body as runs of one byte, when it is
+     * padding — or {@code null} past {@code most} runs. The bounds' tests pad a body to megabytes with one character,
+     * and the replay rebuilds it from these few numbers: the gzip sidecar would take a decompressor, a crate to vet,
+     * to send bytes that carry nothing but their length.
+     */
+    static ArrayNode runs(byte[] content, int most) {
+        ArrayNode runs = JsonNodeFactory.instance.arrayNode();
+        int start = 0;
+        while (start < content.length) {
+            int end = start;
+            while (end < content.length && content[end] == content[start]) {
+                end++;
+            }
+            if (runs.size() == most) {
+                return null;
+            }
+            runs.addObject().put("byte", content[start] & 0xff).put("count", end - start);
+            start = end;
+        }
+        return runs;
     }
 
     private static ObjectNode response(MockHttpServletResponse response, MvcResult result, Throwable thrown) {

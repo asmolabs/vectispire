@@ -142,6 +142,9 @@ pub enum Body {
         sha256: Option<String>,
         base64: Option<String>,
         file: Option<String>,
+        /// The bytes as runs of one byte — `(byte, count)` — when the recorder found them to be padding: what the
+        /// replay sends in the sidecar's place, with no decompressor.
+        runs: Option<Vec<(u8, usize)>>,
     },
 }
 
@@ -160,8 +163,37 @@ impl Body {
             sha256: node.get("sha256").and_then(Json::as_str).map(str::to_owned),
             base64: node.get("base64").and_then(Json::as_str).map(str::to_owned),
             file: node.get("file").and_then(Json::as_str).map(str::to_owned),
+            runs: node.get("runs").and_then(runs),
         }
     }
+
+    /// The bytes a binary request body's runs stand for, when it has runs and they add up to its length.
+    #[must_use]
+    pub fn expanded(&self) -> Option<Vec<u8>> {
+        let Body::Binary { length, runs: Some(runs), .. } = self else {
+            return None;
+        };
+        let mut bytes = Vec::new();
+        for (byte, count) in runs {
+            bytes.resize(bytes.len().checked_add(*count)?, *byte);
+        }
+        (length.and_then(|length| usize::try_from(length).ok()) == Some(bytes.len())).then_some(bytes)
+    }
+}
+
+/// `[{"byte": 32, "count": 2097150}, …]`: `None` when any run is not a byte and a count.
+fn runs(node: &Json) -> Option<Vec<(u8, usize)>> {
+    let Json::Arr(items) = node else {
+        return None;
+    };
+    items
+        .iter()
+        .map(|run| {
+            let byte = u8::try_from(run.get("byte").and_then(integer)?).ok()?;
+            let count = usize::try_from(run.get("count").and_then(integer)?).ok()?;
+            Some((byte, count))
+        })
+        .collect()
 }
 
 /// `Name: value` → `(Name, value)`.
@@ -189,6 +221,9 @@ pub struct RecordedRequest {
     pub remote_addr: Option<String>,
     pub scheme: Option<String>,
     pub body: Option<Body>,
+    /// The test sent its body with no `Content-Length` (`undeclaredLength`): counted as it is read, not refused
+    /// before. Otherwise the replay declares the length of the bytes it sends, as a client does.
+    pub undeclared_length: bool,
 }
 
 /// The answer MockMvc saw.
@@ -267,6 +302,7 @@ impl Exchange {
                 remote_addr: text_of(request, "remoteAddr"),
                 scheme: text_of(request, "scheme"),
                 body: request.get("body").map(Body::read),
+                undeclared_length: matches!(request.get("undeclaredLength"), Some(Json::Bool(true))),
             },
             seed: root.get("seed").cloned().filter(|seed| !matches!(seed, Json::Null)),
             response: RecordedResponse {
