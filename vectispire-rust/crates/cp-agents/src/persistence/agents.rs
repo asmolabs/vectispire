@@ -135,10 +135,10 @@ fn rows(stored: Vec<Stored>) -> Result<Vec<AgentRow>, StoreError> {
 
 pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreError> {
     let id = id.as_hyphenated().to_string();
-    let stored = match db {
-        #[cfg(feature = "mysql-queries")]
-        Db::MySql(pool) => {
-            sqlx::query_as!(
+    let stored =
+        match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => sqlx::query_as!(
                 Stored,
                 r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
                 max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -148,11 +148,10 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreErro
                 id
             )
             .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(feature = "postgres-queries")]
-        Db::PostgreSql(pool) => {
-            sqlx::query_as!(
+            .await?,
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_as!(
                 Stored,
                 "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
                 api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -160,20 +159,20 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreErro
                 executors_reported_at from t_agent where id = $1",
                 id
             )
-            .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-        _ => return Err(not_built()),
-    };
+                .fetch_optional(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(not_built()),
+        };
     stored.map(Stored::row).transpose()
 }
 
 pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, StoreError> {
-    let stored = match db {
-        #[cfg(feature = "mysql-queries")]
-        Db::MySql(pool) => {
-            sqlx::query_as!(
+    let stored =
+        match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => sqlx::query_as!(
                 Stored,
                 r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
                 max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -183,11 +182,10 @@ pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, Store
                 name
             )
             .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(feature = "postgres-queries")]
-        Db::PostgreSql(pool) => {
-            sqlx::query_as!(
+            .await?,
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_as!(
                 Stored,
                 "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
                 api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -195,21 +193,21 @@ pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, Store
                 executors_reported_at from t_agent where name = $1",
                 name
             )
-            .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-        _ => return Err(not_built()),
-    };
+                .fetch_optional(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(not_built()),
+        };
     stored.map(Stored::row).transpose()
 }
 
 pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<AgentRow>, StoreError> {
     let key = api_key_id.as_hyphenated().to_string();
-    let stored = match db {
-        #[cfg(feature = "mysql-queries")]
-        Db::MySql(pool) => {
-            sqlx::query_as!(
+    let stored =
+        match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => sqlx::query_as!(
                 Stored,
                 r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
                 max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -219,11 +217,10 @@ pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<Agen
                 key
             )
             .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(feature = "postgres-queries")]
-        Db::PostgreSql(pool) => {
-            sqlx::query_as!(
+            .await?,
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_as!(
                 Stored,
                 "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
                 api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -231,21 +228,21 @@ pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<Agen
                 executors_reported_at from t_agent where api_key_id = $1",
                 key
             )
-            .fetch_optional(pool)
-            .await?
-        }
-        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-        _ => return Err(not_built()),
-    };
+                .fetch_optional(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(not_built()),
+        };
     stored.map(Stored::row).transpose()
 }
 
 /// `findAllByOrderByNameAscIdAsc`.
 pub async fn find_all_ordered(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
-    let stored = match db {
-        #[cfg(feature = "mysql-queries")]
-        Db::MySql(pool) => {
-            sqlx::query_as!(
+    let stored =
+        match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => sqlx::query_as!(
                 Stored,
                 r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
                 max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -254,32 +251,31 @@ pub async fn find_all_ordered(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
                 from t_agent order by name asc, id asc"#
             )
             .fetch_all(pool)
-            .await?
-        }
-        #[cfg(feature = "postgres-queries")]
-        Db::PostgreSql(pool) => {
-            sqlx::query_as!(
+            .await?,
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_as!(
                 Stored,
                 "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
                 api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, executors,
                 executors_reported_at from t_agent order by name asc, id asc"
             )
-            .fetch_all(pool)
-            .await?
-        }
-        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-        _ => return Err(not_built()),
-    };
+                .fetch_all(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(not_built()),
+        };
     rows(stored)
 }
 
 /// `findByEnabledTrue`.
 pub async fn find_enabled(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
-    let stored = match db {
-        #[cfg(feature = "mysql-queries")]
-        Db::MySql(pool) => {
-            sqlx::query_as!(
+    let stored =
+        match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => sqlx::query_as!(
                 Stored,
                 r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
                 max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
@@ -288,23 +284,22 @@ pub async fn find_enabled(db: &Db) -> Result<Vec<AgentRow>, StoreError> {
                 from t_agent where enabled = 1"#
             )
             .fetch_all(pool)
-            .await?
-        }
-        #[cfg(feature = "postgres-queries")]
-        Db::PostgreSql(pool) => {
-            sqlx::query_as!(
+            .await?,
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_as!(
                 Stored,
                 "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
                 api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
                 sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, executors,
                 executors_reported_at from t_agent where enabled = true"
             )
-            .fetch_all(pool)
-            .await?
-        }
-        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-        _ => return Err(not_built()),
-    };
+                .fetch_all(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(not_built()),
+        };
     rows(stored)
 }
 
@@ -437,9 +432,10 @@ pub async fn delete_by_id(tx: &mut Tx, id: Uuid) -> Result<bool, StoreError> {
             sqlx::query!("/* mysql */ delete from t_agent where id = ?", id).execute(&mut **c).await?.rows_affected()
         }
         #[cfg(feature = "postgres-queries")]
-        Tx::PostgreSql(c) => {
-            sqlx::query!("/* postgres */ delete from t_agent where id = $1", id).execute(&mut **c).await?.rows_affected()
-        }
+        Tx::PostgreSql(c) => sqlx::query!("/* postgres */ delete from t_agent where id = $1", id)
+            .execute(&mut **c)
+            .await?
+            .rows_affected(),
         #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
         _ => return Err(not_built()),
     };
@@ -703,17 +699,21 @@ pub async fn by_api_key(db: &Db, key_id: Uuid) -> Result<Option<AgentRef>, Store
 pub async fn has_delegated_mode(tx: &mut Tx) -> Result<bool, StoreError> {
     let count = match tx {
         #[cfg(feature = "mysql-queries")]
-        Tx::MySql(c) => sqlx::query_scalar!(
-            r#"/* mysql */ select count(*) as "count!: i64" from t_agent where credentials_mode = 'delegated'"#
-        )
-        .fetch_one(&mut **c)
-        .await?,
+        Tx::MySql(c) => {
+            sqlx::query_scalar!(
+                r#"/* mysql */ select count(*) as "count!: i64" from t_agent where credentials_mode = 'delegated'"#
+            )
+            .fetch_one(&mut **c)
+            .await?
+        }
         #[cfg(feature = "postgres-queries")]
-        Tx::PostgreSql(c) => sqlx::query_scalar!(
-            r#"/* postgres */ select count(*) as "count!" from t_agent where credentials_mode = 'delegated'"#
-        )
-        .fetch_one(&mut **c)
-        .await?,
+        Tx::PostgreSql(c) => {
+            sqlx::query_scalar!(
+                r#"/* postgres */ select count(*) as "count!" from t_agent where credentials_mode = 'delegated'"#
+            )
+            .fetch_one(&mut **c)
+            .await?
+        }
         #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
         _ => return Err(not_built()),
     };
