@@ -24,6 +24,9 @@ mod tests {
         let keyed = Principal::session(account)
             .with_grounds(Grounds { actor: Some("lead (key ci)".into()), ..Grounds::default() });
         assert_eq!(actor_name(&keyed, "system"), "lead (key ci)");
-        assert_eq!(actor_name(&Principal::agent("agent-1", "8c1f0e7a-0000-4000-8000-000000000001"), "system"), "system");
+        assert_eq!(
+            actor_name(&Principal::agent("agent-1", "8c1f0e7a-0000-4000-8000-000000000001"), "system"),
+            "system"
+        );
     }
 }

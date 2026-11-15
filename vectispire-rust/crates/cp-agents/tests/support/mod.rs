@@ -244,7 +244,13 @@ pub async fn agent_as(db: &Db, id: uuid::Uuid, name: &str, credentials_mode: &st
     let enabled = match (db, enabled) {
         (Db::MySql(_), true) => "1",
         (Db::MySql(_), false) => "0",
-        (Db::PostgreSql(_), enabled) => if enabled { "true" } else { "false" },
+        (Db::PostgreSql(_), enabled) => {
+            if enabled {
+                "true"
+            } else {
+                "false"
+            }
+        }
     };
     exec(
         db,

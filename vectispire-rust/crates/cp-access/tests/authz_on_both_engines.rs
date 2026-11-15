@@ -425,7 +425,10 @@ async fn the_route_hands_the_allowance_to_the_query(db: &Db, file: &Value) {
         VisibilityService::new(db.clone(), Arc::new(StoredMode("assigned".into())), Arc::new(FiledTargets(db.clone()))),
         Arc::new(Directory),
     );
-    assert_eq!(caller.of(&Principal::agent("agent-1", "8c1f0e7a-0000-4000-8000-000000000001")).await, Ok(Allowance::everything()));
+    assert_eq!(
+        caller.of(&Principal::agent("agent-1", "8c1f0e7a-0000-4000-8000-000000000001")).await,
+        Ok(Allowance::everything())
+    );
     assert_eq!(caller.of(&Principal::scim()).await, Ok(Allowance::nothing()));
 }
 

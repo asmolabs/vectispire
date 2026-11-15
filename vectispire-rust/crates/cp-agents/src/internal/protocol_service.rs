@@ -11,7 +11,7 @@ use vectispire_cp_outbox::Outbox;
 use vectispire_cp_scanning::dispatcher::{Alongside, ClaimingAgent, ScanDispatcher};
 use vectispire_cp_scanning::ports::{PortError, ScanRuleSets};
 use vectispire_crypto::{is_usable_sealing_key, verify_failure, verify_result, verify_sealing_key};
-use vectispire_domain::bounded_text;
+use vectispire_domain::{bounded_text, java};
 use vectispire_protocol::concurrency;
 use vectispire_protocol::executors::{Executor, WorkerExecutors};
 use vectispire_protocol::server::refusals;
@@ -240,9 +240,9 @@ impl AgentProtocolService {
         req: &SealingKeyRequest,
         origin: &RequestActor,
     ) -> Result<(), RouteRefusal> {
-        let key = req.public_key.as_deref().map(str::trim).filter(|k| !k.is_empty());
+        let key = req.public_key.as_deref().map(java::trim).filter(|k| !k.is_empty());
         let generation = req.generation;
-        let signature = req.signature.as_deref().unwrap_or("").trim();
+        let signature = java::trim(req.signature.as_deref().unwrap_or(""));
 
         let (Some(key), Some(gen_num)) = (key, generation) else {
             return Err(refusals::sealing_key_unreadable());
@@ -252,7 +252,7 @@ impl AgentProtocolService {
             return Err(refusals::sealing_key_unreadable());
         }
 
-        let pinned = agent.signing_public_key.as_deref().map(str::trim).filter(|p| !p.is_empty());
+        let pinned = agent.signing_public_key.as_deref().filter(|p| !java::is_blank(p)).map(java::trim);
         let Some(pinned) = pinned else {
             return Err(refusals::sealing_key_not_pinned(&agent.name));
         };
@@ -322,9 +322,9 @@ impl AgentProtocolService {
         signature: Option<&str>,
         origin: &RequestActor,
     ) -> Result<(), NotApplied> {
-        let pinned = agent.signing_public_key.as_deref().map(str::trim).filter(|p| !p.is_empty());
+        let pinned = agent.signing_public_key.as_deref().filter(|p| !java::is_blank(p)).map(java::trim);
         if let Some(pinned) = pinned {
-            let sig = signature.unwrap_or("").trim();
+            let sig = java::trim(signature.unwrap_or(""));
             if !verify_result(pinned, scan_id, body, sig) {
                 let desc = if sig.is_empty() {
                     format!(
@@ -390,9 +390,9 @@ impl AgentProtocolService {
         signature: Option<&str>,
         origin: &RequestActor,
     ) -> Result<FailureAnswer, NotApplied> {
-        let pinned = agent.signing_public_key.as_deref().map(str::trim).filter(|p| !p.is_empty());
+        let pinned = agent.signing_public_key.as_deref().filter(|p| !java::is_blank(p)).map(java::trim);
         if let Some(pinned) = pinned {
-            let sig = signature.unwrap_or("").trim();
+            let sig = java::trim(signature.unwrap_or(""));
             if !verify_failure(pinned, scan_id, body, sig) {
                 let desc = if sig.is_empty() {
                     format!(
