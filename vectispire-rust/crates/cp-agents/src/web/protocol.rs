@@ -317,8 +317,8 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
 }
 
 async fn authenticate(caller: &Caller, protocol: &AgentProtocolService) -> Result<AuthenticatedAgent, Problem> {
-    let agent_name = match &caller.0.credential {
-        Credential::Agent { agent } => agent,
+    let agent_id = match &caller.0.credential {
+        Credential::Agent { agent_id, .. } => agent_id,
         _ => {
             return Err(Problem::handler(
                 StatusCode::UNAUTHORIZED,
@@ -326,7 +326,7 @@ async fn authenticate(caller: &Caller, protocol: &AgentProtocolService) -> Resul
             ));
         }
     };
-    protocol.authenticate_agent(agent_name).await.map_err(|failure| match failure {
+    protocol.authenticate_agent(agent_id).await.map_err(|failure| match failure {
         NotAuthenticated::Refused(refusal) => {
             let status = StatusCode::from_u16(refusal.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
             Problem::handler(status, refusal.reason)

@@ -214,7 +214,9 @@ impl Resolved {
                 integration.scopes.clone(),
             ),
             // `VectispirePrincipal.getName()` of an agent, which is what the audit entries it causes name.
-            Resolved::Agent { agent, .. } => Principal::agent(&format!("agent:{}", agent.name)),
+            Resolved::Agent { agent, .. } => {
+                Principal::agent(&format!("agent:{}", agent.name), &agent.id.as_hyphenated().to_string())
+            }
             Resolved::Scim => Principal::scim(),
         };
         principal.with_grounds(self.grounds())

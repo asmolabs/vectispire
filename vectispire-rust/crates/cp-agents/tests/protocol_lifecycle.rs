@@ -27,11 +27,17 @@ use vectispire_cp_http::credentials::StaticCredentials;
 use vectispire_cp_http::principal::Principal;
 
 use support::{
-    Composed, Migrated, agent, attempts, clean, compose, container, count, exec, scan, status, system_clock, text,
+    Composed, Migrated, agent_as, attempts, clean, compose, container, count, exec, scan, status, system_clock, text,
 };
 
 const OWNER: &str = "agent-lifecycle-owner-token"; // gitleaks:allow — a test fixture
 const OTHER: &str = "agent-lifecycle-other-token"; // gitleaks:allow — a test fixture
+/// The rows the two keys are bound to: a key's principal names its agent by id.
+const OWNER_ID: uuid::Uuid = uuid::Uuid::from_u128(0x6f77_6e65_7200_4000_8000_0000_0000_0001);
+const OTHER_ID: uuid::Uuid = uuid::Uuid::from_u128(0x6f74_6865_7200_4000_8000_0000_0000_0002);
+/// A second agent declared under the owner's name — a re-declaration to rotate a key, then the old one disabled.
+const TWIN: &str = "agent-lifecycle-twin-token"; // gitleaks:allow — a test fixture
+const TWIN_ID: uuid::Uuid = uuid::Uuid::from_u128(0x7477_696e_0000_4000_8000_0000_0000_0003);
 
 fn router(db: &Db, composed: Composed) -> axum::Router {
     support::router(
@@ -39,7 +45,10 @@ fn router(db: &Db, composed: Composed) -> axum::Router {
         composed.targets,
         composed.scanning,
         composed.agents,
-        StaticCredentials::default().key(OWNER, Principal::agent("owner")).key(OTHER, Principal::agent("other")),
+        StaticCredentials::default()
+            .key(OWNER, Principal::agent("agent:owner", &OWNER_ID.to_string()))
+            .key(OTHER, Principal::agent("agent:other", &OTHER_ID.to_string()))
+            .key(TWIN, Principal::agent("agent:owner", &TWIN_ID.to_string())),
         "everyone",
     )
 }
@@ -106,7 +115,7 @@ async fn suite(engine: Engine) {
 
     // ── hello ──
     clean(&db).await;
-    agent(&db, "owner", "local").await;
+    agent_as(&db, OWNER_ID, "owner", "local", true).await;
     let routes = router(&db, compose(&db, system_clock()));
     let (answered, body) = send(
         &routes,
@@ -172,7 +181,7 @@ async fn suite(engine: Engine) {
     assert!(started.elapsed() < Duration::from_secs(5), "{engine}: without waiting out the rest");
 
     // ── a heartbeat is a sign of life, and belongs to the lease holder ──
-    agent(&db, "other", "local").await;
+    agent_as(&db, OTHER_ID, "other", "local", true).await;
     set_last_seen(&db, "owner", "2000-01-01 00:00:00").await;
     let (answered, _) = send(&routes, OWNER, "POST", &format!("/api/v1/agent/jobs/{queued}/heartbeat"), "").await;
     assert_eq!(answered, StatusCode::NO_CONTENT, "{engine}: the lease renewed");
@@ -221,6 +230,20 @@ async fn suite(engine: Engine) {
     assert!(body.get("retryAt").is_none_or(Value::is_null), "{engine}: {body}");
     assert_eq!(status(&db, permanent).await, "failed", "{engine}: failed at once");
     assert_eq!(audited(&db, "AGENT_SCAN_FAILED", "a permanent failure").await, 1, "{engine}");
+
+    // ── a key is its own row's, never a namesake's (review 2026-11) ──
+    // `t_agent.name` is not unique. Found by name, one of the two keys below acted as the other row: the disabled
+    // agent's key kept working as the enabled one, or the enabled one was refused as disabled — whichever row the
+    // engine returned first.
+    agent_as(&db, TWIN_ID, "owner", "local", false).await;
+    let (answered, body) = send(&routes, TWIN, "POST", "/api/v1/agent/hello", r#"{"contract_version":"1"}"#).await;
+    assert_eq!(answered, StatusCode::UNAUTHORIZED, "{engine}: the disabled namesake's key is refused: {body}");
+    let (answered, body) = send(&routes, OWNER, "POST", "/api/v1/agent/hello", r#"{"contract_version":"1"}"#).await;
+    assert_eq!(answered, StatusCode::OK, "{engine}: the enabled agent's key still works: {body}");
+    let claimable = scan(&db, None, Some(image), "pending", 0).await;
+    let (answered, _) = send(&routes, TWIN, "GET", "/api/v1/agent/jobs?wait=0", "").await;
+    assert_eq!(answered, StatusCode::UNAUTHORIZED, "{engine}: nor does it claim");
+    assert_eq!(status(&db, claimable).await, "pending", "{engine}: the scan stays queued");
 
     db.close().await;
 }

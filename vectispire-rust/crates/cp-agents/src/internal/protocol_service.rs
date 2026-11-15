@@ -137,9 +137,16 @@ impl AgentProtocolService {
     /// The agent a key names, or the 401 Java's `authenticate` answers. **A database that cannot be read is not a
     /// refusal**: it answered 401 "API key absent, invalid…" before, which tells an agent its key is wrong and an
     /// operator to rotate one that is fine. It is the 500 quoting a reference, as Java's unmapped exception is.
-    pub async fn authenticate_agent(&self, agent_name_or_actor: &str) -> Result<AuthenticatedAgent, NotAuthenticated> {
-        let name = agent_name_or_actor.strip_prefix("agent:").unwrap_or(agent_name_or_actor);
-        let row = agents::find_by_name(&self.db, name)
+    ///
+    /// **By the id of the row the key is bound to, never by name**, as Java's filter hands the controller the
+    /// `AgentView` it found by the key. `t_agent.name` is not unique and MySQL's collation folds case: found by name,
+    /// a disabled agent's key acted as the agent re-declared under its name, and one agent's key claimed, renewed and
+    /// submitted for another's scans — unsigned, when only the other had a pinned signing key (review 2026-11).
+    pub async fn authenticate_agent(&self, agent_id: &str) -> Result<AuthenticatedAgent, NotAuthenticated> {
+        let Ok(id) = Uuid::parse_str(agent_id) else {
+            return Err(NotAuthenticated::Refused(refusals::not_an_agent()));
+        };
+        let row = agents::find_by_id(&self.db, id)
             .await
             .map_err(|failure| NotAuthenticated::Failed(Box::new(failure)))?
             .ok_or_else(|| NotAuthenticated::Refused(refusals::not_an_agent()))?;

@@ -127,8 +127,11 @@ pub enum Credential {
     Session,
     /// An integration API key: its id (the budget is per key) and its scopes.
     Integration { key_id: String, scopes: Vec<ApiKeyScope> },
-    /// An agent's key.
-    Agent { agent: String },
+    /// An agent's key: the name its audit entries carry (`agent:<name>`) and **the id of the row the key is bound to**,
+    /// which is what the protocol authenticates. The name is not an identity: `t_agent.name` is not unique and MySQL's
+    /// collation folds case, so a lookup by name found whichever twin came first — a disabled agent's key acting as
+    /// the enabled agent re-declared under its name, or one agent's key claiming another's scans (review 2026-11).
+    Agent { agent: String, agent_id: String },
     /// The identity provider's SCIM token, a principal on `/scim` and nowhere else.
     Scim,
     /// The metrics scrape token (`ScrapeTokenProperties`): a principal on `/actuator/prometheus` and nowhere else, with
@@ -185,10 +188,10 @@ impl Principal {
         }
     }
 
-    pub fn agent(agent: &str) -> Principal {
+    pub fn agent(agent: &str, agent_id: &str) -> Principal {
         Principal {
             account: None,
-            credential: Credential::Agent { agent: agent.to_owned() },
+            credential: Credential::Agent { agent: agent.to_owned(), agent_id: agent_id.to_owned() },
             grounds: Grounds::default(),
         }
     }

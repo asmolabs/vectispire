@@ -92,13 +92,13 @@ async fn suite(engine: Engine) {
     let db = migrated.connect().await;
     clean(&db).await;
     let a = agent(&db, AGENT_A, "delegated").await;
-    agent(&db, AGENT_B, "delegated").await;
+    let b = agent(&db, AGENT_B, "delegated").await;
     let image = container(&db, "coverage").await;
     let held = scan(&db, None, Some(image), "pending", 0).await;
 
     let credentials = StaticCredentials::default()
-        .key("key-agent-a", Principal::agent(AGENT_A))
-        .key("key-agent-b", Principal::agent(AGENT_B))
+        .key("key-agent-a", Principal::agent(&format!("agent:{AGENT_A}"), &a.to_string()))
+        .key("key-agent-b", Principal::agent(&format!("agent:{AGENT_B}"), &b.to_string()))
         .session("tok-user", Principal::session(account("coverage-user", Role::User)))
         .session("tok-admin", Principal::session(account("coverage-admin", Role::Admin)))
         .key(

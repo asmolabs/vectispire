@@ -168,40 +168,6 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<AgentRow>, StoreErro
     stored.map(Stored::row).transpose()
 }
 
-pub async fn find_by_name(db: &Db, name: &str) -> Result<Option<AgentRow>, StoreError> {
-    let stored =
-        match db {
-            #[cfg(feature = "mysql-queries")]
-            Db::MySql(pool) => sqlx::query_as!(
-                Stored,
-                r#"/* mysql */ select id, name, description, kind, labels, credentials_mode, enabled as "enabled: bool",
-                max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
-                sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at as "last_seen_at: _",
-                created_at as "created_at: _", executors, executors_reported_at as "executors_reported_at: _"
-                from t_agent where name = ?"#,
-                name
-            )
-            .fetch_optional(pool)
-            .await?,
-            #[cfg(feature = "postgres-queries")]
-            Db::PostgreSql(pool) => {
-                sqlx::query_as!(
-                Stored,
-                "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,
-                api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,
-                sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, executors,
-                executors_reported_at from t_agent where name = $1",
-                name
-            )
-                .fetch_optional(pool)
-                .await?
-            }
-            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
-            _ => return Err(not_built()),
-        };
-    stored.map(Stored::row).transpose()
-}
-
 pub async fn find_by_api_key_id(db: &Db, api_key_id: Uuid) -> Result<Option<AgentRow>, StoreError> {
     let key = api_key_id.as_hyphenated().to_string();
     let stored =
