@@ -93,6 +93,27 @@ pub fn host(url: &str) -> Option<String> {
     Some(host)
 }
 
+/// `RepositoryUrl.port`: the port the clone connects to — the SCP form's 22, the one written, else the scheme's own
+/// (`https` 443, `http` 80, `git` 9418, `ssh` 22) — or `None` when there is no host or no scheme it knows. What the
+/// reserved endpoints are asked about, with [`host`].
+pub fn port(url: &str) -> Option<i32> {
+    host(url)?;
+    if scp_host(url).is_some() {
+        return Some(22);
+    }
+    let parsed = java_uri::parse(url).ok()?;
+    if let Some(port) = parsed.port.filter(|port| *port > 0) {
+        return Some(port);
+    }
+    match crate::java::to_lower_root(parsed.scheme.as_deref()?).as_str() {
+        "https" => Some(443),
+        "http" => Some(80),
+        "git" => Some(9418),
+        "ssh" | "git+ssh" | "ssh+git" => Some(22),
+        _ => None,
+    }
+}
+
 /// Why a URL the URI parser reads could be read differently by the clone, or `None`.
 ///
 /// Refuses what no git remote needs: the characters on which two URL readings part, a second

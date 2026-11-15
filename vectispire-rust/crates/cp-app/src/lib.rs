@@ -9,6 +9,7 @@ pub mod access;
 pub mod actuator;
 pub mod audit_mirror;
 pub mod chain_entries;
+pub mod clone_hosts;
 pub mod gauges;
 pub mod ingestion;
 pub mod maintenance;
