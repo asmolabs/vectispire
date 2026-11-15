@@ -183,3 +183,23 @@ bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-common/src/t
 bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/ProjectExportRoutesTest.java:generic-api-key:83
 bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/SiemCollectorCaRoutesTest.java:private-key:137
 bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/TicketWebhookLogTest.java:generic-api-key:24
+
+# 2026-11-15 — read and judged not secrets (the Rust port's return, 9c052f71c, and its replay, ce4c52af7):
+# private-key: truncated PEM headers, inputs of the private-key detection rules' reference set (TargetRulesReferenceSetTest,
+# reference/targets/rules.json); generic-api-key: an invented 32-byte label in base64 (worker_offload.rs), an X25519
+# key's DER prefix cut short, no key (recorded.rs), and audit sentences naming an API key's external id, not the key
+# (reference/siem/module.json).
+ce4c52af788c1620313e1aad67567c80279583aa:vectispire-rust/crates/cp-contract/tests/recorded.rs:generic-api-key:662
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:419
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:420
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/crates/cp-scanning/tests/worker_offload.rs:generic-api-key:233
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/targets/rules.json:private-key:3574
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/targets/rules.json:private-key:3580
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:216
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:238
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:258
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:285
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:311
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:337
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:363
+9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:382
