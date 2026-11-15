@@ -679,9 +679,12 @@ public final class TrafficRecorder {
             try {
                 JsonNode tree = JSON.readTree(text.get());
                 if (tree != null && (!exact || JSON.writeValueAsString(tree).equals(text.get()))) {
-                    // A request's fields sorted: a test writing Map.of(...) sends them in an order
-                    // the JVM draws at start-up, and two recordings would differ on nothing the server did.
-                    node.set("json", exact ? sorted(tree) : tree);
+                    // A request's fields in the order sent, as a response's are. They were sorted, so that a
+                    // test writing Map.of(...) — in an order the JVM draws at start-up — recorded the same
+                    // file each run; but the server may answer by that order (a settings save audits its
+                    // changes and refuses the first bad one in it), and a sorted body replayed a request
+                    // Java never received. Two runs may now differ in a Map.of body; each replays what it got.
+                    node.set("json", tree);
                     return node;
                 }
             } catch (IOException notJson) {
@@ -700,21 +703,6 @@ public final class TrafficRecorder {
             // A PDF, an archive, a workbook: kept whole beside the golden, for phase 5's comparisons, which
             // read what a document says rather than its digest. Many embed when they were made.
             node.putNull("file");
-        }
-        return node;
-    }
-
-    private static JsonNode sorted(JsonNode node) {
-        if (node.isObject()) {
-            ObjectNode copy = JsonNodeFactory.instance.objectNode();
-            new TreeMap<>(node.propertyStream().collect(java.util.stream.Collectors.toMap(
-                    Map.Entry::getKey, Map.Entry::getValue))).forEach((key, value) -> copy.set(key, sorted(value)));
-            return copy;
-        }
-        if (node.isArray()) {
-            ArrayNode copy = JsonNodeFactory.instance.arrayNode();
-            node.forEach(element -> copy.add(sorted(element)));
-            return copy;
         }
         return node;
     }

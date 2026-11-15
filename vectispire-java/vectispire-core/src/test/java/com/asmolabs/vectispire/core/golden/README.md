@@ -134,9 +134,13 @@ Names depend only on the tree: two recordings of the same commit have the same f
   - A **response's** fields are in the order the server wrote them. The replay should compare objects
     as unordered maps, because Java serialises some maps built with `Map.of` in an order the JVM draws
     at start-up. The order is still recorded.
-  - A **request's** fields are sorted by name, for the same reason: the test wrote them from a `Map.of`
-    as often as not. A request body is shown as `json` only when the compact serialisation of what was
-    parsed gave back its exact bytes. Send `json` bodies compact (no whitespace), in the sorted order.
+  - A **request's** fields are in the order the test sent them, which is the order the server read them in —
+    and some answers follow it: a settings save lists its changes, and refuses the first bad one, in the
+    body's order. A test that wrote its body from a `Map.of` sends an order the JVM draws at start-up, so
+    two recordings of it may differ there; each replays the request its own run made. (They were sorted by
+    name until 2026-11-15, which replayed requests Java never received.) A request body is shown as `json`
+    only when the compact serialisation of what was parsed gave back its exact bytes. Send `json` bodies
+    compact (no whitespace), in the recorded order.
     Anything else is shown as `text` and sent byte for byte. A signed webhook's signature covers bytes.
 - **Text** covers `text/*`, `xml`, `yaml`, `csv`, form bodies, `javascript` and PEM (`application/x-pem-file`,
   the signing key's public half, whose block then stays literal as any public key), as long as the bytes decode in the

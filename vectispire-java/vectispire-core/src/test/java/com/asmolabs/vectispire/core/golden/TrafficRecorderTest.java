@@ -23,6 +23,17 @@ class TrafficRecorderTest {
     }
 
     @Test
+    @DisplayName("keeps a request's members in the order they were sent, which the server read them in")
+    void aRequestKeepsItsOrder() {
+        var request = new org.springframework.mock.web.MockHttpServletRequest("PUT", "/api/v1/settings");
+        request.setContentType("application/json");
+        request.setContent("{\"ticket_provider\":\"github\",\"ticket_project\":\"a/b\",\"eol_warn_days\":\"31\"}"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        JsonNode json = TrafficRecorder.request(request).path("body").path("json");
+        assertThat(json.toString()).isEqualTo("{\"ticket_provider\":\"github\",\"ticket_project\":\"a/b\",\"eol_warn_days\":\"31\"}");
+    }
+
+    @Test
     @DisplayName("notes a body sent with no declared length, and nothing on one that declared it")
     void anUndeclaredLengthIsNoted() {
         var declared = new org.springframework.mock.web.MockHttpServletRequest("PUT", "/api/v1/settings");

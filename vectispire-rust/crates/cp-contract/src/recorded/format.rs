@@ -126,7 +126,7 @@ impl Recording {
 /// A body as the recorder writes it.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Body {
-    /// Parsed: anything whose content type says JSON. A request's members are sorted by name.
+    /// Parsed: anything whose content type says JSON. A request's members are in the order the test sent them.
     Json {
         content_type: Option<String>,
         json: Json,

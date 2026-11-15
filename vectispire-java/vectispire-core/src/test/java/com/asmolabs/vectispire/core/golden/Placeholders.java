@@ -534,7 +534,7 @@ final class Placeholders {
      * <p><b>Why a computation, and not the value</b> — as for the sealing key: the seed is drawn by {@code
      * "public_key": "generate"} and the scan's id by the server, so Java's signature verifies for neither of the
      * replay's. Hidden as {@code «secret:N»}, the replay sent random bytes, and a result its agent had signed was
-     * refused. The bytes are the body as recorded (compact JSON, its members sorted, or its text): a test whose body
+     * refused. The bytes are the body as recorded (compact JSON in the order sent, or its text): a test whose body
      * was written otherwise does not verify here and stays a {@code «secret:N»}, the replay sending something else that
      * does not verify. So does a signature by a key the test kept to itself.
      */
