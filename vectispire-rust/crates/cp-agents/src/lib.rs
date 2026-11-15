@@ -20,7 +20,9 @@ pub use internal::backlog_task::{CredentialedBacklogProvider, CredentialedBacklo
 pub use internal::claim_lock::AgentRowLock;
 pub use internal::directory::AgentDirectoryImpl;
 pub use internal::poller::AgentJobPoller;
-pub use internal::protocol_service::{AgentPluginProvider, AgentProtocolService, AuthenticatedAgent, NoAgentPlugins};
+pub use internal::protocol_service::{
+    AgentPluginProvider, AgentProtocolService, AuthenticatedAgent, NoAgentPlugins, NotAuthenticated,
+};
 pub use internal::withheld_repair::{Outcome as RepairOutcome, WithheldClaimRepair};
 pub use web::routes;
 

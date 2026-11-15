@@ -14,6 +14,7 @@ use vectispire_cp_scanning::{ClaimingAgent, ScanCatalog};
 use vectispire_cp_targets::Targets;
 use vectispire_domain::agent_labels;
 use vectispire_domain::bounded_text;
+use vectispire_domain::java;
 use vectispire_domain::list_window::ListWindow;
 use vectispire_protocol::CredentialsMode;
 use vectispire_protocol::concurrency;
@@ -314,7 +315,8 @@ impl AgentAdministrationService {
     }
 
     pub async fn declare(&self, declaration: Declaration, actor: &RequestActor) -> Result<DeclaredAgent, AgentError> {
-        let name = declaration.name.trim();
+        // `String.trim`, as Java reads it: controls off the ends and nothing beyond — a no-break space stays, and counts.
+        let name = java::trim(&declaration.name);
         if name.is_empty() {
             return Err(AgentError::invalid("The agent's name is required."));
         }
@@ -331,11 +333,13 @@ impl AgentAdministrationService {
             None => concurrency::DEFAULT as i32,
         };
 
+        // Blank as `String.isBlank` says, looked up trimmed, and quoted back as it was sent — Java's message names
+        // `declaration.credentialsMode()`, padding included.
         let mode = match declaration.credentials_mode.as_deref() {
             None => CredentialsMode::Local,
-            Some(raw) if raw.trim().is_empty() => CredentialsMode::Local,
-            Some(raw) => CredentialsMode::by_wire_name(Some(raw.trim()))
-                .ok_or_else(|| AgentError::invalid(format!("Unknown credentials mode: \"{}\".", raw.trim())))?,
+            Some(raw) if java::is_blank(raw) => CredentialsMode::Local,
+            Some(raw) => CredentialsMode::by_wire_name(Some(java::trim(raw)))
+                .ok_or_else(|| AgentError::invalid(format!("Unknown credentials mode: \"{raw}\".")))?,
         };
 
         let key_name = format!("{KEY_NAME_PREFIX}{name}");
@@ -464,7 +468,7 @@ impl AgentAdministrationService {
             .map_err(AgentError::from)?
             .ok_or_else(|| AgentError::not_found("Agent not found."))?;
 
-        let supplied = public_key.unwrap_or("").trim();
+        let supplied = java::trim(public_key.unwrap_or(""));
 
         if supplied.is_empty() {
             let mut tx = crate::persistence::write(&self.db).await.map_err(AgentError::from)?;
@@ -567,13 +571,17 @@ impl AgentAdministrationService {
             )));
         }
 
+        // **The key goes first, and its failure is the request's.** Java deletes the row and revokes the key in one
+        // transaction; the key is `access`'s, written through its own service, so here they are two writes. Revoked
+        // first, a failure between them leaves an agent with no key — inert, and removed again by the next attempt.
+        // The other order, with the failure ignored as it was, left a working agent key with no agent behind it.
+        if let Some(key_id) = agent.api_key_id {
+            self.credentials.revoke_key(key_id).await.map_err(|failure| AgentError::Unexpected(Box::new(failure)))?;
+        }
+
         let mut tx = crate::persistence::write(&self.db).await.map_err(AgentError::from)?;
         agents::delete_by_id(&mut tx, id).await.map_err(AgentError::from)?;
         tx.commit().await.map_err(StoreError::from)?;
-
-        if let Some(key_id) = agent.api_key_id {
-            let _ = self.credentials.revoke_key(key_id).await;
-        }
 
         self.record_audit(
             actor,

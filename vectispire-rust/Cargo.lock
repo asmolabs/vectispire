@@ -4067,6 +4067,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "p256",
+ "percent-encoding",
  "rustls",
  "rustls-pki-types",
  "serde",

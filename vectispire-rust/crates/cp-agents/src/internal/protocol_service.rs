@@ -64,6 +64,13 @@ impl AgentPluginProvider for NoAgentPlugins {
     }
 }
 
+/// Why a request could not be tied to an agent: refused (401), or the lookup itself failed (500).
+#[derive(Debug)]
+pub enum NotAuthenticated {
+    Refused(RouteRefusal),
+    Failed(Box<dyn std::error::Error + Send + Sync>),
+}
+
 #[derive(Clone)]
 pub struct AgentProtocolService {
     db: Db,
@@ -127,14 +134,17 @@ impl AgentProtocolService {
         Self { db, dispatcher, audit, outbox, rule_sets, plugins }
     }
 
-    pub async fn authenticate_agent(&self, agent_name_or_actor: &str) -> Result<AuthenticatedAgent, RouteRefusal> {
+    /// The agent a key names, or the 401 Java's `authenticate` answers. **A database that cannot be read is not a
+    /// refusal**: it answered 401 "API key absent, invalid…" before, which tells an agent its key is wrong and an
+    /// operator to rotate one that is fine. It is the 500 quoting a reference, as Java's unmapped exception is.
+    pub async fn authenticate_agent(&self, agent_name_or_actor: &str) -> Result<AuthenticatedAgent, NotAuthenticated> {
         let name = agent_name_or_actor.strip_prefix("agent:").unwrap_or(agent_name_or_actor);
         let row = agents::find_by_name(&self.db, name)
             .await
-            .map_err(|_| refusals::not_an_agent())?
-            .ok_or_else(refusals::not_an_agent)?;
+            .map_err(|failure| NotAuthenticated::Failed(Box::new(failure)))?
+            .ok_or_else(|| NotAuthenticated::Refused(refusals::not_an_agent()))?;
         if !row.enabled {
-            return Err(refusals::disabled(&row.name));
+            return Err(NotAuthenticated::Refused(refusals::disabled(&row.name)));
         }
         Ok(AuthenticatedAgent::from(&row))
     }

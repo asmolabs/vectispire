@@ -37,6 +37,7 @@ vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-crypto.workspace = true
 vectispire-domain.workspace = true
+percent-encoding.workspace = true
 vectispire-protocol.workspace = true
 
 [dev-dependencies]

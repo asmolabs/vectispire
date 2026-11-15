@@ -58,13 +58,31 @@ pub enum CryptoError {
     Recipient,
 }
 
+/// `ResultAttestation.decode`: blank as `String.isBlank` says, then trimmed as `String.trim` does — controls and
+/// spaces off the ends, nothing beyond. `str::trim` took a no-break space too, so a key Java refuses was pinned here.
 fn decode(value: &str, expected_length: usize) -> Option<Vec<u8>> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    if value.chars().all(java_whitespace) {
         return None;
     }
-    let raw = BASE64.decode(trimmed).ok()?;
+    let raw = BASE64.decode(value.trim_matches(|c: char| c <= ' ')).ok()?;
     (raw.len() == expected_length).then_some(raw)
+}
+
+/// `SealedEnvelope.parsePublicKey` and `SealingKeyAttestation`: an X25519 key is read **as it is**, untrimmed — the
+/// protocol trims the announcement before it gets here, and a padded key reaching this point was refused by Java.
+fn decode_sealing_key(value: &str) -> Option<Vec<u8>> {
+    if value.is_empty() {
+        return None;
+    }
+    let raw = BASE64.decode(value).ok()?;
+    (raw.len() == SPKI_LENGTH).then_some(raw)
+}
+
+/// `Character.isWhitespace`, which `String.isBlank` reads: the Unicode spaces but the no-break ones, and the controls
+/// U+0009–U+000D and U+001C–U+001F. Here rather than from `vectispire_domain`, which this crate does not link.
+fn java_whitespace(c: char) -> bool {
+    matches!(c, '\u{9}'..='\u{d}' | '\u{1c}'..='\u{20}' | '\u{1680}' | '\u{2000}'..='\u{2006}' | '\u{2008}'..='\u{200a}'
+        | '\u{2028}' | '\u{2029}' | '\u{205f}' | '\u{3000}')
 }
 
 fn sha256(parts: &[&[u8]]) -> [u8; 32] {
@@ -147,7 +165,7 @@ fn sealing_key_message(context: &[u8], agent_id: Uuid, generation: i64, sealing_
     if generation <= 0 || !is_usable_sealing_key(sealing_public) {
         return None;
     }
-    let encoded = decode(sealing_public, SPKI_LENGTH)?;
+    let encoded = decode_sealing_key(sealing_public)?;
     // The canonical, lower-case spelling, as `UUID.toString` writes it.
     let id = agent_id.hyphenated().to_string();
     Some(sha256(&[
@@ -243,7 +261,7 @@ const SPKI_LENGTH: usize = X25519_SPKI_PREFIX.len() + 32;
 
 /// Whether `value` is an X25519 public key in the encoding the control plane reads.
 pub fn is_usable_sealing_key(value: &str) -> bool {
-    decode(value, SPKI_LENGTH).is_some_and(|raw| raw[..X25519_SPKI_PREFIX.len()] == X25519_SPKI_PREFIX)
+    decode_sealing_key(value).is_some_and(|raw| raw[..X25519_SPKI_PREFIX.len()] == X25519_SPKI_PREFIX)
 }
 
 /// What a sealed secret is for — `SealedEnvelope.Context`. Bound into the associated data, so an

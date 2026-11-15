@@ -2,6 +2,7 @@
 
 mod admin;
 mod protocol;
+mod read;
 
 use std::sync::Arc;
 use vectispire_cp_http::routes::RouteEntry;

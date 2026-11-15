@@ -19,7 +19,7 @@ use vectispire_protocol::server::{ExecutorsReport, HelloRequest, RouteRefusal, S
 
 use crate::error::AgentError;
 use crate::internal::poller::{AgentJobPoller, Receipt};
-use crate::internal::protocol_service::{AgentProtocolService, AuthenticatedAgent, NotApplied};
+use crate::internal::protocol_service::{AgentProtocolService, AuthenticatedAgent, NotApplied, NotAuthenticated};
 
 const AGENT_SIGNATURE_HEADER: &str = "X-Vectispire-Agent-Signature";
 
@@ -133,11 +133,16 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
             let p = p.clone();
             let poll = poll.clone();
             async move {
+                // Bound before the controller runs, as Spring binds the parameter: a malformed wait is a 400 even
+                // for an agent that is disabled.
+                let wait = match super::read::wait(query.as_deref()) {
+                    Ok(wait) => wait,
+                    Err(problem) => return problem.into_response(),
+                };
                 let agent = match authenticate(&caller, &p).await {
                     Ok(a) => a,
                     Err(p) => return p.into_response(),
                 };
-                let wait = parse_wait(query.as_deref());
                 let limit = concurrency::effective(agent.max_concurrent.map(i64::from)).to_string();
 
                 match poll.claim(&agent, wait).await {
@@ -321,9 +326,12 @@ async fn authenticate(caller: &Caller, protocol: &AgentProtocolService) -> Resul
             ));
         }
     };
-    protocol.authenticate_agent(agent_name).await.map_err(|refusal| {
-        let status = StatusCode::from_u16(refusal.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-        Problem::handler(status, refusal.reason)
+    protocol.authenticate_agent(agent_name).await.map_err(|failure| match failure {
+        NotAuthenticated::Refused(refusal) => {
+            let status = StatusCode::from_u16(refusal.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            Problem::handler(status, refusal.reason)
+        }
+        NotAuthenticated::Failed(failure) => Problem::from(AgentError::Unexpected(failure)),
     })
 }
 
@@ -405,16 +413,6 @@ fn not_applied_response(not_applied: NotApplied) -> Response {
 fn refusal_response(refusal: RouteRefusal) -> Response {
     let status = StatusCode::from_u16(refusal.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     Problem::handler(status, refusal.reason).into_response()
-}
-
-fn parse_wait(raw: Option<&str>) -> i32 {
-    let Some(query) = raw else { return 0 };
-    for pair in query.split('&') {
-        if let Some(("wait", v)) = pair.split_once('=') {
-            return v.parse::<i32>().unwrap_or(0);
-        }
-    }
-    0
 }
 
 async fn read_bytes(request: Request) -> Result<Vec<u8>, Problem> {

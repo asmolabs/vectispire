@@ -1,0 +1,1669 @@
+{
+  "key" : "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
+  "cases" : [ {
+    "name" : "declare-plain",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "scanner-01",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: scanner-01 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-trimmed",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "  scanner-02 \t",
+      "description" : "  a description  ",
+      "credentialsMode" : " delegated ",
+      "labels" : " Linux , GPU,linux ",
+      "maxConcurrent" : 4
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: scanner-02 (delegated)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-02",
+        "description" : "a description",
+        "credentialsMode" : "delegated",
+        "labels" : "linux,gpu,linux",
+        "enabled" : true,
+        "maxConcurrent" : 4,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-null-name",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : null,
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The agent's name is required."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-blank-name",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : " \t ",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The agent's name is required."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-name-at-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-name-past-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The agent's name is longer than 249 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-name-of-surrogates-at-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀a",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: 🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀a (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀a",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-name-of-surrogates-past-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The agent's name is longer than 249 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-awkward-name",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "build \"β\" \\ 01",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: build \"β\" \\ 01 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-name-padded-with-controls",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "\u0001\u001Fscanner-03\u0000",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: scanner-03 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-03",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-name-padded-with-no-break-spaces",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : " scanner-04 ",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared:  scanner-04  (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : " scanner-04 ",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-name-of-no-break-spaces",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "  ",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared:    (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "  ",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-description-at-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "a1",
+      "description" : "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: a1 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "a1",
+        "description" : "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-description-past-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "a2",
+      "description" : "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The description is longer than 500 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-blank-description",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "a3",
+      "description" : "   ",
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: a3 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "a3",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-mode-local",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m1",
+      "description" : null,
+      "credentialsMode" : "local",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: m1 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "m1",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-mode-blank",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m2",
+      "description" : null,
+      "credentialsMode" : "  ",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: m2 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "m2",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-mode-upper-case",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m3",
+      "description" : null,
+      "credentialsMode" : "DELEGATED",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown credentials mode: \"DELEGATED\"."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-mode-unknown",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m4",
+      "description" : null,
+      "credentialsMode" : "remote-only",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown credentials mode: \"remote-only\"."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-mode-unknown-padded",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m5",
+      "description" : null,
+      "credentialsMode" : "  remote-only\t",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown credentials mode: \"  remote-only\t\"."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-mode-padded-with-a-no-break-space",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "m6",
+      "description" : null,
+      "credentialsMode" : " local",
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown credentials mode: \" local\"."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-labels-blank",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "l1",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : " , ,",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: l1 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "l1",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-labels-beyond-ascii",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "l4",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : "GPU,ÉTÉ,İstanbul,  arm ",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: l4 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "l4",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "gpu,été,i̇stanbul, arm",
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-labels-past-their-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "l2",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The labels is longer than 255 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-labels-of-one-past-their-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "l3",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The labels is longer than 255 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-concurrency-zero",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "c1",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : 0
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "max_concurrent must be between 1 and 16, not 0."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-concurrency-negative",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "c2",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : -3
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "max_concurrent must be between 1 and 16, not -3."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "declare-concurrency-one",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "c3",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : 1
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: c3 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "c3",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 1,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-concurrency-at-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "c4",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : 16
+    },
+    "outcome" : {
+      "answer" : {
+        "secretIssued" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent declared: c4 (local)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "c4",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 16,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "declare-concurrency-past-its-bound",
+    "operation" : "declare",
+    "prior" : null,
+    "input" : {
+      "name" : "c5",
+      "description" : null,
+      "credentialsMode" : null,
+      "labels" : null,
+      "maxConcurrent" : 17
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "max_concurrent must be between 1 and 16, not 17."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "change-nothing",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "linux,gpu"
+      },
+      "audit" : [ ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux,gpu",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-labels",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : "arm64 , Linux",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "arm64,linux"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 labels: arm64,linux (previously linux,gpu)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "arm64,linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-labels-to-what-they-normalise-to",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : " GPU , linux ",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "gpu,linux"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 labels: gpu,linux (previously linux,gpu)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "gpu,linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-labels-to-none",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : " , ",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : null
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 labels: none (previously linux,gpu)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-labels-past-their-bound",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The labels is longer than 255 characters."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "change-disable",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : false,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : false,
+        "labels" : "linux,gpu"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 disabled",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux,gpu",
+        "enabled" : false,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-enable-an-enabled-agent",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : true,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "linux,gpu"
+      },
+      "audit" : [ ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux,gpu",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-concurrency",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 8
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "linux,gpu"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 max concurrent scans: 8 (previously 2)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux,gpu",
+        "enabled" : true,
+        "maxConcurrent" : 8,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-concurrency-to-the-same",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 2
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : "linux,gpu"
+      },
+      "audit" : [ ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux,gpu",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-concurrency-past-its-bound",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 17
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "max_concurrent must be between 1 and 16, not 17."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "change-concurrency-zero",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 0
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "max_concurrent must be between 1 and 16, not 0."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "change-everything",
+    "operation" : "change",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : "linux,gpu",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "enabled" : false,
+      "labels" : "windows",
+      "maxConcurrent" : 3
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : false,
+        "labels" : "windows"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 labels: windows (previously linux,gpu)",
+        "userId" : "admin"
+      }, {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 disabled",
+        "userId" : "admin"
+      }, {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent scanner-01 max concurrent scans: 3 (previously 2)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "scanner-01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "windows",
+        "enabled" : false,
+        "maxConcurrent" : 3,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-labels-of-an-agent-with-none",
+    "operation" : "change",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : null,
+      "enabled" : false,
+      "maxConcurrent" : null
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : "linux",
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : false,
+        "labels" : "linux"
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent build \"β\" \\ 01 labels: linux (previously none)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : false,
+        "maxConcurrent" : null,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-reenable",
+    "operation" : "change",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : null,
+      "enabled" : false,
+      "maxConcurrent" : null
+    },
+    "input" : {
+      "enabled" : true,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : true,
+        "labels" : null
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent build \"β\" \\ 01 re-enabled",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : true,
+        "maxConcurrent" : null,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-concurrency-of-an-agent-with-none",
+    "operation" : "change",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : null,
+      "enabled" : false,
+      "maxConcurrent" : null
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 2
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : false,
+        "labels" : null
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent build \"β\" \\ 01 max concurrent scans: 2 (previously 1)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : false,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-concurrency-to-the-default-of-an-agent-with-none",
+    "operation" : "change",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : null,
+      "enabled" : false,
+      "maxConcurrent" : null
+    },
+    "input" : {
+      "enabled" : null,
+      "labels" : null,
+      "maxConcurrent" : 1
+    },
+    "outcome" : {
+      "answer" : {
+        "enabled" : false,
+        "labels" : null
+      },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent build \"β\" \\ 01 max concurrent scans: 1 (previously 1)",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : null,
+        "enabled" : false,
+        "maxConcurrent" : 1,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "change-unknown-agent",
+    "operation" : "change",
+    "prior" : null,
+    "input" : {
+      "enabled" : true,
+      "labels" : null,
+      "maxConcurrent" : null
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 404,
+        "detail" : "Agent not found."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "pin-a-key",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : true,
+        "privateKeyReturned" : false
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key pinned for agent build \"β\" \\ 01. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "pin-a-padded-key",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "  11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\n"
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : true,
+        "privateKeyReturned" : false
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key pinned for agent build \"β\" \\ 01. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "pin-a-key-padded-with-a-no-break-space",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : " 11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" to have one made here instead."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "pin-generated-padded",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "\tgenerate "
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : true,
+        "privateKeyReturned" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key generated and pinned for agent build \"β\" \\ 01. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "pin-generated",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "generate"
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : true,
+        "privateKeyReturned" : true
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key generated and pinned for agent build \"β\" \\ 01. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : true
+      }
+    }
+  }, {
+    "name" : "pin-generated-upper-case",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "GENERATE"
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" to have one made here instead."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "pin-not-a-key",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "not a key"
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" to have one made here instead."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "pin-a-short-key",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "AAAA"
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" to have one made here instead."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "pin-removed",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : null
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : false,
+        "privateKeyReturned" : false
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key removed for agent build \"β\" \\ 01: its results are accepted on its API key alone, and it is handed no delegated credential until a key is pinned again. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "pin-removed-by-blank",
+    "operation" : "pin",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : {
+      "publicKey" : "  "
+    },
+    "outcome" : {
+      "answer" : {
+        "signsResults" : false,
+        "privateKeyReturned" : false
+      },
+      "audit" : [ {
+        "operation" : "AGENT_SIGNING_KEY_PINNED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Result-signing key removed for agent build \"β\" \\ 01: its results are accepted on its API key alone, and it is handed no delegated credential until a key is pinned again. Its sealing key is forgotten until it announces one signed with the key now pinned.",
+        "userId" : "admin"
+      } ],
+      "stored" : {
+        "name" : "build \"β\" \\ 01",
+        "description" : null,
+        "credentialsMode" : "local",
+        "labels" : "linux",
+        "enabled" : true,
+        "maxConcurrent" : 2,
+        "signsResults" : false
+      }
+    }
+  }, {
+    "name" : "pin-unknown-agent",
+    "operation" : "pin",
+    "prior" : null,
+    "input" : {
+      "publicKey" : "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+    },
+    "outcome" : {
+      "refused" : {
+        "status" : 404,
+        "detail" : "Agent not found."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "reset-sealing-key",
+    "operation" : "reset",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : null,
+      "enabled" : true,
+      "maxConcurrent" : null
+    },
+    "input" : { },
+    "outcome" : {
+      "answer" : { },
+      "audit" : [ {
+        "operation" : "AGENT_SEALING_KEY_RESET",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Sealing key reset for agent build \"β\" \\ 01: no delegated credential is handed to it until it announces a new key signed with its pinned signing key.",
+        "userId" : "admin"
+      } ]
+    }
+  }, {
+    "name" : "reset-unknown-agent",
+    "operation" : "reset",
+    "prior" : null,
+    "input" : { },
+    "outcome" : {
+      "refused" : {
+        "status" : 404,
+        "detail" : "Agent not found."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "remove-idle",
+    "operation" : "remove",
+    "prior" : {
+      "name" : "build \"β\" \\ 01",
+      "labels" : "linux",
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : { },
+    "running" : 0,
+    "outcome" : {
+      "answer" : { },
+      "audit" : [ {
+        "operation" : "AGENT_UPDATED",
+        "resourceId" : "0b9a3c52-6f1e-4d1a-9c55-2f0e7a4b8d10",
+        "description" : "Agent deleted: build \"β\" \\ 01",
+        "userId" : "admin"
+      } ]
+    }
+  }, {
+    "name" : "remove-running-one",
+    "operation" : "remove",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : null,
+      "enabled" : true,
+      "maxConcurrent" : 2
+    },
+    "input" : { },
+    "running" : 1,
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "This agent is running 1 scan(s). Disable it and wait for it to finish."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "remove-running-three",
+    "operation" : "remove",
+    "prior" : {
+      "name" : "scanner-01",
+      "labels" : null,
+      "enabled" : false,
+      "maxConcurrent" : 4
+    },
+    "input" : { },
+    "running" : 3,
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "This agent is running 3 scan(s). Disable it and wait for it to finish."
+      },
+      "audit" : [ ]
+    }
+  }, {
+    "name" : "remove-unknown-agent",
+    "operation" : "remove",
+    "prior" : null,
+    "input" : { },
+    "running" : 0,
+    "outcome" : {
+      "refused" : {
+        "status" : 404,
+        "detail" : "Agent not found."
+      },
+      "audit" : [ ]
+    }
+  } ]
+}

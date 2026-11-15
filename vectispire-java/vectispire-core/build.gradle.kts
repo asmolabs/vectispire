@@ -575,6 +575,9 @@ tasks.named<Test>("test") {
     // `cp-siem`'s: what the module queues for an audit entry, what a queued row becomes at delivery, what a save and
     // the connection test answer — `SiemModuleReferenceSetTest`, over the real services and mocked collaborators.
     inputs.dir(rootProject.file("../vectispire-rust/reference/siem")).withPropertyName("siemReferenceSet")
+    // `cp-agents`' administration: the refusals, the audit sentences and the stored row of a declaration, a change, a
+    // pinned or removed signing key, a sealing-key reset and a removal — `AgentAdministrationReferenceSetTest`.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/agents")).withPropertyName("agentsReferenceSet")
 }
 
 /**
