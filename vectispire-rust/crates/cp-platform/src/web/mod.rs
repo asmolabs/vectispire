@@ -1,6 +1,7 @@
 //! The platform module's routes, as far as their services are ported: `AuditLogController` over `cp-audit`'s
-//! [`AuditLogQuery`], `CryptoController` over `cp-crypto`'s [`SigningKeys`]. `SettingsController` follows with the
-//! modules it composes (`README.md` says which).
+//! [`AuditLogQuery`], `CryptoController` over `cp-crypto`'s [`SigningKeys`], `IntegrationsController`, and
+//! `SettingsController`'s catalog and save. The controller's other ten routes follow with the modules they compose
+//! (`README.md` says which).
 
 use std::sync::Arc;
 
@@ -17,6 +18,7 @@ mod audit_log;
 mod crypto;
 mod integrations;
 mod read;
+mod settings;
 
 /// The six routes: the audit trail's three, and the signing key's three.
 pub fn routes(trail: Arc<AuditLogQuery>, signing: Arc<SigningKeys>) -> Vec<RouteEntry> {
@@ -30,6 +32,13 @@ pub fn routes(trail: Arc<AuditLogQuery>, signing: Arc<SigningKeys>) -> Vec<Route
 pub fn integration_routes(administration: Arc<crate::IntegrationAdministration>) -> Vec<RouteEntry> {
     let mut entries = Vec::new();
     integrations::routes(administration, &mut entries);
+    entries
+}
+
+/// `SettingsController`'s catalog and save, over the settings screen's service the binary composes with its seams.
+pub fn settings_routes(administration: Arc<crate::SettingsAdministration>) -> Vec<RouteEntry> {
+    let mut entries = Vec::new();
+    settings::routes(administration, &mut entries);
     entries
 }
 

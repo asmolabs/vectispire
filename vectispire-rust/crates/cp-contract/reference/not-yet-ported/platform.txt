@@ -1,15 +1,17 @@
 # The routes of `platform` the Rust control plane does not serve yet — README.md beside this file says the rules.
 # Raised once on 2026-11-12 (Phase 0 of the recovery plan): Java 1.0 added these operations while the port was
 # paused, and they start here like every route not yet served. The list only shrinks from this point again.
-ceiling 12
-GET /api/v1/settings
+ceiling 10
+# The catalog and its save are served since platform stage 2 (2026-11-15). What is left is SettingsController's ten
+# routes over modules of wave 2: the four credential doors and their states (`tickets`: the tracker token and the
+# webhook secret it receives; `notifications`: the webhook signing secret; `ai`: the OpenAI key), the tracker CA's
+# description (`tickets`) and the AI endpoint check (`ai`). Each leaves with the module that ends it.
 GET /api/v1/settings/ai-openai-key
 GET /api/v1/settings/ticket-ca
 GET /api/v1/settings/ticket-token
 GET /api/v1/settings/ticket-webhook-secret
 GET /api/v1/settings/webhook-secret
 POST /api/v1/settings/ollama-test
-PUT /api/v1/settings
 PUT /api/v1/settings/ai-openai-key
 PUT /api/v1/settings/ticket-token
 PUT /api/v1/settings/ticket-webhook-secret

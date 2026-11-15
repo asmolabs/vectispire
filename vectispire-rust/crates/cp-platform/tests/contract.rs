@@ -30,7 +30,50 @@ const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("GET", "/api/v1/crypto/cosign-cli-helper", "getCosignCliHelper", &[]),
     ("GET", "/api/v1/integrations", "listIntegrations", &[]),
     ("PUT", "/api/v1/integrations/{key}/enabled", "setIntegrationEnabled", &[]),
+    ("GET", "/api/v1/settings", "list", &[]),
+    ("PUT", "/api/v1/settings", "update", &[]),
 ];
+
+/// The seams the probe never reaches: it asks the routes' shape, not a save.
+struct Nobody;
+
+type Answer<'a, T> = futures_util::future::BoxFuture<'a, Result<T, vectispire_cp_platform::CollaboratorError>>;
+
+impl vectispire_cp_platform::Approvers for Nobody {
+    fn any_active(&self) -> Answer<'_, bool> {
+        Box::pin(async { Ok(false) })
+    }
+    fn two_can_publish_templates(&self) -> Answer<'_, bool> {
+        Box::pin(async { Ok(false) })
+    }
+    fn two_can_sign_off_checklists(&self) -> Answer<'_, bool> {
+        Box::pin(async { Ok(false) })
+    }
+}
+
+impl vectispire_cp_platform::AiEndpoint for Nobody {
+    fn provider(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn selected_model(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn allow_remote(&self) -> Answer<'_, bool> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn validated_url(&self) -> Answer<'_, Result<String, String>> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn base_url(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn has_openai_key(&self) -> Answer<'_, bool> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+    fn available_models(&self) -> Answer<'_, Option<Vec<String>>> {
+        Box::pin(async { Err("not asked".into()) })
+    }
+}
 
 fn unreachable_db() -> vectispire_cp_db::Db {
     let settings = DbSettings {
@@ -67,10 +110,29 @@ async fn the_routes_are_the_documented_ones() {
         Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db.clone()), encryption).unwrap());
     let integrations =
         vectispire_cp_settings::Integrations::new(db.clone(), Vec::new(), Arc::new(time::OffsetDateTime::now_utc));
-    let administration =
-        Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations, audit_for_switches));
+    let administration = Arc::new(vectispire_cp_platform::IntegrationAdministration::new(
+        integrations.clone(),
+        audit_for_switches.clone(),
+    ));
+    let settings =
+        Arc::new(vectispire_cp_platform::SettingsAdministration::new(vectispire_cp_platform::SettingsParts {
+            db: db.clone(),
+            audit: audit_for_switches,
+            approvers: Arc::new(Nobody),
+            tracker: Arc::new(vectispire_cp_platform::TrackerCaPinning::new(Arc::new(
+                vectispire_cp_audit::SystemClock,
+            ))),
+            ai: Arc::new(vectispire_cp_platform::GuardedAiDestination::new(
+                vectispire_cp_settings::Settings::new(db.clone()),
+                vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            )),
+            endpoint: Arc::new(Nobody),
+            integrations,
+            clock: Arc::new(vectispire_cp_audit::SystemClock),
+        }));
     let mut entries = vectispire_cp_platform::routes(trail, signing);
     entries.extend(vectispire_cp_platform::integration_routes(administration));
+    entries.extend(vectispire_cp_platform::settings_routes(settings));
     assert_eq!(entries.len(), DECLARED.len());
     // The controllers' markers: governance read on `AuditLogController`'s class; on `CryptoController`'s methods, the
     // public key open to anybody and the two others an account's. Any marker passes the registry's rules, so the one
@@ -93,6 +155,9 @@ async fn the_routes_are_the_documented_ones() {
             route("GET", "/api/v1/crypto/cosign-cli-helper", Access::Account),
             route("GET", "/api/v1/integrations", Access::Account),
             route("PUT", "/api/v1/integrations/{key}/enabled", Access::PlatformGovernor),
+            // `SettingsController`: the class' account marker on the catalog, the method's security lead on the save.
+            route("GET", "/api/v1/settings", Access::Account),
+            route("PUT", "/api/v1/settings", Access::SecurityLead),
         ]
     );
     assert!(entries.iter().all(|entry| entry.decl().accepts_api_key.is_none()), "no route here invites an API key");

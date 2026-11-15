@@ -237,6 +237,12 @@ fn stand_ins() -> StandIns {
             .unwrap(),
         ),
         integrations: vectispire_cp_app::registry::integration_administration(&db, (*audit).clone()),
+        settings: vectispire_cp_app::settings_screen::compose(
+            &db,
+            (*audit).clone(),
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            Arc::new(vectispire_cp_audit::SystemClock),
+        ),
     };
     let siem = vectispire_cp_app::siem::service(
         &siem,

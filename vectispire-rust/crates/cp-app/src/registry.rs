@@ -1,5 +1,6 @@
 //! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues
-//! (10), gate (7), siem (3), platform (8 so far: the audit trail's, the signing key's and the integrations').
+//! (10), gate (7), siem (3), platform (10 so far: the audit trail's, the signing key's, the integrations' and the
+//! settings catalog's and save).
 
 use std::sync::Arc;
 
@@ -12,12 +13,14 @@ use vectispire_cp_scanning::Scanning;
 use vectispire_cp_siem::SiemExporterService;
 use vectispire_cp_targets::Targets;
 
-/// The platform routes' services: the audit trail's reader, the document signing key and the integrations' switches.
+/// The platform routes' services: the audit trail's reader, the document signing key, the integrations' switches and
+/// the settings screen (`settings_screen::compose`).
 #[derive(Clone, Debug)]
 pub struct Platform {
     pub trail: Arc<vectispire_cp_audit::AuditLogQuery>,
     pub signing: Arc<vectispire_cp_crypto::SigningKeys>,
     pub integrations: Arc<vectispire_cp_platform::IntegrationAdministration>,
+    pub settings: Arc<vectispire_cp_platform::SettingsAdministration>,
 }
 
 /// The integrations' registry as the governor switches it (decision 0040 §3): asked of every module whose
@@ -29,10 +32,14 @@ pub fn integration_administration(
     db: &vectispire_cp_db::Db,
     audit: vectispire_cp_audit::AuditLog,
 ) -> Arc<vectispire_cp_platform::IntegrationAdministration> {
+    Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations(db), audit))
+}
+
+/// The integrations' registry, with every owner that answers "in use" — the governor's switches and the settings save
+/// read the same one.
+pub fn integrations(db: &vectispire_cp_db::Db) -> vectispire_cp_settings::Integrations {
     let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)];
-    let integrations =
-        vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc));
-    Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations, audit))
+    vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc))
 }
 
 /// All route entries from the composed modules.
@@ -59,6 +66,7 @@ pub fn entries(
     list.extend(vectispire_cp_siem::routes(siem));
     list.extend(vectispire_cp_platform::routes(platform.trail, platform.signing));
     list.extend(vectispire_cp_platform::integration_routes(platform.integrations));
+    list.extend(vectispire_cp_platform::settings_routes(platform.settings));
     list
 }
 

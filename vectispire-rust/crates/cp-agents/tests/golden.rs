@@ -351,8 +351,12 @@ async fn collector(ca_name: &str) -> u16 {
     port
 }
 
-const TEST_PROPERTIES: &[(&str, &str, &str)] =
-    &[("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example")];
+/// The properties a test class sets with `@TestPropertySource`, which its recordings were made under.
+const TEST_PROPERTIES: &[(&str, &str, &str)] = &[
+    ("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example"),
+    // MockMvc's peer declared a proxy, so `X-Forwarded-For` names the client the audit entry records.
+    ("api.ClientAddressRoutesTest", "vectispire.security.trusted-proxies", "127.0.0.1"),
+];
 
 fn property(class: &str, key: &str) -> Option<&'static str> {
     TEST_PROPERTIES.iter().find(|(of, named, _)| *of == class && *named == key).map(|(_, _, value)| *value)
@@ -467,8 +471,19 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
     // The chain's entries signal too (`BEARER_TOKEN_THROTTLED`): the SIEM hears them as it hears the routes'.
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let chain = Arc::new(
-        Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone())
-            .with_scrape_token(Arc::new(ReplayScrapeToken)),
+        Chain::with_clock(
+            ChainConfig {
+                trusted_proxies: vectispire_cp_http::address::TrustedProxies::parse(
+                    property(class, "vectispire.security.trusted-proxies").unwrap_or(""),
+                )
+                .unwrap(),
+                ..ChainConfig::default()
+            },
+            credentials,
+            Arc::new(entries),
+            time.clone(),
+        )
+        .with_scrape_token(Arc::new(ReplayScrapeToken)),
     );
     routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }
@@ -600,7 +615,24 @@ fn phase_three(
     let integrations =
         vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc));
     let integration_administration =
-        Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations, (*audit).clone()));
+        Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations.clone(), (*audit).clone()));
+    // The settings screen as `cp-app/src/settings_screen.rs` composes it: `access`' approvers, the two narrow parts of
+    // `tickets` and `ai` `cp-platform` holds, the switches' registry, and a guard with no reserved endpoint — the Java
+    // suite's context reserves none either.
+    let settings_screen =
+        Arc::new(vectispire_cp_platform::SettingsAdministration::new(vectispire_cp_platform::SettingsParts {
+            db: db.clone(),
+            audit: (*audit).clone(),
+            approvers: Arc::new(AccessApprovers(vectispire_cp_access::TriageApprovers::new(db.clone()))),
+            tracker: Arc::new(vectispire_cp_platform::TrackerCaPinning::new(Arc::new(AuditClock))),
+            ai: Arc::new(vectispire_cp_platform::GuardedAiDestination::new(
+                Settings::new(db.clone()),
+                vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            )),
+            endpoint: Arc::new(EndpointNotPorted),
+            integrations,
+            clock: Arc::new(AuditClock),
+        }));
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -617,7 +649,54 @@ fn phase_three(
     routes.extend(vectispire_cp_siem::routes(exporter));
     routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
+    routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
     routes
+}
+
+type Answer<'a, T> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, vectispire_cp_platform::CollaboratorError>> + Send + 'a>,
+>;
+
+/// `cp-app`'s `settings_screen::AccessApprovers`: `access`' `TriageApprovers` behind the settings save's seam.
+struct AccessApprovers(vectispire_cp_access::TriageApprovers);
+
+impl vectispire_cp_platform::Approvers for AccessApprovers {
+    fn any_active(&self) -> Answer<'_, bool> {
+        Box::pin(async move { Ok(self.0.any_active().await?) })
+    }
+    fn two_can_publish_templates(&self) -> Answer<'_, bool> {
+        Box::pin(async move { Ok(self.0.two_can_publish_templates().await?) })
+    }
+    fn two_can_sign_off_checklists(&self) -> Answer<'_, bool> {
+        Box::pin(async move { Ok(self.0.two_can_sign_off_checklists().await?) })
+    }
+}
+
+/// `cp-app`'s `settings_screen::EndpointNotPorted`: the endpoint check's route is not served, so nothing asks.
+struct EndpointNotPorted;
+
+impl vectispire_cp_platform::AiEndpoint for EndpointNotPorted {
+    fn provider(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn selected_model(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn allow_remote(&self) -> Answer<'_, bool> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn validated_url(&self) -> Answer<'_, Result<String, String>> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn base_url(&self) -> Answer<'_, String> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn has_openai_key(&self) -> Answer<'_, bool> {
+        Box::pin(async { Err("not ported".into()) })
+    }
+    fn available_models(&self) -> Answer<'_, Option<Vec<String>>> {
+        Box::pin(async { Err("not ported".into()) })
+    }
 }
 
 /// The routes this test owes a replay: every route the router composes, but those a `route` line of

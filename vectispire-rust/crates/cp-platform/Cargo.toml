@@ -14,8 +14,11 @@ futures-util.workspace = true
 http.workspace = true
 percent-encoding.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+# `raw_value`: a setting's value is read as the text sent, as Jackson's `StringDeserializer` reads a number.
+serde_json = { workspace = true, features = ["raw_value"] }
 thiserror.workspace = true
+# The AI destination's guard resolves names, which blocks: it runs on the blocking pool.
+tokio = { workspace = true, features = ["rt"] }
 time = { version = "0.3", features = ["std"] }
 tracing.workspace = true
 uuid = { version = "1", features = ["v4"] }
@@ -24,13 +27,14 @@ vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-http.workspace = true
+# The guard the AI destination is judged by (`seams.rs`): the one door every outbound call goes through.
+vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]
 # The contract test: the routes against `openapi.json` and the list of routes not ported.
 vectispire-cp-contract = { path = "../cp-contract" }
-vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-tls.workspace = true
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }

@@ -1,0 +1,1990 @@
+{
+  "now" : "2026-11-15T12:34:56.789Z",
+  "resolver" : {
+    "api.openai.com" : "68120001",
+    "llm.example.com" : "5db8d822",
+    "localhost" : "7f000001",
+    "model.corp" : "0a010203"
+  },
+  "cases" : [ {
+    "name" : "empty-body",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "No setting supplied.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "unknown-key",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "no_such_setting", "1" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown setting: \"no_such_setting\".",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "unknown-key-after-a-valid-one",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_low_days", "90" ], [ "no_such_setting", "1" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Unknown setting: \"no_such_setting\".",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-number",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_critical_days", "7" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "sla_critical_days",
+        "description" : "sla_critical_days = 7",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "sla_critical_days" : "7"
+      }
+    }
+  }, {
+    "name" : "a-number-padded-with-controls",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_high_days", " \u0001 14\t\u0000" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "sla_high_days",
+        "description" : "sla_high_days = 14",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "sla_high_days" : "14"
+      }
+    }
+  }, {
+    "name" : "a-number-padded-with-a-no-break-space",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_high_days", " 30" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "High: days to remediate — Expected value: a positive integer or zero.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "not-a-number",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_critical_days", "seven" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Critical: days to remediate — Expected value: a positive integer or zero.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-null-clears",
+    "role" : "ADMIN",
+    "prior" : {
+      "notification_mail_to" : "soc@example.org"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_mail_to", null ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_mail_to",
+        "description" : "notification_mail_to = (empty)",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_mail_to" : ""
+      }
+    }
+  }, {
+    "name" : "several-in-their-order",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_low_days", "120" ], [ "eol_warn_days", "60" ], [ "sast_enabled", "false" ] ],
+    "outcome" : {
+      "updated" : 3,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "sla_low_days,eol_warn_days,sast_enabled",
+        "description" : "sla_low_days = 120; eol_warn_days = 60; sast_enabled = false",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "eol_warn_days" : "60",
+        "sast_enabled" : "false",
+        "sla_low_days" : "120"
+      }
+    }
+  }, {
+    "name" : "a-refusal-after-valid-ones-writes-nothing",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_low_days", "120" ], [ "sla_critical_days", "-1" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Critical: days to remediate — Expected value: a positive integer or zero.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "the-acknowledgement-by-from-the-wire",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_risk_acknowledged_by", "someone" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Data-leak risk accepted by is recorded by the server when the public endpoint is turned on, and cannot be set here.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "the-acknowledgement-at-from-the-wire",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_risk_acknowledged_at", "2026-11-15T12:34:56.789Z" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Data-leak risk accepted on is recorded by the server when the public endpoint is turned on, and cannot be set here.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-credential-through-this-door",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_token", "glpat-abc" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Access token is a credential and is written by its own route, which encrypts it. Setting it here would store it in the clear.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-secret-is-described-without-its-value",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_slack_url", "https://hooks.example.com/T1/B2" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_slack_url",
+        "description" : "notification_slack_url changed",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_slack_url" : "https://hooks.example.com/T1/B2"
+      }
+    }
+  }, {
+    "name" : "a-secret-cleared",
+    "role" : "ADMIN",
+    "prior" : {
+      "notification_slack_url" : "https://hooks.example.com/x"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_slack_url", "" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_slack_url",
+        "description" : "notification_slack_url cleared",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_slack_url" : ""
+      }
+    }
+  }, {
+    "name" : "expiry-a-date",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_token_expires_on", "2027-01-31" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_token_expires_on",
+        "description" : "ticket_token_expires_on = 2027-01-31",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_token_expires_on" : "2027-01-31"
+      }
+    }
+  }, {
+    "name" : "expiry-not-a-day-of-the-calendar",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_token_expires_on", "2027-02-30" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Token expiry date — a date, written as 2027-01-31.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "expiry-cleared",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_token_expires_on", "  " ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_token_expires_on",
+        "description" : "ticket_token_expires_on = (empty)",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_token_expires_on" : ""
+      }
+    }
+  }, {
+    "name" : "a-rule-by-an-administrator",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "target_visibility", "everyone" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "What a non-administrator sees decides a rule rather than a setting: only a platform governor may change it, because it is the one role that cannot act under it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-rule-by-the-governor",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "target_visibility", "everyone" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "target_visibility",
+        "description" : "target_visibility = everyone",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "target_visibility" : "everyone"
+      }
+    }
+  }, {
+    "name" : "a-rule-by-nobody",
+    "role" : null,
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "target_visibility", "everyone" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "What a non-administrator sees decides a rule rather than a setting: only a platform governor may change it, because it is the one role that cannot act under it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "evidence-window-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "evidence_retention_days", "400" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Evidence kept for (days) decides a rule rather than a setting: only a platform governor may change it, because it is the one role that cannot act under it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "tracker-url-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_base_url", "https://jira.corp" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Tracker URL decides where access token is sent, and only an administrator — who alone may set that credential — may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "tracker-url-unchanged-by-a-ciso",
+    "role" : "CISO",
+    "prior" : {
+      "ticket_base_url" : "https://jira.corp"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_base_url", "https://jira.corp" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Tracker URL decides where access token is sent, and only an administrator — who alone may set that credential — may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ticket_base_url" : "https://jira.corp"
+      }
+    }
+  }, {
+    "name" : "tracker-project-unchanged-by-a-ciso",
+    "role" : "CISO",
+    "prior" : {
+      "ticket_project" : "SEC"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_project", "SEC" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_project",
+        "description" : "ticket_project = SEC",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_project" : "SEC"
+      }
+    }
+  }, {
+    "name" : "tracker-project-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : {
+      "ticket_project" : "SEC"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_project", "OPS" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Project decides where access token is sent, and only an administrator — who alone may set that credential — may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ticket_project" : "SEC"
+      }
+    }
+  }, {
+    "name" : "openai-url-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_openai_url", "https://x.corp/v1" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "OpenAI-compatible API URL decides where openai api key is sent, and only an administrator — who alone may set that credential — may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "expiry-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_token_expires_on", "2027-01-31" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Token expiry date describes the tracker token, which only an administrator sets, and only an administrator may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ollama-url-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "http://model.corp" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Ollama service URL decides which host receives the findings sent for review, and only an administrator may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "siem-reach-changed-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "siem_allow_private_destination", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Allow a private SIEM destination decides how far a channel configured by a security lead may reach, and only an administrator may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "siem-reach-unchanged-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "siem_allow_private_destination", "false" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "siem_allow_private_destination",
+        "description" : "siem_allow_private_destination = false",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "siem_allow_private_destination" : "false"
+      }
+    }
+  }, {
+    "name" : "siem-reach-padded-by-a-ciso",
+    "role" : "CISO",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "siem_allow_private_destination", " false " ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "siem_allow_private_destination",
+        "description" : "siem_allow_private_destination = false",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "siem_allow_private_destination" : "false"
+      }
+    }
+  }, {
+    "name" : "siem-reach-changed-by-nobody",
+    "role" : null,
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "siem_allow_private_destination", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Allow a private SIEM destination decides how far a channel configured by a security lead may reach, and only an administrator may change it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "a-parameter-by-a-champion",
+    "role" : "SECURITY_CHAMPION",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_low_days", "100" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "sla_low_days",
+        "description" : "sla_low_days = 100",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "sla_low_days" : "100"
+      }
+    }
+  }, {
+    "name" : "four-eyes-on",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "triage_four_eyes_required", "true" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "triage_four_eyes_required",
+        "description" : "Double validation (Four-Eyes Approval) for VEX triage set to ENABLED",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "triage_four_eyes_required" : "true"
+      }
+    }
+  }, {
+    "name" : "four-eyes-on-upper-case",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "triage_four_eyes_required", "TRUE" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Require double validation (Four-Eyes approval) for VEX triage — Expected value: \"true\" or \"false\".",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "four-eyes-off",
+    "role" : "SUPERUSER",
+    "prior" : {
+      "triage_four_eyes_required" : "true"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "triage_four_eyes_required", "false" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "triage_four_eyes_required",
+        "description" : "Double validation (Four-Eyes Approval) for VEX triage set to DISABLED",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "triage_four_eyes_required" : "false"
+      }
+    }
+  }, {
+    "name" : "four-eyes-on-without-an-approver",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : false,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "triage_four_eyes_required", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "No active account can approve a triage: switching four-eyes on would put every decision in a queue nobody can empty. Create an administrator, a CISO or a security lead first.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "four-eyes-on-without-two-publishers",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : false,
+      "signers" : true
+    },
+    "body" : [ [ "triage_four_eyes_required", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Fewer than two active accounts can publish a checklist template: under four-eyes its author may not publish it, so no draft could ever be published. Create a second platform governor, administrator or CISO first.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "four-eyes-on-without-two-signers",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : false
+    },
+    "body" : [ [ "triage_four_eyes_required", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Fewer than two active accounts can sign off a project checklist: under four-eyes none of its authors may sign it off, so a checklist its only approver filled in could never be signed off. Create a second administrator, CISO or security champion first.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "four-eyes-off-without-anybody",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : false,
+      "publishers" : false,
+      "signers" : false
+    },
+    "body" : [ [ "triage_four_eyes_required", "false" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "triage_four_eyes_required",
+        "description" : "Double validation (Four-Eyes Approval) for VEX triage set to DISABLED",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "triage_four_eyes_required" : "false"
+      }
+    }
+  }, {
+    "name" : "four-eyes-on-by-an-administrator",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : false,
+      "publishers" : false,
+      "signers" : false
+    },
+    "body" : [ [ "triage_four_eyes_required", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 403,
+        "detail" : "Require double validation (Four-Eyes approval) for VEX triage decides a rule rather than a setting: only a platform governor may change it, because it is the one role that cannot act under it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ca-a-root",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_ca_pem",
+        "description" : "ticket_ca_pem changed",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----"
+      }
+    }
+  }, {
+    "name" : "ca-a-leaf",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the tracker's certificate, not the tracker's own.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ca-expired",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The tracker CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ca-not-yet-valid",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID7jAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlOZXh0IFJv\nb3QwHhcNMjYxMDAxMTIwMDAxWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlO\nZXh0IFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR75ayaxbMbVPXuH+7w\nUnPAGLJaru39Oetmh9Eb0MJnwkxESBT3xEumsgVUzLTw9TXBy3iF0OtryZ7s+ivD\nzzr+oyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEApVlEWyoaYf0DS9UvTlozwR0iQt4PNCa7X3WFyopA+hECIQDc\nscTztIUgy4tkqHyYPFnGKclsVCYxYQgu4zkYbetPvw==\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_ca_pem",
+        "description" : "ticket_ca_pem changed",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID7jAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlOZXh0IFJv\nb3QwHhcNMjYxMDAxMTIwMDAxWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlO\nZXh0IFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR75ayaxbMbVPXuH+7w\nUnPAGLJaru39Oetmh9Eb0MJnwkxESBT3xEumsgVUzLTw9TXBy3iF0OtryZ7s+ivD\nzzr+oyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEApVlEWyoaYf0DS9UvTlozwR0iQt4PNCa7X3WFyopA+hECIQDc\nscTztIUgy4tkqHyYPFnGKclsVCYxYQgu4zkYbetPvw==\n-----END CERTIFICATE-----"
+      }
+    }
+  }, {
+    "name" : "ca-not-a-pem",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "not a certificate" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "The tracker CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ca-a-leaf-unchanged",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----\n"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_ca_pem",
+        "description" : "ticket_ca_pem changed",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----"
+      }
+    }
+  }, {
+    "name" : "ca-a-leaf-unchanged-but-padded",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_ca_pem" : "\n-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----\n\n"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----\n" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_ca_pem",
+        "description" : "ticket_ca_pem changed",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBQjCB6KADAgECAgID6zAKBggqhkjOPQQDAjAZMRcwFQYDVQQDDA5jb2xsZWN0\nb3IuY29ycDAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMBkxFzAVBgNV\nBAMMDmNvbGxlY3Rvci5jb3JwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU/eI\nw/SgxuAzmKwgm5Jsi5ELD67CEgJ3WBAZJkVusjpxntdS8bwbaqyDG6DEQP9S5Vqs\n4egm8bEzntphpyE016MgMB4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4Aw\nCgYIKoZIzj0EAwIDSQAwRgIhAPGfdUSKeewtdyZtjr1ClYyFV/Z8D4IM2AKh1N4f\n2Bw5AiEAzVwWWsn2YM7pH6+uFKp4aLSCvywnwKogS8eGLTYEDzI=\n-----END CERTIFICATE-----"
+      }
+    }
+  }, {
+    "name" : "ca-cleared",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_ca_pem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_ca_pem", "" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_ca_pem",
+        "description" : "ticket_ca_pem cleared",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_ca_pem" : ""
+      }
+    }
+  }, {
+    "name" : "tracker-chosen",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "jira" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_provider",
+        "description" : "ticket_provider = jira",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_provider" : "jira"
+      }
+    }
+  }, {
+    "name" : "tracker-chosen-disabled",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "tracker.jira" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "jira" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"tracker.jira\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/tracker.jira/enabled.",
+        "integration" : "tracker.jira"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "tracker-chosen-disabled-in-capitals",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "tracker.jira" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", " JIRA " ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"tracker.jira\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/tracker.jira/enabled.",
+        "integration" : "tracker.jira"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "tracker-unchanged-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_provider" : "jira"
+    },
+    "disabled" : [ "tracker.jira" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "jira" ], [ "ticket_labels", "vectispire" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_provider,ticket_labels",
+        "description" : "ticket_provider = jira; ticket_labels = vectispire",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_labels" : "vectispire",
+        "ticket_provider" : "jira"
+      }
+    }
+  }, {
+    "name" : "tracker-none-whatever-is-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_provider" : "jira"
+    },
+    "disabled" : [ "tracker.jira", "tracker.github" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "none" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_provider",
+        "description" : "ticket_provider = none",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_provider" : "none"
+      }
+    }
+  }, {
+    "name" : "github-project-two-names",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "github" ], [ "ticket_project", "owner/repository" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_provider,ticket_project",
+        "description" : "ticket_provider = github; ticket_project = owner/repository",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_project" : "owner/repository",
+        "ticket_provider" : "github"
+      }
+    }
+  }, {
+    "name" : "github-project-dot-dot",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "github" ], [ "ticket_project", "owner/.." ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Project — a GitHub repository is \"owner/repository\": letters, digits and hyphens for the owner, letters, digits, dots, underscores and hyphens for the repository, and nothing after it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "github-project-one-name",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_provider" : "github"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_project", "repository" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Project — a GitHub repository is \"owner/repository\": letters, digits and hyphens for the owner, letters, digits, dots, underscores and hyphens for the repository, and nothing after it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ticket_provider" : "github"
+      }
+    }
+  }, {
+    "name" : "github-chosen-over-a-project-of-one-name",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_project" : "SEC"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "github" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 400,
+        "detail" : "Project — a GitHub repository is \"owner/repository\": letters, digits and hyphens for the owner, letters, digits, dots, underscores and hyphens for the repository, and nothing after it.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ticket_project" : "SEC"
+      }
+    }
+  }, {
+    "name" : "github-project-stored-before-the-check",
+    "role" : "ADMIN",
+    "prior" : {
+      "ticket_project" : "SEC",
+      "ticket_provider" : "github"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_labels", "a" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_labels",
+        "description" : "ticket_labels = a",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ticket_labels" : "a",
+        "ticket_project" : "SEC",
+        "ticket_provider" : "github"
+      }
+    }
+  }, {
+    "name" : "jira-project-of-one-name",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ticket_provider", "jira" ], [ "ticket_project", "SEC" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ticket_provider,ticket_project",
+        "description" : "ticket_provider = jira; ticket_project = SEC",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ticket_project" : "SEC",
+        "ticket_provider" : "jira"
+      }
+    }
+  }, {
+    "name" : "ollama-internal",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "http://model.corp:11434" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_ollama_url",
+        "description" : "ai_review_ollama_url changed",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_ollama_url" : "http://model.corp:11434"
+      }
+    }
+  }, {
+    "name" : "ollama-public",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "http://llm.example.com:11434" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "Ollama URL: the host resolves to a public address (93.184.216.34). A local or internal destination is expected here — this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ollama-unresolvable",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "http://nowhere.corp" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "Ollama URL: the host could not be resolved, so it cannot be verified as internal — and this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "ollama-cleared-reads-the-default",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_ollama_url" : "http://model.corp"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_ollama_url",
+        "description" : "ai_review_ollama_url cleared",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_ollama_url" : ""
+      }
+    }
+  }, {
+    "name" : "ollama-public-acknowledged",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_ollama_url", "http://llm.example.com" ], [ "ai_review_allow_remote_url", "true" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_ollama_url,ai_review_allow_remote_url",
+        "description" : "ai_review_ollama_url changed; ai_review_allow_remote_url = true",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "true",
+        "ai_review_ollama_url" : "http://llm.example.com",
+        "ai_review_risk_acknowledged_at" : "2026-11-15T12:34:56.789Z",
+        "ai_review_risk_acknowledged_by" : "lead"
+      }
+    }
+  }, {
+    "name" : "ollama-public-stored-unrelated-save",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_ollama_url" : "http://llm.example.com"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "sla_low_days", "100" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "Ollama URL: the host resolves to a public address (93.184.216.34). A local or internal destination is expected here — this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ai_review_ollama_url" : "http://llm.example.com"
+      }
+    }
+  }, {
+    "name" : "openai-chosen-unacknowledged",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", "openai" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "OpenAI URL: the host resolves to a public address (104.18.0.1). A local or internal destination is expected here — this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "openai-chosen-in-capitals-unacknowledged",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", " OpenAI " ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "OpenAI URL: the host resolves to a public address (104.18.0.1). A local or internal destination is expected here — this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "openai-chosen-acknowledged",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", "openai" ], [ "ai_review_allow_remote_url", "true" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_provider,ai_review_allow_remote_url",
+        "description" : "ai_review_provider = openai; ai_review_allow_remote_url = true",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "true",
+        "ai_review_provider" : "openai",
+        "ai_review_risk_acknowledged_at" : "2026-11-15T12:34:56.789Z",
+        "ai_review_risk_acknowledged_by" : "lead"
+      }
+    }
+  }, {
+    "name" : "openai-internal-url",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", "openai" ], [ "ai_review_openai_url", "http://model.corp/v1" ] ],
+    "outcome" : {
+      "updated" : 2,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_provider,ai_review_openai_url",
+        "description" : "ai_review_provider = openai; ai_review_openai_url = http://model.corp/v1",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_openai_url" : "http://model.corp/v1",
+        "ai_review_provider" : "openai"
+      }
+    }
+  }, {
+    "name" : "openai-stored-acknowledged-unrelated-save",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_allow_remote_url" : "true",
+      "ai_review_provider" : "openai",
+      "ai_review_risk_acknowledged_at" : "2026-01-01T00:00:00Z",
+      "ai_review_risk_acknowledged_by" : "first"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_model", "gpt-4o" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_model",
+        "description" : "ai_review_model = gpt-4o",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "true",
+        "ai_review_model" : "gpt-4o",
+        "ai_review_provider" : "openai",
+        "ai_review_risk_acknowledged_at" : "2026-01-01T00:00:00Z",
+        "ai_review_risk_acknowledged_by" : "first"
+      }
+    }
+  }, {
+    "name" : "acknowledgement-sent-back-on",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_allow_remote_url" : "true",
+      "ai_review_risk_acknowledged_at" : "2026-01-01T00:00:00Z",
+      "ai_review_risk_acknowledged_by" : "first"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_allow_remote_url", "true" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_allow_remote_url",
+        "description" : "ai_review_allow_remote_url = true",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "true",
+        "ai_review_risk_acknowledged_at" : "2026-01-01T00:00:00Z",
+        "ai_review_risk_acknowledged_by" : "first"
+      }
+    }
+  }, {
+    "name" : "acknowledgement-withdrawn-over-openai",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_allow_remote_url" : "true",
+      "ai_review_provider" : "openai",
+      "ai_review_risk_acknowledged_at" : "2026-01-01T00:00:00Z",
+      "ai_review_risk_acknowledged_by" : "first"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_allow_remote_url", "false" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_allow_remote_url",
+        "description" : "ai_review_allow_remote_url = false",
+        "userId" : "admin",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "false",
+        "ai_review_provider" : "openai",
+        "ai_review_risk_acknowledged_at" : "",
+        "ai_review_risk_acknowledged_by" : ""
+      }
+    }
+  }, {
+    "name" : "acknowledgement-off-sent-unchanged-over-openai",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_provider" : "openai"
+    },
+    "disabled" : [ ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_allow_remote_url", "false" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 422,
+        "detail" : "OpenAI URL: the host resolves to a public address (104.18.0.1). A local or internal destination is expected here — this endpoint receives source code.",
+        "integration" : null
+      },
+      "audit" : [ ],
+      "stored" : {
+        "ai_review_provider" : "openai"
+      }
+    }
+  }, {
+    "name" : "openai-chosen-disabled",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "ai.openai" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", "openai" ], [ "ai_review_allow_remote_url", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"ai.openai\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/ai.openai/enabled.",
+        "integration" : "ai.openai"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "openai-unchanged-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_allow_remote_url" : "true",
+      "ai_review_provider" : "openai"
+    },
+    "disabled" : [ "ai.openai" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_provider", "openai" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_provider",
+        "description" : "ai_review_provider = openai",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ai_review_allow_remote_url" : "true",
+        "ai_review_provider" : "openai"
+      }
+    }
+  }, {
+    "name" : "review-on-over-a-disabled-ollama",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "ai.ollama" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_enabled", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"ai.ollama\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/ai.ollama/enabled.",
+        "integration" : "ai.ollama"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "review-on-already-over-a-disabled-ollama",
+    "role" : "ADMIN",
+    "prior" : {
+      "ai_review_enabled" : "true"
+    },
+    "disabled" : [ "ai.ollama" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "ai_review_enabled", "true" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "ai_review_enabled",
+        "description" : "ai_review_enabled = true",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "ai_review_enabled" : "true"
+      }
+    }
+  }, {
+    "name" : "slack-configured-disabled",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "notification.slack" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_slack_url", "https://hooks.example.com/T1" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"notification.slack\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/notification.slack/enabled.",
+        "integration" : "notification.slack"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "slack-cleared-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "notification_slack_url" : "https://hooks.example.com/T1"
+    },
+    "disabled" : [ "notification.slack" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_slack_url", "" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_slack_url",
+        "description" : "notification_slack_url cleared",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_slack_url" : ""
+      }
+    }
+  }, {
+    "name" : "teams-switched-on-disabled",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "notification.teams" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_teams_enabled", "true" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_teams_enabled",
+        "description" : "notification_teams_enabled = true",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_teams_enabled" : "true"
+      }
+    }
+  }, {
+    "name" : "teams-switched-off-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "notification_teams_enabled" : "true"
+    },
+    "disabled" : [ "notification.teams" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_teams_enabled", "false" ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_teams_enabled",
+        "description" : "notification_teams_enabled = false",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_teams_enabled" : "false"
+      }
+    }
+  }, {
+    "name" : "mail-recipients-unchanged-disabled",
+    "role" : "ADMIN",
+    "prior" : {
+      "notification_mail_to" : "soc@example.org"
+    },
+    "disabled" : [ "notification.mail" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_mail_to", " soc@example.org " ] ],
+    "outcome" : {
+      "updated" : 1,
+      "audit" : [ {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "notification_mail_to",
+        "description" : "notification_mail_to = soc@example.org",
+        "userId" : "admin",
+        "signal" : null
+      } ],
+      "stored" : {
+        "notification_mail_to" : "soc@example.org"
+      }
+    }
+  }, {
+    "name" : "reminders-on-over-a-disabled-mail",
+    "role" : "SUPERUSER",
+    "prior" : { },
+    "disabled" : [ "notification.mail" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "checklist_reminders_enabled", "true" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"notification.mail\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/notification.mail/enabled.",
+        "integration" : "notification.mail"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  }, {
+    "name" : "two-channels-the-second-disabled",
+    "role" : "ADMIN",
+    "prior" : { },
+    "disabled" : [ "notification.discord" ],
+    "people" : {
+      "approver" : true,
+      "publishers" : true,
+      "signers" : true
+    },
+    "body" : [ [ "notification_webhook_url", "https://hooks.example.com/a" ], [ "notification_discord_url", "https://hooks.example.com/b" ] ],
+    "outcome" : {
+      "refused" : {
+        "status" : 409,
+        "detail" : "The integration \"notification.discord\" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/notification.discord/enabled.",
+        "integration" : "notification.discord"
+      },
+      "audit" : [ ],
+      "stored" : { }
+    }
+  } ]
+}

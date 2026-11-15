@@ -1,19 +1,17 @@
 # The recordings not replayed yet that `platform`'s port ends: its routes, and its stand-ins the served routes meet.
 # README.md beside this file says the format and the rules.
-ceiling 12
+ceiling 10
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
-route GET /api/v1/settings | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route GET /api/v1/settings/ai-openai-key | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route GET /api/v1/settings/ticket-ca | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route GET /api/v1/settings/ticket-token | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route GET /api/v1/settings/ticket-webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route GET /api/v1/settings/webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route POST /api/v1/settings/ollama-test | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route PUT /api/v1/settings | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route PUT /api/v1/settings/ai-openai-key | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route PUT /api/v1/settings/ticket-token | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route PUT /api/v1/settings/ticket-webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
-route PUT /api/v1/settings/webhook-secret | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
+route GET /api/v1/settings/ai-openai-key | ai — the OpenAI key's state, read by AiReviewService (wave 2)
+route GET /api/v1/settings/ticket-ca | tickets — the pinned CA's description, TicketService.pinnedCa (wave 2)
+route GET /api/v1/settings/ticket-token | tickets — the tracker token's state and health, TicketService (wave 2)
+route GET /api/v1/settings/ticket-webhook-secret | tickets — the inbound webhook secret's state, TicketService (wave 2)
+route GET /api/v1/settings/webhook-secret | notifications — whether messages are signed, NotificationService.isSigning (wave 2)
+route POST /api/v1/settings/ollama-test | ai — the endpoint check calls the configured model through AiReviewService (wave 2)
+route PUT /api/v1/settings/ai-openai-key | ai — the OpenAI key, encrypted by AiReviewService before it is stored (wave 2)
+route PUT /api/v1/settings/ticket-token | tickets — the tracker token, encrypted and checked against the tracker by TicketService (wave 2)
+route PUT /api/v1/settings/ticket-webhook-secret | tickets — the inbound webhook secret, encrypted by TicketService (wave 2)
+route PUT /api/v1/settings/webhook-secret | notifications — the webhook signing secret, encrypted by NotificationService (wave 2)
 
 # ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──

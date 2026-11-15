@@ -120,6 +120,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 3.2 Inventory | done: components, build SBOM imports, license governance (`f1833c188` / `33b675466`) | `rust/p3-2-inventory` |
 | 3.3 Issues | done: triage, SLA, lifecycle, 10 OpenAPI endpoints, 86 routes composed (`de674ddee`) | `rust/p3-3-issues` |
 | 3.4 Gate | **done** (2026-11-15): seven routes served and composed; every recording replays green on MySQL — `POST /api/v1/gate` left `golden/deferred/`, whose `gate.txt` is gone; engine tests on MySQL; route authorization held by `cp-app`'s registry test (the verdict route resolves a `Visibility`, 404 never 403); Java's domain tests ported (`tests/domain.rs`, 70 cases); 41/41 mutants killed (`p3-4-gate.py`); persistence is SeaORM, so no `.sqlx/` to regenerate. Seven whitespace/parsing parity slips fixed (`crates/cp-gate/README.md`). Not run: the replay on PostgreSQL | `rust/p3-4-gate-done` |
+| Platform stage 2 | **done** (2026-11-15): `GET` and `PUT /api/v1/settings` served — the catalog and its save — over two narrow seams `cp-platform` holds (`tickets`' CA pinning, `ai`'s destination guard and acknowledgement record: `src/seams.rs`, README says why narrow) and `access`' `TriageApprovers`, now wired in the binary (`cp-app/src/settings_screen.rs`, `tests/settings_composition.rs`). The save **held to Java's answers** by a reference set written first (`reference/platform/settings-save.json`, 86 cases, real `AiReviewService` over a real guard, `PinnedCa` itself): all 86 equal. Every recording of the two routes replays green on MySQL (both lines left `not-yet-ported/` and `golden/deferred/`, ceilings 12 → 10). Found by the replay and fixed: the **recorder sorted a request's members**, so a save replayed in an order Java never received (its audit entry and its first refusal follow the body's order) — it now keeps the order sent (`TrafficRecorder`, with a test); the replay's chain ignored a test class's `vectispire.security.trusted-proxies`; `AiReviewConsentTest` depended on live DNS for `api.openai.com` (its 422 quoted the day's address) — it names a public literal now. 20/20 mutants killed (`security/mutants/p2-platform-stage2.py`); no new statement, so no `.sqlx/` to regenerate. Not run: PostgreSQL. The ten other routes of `SettingsController` wait for `tickets`, `notifications` and `ai` | `rust/platform-stage2` |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 35,000 of 66,000 are ported or in progress. Most of
@@ -159,8 +160,9 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
 - **The audit actor of an integration key** is `Principal::actor()` since 2.6: `user (API key name)`, as Java writes
   it; a principal built by a test double without grounds falls back to the account's username.
 - **Two Argon2 PHC readers** in `cp-access` (`passwords` and `credentials::phc`): keep one.
-- **`cp-platform`'s `Approvers`** is a trait the binary does not fill yet; wire it to `cp-access`'s
-  `TriageApprovers`.
+- ~~**`cp-platform`'s `Approvers`** is a trait the binary does not fill yet.~~ Filled since platform stage 2 by
+  `cp-app`'s `settings_screen::AccessApprovers` over `cp-access`' `TriageApprovers`, held by
+  `cp-app/tests/settings_composition.rs`.
 - ~~**The audit log is not built by the binary yet.**~~ It is (`cp-app/src/main.rs`, with its mirror and the SIEM's
   listeners), and its reader serves the audit-log routes since the platform port's first stage.
 - **`cp-db`'s comments promise** a test refusing a `query!` without its `/* mysql */` or
@@ -168,10 +170,11 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
 - **The Java-oracle suite of `cp-audit` and the mutation checks are not in `check.sh`.** Decide which
   belong in CI.
 - **The platform routes**, in stages (2026-10-28): the audit log's and crypto's six are served and replayed
-  (`rust/platform-stage1`); the settings catalog and save follow once `tickets`' CA pinning and `ai`'s destination
-  guard exist as narrow seams (`access`' `TriageApprovers` is ported and only to be wired); the four
-  credential-storing endpoints, their state reads, the tracker CA and the AI endpoint check wait for `tickets`,
-  `notifications` and `ai` (wave 2).
+  (`rust/platform-stage1`); the settings catalog and save are served and replayed since stage 2 (2026-11-15,
+  `rust/platform-stage2`), with `tickets`' CA pinning and `ai`'s destination guard as narrow seams `cp-platform` holds
+  (`crates/cp-platform/README.md` says why narrow) and `access`' `TriageApprovers` wired; the four credential-storing
+  endpoints, their state reads, the tracker CA and the AI endpoint check wait for `tickets`, `notifications` and `ai`
+  (wave 2).
 
 ### 5.2 Phase 2 — Targets and scanning
 

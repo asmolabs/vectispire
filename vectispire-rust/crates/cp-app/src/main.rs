@@ -583,6 +583,12 @@ async fn serve() -> ExitCode {
             trail: trail.clone(),
             signing,
             integrations: vectispire_cp_app::registry::integration_administration(&db, (*audit).clone()),
+            settings: vectispire_cp_app::settings_screen::compose(
+                &db,
+                (*audit).clone(),
+                guard.clone(),
+                Arc::new(vectispire_cp_audit::SystemClock),
+            ),
         },
     ) {
         routes = routes.route(entry);
