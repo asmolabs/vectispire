@@ -228,14 +228,13 @@ async fn serve() -> ExitCode {
         }
     };
 
-    let allowed_hosts =
-        match vectispire_domain::git_host_allowlist::GitHostAllowlist::parse(Some(&settings.git_allowed_hosts)) {
-            Ok(hosts) => hosts,
-            Err(error) => {
-                tracing::error!("vectispire.git.allowed-hosts is malformed: {error}");
-                return ExitCode::FAILURE;
-            }
-        };
+    let allowed_hosts = match vectispire_cp_app::clone_hosts::allowlist(&settings.git_allowed_hosts, &guard) {
+        Ok(hosts) => hosts,
+        Err(error) => {
+            tracing::error!("vectispire.git.allowed-hosts is malformed: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     let door = vectispire_cp_crypto::VaultDoor {
         sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),

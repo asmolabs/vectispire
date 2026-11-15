@@ -171,6 +171,18 @@ impl OutboundUrlGuard {
         self.check_host(written, hostname, port as i32, policy, label).map(pinned)
     }
 
+    /// `reservedReason`: why `host:port` is one of Vectispire's own endpoints — by name or by the addresses the host
+    /// resolves to — or `None`. The question a door that is not an HTTP request asks, the repository URL's above all:
+    /// a clone is a connection the scanning machine opens wherever the URL points (`GitHostAllowlist::refusing`).
+    pub fn reserved_reason(&self, host: &str, port: i32, label: &str) -> Option<String> {
+        let hostname = strip_brackets(java_trim(host));
+        if hostname.is_empty() {
+            return None;
+        }
+        let addresses = self.resolver.resolve(&hostname);
+        self.refuse_reserved(&hostname, port, &addresses, label).err().map(|refused| refused.0)
+    }
+
     /// Returns the cleaned URL, or the refusal.
     pub fn validate(&self, url: &str, policy: OutboundPolicy, label: &str) -> Result<String, UnsafeUrl> {
         self.check(url, policy, label).map(|checked| checked.url)
