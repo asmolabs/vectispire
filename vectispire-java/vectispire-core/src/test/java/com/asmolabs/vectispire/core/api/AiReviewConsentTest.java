@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,17 @@ class AiReviewConsentTest extends ApiTestBase {
 
     @Autowired
     private SettingsService settings;
+
+    /**
+     * OpenAI's endpoint as a public address the guard reads without asking DNS. The default,
+     * {@code api.openai.com}, made every refusal here depend on the network the suite ran on: offline it
+     * could not be resolved, and online its 422 quoted whichever address DNS answered that day — two
+     * recordings of one tree differed on it, and no replay could reproduce either.
+     */
+    @BeforeEach
+    void openAiAtAPublicAddress() {
+        settings.set(Setting.AI_REVIEW_OPENAI_URL, "https://93.184.216.34/v1");
+    }
 
     private int save(Map<String, String> body) throws Exception {
         return mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
