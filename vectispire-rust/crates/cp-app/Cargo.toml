@@ -52,6 +52,12 @@ vectispire-cp-contract = { path = "../cp-contract" }
 tempfile.workspace = true
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }
+# The switch test (`tests/ingestion_across_the_switch.rs`): results sent to both control planes by the Rust agent's own
+# client, as an agent sends them. `client` is a test's only: the control plane's own graph never links it.
+vectispire-protocol = { workspace = true, features = ["client"] }
+vectispire-crypto.workspace = true
+reqwest = { workspace = true }
+serde_json.workspace = true
 
 [lints]
 workspace = true

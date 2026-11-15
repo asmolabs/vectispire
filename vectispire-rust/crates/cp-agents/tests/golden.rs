@@ -51,7 +51,7 @@ use vectispire_cp_http::credentials::{AccessDenied, Audit, BoxFuture};
 use vectispire_cp_http::routes::Routes;
 use vectispire_cp_http::{Chain, ChainConfig};
 use vectispire_cp_outbox::{Outbox, Registry};
-use vectispire_cp_scanning::ports::{BundledRules, IngestionStandIn, NoPlugins};
+use vectispire_cp_scanning::ports::{BundledRules, NoPlugins};
 use vectispire_cp_scanning::{Scanning, ScanningConfig};
 use vectispire_cp_settings::{Setting, Settings};
 use vectispire_cp_targets::deletion::PurgeRegistry;
@@ -358,8 +358,8 @@ fn property(class: &str, key: &str) -> Option<&'static str> {
     TEST_PROPERTIES.iter().find(|(of, named, _)| *of == class && *named == key).map(|(_, _, value)| *value)
 }
 
-/// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
-/// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
+/// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is
+/// the binary's (task 2.8), over Phase 3's backlog and inventory.
 fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str) -> axum::Router {
     let allowed_hosts = GitHostAllowlist::parse(property(class, "vectispire.git.allowed-hosts")).unwrap();
     let time = Arc::new(AnsweringTime::default());
@@ -376,6 +376,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         clock: Arc::new(SystemClock),
         visibility: None,
     }));
+    let (issues, inventory) = issues_and_inventory(db, &targets, &audit, &siem);
     let scanning = Arc::new(Scanning::new(ScanningConfig {
         db: db.clone(),
         clock: Arc::new(SystemClock),
@@ -385,7 +386,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         claim_lock: Arc::new(AgentRowLock),
         rule_sets: Arc::new(BundledRules),
         plugins: Arc::new(NoPlugins),
-        ingestor: Arc::new(IngestionStandIn::default()),
+        ingestor: Arc::new(ingestor(db, &issues, &inventory)),
         policy: vectispire_domain::scan_queue::Policy::default(),
         leader_lease: vectispire_cp_scanning::DEFAULT_LEASE,
         allowed_hosts,
@@ -414,7 +415,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         },
     ));
     actuator.serve_encryption(Arc::new(CensusReport(census)));
-    let modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing);
+    let modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing, issues, inventory);
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
@@ -519,13 +520,13 @@ fn signing_key_pem() -> String {
 
 /// The issues, gate, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
 /// targets above.
-fn phase_three(
+/// The issues and inventory modules as `cp-app` composes them — before scanning, whose ingestion writes into both.
+fn issues_and_inventory(
     db: &Db,
-    targets: Arc<Targets>,
-    audit: Arc<AuditLog>,
+    targets: &Arc<Targets>,
+    audit: &Arc<AuditLog>,
     siem: &Siem,
-    signing: Arc<vectispire_cp_crypto::SigningKeys>,
-) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+) -> (Arc<vectispire_cp_issues::Issues>, Arc<vectispire_cp_inventory::Inventory>) {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
     let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
         db: db.clone(),
@@ -535,18 +536,50 @@ fn phase_three(
         audit: audit.clone(),
         events: siem.events.clone(),
     }));
+    let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
+        db: db.clone(),
+        scans,
+        targets: targets.clone(),
+        audit: audit.clone(),
+    }));
+    (issues, inventory)
+}
+
+/// `cp-app::ingestion::ingestor`, which this crate cannot depend on: the backlog and inventory above, the licences read
+/// from the settings, the two `threatintel` sources as their named stand-ins. `cp-app/tests/ingestion_composition.rs`
+/// holds the binary to the same three sources.
+fn ingestor(
+    db: &Db,
+    issues: &vectispire_cp_issues::Issues,
+    inventory: &vectispire_cp_inventory::Inventory,
+) -> vectispire_cp_scanning::ingestion::ScanIngestor {
+    use vectispire_cp_scanning::ingestion::{EndOfLifeStandIn, EnrichmentStandIn, LicenseService, ScanIngestor};
+    ScanIngestor::new(
+        issues.backlog().clone(),
+        inventory.sink(),
+        Some(Arc::new(EnrichmentStandIn)),
+        Some(Arc::new(EndOfLifeStandIn)),
+        Some(Arc::new(LicenseService::from_settings(Settings::new(db.clone())))),
+        Arc::new(SystemClock),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn phase_three(
+    db: &Db,
+    targets: Arc<Targets>,
+    audit: Arc<AuditLog>,
+    siem: &Siem,
+    signing: Arc<vectispire_cp_crypto::SigningKeys>,
+    issues: Arc<vectispire_cp_issues::Issues>,
+    inventory: Arc<vectispire_cp_inventory::Inventory>,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
     let rules = vectispire_cp_rules::RulesModule::new(
         db.clone(),
         Arc::new(vectispire_cp_rules::StandInInventory),
         Arc::new(vectispire_cp_rules::StandInIssues),
         audit.clone(),
     );
-    let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
-        db: db.clone(),
-        scans: scans.clone(),
-        targets: targets.clone(),
-        audit: audit.clone(),
-    }));
     let exporter = Arc::new(vectispire_cp_siem::SiemExporterService::new(
         db.clone(),
         siem.sender.clone(),
@@ -571,7 +604,7 @@ fn phase_three(
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
-        scans,
+        Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
         targets.clone(),
         rules.coverage.clone(),
         audit,
@@ -601,7 +634,8 @@ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
         vectispire_cp_crypto::SigningKeys::new(&signing_key_pem(), Settings::new(db.clone()), support::encryption())
             .unwrap(),
     );
-    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem, signing);
+    let (issues, inventory) = issues_and_inventory(&db, &composed.targets, &audit, &siem);
+    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem, signing, issues, inventory);
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))
