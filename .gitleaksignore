@@ -203,3 +203,7 @@ ce4c52af788c1620313e1aad67567c80279583aa:vectispire-rust/crates/cp-contract/test
 9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:337
 9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:363
 9c052f71c20fef26f5ee227c015e0775c0ef78c7:vectispire-rust/reference/siem/module.json:generic-api-key:382
+# The agents' administration reference set (task 2.9): the Ed25519 *public* key its cases pin as an agent's
+# result-signing key — made up for the fixture, half of no key pair anyone holds, and public by nature. Read first.
+8b4e5ae54c1c0e97ffce6dd4112a2d8d85f99907:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/agents/AgentAdministrationReferenceSetTest.java:generic-api-key:57
+8b4e5ae54c1c0e97ffce6dd4112a2d8d85f99907:vectispire-rust/reference/agents/administration.json:generic-api-key:2
