@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mutation check of Phase 2 task 2.10: the built-in worker — its loop (one round at a time, off when switched off),
-the runner's image scan (the target dispatched to its one step, the SBOM and the match kept, the claim told the runner
-exports images), the worker's options (`host-ssh`, `bundled-rules`) as the settings say and as the runner applies
+the runner's image scan (the target dispatched to its one step, the SBOM and the match kept, the executor announced
+as exporting images), the worker's options (`host-ssh`, `bundled-rules`) as the settings say and as the runner applies
 them, the runtime's trust handed to the clone, the images read from the settings, and the start refused when no
 runner can be built. See README.md.
 
@@ -40,9 +40,11 @@ MUTANTS = [
     ("an image is handed back", RUNNER,
      "            Target::Image(image) => return self.run_image(image, started).await,",
      "            Target::Image(_) => return Err(transient(\"not run\".to_owned())),", IMAGE),
-    ("the claim is told no image is exported", RUNNER,
+    # The flag feeds the executor's announcement only (`dispatcher::probe`, as Java's `ScanDispatcher.probe`), not the
+    # claim: the started image scan completes either way, so it is held by the runner's own test.
+    ("the executor announces no image", RUNNER,
      "    pub fn exports_images(&self) -> bool {\n        true", "    pub fn exports_images(&self) -> bool {\n        false",
-     IMAGE),
+     UNIT),
     ("an image's SBOM is dropped", RUNNER,
      "        if let Some(sbom) = sbom {\n            artifacts.sbom = raw(&sbom);\n        }\n        match step {",
      "        let _ = sbom;\n        match step {", IMAGE),

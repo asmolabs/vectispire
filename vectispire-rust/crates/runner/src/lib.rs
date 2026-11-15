@@ -230,8 +230,9 @@ impl Runner {
         self.containers.why_unavailable().await
     }
 
-    /// Whether this runner scans container images — `ContainerExecutor.exportsImages`, true for the Docker backend:
-    /// the claim reads it, so a worker that said no would be handed no image scan.
+    /// Whether this runner scans container images — `ContainerExecutor.exportsImages`, true for the Docker backend.
+    /// What the worker's executor announces (`ScanDispatcher.probe`): the agents screen lists `container` among the
+    /// targets it serves only when this says so.
     pub fn exports_images(&self) -> bool {
         true
     }
@@ -519,6 +520,13 @@ mod tests {
 
         let _bundled = runner(work.path(), Some(PathBuf::new()));
         assert_eq!(unpacked(work.path()), 1, "a blank directory unpacks the binary's own");
+    }
+
+    /// The Docker backend exports images, so the executor the agents screen shows serves containers too.
+    #[test]
+    fn the_docker_backend_says_it_exports_images() {
+        let work = tempfile::tempdir().unwrap();
+        assert!(runner(work.path(), None).exports_images());
     }
 
     #[test]
