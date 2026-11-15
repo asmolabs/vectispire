@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(wait(Some("wait=0x10")).ok(), Some(16));
         assert_eq!(wait(Some("wait=%2030%20")).ok(), Some(30));
         assert_eq!(wait(Some("wait=-2147483648")).ok(), Some(i32::MIN));
-        for refused in ["wait=thirty", "wait=2147483648", "wait=1.5", "wait=--1", "wait=0x"] {
+        for refused in ["wait=thirty", "wait=2147483648", "wait=99999999999", "wait=1.5", "wait=--1", "wait=0x"] {
             let problem = wait(Some(refused)).err().unwrap_or_else(|| panic!("{refused} is refused"));
             assert_eq!(problem.status().as_u16(), 400, "{refused}");
         }

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_agent where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "39a42c9425701a77ef324b827b3c8a3f0918977a33740cabce09cf22943ac8cb"
+}

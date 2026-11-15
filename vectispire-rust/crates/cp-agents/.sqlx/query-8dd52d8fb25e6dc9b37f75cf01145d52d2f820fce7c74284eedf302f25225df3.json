@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_agent set sealing_public_key = $1, sealing_key_generation = $2 where id = $3\n            and (sealing_key_generation is null or sealing_key_generation < $2\n                 or (sealing_key_generation = $2 and sealing_public_key = $1))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8dd52d8fb25e6dc9b37f75cf01145d52d2f820fce7c74284eedf302f25225df3"
+}

@@ -163,6 +163,35 @@ async fn run(db: &Db, key: &str, case: &Value) -> Option<String> {
     (actual != expected).then(|| format!("  {name}:\n    java: {expected}\n    rust: {actual}"))
 }
 
+/// The key a declaration issued stops opening anything when the agent is removed: Java revokes it in the removal's
+/// transaction, since a key left behind is a door to the protocol with no agent behind it.
+#[tokio::test]
+async fn a_removed_agent_takes_its_key_with_it() {
+    for engine in vectispire_cp_db::testing::engines() {
+        if !vectispire_cp_db::testing::runs_on(*engine) {
+            continue;
+        }
+        let migrated = Migrated::start(*engine).await;
+        let db = migrated.connect().await;
+        clean(&db).await;
+        let admin = compose(&db, system_clock()).agents.admin.clone();
+        let actor = RequestActor { username: Some("admin".to_owned()), ip_address: None, user_agent: None };
+        let declaration = Declaration {
+            name: "leaving".to_owned(),
+            description: None,
+            credentials_mode: None,
+            labels: None,
+            max_concurrent: None,
+        };
+        let declared = admin.declare(declaration, &actor).await.expect("declared");
+        let keys = || support::count(&db, "select count(*) from t_api_key where name = 'Agent leaving'");
+        assert_eq!(keys().await, 1, "{engine:?}: the declaration issued its key");
+        admin.remove(declared.id, &actor).await.expect("removed");
+        assert_eq!(keys().await, 0, "{engine:?}: and the removal revoked it");
+        db.close().await;
+    }
+}
+
 /// Java's prior row, as `AgentEntity` held it: remote, local credentials, a pinned signing key.
 async fn prior(db: &Db, id: Uuid, prior: &Value, key: &str) {
     let name = prior["name"].as_str().unwrap();

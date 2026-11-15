@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_agent set sealing_public_key = ?, sealing_key_generation = ? where id = ?\n            and (sealing_key_generation is null or sealing_key_generation < ?\n                 or (sealing_key_generation = ? and sealing_public_key = ?))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "f7978b9b207adc170bff87da0d4c88c275ac763772c3a9285e5b236d45e05fcb"
+}

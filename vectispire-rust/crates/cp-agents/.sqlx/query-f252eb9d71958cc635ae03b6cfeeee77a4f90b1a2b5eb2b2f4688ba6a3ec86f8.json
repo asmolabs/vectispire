@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_agent (id, name, description, kind, labels, credentials_mode, enabled,\n                max_concurrent, api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,\n                sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at)\n                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 20
+    },
+    "nullable": []
+  },
+  "hash": "f252eb9d71958cc635ae03b6cfeeee77a4f90b1a2b5eb2b2f4688ba6a3ec86f8"
+}

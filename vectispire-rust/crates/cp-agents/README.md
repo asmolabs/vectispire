@@ -46,6 +46,24 @@ the Rust port (plan, §7).
   test rewinds behind the recorder's back, and the stand-ins of later phases (plugins, SIEM, ingestion's backlog,
   checklists).
 
-Still open, from the audit: engine tests of hello, the long poll's wait, heartbeat and failure beyond the replay, a
-reference set for the refusals and audit descriptions, the mutation list, checked queries, and two smaller
-differences (`?wait=` unparsable read as 0 where Java answers 400, a database error at authentication answered 401).
+## Finished (2026-11-15, task 2.9)
+
+- **Held to Java's answers**: `reference/agents/administration.json`, written by `AgentAdministrationReferenceSetTest`
+  over the real service — 64 declarations, changes, pinned and removed signing keys, sealing-key resets and removals,
+  each with its refusal, its audit sentences in order and the row as saved — read by `tests/administration_reference.rs`
+  on a real database. It found names, credentials modes and signing keys trimmed by `str::trim` where `String.trim`
+  keeps a no-break space, an unknown mode quoted trimmed where Java quotes it as sent, and in `crates/crypto` a signing
+  key padded with a no-break space pinned where Java refuses it and a sealing key read trimmed where Java reads it as is.
+- **A removal revokes the key first**, and a failed revocation fails the request. Java deletes the row and revokes the
+  key in one transaction; the key is `access`'s, written through its service, so here they are two writes, ordered so
+  that a failure between them leaves an inert agent rather than a working key with no agent behind it.
+- **The claim's `wait` is bound as `@RequestParam int` is** (`web/read.rs`): Spring's sentence, a 400, before the agent
+  is authenticated. An unreadable value used to be read as no wait.
+- **A database that cannot be read while authenticating is a 500** quoting a reference; it was the 401 telling the
+  agent its key was wrong.
+- **Engine tests beyond the replay** (`tests/protocol_lifecycle.rs`): hello, the signs of life (an idle poll, a lease
+  renewal, a recent sign not rewritten), the long poll's wait served and cut short, the heartbeat's owner, failure
+  reports requeued, permanent, applied once and the lease holder's alone.
+- **Checked statements**: every statement on `t_agent` is `sqlx::query!` per engine, cached in `.sqlx/`. An `id` that is
+  not a UUID is a failure where it was read as the nil UUID.
+- **Mutation list**: `security/mutants/p2-9-agents.py`.

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_agent set signing_public_key = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3ff3a7e4d994925ac048ebdc6f3bb5340f6ef44d7246b49c6b00d5af7e2e2d08"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_agent set last_seen_at = $1, hostname = $2, platform = $3, version = $4,\n            scanner_engine = $5, capabilities = $6, contract_version = $7, executors = $8, executors_reported_at = $9\n            where id = $10",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Text",
+        "Timestamptz",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f99a78e4918567577b6c9c14b433a9d2d55e64399d0536e02b1f3d39c6708e5c"
+}

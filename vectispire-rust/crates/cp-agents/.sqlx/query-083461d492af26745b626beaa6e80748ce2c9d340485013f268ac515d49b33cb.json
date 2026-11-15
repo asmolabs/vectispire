@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_agent where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "083461d492af26745b626beaa6e80748ce2c9d340485013f268ac515d49b33cb"
+}

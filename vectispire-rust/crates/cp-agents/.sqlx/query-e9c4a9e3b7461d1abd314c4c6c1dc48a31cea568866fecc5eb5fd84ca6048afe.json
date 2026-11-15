@@ -1,0 +1,48 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, name from t_agent where api_key_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | PRIMARY_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_agent",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_agent",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e9c4a9e3b7461d1abd314c4c6c1dc48a31cea568866fecc5eb5fd84ca6048afe"
+}

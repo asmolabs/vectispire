@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_agent set signing_public_key = $1 where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a498a34ae3cfc7bd530d0d8103378fabb7ce09f6dd394e9ca19e4e1985710fec"
+}

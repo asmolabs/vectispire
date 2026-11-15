@@ -1,0 +1,280 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, name, description, kind, labels, credentials_mode, enabled, max_concurrent,\n                api_key_id, hostname, platform, version, scanner_engine, capabilities, contract_version,\n                sealing_public_key, sealing_key_generation, signing_public_key, last_seen_at, created_at, executors,\n                executors_reported_at from t_agent where name = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "labels",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "credentials_mode",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "credentials_mode"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "max_concurrent",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "max_concurrent"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "api_key_id",
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "api_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "hostname",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "hostname"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "platform",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "platform"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "version",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "scanner_engine",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "scanner_engine"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "capabilities",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "capabilities"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "contract_version",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "contract_version"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "sealing_public_key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "sealing_public_key"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "sealing_key_generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "sealing_key_generation"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "signing_public_key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "signing_public_key"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "executors",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "executors"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "executors_reported_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_agent",
+            "name": "executors_reported_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "a87be6ab075f0d8a561b76303d6cf9d5aee96857f6d790d5f0b63012e11298a1"
+}

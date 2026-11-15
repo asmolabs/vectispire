@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_agent set name = $1, description = $2, kind = $3, labels = $4,\n            credentials_mode = $5, enabled = $6, max_concurrent = $7, api_key_id = $8 where id = $9",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Bool",
+        "Int4",
+        "Bpchar",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8093bc4152db815b3fbc1d5e830d8cb1f7028eb5c2ff9f635d0d19744207bf1a"
+}

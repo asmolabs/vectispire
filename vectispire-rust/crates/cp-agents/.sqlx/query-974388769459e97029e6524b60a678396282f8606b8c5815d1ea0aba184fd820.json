@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(*) as \"count!: i64\" from t_agent where credentials_mode = 'delegated'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "974388769459e97029e6524b60a678396282f8606b8c5815d1ea0aba184fd820"
+}

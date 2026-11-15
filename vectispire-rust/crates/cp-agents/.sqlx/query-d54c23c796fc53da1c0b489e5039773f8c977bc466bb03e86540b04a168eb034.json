@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_agent set name = ?, description = ?, kind = ?, labels = ?, credentials_mode = ?,\n            enabled = ?, max_concurrent = ?, api_key_id = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "d54c23c796fc53da1c0b489e5039773f8c977bc466bb03e86540b04a168eb034"
+}

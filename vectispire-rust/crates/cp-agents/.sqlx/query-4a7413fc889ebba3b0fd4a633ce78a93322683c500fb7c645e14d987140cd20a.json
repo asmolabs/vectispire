@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_agent set last_seen_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4a7413fc889ebba3b0fd4a633ce78a93322683c500fb7c645e14d987140cd20a"
+}

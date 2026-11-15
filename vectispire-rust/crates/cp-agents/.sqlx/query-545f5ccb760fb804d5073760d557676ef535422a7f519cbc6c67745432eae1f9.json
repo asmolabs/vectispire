@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(*) as \"count!\" from t_agent where credentials_mode = 'delegated'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "545f5ccb760fb804d5073760d557676ef535422a7f519cbc6c67745432eae1f9"
+}
