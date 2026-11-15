@@ -15,6 +15,8 @@
 //! archive, matched — secrets, IaC and source analysis stay absent, since they look inside source code
 //! and declaring them scanned would resolve their whole history for the target.
 
+pub mod configuration_files;
+
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -250,7 +252,7 @@ impl Runner {
         let sub_path = vectispire_domain::sub_path::normalize(repository.sub_path.as_deref())
             .map_err(|problem| permanent(format!("The repository's sub-path is refused: {problem}")))?;
         let branch = repository.branch.clone().unwrap_or_default();
-        scan_root(&workspace.source, &sub_path, &branch)?;
+        prepare_tree(&workspace.source, &sub_path, &branch)?;
         let sub = (!sub_path.is_empty()).then_some(sub_path.as_str());
 
         artifacts.failed("api discovery", API_DISCOVERY_NOT_PORTED);
@@ -412,6 +414,21 @@ fn raw(document: &serde_json::Value) -> Option<Box<serde_json::value::RawValue>>
     serde_json::value::RawValue::from_string(jackson::to_wire_string(document)).ok()
 }
 
+/// The cloned tree made ready for the scanners: **their own configuration files taken out before anything reads it**
+/// (`configuration_files`, `ScanRunner.analyse`) — outside any step, like the clone, since every scanner would read
+/// a tree that could not be cleared — then the directory they examine, proven to lie inside the clone.
+fn prepare_tree(source: &Path, sub_path: &str, branch: &str) -> Result<PathBuf, ExecutionFailure> {
+    let removed = configuration_files::remove_from(source).map_err(|error| {
+        transient(format!("The scanners' configuration files could not be removed from the clone: {error}"))
+    })?;
+    if !removed.is_empty() {
+        // A signal, not a finding: a finding of a new type would enter the backlog and the gate on a file that, once
+        // removed, changes nothing.
+        tracing::info!(?removed, "the tree carried scanner configuration files; removed before any scanner ran");
+    }
+    scan_root(source, sub_path, branch)
+}
+
 fn permanent(message: String) -> ExecutionFailure {
     ExecutionFailure { message, kind: FailureKind::Permanent }
 }
@@ -535,6 +552,22 @@ mod tests {
             Images::from_lookup(lookup(&[("VECTISPIRE_IMAGE_SYFT", "  "), ("VECTISPIRE_IMAGE_GRYPE", "r/g@sha256:1")]));
         assert_eq!(images.syft, vectispire_scanners::images::SYFT);
         assert_eq!(images.grype, "r/g@sha256:1");
+    }
+
+    /// The tree the scanners are started on carries none of their configuration files, in the sub-path or above it.
+    #[test]
+    fn the_tree_is_cleared_of_the_scanners_configuration_before_its_root_is_proven() {
+        let clone = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(clone.path().join("infra")).unwrap();
+        for name in [".semgrepignore", "infra/.checkov.yaml", "infra/.gitleaksignore"] {
+            std::fs::write(clone.path().join(name), "planted\n").unwrap();
+        }
+        let root = prepare_tree(clone.path(), "infra", "main").unwrap();
+        assert_eq!(root, clone.path().join("infra").canonicalize().unwrap());
+        for name in [".semgrepignore", "infra/.checkov.yaml", "infra/.gitleaksignore"] {
+            assert!(!clone.path().join(name).exists(), "{name} is still there for the scanners");
+        }
+        assert_eq!(prepare_tree(clone.path(), "missing", "main").unwrap_err().kind, FailureKind::Permanent);
     }
 
     #[test]
