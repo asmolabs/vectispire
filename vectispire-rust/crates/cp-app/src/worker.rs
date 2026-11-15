@@ -12,9 +12,14 @@
 //!   the outcome Java's `ScanningConfiguration` names the images one by one to prevent. They are read from the settings
 //!   now, with every source the runtime resolves. `host-ssh` and `bundled-rules` were not read at all.
 //! - A runner that could not be built was a warning, and the binary started with a worker that claims nothing.
+//!
+//! `host-ssh: false` and a `bundled-rules` override were then refused at start, the shared runner honouring neither;
+//! both are honoured since 2.10 was finished (2026-11-15), as `ScanningConfiguration.scanRunner` honours them.
 
+use std::path::PathBuf;
 use vectispire_cp_runtime::settings::{ScannerImages, Scanning, Worker};
-use vectispire_runner::Images;
+
+use vectispire_runner::{Images, Options, WithoutKey};
 
 /// `BuiltInWorker`: whether the worker claims anything, and the labels it serves — none when it does not run.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,36 +40,32 @@ impl BuiltInWorker {
 
 /// The images the built-in worker runs, from the control plane's settings: blank keeps the pinned digest, as
 /// `ScannerImages.PINNED.withOverrides` does.
-///
-/// **Refused, rather than ignored, what this runner cannot honour yet**: `host-ssh: false` and a `bundled-rules`
-/// override change what a scan reads and how it clones, and the shared runner always clones with the host's SSH and
-/// always places the bundled rules. Starting anyway would run a scan the operator configured against.
-pub fn images(scanning: &Scanning) -> Result<Images, String> {
-    if !scanning.host_ssh {
-        return Err(
-            "vectispire.scanning.host-ssh=false is not honoured by the Rust control plane's built-in worker yet: \
-                    it always clones with the host's SSH. Leave it at true, or switch the worker off."
-                .to_owned(),
-        );
-    }
-    if scanning.bundled_rules.is_some() {
-        return Err(
-            "vectispire.scanning.bundled-rules is not honoured by the Rust control plane's built-in worker yet: \
-                    it always places the bundled rules. Remove the override, or switch the worker off."
-                .to_owned(),
-        );
-    }
+#[must_use]
+pub fn images(scanning: &Scanning) -> Images {
     let ScannerImages { syft, grype, gitleaks, checkov, semgrep } = &scanning.images;
     let pick = |configured: &Option<String>, pinned: String| {
         configured.as_deref().map(str::trim).filter(|image| !image.is_empty()).map_or(pinned, str::to_owned)
     };
     // Nothing looked up: the pinned set.
     let pinned = Images::from_lookup(|_| None);
-    Ok(Images {
+    Images {
         syft: pick(syft, pinned.syft),
         grype: pick(grype, pinned.grype),
         gitleaks: pick(gitleaks, pinned.gitleaks),
         checkov: pick(checkov, pinned.checkov),
         semgrep: pick(semgrep, pinned.semgrep),
-    })
+    }
+}
+
+/// What the worker's runner does that the agent's does not decide the same way — `ScanningConfiguration.scanRunner`.
+///
+/// - **`host-ssh`**: a repository with no deployment key is cloned with the host's SSH only when it says so; off, a
+///   private one is refused. Inside the control plane the host's identity would clone any target anybody adds.
+/// - **`bundled-rules`**: a directory named here is read in place of the rules the binary carries; blank unpacks those.
+#[must_use]
+pub fn options(scanning: &Scanning) -> Options {
+    Options {
+        without_key: if scanning.host_ssh { WithoutKey::HostSsh } else { WithoutKey::None },
+        bundled_rules: scanning.bundled_rules.as_deref().filter(|path| !path.trim().is_empty()).map(PathBuf::from),
+    }
 }

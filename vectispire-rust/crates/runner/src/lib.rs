@@ -10,8 +10,10 @@
 //! ordinary absences — "unknown", no finding resolved — and the discovery is a step like the others,
 //! so it is recorded as one that did not run rather than left silently absent. A plugin step is
 //! recorded absent, under its plugin's name, as the Java runner records a plugin that could not run.
-//! An image target is handed back as a transient failure, so it returns to the queue for an agent
-//! that can export images.
+//!
+//! **An image is one step**: exported by this process through the daemon, inventoried from the
+//! archive, matched — secrets, IaC and source analysis stay absent, since they look inside source code
+//! and declaring them scanned would resolve their whole history for the target.
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -21,9 +23,10 @@ use std::time::{Duration, Instant};
 
 use vectispire_container::{ContainerRunner, ScannerLimits};
 pub use vectispire_domain::FailureKind;
-use vectispire_git::{CloneRequest, HostKeyPolicy, HttpsCredential, WithoutKey};
+pub use vectispire_git::WithoutKey;
+use vectispire_git::{CloneRequest, HostKeyPolicy, HttpsCredential};
 pub use vectispire_protocol::ScanArtifacts;
-use vectispire_protocol::{Findings, PluginStep, ScanTask, Step, Target};
+use vectispire_protocol::{Findings, Image, PluginStep, ScanTask, Step, Target};
 use vectispire_scanners::dependencies::{self, StepError};
 pub use vectispire_scanners::rules::StoredFile;
 use vectispire_scanners::rules::{self, RulePlacement};
@@ -120,17 +123,39 @@ impl Places {
     }
 }
 
+/// What differs between the agent's runner and the built-in worker's — `ScanRunner`'s constructor arguments that the
+/// two sides answer differently.
+#[derive(Debug, Clone)]
+pub struct Options {
+    /// What a repository with no deployment key is cloned with. The agent in `local` mode uses the host's git access,
+    /// which is what that mode means; the built-in worker does only when `vectispire.scanning.host-ssh` says so,
+    /// since inside the control plane it lets any target added to Vectispire be cloned with the host's identity.
+    pub without_key: WithoutKey,
+    /// `vectispire.scanning.bundled-rules`: a directory read in place of the rules this binary carries, or `None`
+    /// to unpack those.
+    pub bundled_rules: Option<PathBuf>,
+}
+
+impl Default for Options {
+    /// The agent's: the host's SSH, the bundled rules.
+    fn default() -> Options {
+        Options { without_key: WithoutKey::HostSsh, bundled_rules: None }
+    }
+}
+
 /// What every scan of this process shares — the runner used by both the agent and the built-in worker.
 pub struct Runner {
     containers: Arc<ContainerRunner>,
     images: Images,
     database: VulnerabilityDatabase<ContainerRunner>,
     placement: RulePlacement,
-    /// Kept for as long as the process runs: its drop removes the materialised tree.
-    _bundled: rules::MaterialisedRules,
+    /// Kept for as long as the process runs: its drop removes the materialised tree. `None` when the operator named
+    /// a directory of their own, which is theirs and is never removed.
+    _bundled: Option<rules::MaterialisedRules>,
     rule_provider: Option<Arc<dyn RuleProvider>>,
     places: Places,
     trust: TlsTrust,
+    without_key: WithoutKey,
 }
 
 impl std::fmt::Debug for Runner {
@@ -147,12 +172,10 @@ const SAST_ABSENT: &str = "the source analysis did not run, or covered too few f
 const API_DISCOVERY_NOT_PORTED: &str =
     "this agent (the Rust port, in progress) does not run the API discovery yet; the inventory is left as it was.";
 const PLUGIN_NOT_PORTED: &str = "this agent (the Rust port, in progress) does not run plugins yet.";
-const IMAGE_NOT_PORTED: &str =
-    "This build of the agent (the Rust port, in progress) does not scan container images yet; another agent can.";
 
 impl Runner {
     /// `vulnerability_root`: `VECTISPIRE_VULNERABILITY_DB_DIR`, blank for a directory beside the
-    /// workspaces, as on the Java agent.
+    /// workspaces, as on the Java agent. The agent's [`Options`].
     pub fn new(
         rule_provider: Option<Arc<dyn RuleProvider>>,
         images: Images,
@@ -160,17 +183,46 @@ impl Runner {
         vulnerability_root: Option<PathBuf>,
         trust: TlsTrust,
     ) -> Result<Runner, String> {
+        Runner::with_options(rule_provider, images, places, vulnerability_root, trust, Options::default())
+    }
+
+    /// The same, with the side's own [`Options`].
+    pub fn with_options(
+        rule_provider: Option<Arc<dyn RuleProvider>>,
+        images: Images,
+        places: Places,
+        vulnerability_root: Option<PathBuf>,
+        trust: TlsTrust,
+        options: Options,
+    ) -> Result<Runner, String> {
         let limits = ScannerLimits::default_for_this_host();
         let containers = Arc::new(ContainerRunner::connect(None, limits).map_err(|error| error.to_string())?);
         let root = vulnerability_root.unwrap_or_else(|| places.work.join("vectispire-vulnerability-db"));
         let database =
             VulnerabilityDatabase::with_defaults(containers.clone(), images.grype.clone(), &root, limits.timeout);
-        // Unpacked from the binary, as the Java agent unpacks them from its jar: no rules directory
-        // ships beside it, and one read from the current directory would be whatever is there.
-        let bundled = rules::materialise_in(&places.work)
-            .map_err(|error| format!("the bundled rules could not be unpacked: {error}"))?;
-        let placement = RulePlacement::new(bundled.tree());
-        Ok(Runner { containers, images, database, placement, _bundled: bundled, rule_provider, places, trust })
+        // Unpacked from the binary, as Java unpacks them from its jar: no rules directory ships beside it, and one
+        // read from the current directory would be whatever is there. An operator's directory is taken as named,
+        // as `ScanningConfiguration.bundledRules` takes it — read at each scan, so a missing one fails the scans.
+        let (bundled, placement) = match options.bundled_rules.filter(|path| !path.as_os_str().is_empty()) {
+            Some(directory) => (None, RulePlacement::new(directory)),
+            None => {
+                let bundled = rules::materialise_in(&places.work)
+                    .map_err(|error| format!("the bundled rules could not be unpacked: {error}"))?;
+                let placement = RulePlacement::new(bundled.tree());
+                (Some(bundled), placement)
+            }
+        };
+        Ok(Runner {
+            containers,
+            images,
+            database,
+            placement,
+            _bundled: bundled,
+            rule_provider,
+            places,
+            trust,
+            without_key: options.without_key,
+        })
     }
 
     /// Why the executor cannot run anything now — `None` when its daemon answers. Asked before claiming.
@@ -178,19 +230,17 @@ impl Runner {
         self.containers.why_unavailable().await
     }
 
-    /// Whether this runner scans container images: not yet (`IMAGE_NOT_PORTED`), so a worker using it announces
-    /// repositories only, and is handed no image scan it would fail.
+    /// Whether this runner scans container images — `ContainerExecutor.exportsImages`, true for the Docker backend:
+    /// the claim reads it, so a worker that said no would be handed no image scan.
     pub fn exports_images(&self) -> bool {
-        false
+        true
     }
 
     pub async fn run(&self, task: ScanTask) -> Result<ScanArtifacts, ExecutionFailure> {
         let started = Instant::now();
         let repository = match &task.target {
             Target::Repository(repository) => repository.clone(),
-            Target::Image(_) => {
-                return Err(ExecutionFailure { message: IMAGE_NOT_PORTED.to_owned(), kind: FailureKind::Transient });
-            }
+            Target::Image(image) => return self.run_image(image, started).await,
         };
         let workspace = Workspace::create(&self.places.work)?;
         let mut artifacts = ScanArtifacts::default();
@@ -265,6 +315,33 @@ impl Runner {
         Ok(artifacts)
     }
 
+    /// `runImage`: one step, over an archive this process exported. Nothing else applies to an image, and nothing
+    /// else is declared scanned — each stays absent, "not looked at", which is the truth.
+    async fn run_image(&self, image: &Image, started: Instant) -> Result<ScanArtifacts, ExecutionFailure> {
+        let workspace = Workspace::create(&self.places.work)?;
+        let mut artifacts = ScanArtifacts::default();
+        let (step, sbom) = dependencies::image_step(
+            self.containers.as_ref(),
+            &self.database,
+            &self.images.syft,
+            &self.images.grype,
+            &workspace.root,
+            &image.reference.format(),
+            image.platform.as_deref().unwrap_or_default(),
+        )
+        .await;
+        if let Some(sbom) = sbom {
+            artifacts.sbom = raw(&sbom);
+        }
+        match step {
+            Ok(done) => artifacts.dependencies = findings(&done.dependencies),
+            Err(StepError::DidNotRun(reason)) => artifacts.failed("dependencies", reason),
+            Err(StepError::Failed(error)) => artifacts.failed("dependencies", error.to_string()),
+        }
+        artifacts.duration = started.elapsed();
+        Ok(artifacts)
+    }
+
     async fn clone_into(
         &self,
         repository: &vectispire_protocol::Repository,
@@ -285,8 +362,7 @@ impl Runner {
             timeout: Duration::from_secs(300),
             // As the Java agent: the hosts recorded in this process's home, a changed key refused.
             host_keys: HostKeyPolicy::AcceptNew(self.places.home.join(".ssh").join("known_hosts")),
-            // What `local` mode has always promised: no key in the task, the host's own git access.
-            without_key: WithoutKey::HostSsh,
+            without_key: self.without_key,
             https,
             trust: self.trust.clone(),
         };
@@ -408,6 +484,41 @@ mod tests {
         assert_eq!(composition.home, PathBuf::from("/var/lib/vectispire/agent-work/home"));
         let explicit = Places::from_lookup(lookup(&[("VECTISPIRE_WORK_DIR", "/w"), ("HOME", "/h")]));
         assert_eq!((explicit.work, explicit.home), (PathBuf::from("/w"), PathBuf::from("/h")));
+    }
+
+    fn runner(work: &Path, bundled_rules: Option<PathBuf>) -> Runner {
+        let places = Places { work: work.to_owned(), home: work.join("home") };
+        let options = Options { without_key: WithoutKey::None, bundled_rules };
+        Runner::with_options(None, Images::from_lookup(|_| None), places, None, TlsTrust::BuiltIn, options).unwrap()
+    }
+
+    fn unpacked(work: &Path) -> usize {
+        std::fs::read_dir(work)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().starts_with(rules::PREFIX))
+            .count()
+    }
+
+    /// `vectispire.scanning.bundled-rules`: the operator's directory is what a scan places, and the binary's own rules
+    /// are not unpacked beside it. Blank is no override.
+    #[test]
+    fn an_operator_s_rules_directory_is_placed_in_place_of_the_bundled_rules() {
+        let work = tempfile::tempdir().unwrap();
+        let operator = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(operator.path().join("semgrep")).unwrap();
+        std::fs::write(operator.path().join("semgrep/house.yml"), "rules: []\n").unwrap();
+
+        let configured = runner(work.path(), Some(operator.path().to_owned()));
+        assert_eq!(unpacked(work.path()), 0, "nothing unpacked when the operator names a directory");
+        let placed = tempfile::tempdir().unwrap();
+        configured.placement.place_bundled(placed.path()).unwrap();
+        assert!(placed.path().join("semgrep/house.yml").is_file(), "the operator's rules are the ones placed");
+        drop(configured);
+        assert!(operator.path().join("semgrep/house.yml").is_file(), "the operator's directory is never removed");
+
+        let _bundled = runner(work.path(), Some(PathBuf::new()));
+        assert_eq!(unpacked(work.path()), 1, "a blank directory unpacks the binary's own");
     }
 
     #[test]

@@ -5,8 +5,9 @@
 
 use std::time::Duration;
 
-use vectispire_cp_app::worker::{BuiltInWorker, images};
+use vectispire_cp_app::worker::{BuiltInWorker, images, options};
 use vectispire_cp_runtime::settings::{ScannerImages, Scanning, Worker};
+use vectispire_runner::WithoutKey;
 
 fn worker(enabled: bool, labels: &str) -> Worker {
     Worker { enabled, max_concurrent: 2, labels: labels.to_owned(), interval: Duration::from_secs(15) }
@@ -40,18 +41,25 @@ fn the_images_are_the_settings_and_blank_keeps_the_pin() {
     let mut configured = scanning();
     configured.images.syft = Some(" registry.example/syft:1 ".to_owned());
     configured.images.grype = Some("   ".to_owned());
-    let chosen = images(&configured).unwrap();
+    let chosen = images(&configured);
     assert_eq!(chosen.syft, "registry.example/syft:1");
     assert_eq!(chosen.grype, pinned.grype, "blank keeps the pinned digest");
     assert_eq!(chosen.gitleaks, pinned.gitleaks);
 }
 
 #[test]
-fn what_the_runner_cannot_honour_is_refused() {
-    let mut no_host_ssh = scanning();
-    no_host_ssh.host_ssh = false;
-    assert!(images(&no_host_ssh).unwrap_err().contains("host-ssh"));
-    let mut bundled = scanning();
-    bundled.bundled_rules = Some("/opt/rules".to_owned());
-    assert!(images(&bundled).unwrap_err().contains("bundled-rules"));
+fn host_ssh_and_the_bundled_rules_reach_the_runner() {
+    let defaults = options(&scanning());
+    assert_eq!(defaults.without_key, WithoutKey::HostSsh);
+    assert_eq!(defaults.bundled_rules, None);
+
+    let mut configured = scanning();
+    configured.host_ssh = false;
+    configured.bundled_rules = Some("/opt/rules".to_owned());
+    let chosen = options(&configured);
+    assert_eq!(chosen.without_key, WithoutKey::None, "off, a repository with no key is cloned with no identity");
+    assert_eq!(chosen.bundled_rules, Some(std::path::PathBuf::from("/opt/rules")));
+
+    configured.bundled_rules = Some("  ".to_owned());
+    assert_eq!(options(&configured).bundled_rules, None, "blank unpacks the binary's own");
 }

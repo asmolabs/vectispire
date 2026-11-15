@@ -21,4 +21,4 @@ mod runner;
 pub use body::{SCANNER_LABEL, create_body};
 pub use limits::ScannerLimits;
 pub use run::{ContainerRun, Mount};
-pub use runner::{ContainerResult, ContainerRunner, RunnerError};
+pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError};

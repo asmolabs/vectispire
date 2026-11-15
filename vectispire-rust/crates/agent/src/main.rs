@@ -3,8 +3,8 @@
 //! It speaks the whole agent protocol: it announces itself and its signed sealing key, claims up to its
 //! limit of scans at once, opens the credentials they carry, beats for each while it runs, and hands
 //! back a signed result or a signed, scrubbed failure report (`serve.rs`). It runs a repository scan's
-//! clone and its four analyses — dependencies, secrets, IaC, SAST — as the Java agent does (`scan.rs`);
-//! what is not ported yet (the API discovery, the language census, plugins, image targets) is reported
+//! clone and its four analyses — dependencies, secrets, IaC, SAST — and an image's inventory, as the Java agent
+//! does (`scan.rs`); what is not ported yet (the API discovery, the language census, plugins) is reported
 //! as such, never as "found nothing". Not shipped: never point it at a control plane whose scans matter.
 
 mod check;

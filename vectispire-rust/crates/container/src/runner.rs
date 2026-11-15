@@ -32,6 +32,18 @@ pub enum RunnerError {
     Unreachable { address: String, cause: String },
 }
 
+/// Why an image could not be exported for its inventory — the step's failure, which reaches the scan's page.
+///
+/// Java's are docker-java's own messages for the pull and `could not export <reference>` for the save; the daemon's
+/// cause is kept here in both, since it is the only thing that tells a typo from a registry that refused.
+#[derive(Debug, thiserror::Error)]
+pub enum ExportError {
+    #[error("The image {reference} could not be pulled: {cause}")]
+    Pull { reference: String, cause: String },
+    #[error("could not export {reference}: {cause}")]
+    Save { reference: String, cause: String },
+}
+
 /// What a run printed, and how it ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContainerResult {
@@ -177,6 +189,50 @@ impl ContainerRunner {
             stderr: String::from_utf8_lossy(&stderr).into_owned(),
             exit_code,
         })
+    }
+
+    /// Pulls `reference` for `platform` and writes it to `destination` as an archive — `ContainerRunner.exportImage`.
+    ///
+    /// **This is what replaces the socket mounted into the cataloguer**: only Vectispire talks to the daemon, and
+    /// the scanner is handed a file. The platform is **mandatory on the pull**: without it the daemon answers with
+    /// the host's own architecture, and the inventory is of a variant nobody asked to audit. The pull always runs,
+    /// as Java's does, rather than trusting a local copy that may be another platform's.
+    ///
+    /// **The save names no platform, as Java's does not**, and on Docker's containerd image store that exports the
+    /// host's variant whatever the pull fetched (measured 2026-11-15, Docker 29.1 on arm64). Harmless where the
+    /// platform setting is the host's own; a defect of both sides elsewhere, to be fixed in Java first.
+    ///
+    /// Written to a fresh file (`create_new`): the destination is in the scan's own 0700 workspace, and a file
+    /// already there is not this export's to overwrite.
+    pub async fn export_image(
+        &self,
+        reference: &str,
+        platform: &str,
+        destination: &std::path::Path,
+    ) -> Result<(), ExportError> {
+        // Blank only where the task named no platform, which Java passes on as `null`: the daemon's own then.
+        let options = match platform {
+            "" => CreateImageOptionsBuilder::new().from_image(reference).build(),
+            platform => CreateImageOptionsBuilder::new().from_image(reference).platform(platform).build(),
+        };
+        let mut pull = self.docker.create_image(Some(options), None, None);
+        while let Some(progress) = pull.next().await {
+            progress
+                .map_err(|error| ExportError::Pull { reference: reference.to_owned(), cause: error.to_string() })?;
+        }
+        let could_not_export = |cause: String| ExportError::Save { reference: reference.to_owned(), cause };
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination)
+            .map_err(|error| could_not_export(error.to_string()))?;
+        let mut archive = self.docker.export_image(reference);
+        while let Some(chunk) = archive.next().await {
+            let chunk = chunk.map_err(|error| could_not_export(error.to_string()))?;
+            std::io::Write::write_all(&mut file, &chunk).map_err(|error| could_not_export(error.to_string()))?;
+        }
+        // A short write the kernel has not reported yet would be a truncated archive the cataloguer reads as less.
+        file.sync_all().map_err(|error| could_not_export(error.to_string()))
     }
 
     /// Pulls the image if the host lacks it: the create call never pulls, and nothing else will.
