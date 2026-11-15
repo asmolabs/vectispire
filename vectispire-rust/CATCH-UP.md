@@ -201,8 +201,10 @@ causes rather than one by one. Counts are recordings.
       `branch` read as null in the activity, is fixed.
 - [x] **SIEM configuration**: `PUT /siem/config` and `POST /siem/test` answer differently (the integration switch, a
       CA that is not current refused) — 14; `tlsCa*` fields null where the contract says string.
-- [ ] **Recordings that cannot be replayed yet** — 1 (was 64): a request of the test the replay cannot rebuild.
-      Left: MockMvc's charset on a wrong content type — an accepted difference, pinned by cp-http's own capture.
+- [x] **Recordings that cannot be replayed yet** — closed 2026-11-15 (was 64): a request of the test the replay
+      cannot rebuild. One line stays in `golden/deferred/_recording.txt` by decision, not as work owed: MockMvc's charset
+      on a wrong content type, which the container does not add — cp-http answers the container's sentence, pinned by
+      its own capture (`crates/cp-http/tests/golden`). Accepted 2026-11-15.
 
       *Bodies and the collector done 2026-11-15:*
       - *A sidecar body that is at most 64 runs of one byte (the bounds' padding) is also recorded as `runs`, which the
