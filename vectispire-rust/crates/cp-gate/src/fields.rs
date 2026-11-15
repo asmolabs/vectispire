@@ -1,6 +1,6 @@
 //! What a caller sent about a gate policy, every field boxed — and the one reading of it.
 
-use vectispire_domain::Severity;
+use vectispire_domain::{Severity, java};
 
 use crate::error::GateError;
 use crate::flag::PolicyFlag;
@@ -71,7 +71,9 @@ impl GatePolicyFields {
     /// from what is already stored (except the two newest flags).
     pub fn as_replacement(&self) -> Result<GatePolicy, GateError> {
         let fail_on_severity = match &self.fail_on_severity {
-            Some(s) if !s.trim().is_empty() => s,
+            // `isBlank`: Java's whitespace, which leaves the no-break spaces in — Rust's `trim` takes them and would
+            // answer "required" where Java answers "Unknown severity".
+            Some(s) if !java::is_blank(s) => s,
             _ => {
                 return Err(GateError::InvalidInput(
                     "\"fail_on_severity\" is required — a severity, or \"none\" to switch the rule off.".to_owned(),
@@ -98,11 +100,11 @@ impl GatePolicyFields {
 
     /// "none" switches the severity rule off; anything else is a threshold.
     fn severity(value: &str) -> Result<SeverityRequest, GateError> {
-        let trimmed = value.trim();
-        if trimmed.eq_ignore_ascii_case("none") {
+        // `String.trim`: everything up to U+0020 off both ends, the controls included and nothing beyond.
+        if java::trim(value).eq_ignore_ascii_case("none") {
             return Ok(SeverityRequest::Disabled);
         }
-        let sev = Severity::of(Some(trimmed));
+        let sev = Severity::of(Some(value));
         if sev == Severity::Unknown {
             return Err(GateError::InvalidInput(format!("Unknown severity: \"{value}\".")));
         }

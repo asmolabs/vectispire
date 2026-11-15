@@ -1,6 +1,0 @@
-# The recordings not replayed yet that `gate`'s port ends: its routes, and its stand-ins the served routes meet.
-# README.md beside this file says the format and the rules.
-ceiling 1
-
-# ── Routes not ported: the module, and the phase and task that ports it ──
-route POST /api/v1/gate | gate — Phase 3

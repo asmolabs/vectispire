@@ -43,7 +43,9 @@ pub fn query_int(query: Option<&str>, name: &str) -> Result<Option<i32>, Problem
     let Some(raw) = first_value(query, name) else {
         return Ok(None);
     };
-    if raw.trim().is_empty() {
+    // Spring applies `defaultValue` to an empty value only: " " reaches the conversion, which strips every space and
+    // refuses what is left.
+    if raw.is_empty() {
         return Ok(None);
     }
     match java_long(&raw).and_then(|val| i32::try_from(val).ok()) {
@@ -64,23 +66,25 @@ fn first_value(query: Option<&str>, name: &str) -> Option<String> {
     })
 }
 
+/// The bytes decoded, then read as UTF-8 as the servlet container does: pushing each byte as a `char` read `%C3%A9`
+/// as two Latin-1 characters, and a refusal quoted the value Java does not.
 fn decode(text: &str) -> String {
-    let mut decoded = String::with_capacity(text.len());
+    let mut decoded = Vec::with_capacity(text.len());
     let mut bytes = text.bytes();
     while let Some(b) = bytes.next() {
         if b == b'+' {
-            decoded.push(' ');
+            decoded.push(b' ');
         } else if b == b'%' {
             let h1 = bytes.next().and_then(hex_val);
             let h2 = bytes.next().and_then(hex_val);
             if let (Some(h1), Some(h2)) = (h1, h2) {
-                decoded.push(((h1 << 4) | h2) as char);
+                decoded.push((h1 << 4) | h2);
             }
         } else {
-            decoded.push(b as char);
+            decoded.push(b);
         }
     }
-    decoded
+    String::from_utf8_lossy(&decoded).into_owned()
 }
 
 fn hex_val(b: u8) -> Option<u8> {
