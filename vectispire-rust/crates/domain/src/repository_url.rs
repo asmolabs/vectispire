@@ -164,7 +164,8 @@ pub struct InvalidHost(pub String);
 
 /// A host as a token is bound to it: lower case, no trailing dot, no port, no scheme.
 pub fn normalize_host(host: &str) -> Result<String, InvalidHost> {
-    let mut value = host.trim().to_lowercase();
+    // `String.trim`, not `str::trim`: a host wrapped in a no-break space is refused, as Java refuses it.
+    let mut value = crate::java::trim(host).to_lowercase();
     while value.ends_with('.') {
         value.pop();
     }

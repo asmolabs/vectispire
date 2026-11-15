@@ -69,11 +69,19 @@ pub struct Declaration {
     pub max_concurrent: Option<i32>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+/// The agent's API key, shown once. **No derived `Debug`**: a `tracing::debug!(?declared)` would have printed the key,
+/// and the semgrep rule that keeps a `Secret` out of a log line cannot see a `String` (review 2026-11).
+#[derive(Clone, serde::Serialize)]
 pub struct DeclaredAgent {
     pub id: Uuid,
     pub name: String,
     pub secret: String,
+}
+
+impl std::fmt::Debug for DeclaredAgent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeclaredAgent").field("id", &self.id).field("name", &self.name).finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -90,11 +98,23 @@ pub struct Changed {
     pub labels: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+/// A pinned signing key — with the generated seed, shown once, when the control plane made the pair. **No derived
+/// `Debug`**, for the seed's sake (see [`DeclaredAgent`]).
+#[derive(Clone)]
 pub struct PinnedKey {
     pub id: Uuid,
     pub signs_results: bool,
     pub private_key: Option<String>,
+}
+
+impl std::fmt::Debug for PinnedKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PinnedKey")
+            .field("id", &self.id)
+            .field("signs_results", &self.signs_results)
+            .field("private_key", &self.private_key.as_ref().map(|_| "***"))
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -931,4 +951,19 @@ fn can_be_handed(agent: &AgentRow) -> bool {
         executors: WorkerExecutors::read(agent.executors.as_deref()),
     };
     can_be_handed_credentials(&ca)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A one-time secret never reaches a log line through `{:?}`.
+    #[test]
+    fn the_one_time_secrets_are_not_debug_printed() {
+        let declared = DeclaredAgent { id: Uuid::nil(), name: "builder".into(), secret: "vs_agent_the-key".into() };
+        let pinned = PinnedKey { id: Uuid::nil(), signs_results: true, private_key: Some("the-seed".into()) };
+        let printed = format!("{declared:?} {pinned:?}");
+        assert!(!printed.contains("the-key") && !printed.contains("the-seed"), "{printed}");
+        assert!(printed.contains("builder"), "the rest is still said: {printed}");
+    }
 }
