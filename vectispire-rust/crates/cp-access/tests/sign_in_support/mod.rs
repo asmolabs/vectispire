@@ -12,7 +12,8 @@ use time::OffsetDateTime;
 use time::macros::datetime;
 use uuid::Uuid;
 use vectispire_cp_access::accounts::{
-    AccountStore, Audit, AuditRecord, NewUser, PasswordHash, RevokedKey, SessionHash, StoreError, User,
+    AccountRequest, AccountStore, Audit, AuditRecord, Decided, Decision, Filing, NewAccountRequest, NewUser,
+    PasswordHash, Recorded, RevokedKey, SessionHash, StoreError, User,
 };
 use vectispire_cp_access::credentials::{Clock, IssuedSession, SessionView, keys};
 use vectispire_cp_access::passwords;
@@ -144,6 +145,25 @@ pub fn account(id: i64, username: &str, active: bool) -> User {
 }
 
 impl AccountStore for Memory {
+    async fn count_other_admins(&self, _: &[&str], _: i64) -> Result<u64, StoreError> {
+        Ok(0)
+    }
+    async fn requests_in(&self, _: &str) -> Result<Vec<AccountRequest>, StoreError> {
+        Ok(Vec::new())
+    }
+    async fn find_request(&self, _: i64) -> Result<Option<AccountRequest>, StoreError> {
+        Ok(None)
+    }
+    async fn request_pending_for(&self, _: i64) -> Result<bool, StoreError> {
+        Ok(false)
+    }
+    async fn file_request(&self, _: NewAccountRequest) -> Result<Filing, StoreError> {
+        Err(StoreError("four-eyes is off in memory".into()))
+    }
+    async fn decide_request(&self, _: Decision) -> Result<Decided, StoreError> {
+        Err(StoreError("four-eyes is off in memory".into()))
+    }
+
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, StoreError> {
         Ok(self.guard()?.users.get(&id).cloned())
     }
@@ -161,7 +181,7 @@ impl AccountStore for Memory {
         Err(StoreError("not used by the sign-in".into()))
     }
 
-    async fn insert(&self, _: NewUser) -> Result<User, StoreError> {
+    async fn insert(&self, _: NewUser, _: &Recorded) -> Result<User, StoreError> {
         Err(StoreError("not used by the sign-in".into()))
     }
 
@@ -169,11 +189,11 @@ impl AccountStore for Memory {
         Err(StoreError("not used by the sign-in".into()))
     }
 
-    async fn save(&self, _: &User, _: bool) -> Result<(), StoreError> {
+    async fn save(&self, _: &User, _: bool, _: &Recorded) -> Result<(), StoreError> {
         Err(StoreError("not used by the sign-in".into()))
     }
 
-    async fn save_revoking_everything(&self, _: &User) -> Result<Vec<RevokedKey>, StoreError> {
+    async fn save_revoking_everything(&self, _: &User, _: &Recorded) -> Result<Vec<RevokedKey>, StoreError> {
         Err(StoreError("not used by the sign-in".into()))
     }
 

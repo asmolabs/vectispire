@@ -13,7 +13,7 @@ use time::OffsetDateTime;
 use time::macros::datetime;
 use vectispire_cp_access::SqlAccountStore;
 use vectispire_cp_access::accounts::{
-    AccountStore, Accounts, Audit, AuditRecord, Clock, NewAccount, NewUser, PasswordHash, Sealed, SessionHash,
+    AccountStore, Accounts, Audit, AuditRecord, Clock, NewAccount, NewUser, PasswordHash, Recorded, Sealed, SessionHash,
 };
 use vectispire_cp_access::passwords;
 use vectispire_cp_db::Engine;
@@ -74,7 +74,7 @@ async fn round_trip(engine: Engine) {
     let store = SqlAccountStore::new(db.clone(), RawCredentials);
 
     // ── insert, read back field by field, by id and by name
-    let inserted = store.insert(new_user("alice", "ADMIN")).await.unwrap();
+    let inserted = store.insert(new_user("alice", "ADMIN"), &Recorded::nothing()).await.unwrap();
     assert_eq!(inserted.username, "alice");
     assert_eq!(inserted.email.as_deref(), Some("alice@example.org"));
     assert_eq!(inserted.display_name.as_deref(), Some("Display alice"));
@@ -101,13 +101,13 @@ async fn round_trip(engine: Engine) {
     changed.scim_lowered_from = Some("CISO".to_owned());
     changed.updated_at = LATER;
     session(&migrated, inserted.id, "s-one");
-    store.save(&changed, false).await.unwrap();
+    store.save(&changed, false, &Recorded::nothing()).await.unwrap();
     assert_eq!(store.find_by_id(inserted.id).await.unwrap(), Some(changed.clone()));
     assert_eq!(sessions_of(&migrated, inserted.id), ["s-one"], "no revocation asked");
-    store.save(&changed, true).await.unwrap();
+    store.save(&changed, true, &Recorded::nothing()).await.unwrap();
     assert!(sessions_of(&migrated, inserted.id).is_empty(), "{engine}: the sessions close with the save");
     changed.scim_lowered_from = None;
-    store.save(&changed, false).await.unwrap();
+    store.save(&changed, false, &Recorded::nothing()).await.unwrap();
     assert_eq!(store.find_by_id(inserted.id).await.unwrap().unwrap().scim_lowered_from, None, "{engine}: cleared");
 
     // ── another account's address, without case; one's own is not another's
@@ -116,7 +116,7 @@ async fn round_trip(engine: Engine) {
     assert!(!store.email_taken("nobody@example.org", -1).await.unwrap());
 
     // ── one's own password: the spared session stays, the flag clears
-    let bob = store.insert(new_user("bob", "USER")).await.unwrap();
+    let bob = store.insert(new_user("bob", "USER"), &Recorded::nothing()).await.unwrap();
     session(&migrated, bob.id, "s-kept");
     session(&migrated, bob.id, "s-other");
     let fresh = PasswordHash::new(passwords::hash("a new invented passphrase"));
@@ -132,14 +132,14 @@ async fn round_trip(engine: Engine) {
     assert_eq!(sessions_of(&migrated, bob.id), ["s-kept", "s-third"]);
 
     // ── everything at once, then the rehash and the counts
-    store.save_revoking_everything(&after).await.unwrap();
+    store.save_revoking_everything(&after, &Recorded::nothing()).await.unwrap();
     assert!(sessions_of(&migrated, bob.id).is_empty());
     let weaker = PasswordHash::new(passwords::hash_with(PASSWORD, 4096, 1, 1).unwrap());
     store.rehash(bob.id, weaker.clone()).await.unwrap();
     assert_eq!(store.find_by_id(bob.id).await.unwrap().unwrap().password, Some(weaker));
 
-    store.insert(new_user("carol", "SUPERUSER")).await.unwrap();
-    let dave = store.insert(new_user("dave", "ADMIN")).await.unwrap();
+    store.insert(new_user("carol", "SUPERUSER"), &Recorded::nothing()).await.unwrap();
+    let dave = store.insert(new_user("dave", "ADMIN"), &Recorded::nothing()).await.unwrap();
     // alice is inactive now; carol (SUPERUSER) and dave (ADMIN) are active administrators.
     assert_eq!(store.count_other_active_admins(&["SUPERUSER", "ADMIN"], dave.id).await.unwrap(), 1);
     assert_eq!(store.count_other_active_admins(&["SUPERUSER", "ADMIN"], 0).await.unwrap(), 2);
@@ -184,6 +184,8 @@ async fn round_trip(engine: Engine) {
             &Default::default(),
         )
         .await
+        .unwrap()
+        .applied()
         .unwrap();
     assert!(created.user.must_change_password);
     let signed = accounts.check_sign_in_password(Some("erin"), Some(PASSWORD)).await.unwrap();

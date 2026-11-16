@@ -233,12 +233,14 @@ impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
     }
 
     /// `members`: the accounts in the team, by identifier.
-    pub async fn members(&self, id: i64) -> Result<Vec<i64>, AdminError> {
+    pub async fn members(&self, id: i64, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<i64>, AdminError> {
         let mut tx = store::read(&self.db).await?;
         require_team(&mut tx, id).await?;
+        // After the team's 404, as Java reads the window once the team is known.
+        let window = ListWindow::requested(limit, offset).map_err(AdminError::InvalidInput)?;
         let members = store::members_of(&mut tx, id).await?;
         store::commit(tx).await?;
-        Ok(members)
+        Ok(window.map_or(members.clone(), |page| page.of(&members)))
     }
 
     /// `replaceMembers`: wholesale — the operation that matters is removing somebody, and a server that only adds is
@@ -287,12 +289,20 @@ impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
     }
 
     /// `targets`: what the team owns, each named — a project grant included, which no selector lists.
-    pub async fn targets(&self, id: i64) -> Result<Vec<TargetGrant>, AdminError> {
+    pub async fn targets(
+        &self,
+        id: i64,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<TargetGrant>, AdminError> {
         let mut tx = store::read(&self.db).await?;
         require_team(&mut tx, id).await?;
+        let window = ListWindow::requested(limit, offset).map_err(AdminError::InvalidInput)?;
+        // By kind, then id — the primary key's order — and named for the page's rows only.
         let grants = store::team_targets(&mut tx, id).await?;
         store::commit(tx).await?;
-        Ok(self.targets.named(&grants).await?)
+        let page = window.map_or(grants.clone(), |page| page.of(&grants));
+        Ok(self.targets.named(&page).await?)
     }
 
     /// `replaceTargets`: wholesale. An entry absent or without an identifier is skipped; the kind is validated against

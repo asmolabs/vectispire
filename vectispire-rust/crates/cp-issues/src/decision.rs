@@ -1,6 +1,7 @@
 //! Human decisions on issues: triage, bulk triage, and ticket attachment.
 
 use std::sync::Arc;
+use vectispire_cp_access::accounts::ApproverIndependence;
 
 use vectispire_cp_audit::{AuditLog, AuditOperation, Record};
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
@@ -52,6 +53,7 @@ pub struct IssueDecisionService {
     db: Db,
     settings: Arc<Settings>,
     audit: Arc<AuditLog>,
+    independence: ApproverIndependence,
 }
 
 impl IssueDecisionService {
@@ -60,7 +62,8 @@ impl IssueDecisionService {
     pub const MAX_TICKET_URL: usize = 500;
 
     pub fn new(db: Db, settings: Arc<Settings>, audit: Arc<AuditLog>) -> Self {
-        Self { db, settings, audit }
+        let independence = ApproverIndependence::new(db.clone(), settings.clone());
+        Self { db, settings, audit, independence }
     }
 
     /// Records one triage decision.
@@ -79,7 +82,7 @@ impl IssueDecisionService {
         let previous = issue.triage_status.clone();
 
         let request = decision.to_request(actor.clone());
-        let updated = IssueTriageService::triage(&mut tx, id, &request, can_approve).await?;
+        let updated = IssueTriageService::triage(&mut tx, id, &request, can_approve, &self.independence).await?;
         crate::persistence::commit(tx).await?;
 
         // Audit log
@@ -127,8 +130,15 @@ impl IssueDecisionService {
 
         let mut tx = crate::persistence::write(&self.db).await?;
         let request = decision.to_request(actor.clone());
-        let result =
-            IssueTriageService::triage_visible(&mut tx, ids, &request, can_approve, &caller.visibility).await?;
+        let result = IssueTriageService::triage_visible(
+            &mut tx,
+            ids,
+            &request,
+            can_approve,
+            &caller.visibility,
+            &self.independence,
+        )
+        .await?;
         crate::persistence::commit(tx).await?;
 
         // One audit entry for bulk triage

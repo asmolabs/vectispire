@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_account_administration (account_id, administrator_id, gesture, held_role, occurred_at) values (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "2797b9a198912995aeca7e0ca23f63ce4cd062a154e039cad7cd059dff555b2f"
+}

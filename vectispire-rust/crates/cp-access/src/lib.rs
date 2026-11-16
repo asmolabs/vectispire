@@ -35,6 +35,7 @@ pub mod approvers;
 pub mod credentials;
 pub mod derivations;
 pub mod four_eyes;
+pub mod independence;
 mod internal;
 pub mod login_throttle;
 pub mod passwords;

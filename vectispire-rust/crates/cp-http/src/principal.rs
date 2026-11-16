@@ -74,6 +74,13 @@ impl Role {
         matches!(self, Role::Admin | Role::Ciso | Role::SecurityChampion)
     }
 
+    /// `Role.approves()`: has a say in a four-eyes decision — approves a triage, or administers accounts and so
+    /// approves another administrator's account request. The governor, who approves no triage, is one; an auditor and
+    /// an ordinary user are not.
+    pub fn approves(self) -> bool {
+        self.can_approve_triage() || self.is_administrative()
+    }
+
     /// `Role.governsPlatform()`: the superuser who governs the rules and takes no operational triage decisions.
     pub fn governs_platform(self) -> bool {
         matches!(self, Role::Superuser)

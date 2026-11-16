@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex};
 use time::OffsetDateTime;
 use time::macros::datetime;
 use vectispire_cp_access::accounts::{
-    AccountChange, AccountError, AccountStore, Accounts, Audit, AuditOperation, AuditRecord, Clock, NewAccount,
-    NewUser, PasswordAttempts, PasswordChange, PasswordHash, RequestActor, RevokedKey, SessionHash, StoreError,
-    StoreOr, User,
+    AccountChange, AccountError, AccountRequest, AccountStore, Accounts, Audit, AuditOperation, AuditRecord, Clock,
+    Decided, Decision, Filing, NewAccount, NewAccountRequest, NewUser, PasswordAttempts, PasswordChange, PasswordHash,
+    Recorded, RequestActor, RevokedKey, SessionHash, StoreError, StoreOr, User,
 };
 use vectispire_cp_access::passwords;
 use vectispire_domain::secret::Secret;
@@ -59,6 +59,25 @@ impl Memory {
 }
 
 impl AccountStore for Memory {
+    async fn count_other_admins(&self, _: &[&str], _: i64) -> Result<u64, StoreError> {
+        Ok(0)
+    }
+    async fn requests_in(&self, _: &str) -> Result<Vec<AccountRequest>, StoreError> {
+        Ok(Vec::new())
+    }
+    async fn find_request(&self, _: i64) -> Result<Option<AccountRequest>, StoreError> {
+        Ok(None)
+    }
+    async fn request_pending_for(&self, _: i64) -> Result<bool, StoreError> {
+        Ok(false)
+    }
+    async fn file_request(&self, _: NewAccountRequest) -> Result<Filing, StoreError> {
+        Err(StoreError("four-eyes is off in memory".into()))
+    }
+    async fn decide_request(&self, _: Decision) -> Result<Decided, StoreError> {
+        Err(StoreError("four-eyes is off in memory".into()))
+    }
+
     async fn find_by_id(&self, id: i64) -> Result<Option<User>, StoreError> {
         Ok(self.0.lock().unwrap().users.get(&id).cloned())
     }
@@ -78,7 +97,7 @@ impl AccountStore for Memory {
                 && user.email.as_deref().is_some_and(|held| held.to_uppercase() == email.to_uppercase())
         }))
     }
-    async fn insert(&self, user: NewUser) -> Result<User, StoreError> {
+    async fn insert(&self, user: NewUser, _: &Recorded) -> Result<User, StoreError> {
         let mut state = self.0.lock().unwrap();
         state.next_id += 1;
         let saved = User {
@@ -106,7 +125,7 @@ impl AccountStore for Memory {
         state.writes.push(Write::Insert(user.username));
         Ok(saved)
     }
-    async fn save(&self, user: &User, revoke_sessions: bool) -> Result<(), StoreError> {
+    async fn save(&self, user: &User, revoke_sessions: bool, _: &Recorded) -> Result<(), StoreError> {
         let mut state = self.0.lock().unwrap();
         state.users.insert(user.id, user.clone());
         if revoke_sessions {
@@ -115,7 +134,7 @@ impl AccountStore for Memory {
         state.writes.push(Write::Save { id: user.id, revoke_sessions });
         Ok(())
     }
-    async fn save_revoking_everything(&self, user: &User) -> Result<Vec<RevokedKey>, StoreError> {
+    async fn save_revoking_everything(&self, user: &User, _: &Recorded) -> Result<Vec<RevokedKey>, StoreError> {
         let mut state = self.0.lock().unwrap();
         state.users.insert(user.id, user.clone());
         state.sessions.remove(&user.id);
@@ -274,7 +293,7 @@ async fn an_account_is_created_owing_a_password_change_with_its_role_upper_cased
         email: Some("  dana@example.org ".to_owned()),
         display_name: Some("   ".to_owned()),
     };
-    let created = accounts.create(request, None, &actor()).await.unwrap();
+    let created = accounts.create(request, None, &actor()).await.unwrap().applied().unwrap();
     assert_eq!(created.user.username, "dana");
     assert_eq!(created.user.role, "CISO");
     assert!(created.user.must_change_password);
@@ -299,6 +318,8 @@ async fn no_role_is_a_user() {
             &actor(),
         )
         .await
+        .unwrap()
+        .applied()
         .unwrap();
     assert_eq!(created.user.role, "USER");
 }
@@ -365,7 +386,7 @@ async fn a_reset_sets_the_flag_closes_the_sessions_and_takes_the_keys_each_audit
     store.0.lock().unwrap().keys.insert(2, vec![key.clone()]);
     store.0.lock().unwrap().sessions.insert(2, 3);
     let change = AccountChange { password: secret("a new invented passphrase"), ..AccountChange::default() };
-    let updated = accounts.update(2, change, Some(1), &actor()).await.unwrap();
+    let updated = accounts.update(2, change, Some(1), &actor()).await.unwrap().applied().unwrap();
     assert_eq!(store.writes(), vec![Write::SaveRevokingEverything(2)]);
     assert!(updated.user.must_change_password);
     assert_eq!(updated.active_sessions, 0);
@@ -387,7 +408,7 @@ async fn a_role_change_or_a_deactivation_closes_the_sessions_and_nothing_else_ke
     store.with(account(2, "hal", "USER"));
     store.0.lock().unwrap().sessions.insert(2, 2);
 
-    let unchanged = accounts.update(2, AccountChange::default(), Some(1), &actor()).await.unwrap();
+    let unchanged = accounts.update(2, AccountChange::default(), Some(1), &actor()).await.unwrap().applied().unwrap();
     assert_eq!(unchanged.active_sessions, 2);
     assert!(log.entries().is_empty(), "nothing changed, nothing recorded");
 
@@ -494,12 +515,12 @@ async fn an_e_mail_address_is_set_changed_and_cleared_and_the_entry_never_names_
     store.with(account(1, "admin", "ADMIN"));
     store.with(account(2, "ivy", "USER"));
 
-    let set = accounts.update(2, email("  ivy@example.org "), Some(1), &actor()).await.unwrap();
+    let set = accounts.update(2, email("  ivy@example.org "), Some(1), &actor()).await.unwrap().applied().unwrap();
     assert_eq!(set.user.email.as_deref(), Some("ivy@example.org"));
     accounts.update(2, email("ivy@corp.example"), Some(1), &actor()).await.unwrap();
     // The address it holds, sent back: no change, no entry.
     accounts.update(2, email("ivy@corp.example"), Some(1), &actor()).await.unwrap();
-    let cleared = accounts.update(2, email("   "), Some(1), &actor()).await.unwrap();
+    let cleared = accounts.update(2, email("   "), Some(1), &actor()).await.unwrap().applied().unwrap();
     assert_eq!(cleared.user.email, None);
     let said: Vec<String> = log.entries().into_iter().map(|entry| entry.description).collect();
     assert_eq!(
@@ -581,6 +602,8 @@ async fn the_address_of_an_account_the_directory_writes_is_the_directory_s() {
             &actor(),
         )
         .await
+        .unwrap()
+        .applied()
         .unwrap();
     assert_eq!((kept.user.email.as_deref(), kept.user.role.as_str()), (Some("joe@corp.example"), "CISO"));
 }

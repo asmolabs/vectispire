@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_account_request set status = $1, decided_by = $2, decided_at = $3, password_hash = null where id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "555e81c7b7e7b2e775ae8f68b31f6832c960ed14d0ccd9da27acd53af446e088"
+}

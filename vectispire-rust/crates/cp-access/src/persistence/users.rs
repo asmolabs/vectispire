@@ -23,7 +23,11 @@ use std::collections::HashMap;
 use time::OffsetDateTime;
 use vectispire_cp_db::{Db, Mode, Tx};
 
-use crate::persistence::model::{AccountStore, NewUser, PasswordHash, RevokedKey, SessionHash, StoreError, User};
+use crate::persistence::four_eyes;
+use crate::persistence::model::{
+    AccountRequest, AccountStore, Apply, Decided, Decision, Filing, NewAccountRequest, NewUser, PasswordHash, Recorded,
+    RevokedKey, SessionHash, StoreError, User,
+};
 
 impl From<sqlx::Error> for StoreError {
     fn from(error: sqlx::Error) -> StoreError {
@@ -78,6 +82,23 @@ impl<K: SessionsAndKeys + Sync> SqlAccountStore<K> {
             Tx::MySql(tx) => mysql::update_row(tx, user).await,
             Tx::PostgreSql(tx) => postgres::update_row(tx, user).await,
         }
+    }
+
+    async fn insert_in(tx: &mut Tx, user: &NewUser) -> Result<i64, StoreError> {
+        match tx {
+            Tx::MySql(tx) => mysql::insert(tx, user).await,
+            Tx::PostgreSql(tx) => postgres::insert(tx, user).await,
+        }
+    }
+
+    /// `ApproverIndependence.recorded`, in the transaction of the write it records.
+    async fn record_in(tx: &mut Tx, account_id: i64, recorded: &Recorded) -> Result<(), StoreError> {
+        let Some(at) = recorded.at else { return Ok(()) };
+        for (administrator, gesture) in recorded.rows(account_id) {
+            four_eyes::record_gesture(tx, account_id, administrator, gesture, recorded.held_role.as_deref(), at)
+                .await?;
+        }
+        Ok(())
     }
 }
 
@@ -176,7 +197,7 @@ mod mysql {
         Ok(taken > 0)
     }
 
-    pub(super) async fn insert(pool: &MySqlPool, user: &NewUser) -> Result<i64, StoreError> {
+    pub(super) async fn insert(connection: &mut MySqlConnection, user: &NewUser) -> Result<i64, StoreError> {
         let done = sqlx::query!(
             "/* mysql */ insert into t_user (username, email, password, display_name, role, is_active, created_at, \
              updated_at, must_change_password, mfa_enabled) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -191,7 +212,7 @@ mod mysql {
             user.must_change_password,
             false
         )
-        .execute(pool)
+        .execute(connection)
         .await?;
         i64::try_from(done.last_insert_id()).map_err(|error| StoreError(Box::new(error)))
     }
@@ -336,7 +357,7 @@ mod postgres {
         Ok(taken)
     }
 
-    pub(super) async fn insert(pool: &PgPool, user: &NewUser) -> Result<i64, StoreError> {
+    pub(super) async fn insert(connection: &mut PgConnection, user: &NewUser) -> Result<i64, StoreError> {
         let id = sqlx::query_scalar!(
             "/* postgres */ insert into t_user (username, email, password, display_name, role, is_active, created_at, \
              updated_at, must_change_password, mfa_enabled) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
@@ -352,7 +373,7 @@ mod postgres {
             user.must_change_password,
             false
         )
-        .fetch_one(pool)
+        .fetch_one(connection)
         .await?;
         Ok(id)
     }
@@ -460,7 +481,7 @@ mod unprepared {
     pub(super) async fn all_by_username<P>(_: &P) -> Result<Vec<User>, StoreError> {
         absent()
     }
-    pub(super) async fn insert<P>(_: &P, _: &NewUser) -> Result<i64, StoreError> {
+    pub(super) async fn insert<C>(_: &mut C, _: &NewUser) -> Result<i64, StoreError> {
         absent()
     }
     pub(super) async fn email_taken<P>(_: &P, _: &str, _: i64) -> Result<bool, StoreError> {
@@ -517,31 +538,33 @@ impl<K: SessionsAndKeys + Sync> AccountStore for SqlAccountStore<K> {
         }
     }
 
-    async fn insert(&self, user: NewUser) -> Result<User, StoreError> {
-        let id = match &self.db {
-            Db::MySql(pool) => mysql::insert(pool, &user).await?,
-            Db::PostgreSql(pool) => postgres::insert(pool, &user).await?,
-        };
+    async fn insert(&self, user: NewUser, recorded: &Recorded) -> Result<User, StoreError> {
+        let mut tx = self.db.begin(Mode::ReadWrite).await?;
+        let id = Self::insert_in(&mut tx, &user).await?;
+        Self::record_in(&mut tx, id, recorded).await?;
+        tx.commit().await?;
         self.find_by_id(id)
             .await?
             .ok_or_else(|| StoreError(format!("the account {id} just inserted is not there").into()))
     }
 
-    async fn save(&self, user: &User, revoke_sessions: bool) -> Result<(), StoreError> {
+    async fn save(&self, user: &User, revoke_sessions: bool, recorded: &Recorded) -> Result<(), StoreError> {
         let mut tx = self.db.begin(Mode::ReadWrite).await?;
         Self::update_row(&mut tx, user).await?;
         if revoke_sessions {
             self.credentials.delete_sessions(&mut tx, user.id).await?;
         }
+        Self::record_in(&mut tx, user.id, recorded).await?;
         tx.commit().await?;
         Ok(())
     }
 
-    async fn save_revoking_everything(&self, user: &User) -> Result<Vec<RevokedKey>, StoreError> {
+    async fn save_revoking_everything(&self, user: &User, recorded: &Recorded) -> Result<Vec<RevokedKey>, StoreError> {
         let mut tx = self.db.begin(Mode::ReadWrite).await?;
         Self::update_row(&mut tx, user).await?;
         self.credentials.delete_sessions(&mut tx, user.id).await?;
         let revoked = self.credentials.revoke_owned_keys(&mut tx, user.id).await?;
+        Self::record_in(&mut tx, user.id, recorded).await?;
         tx.commit().await?;
         Ok(revoked)
     }
@@ -597,5 +620,91 @@ impl<K: SessionsAndKeys + Sync> AccountStore for SqlAccountStore<K> {
 
     async fn active_sessions_by_user(&self, at: OffsetDateTime) -> Result<HashMap<i64, u64>, StoreError> {
         self.credentials.count_active_by_user(&self.db, at).await
+    }
+
+    async fn count_other_admins(&self, roles: &[&str], excluding: i64) -> Result<u64, StoreError> {
+        let count = four_eyes::count_other_admins(&self.db, roles, excluding).await?;
+        u64::try_from(count).map_err(|error| StoreError(Box::new(error)))
+    }
+
+    async fn requests_in(&self, status: &str) -> Result<Vec<AccountRequest>, StoreError> {
+        four_eyes::requests_in(&self.db, status).await
+    }
+
+    async fn find_request(&self, id: i64) -> Result<Option<AccountRequest>, StoreError> {
+        four_eyes::find_request(&self.db, id).await
+    }
+
+    async fn request_pending_for(&self, account_id: i64) -> Result<bool, StoreError> {
+        four_eyes::pending_for(&self.db, account_id).await
+    }
+
+    /// One request waiting per account: under the account's row lock, so that two administrators filing at once are
+    /// ordered and the second meets the first one's request. A creation has no row to lock; two of the same name are
+    /// caught when the second is approved, by the username check and its unique key.
+    async fn file_request(&self, request: NewAccountRequest) -> Result<Filing, StoreError> {
+        let mut tx = self.db.begin(Mode::ReadWrite).await?;
+        if let Some(account_id) = request.account_id {
+            four_eyes::lock_account(&mut tx, account_id).await?;
+            if four_eyes::pending_for_in(&mut tx, account_id).await? {
+                return Ok(Filing::AccountPending);
+            }
+        } else if four_eyes::creation_pending(&mut tx, &request.username).await? {
+            return Ok(Filing::NamePending);
+        }
+        let id = four_eyes::insert_request(&mut tx, &request).await?;
+        tx.commit().await?;
+        let filed = self
+            .find_request(id)
+            .await?
+            .ok_or_else(|| StoreError(format!("the account request {id} just filed is not there").into()))?;
+        Ok(Filing::Filed(Box::new(filed)))
+    }
+
+    /// Under the request's row lock: the second of two administrators deciding at once reads the first one's
+    /// decision rather than applying the change again. A change is written only if the account's role is still the one
+    /// the request was filed against, read under the account's lock — a role that moved in between makes the request
+    /// stale rather than overwriting whoever moved it.
+    async fn decide_request(&self, decision: Decision) -> Result<Decided, StoreError> {
+        let mut tx = self.db.begin(Mode::ReadWrite).await?;
+        let Some(request) = four_eyes::lock_request(&mut tx, decision.request_id).await? else {
+            return Ok(Decided::NotFound);
+        };
+        if request.status != "pending" {
+            return Ok(Decided::AlreadyDecided { status: request.status, decided_by: request.decided_by });
+        }
+        let mut account_id = None;
+        let mut revoked = Vec::new();
+        match &decision.apply {
+            None => {}
+            Some(Apply::Create(user, recorded)) => {
+                let id = Self::insert_in(&mut tx, user).await?;
+                Self::record_in(&mut tx, id, recorded).await?;
+                account_id = Some(id);
+            }
+            Some(Apply::Change { user, held_role, revoke_sessions, revoke_keys, recorded }) => {
+                match four_eyes::lock_account(&mut tx, user.id).await? {
+                    None => return Ok(Decided::AccountGone),
+                    Some(role) if role != *held_role => return Ok(Decided::RoleMoved(user.username.clone())),
+                    Some(_) => {}
+                }
+                Self::update_row(&mut tx, user).await?;
+                if *revoke_keys {
+                    self.credentials.delete_sessions(&mut tx, user.id).await?;
+                    revoked = self.credentials.revoke_owned_keys(&mut tx, user.id).await?;
+                } else if *revoke_sessions {
+                    self.credentials.delete_sessions(&mut tx, user.id).await?;
+                }
+                Self::record_in(&mut tx, user.id, recorded).await?;
+                account_id = Some(user.id);
+            }
+        }
+        four_eyes::decide(&mut tx, request.id, decision.status, &decision.decided_by, decision.decided_at).await?;
+        tx.commit().await?;
+        let account = match account_id {
+            Some(id) => self.find_by_id(id).await?.map(Box::new),
+            None => None,
+        };
+        Ok(Decided::Done { account, revoked, requested_by: request.requested_by })
     }
 }
