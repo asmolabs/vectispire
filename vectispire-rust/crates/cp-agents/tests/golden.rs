@@ -652,7 +652,8 @@ fn phase_three(
     routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
-    routes.extend(access_administration(db, audit_for_access, targets_for_access));
+    routes.extend(access_administration(db, audit_for_access.clone(), targets_for_access));
+    routes.extend(access_sign_in(db, audit_for_access));
     routes
 }
 
@@ -719,6 +720,30 @@ fn access_administration(
         teams: Arc::new(teams),
         keys: Arc::new(keys),
     })
+}
+
+/// `cp-app`'s `access::sign_in_routes`, composed here as the binary composes it for the Java suite's context: no identity
+/// provider named, password sign-in on, the shipped branding and ceilings.
+fn access_sign_in(db: &Db, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(AccessClock);
+    let credentials = Arc::new(CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        SessionPolicy::default(),
+        Arc::new(AgentDirectoryImpl::new(db.clone())),
+        ScimToken::default(),
+    ));
+    let flow = vectispire_cp_access::sign_in::SignInFlow::new(vectispire_cp_access::sign_in::SignInParts {
+        users: vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit: AccessAudit(audit),
+        store: vectispire_cp_access::SqlSignInStore::new(db.clone()),
+        sessions: credentials.clone(),
+        seal: support::encryption(),
+        clock,
+        methods: vectispire_cp_access::sign_in::SignInMethodPolicy::new(false, true),
+        provider_label: None,
+    });
+    vectispire_cp_access::auth_routes(Arc::new(flow), credentials, vectispire_cp_access::Branding::of(None, None))
 }
 
 /// `cp-app`'s `access::AccessAudit`: the access services' audit port on the audit log.

@@ -1,25 +1,15 @@
 # The routes of `access` the Rust control plane does not serve yet — README.md beside this file says the rules.
 # Raised once on 2026-11-12 (Phase 0 of the recovery plan): Java 1.0 added these operations while the port was
 # paused, and they start here like every route not yet served. The list only shrinks from this point again.
-ceiling 22
-DELETE /api/v1/auth/session
+ceiling 12
 DELETE /scim/v2/Groups/{id}
 DELETE /scim/v2/Users/{id}
-GET /api/v1/auth/me
-GET /api/v1/auth/methods
 GET /scim/v2/Groups
 GET /scim/v2/Groups/{id}
 GET /scim/v2/Users
 GET /scim/v2/Users/{id}
 PATCH /scim/v2/Groups/{id}
 PATCH /scim/v2/Users/{id}
-POST /api/v1/auth/change-password
-POST /api/v1/auth/login
-POST /api/v1/auth/mfa/disable
-POST /api/v1/auth/mfa/enable
-POST /api/v1/auth/mfa/setup
-POST /api/v1/auth/mfa/verify
-POST /api/v1/auth/session/exchange
 POST /scim/v2/Groups
 POST /scim/v2/Users
 PUT /scim/v2/Groups/{id}

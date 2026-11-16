@@ -151,3 +151,40 @@ pub fn administration_routes(parts: AdministrationParts) -> Vec<vectispire_cp_ht
         keys: Arc::new(keys),
     })
 }
+
+/// What the access module's sign-in routes are composed from.
+#[allow(missing_debug_implementations)] // a bag of parts
+pub struct SignInRoutesParts {
+    pub db: Db,
+    pub audit: Arc<vectispire_cp_audit::AuditLog>,
+    pub credentials: Arc<CredentialService>,
+    pub clock: SharedClock,
+    pub encryption: Arc<vectispire_cp_crypto::Encryption>,
+    /// The identity provider's name, when one is named (`vectispire.oidc.issuer`).
+    pub provider: Option<String>,
+    /// `vectispire.oidc.password-login`.
+    pub password_login: bool,
+    pub branding: vectispire_cp_access::Branding,
+    pub limits: SignInLimits,
+}
+
+/// `AuthController`, over `AuthenticationFlowService` as Java's beans compose it: the password sign-in allowed unless
+/// a provider is named and `vectispire.oidc.password-login` is off, the provider's name as its label, the sign-in
+/// ceilings of `vectispire.sign-in.*`. The single sign-on's own endpoints are task 1.4's, not served yet: the methods
+/// screen still says what Java says, a provider being named.
+pub fn sign_in_routes(parts: SignInRoutesParts) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    let SignInRoutesParts { db, audit, credentials, clock, encryption, provider, password_login, branding, limits } =
+        parts;
+    let flow = vectispire_cp_access::sign_in::SignInFlow::new(vectispire_cp_access::sign_in::SignInParts {
+        users: vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit: AccessAudit(audit),
+        store: vectispire_cp_access::SqlSignInStore::new(db),
+        sessions: credentials.clone(),
+        seal: encryption,
+        clock,
+        methods: vectispire_cp_access::sign_in::SignInMethodPolicy::new(provider.is_some(), password_login),
+        provider_label: provider,
+    })
+    .with_limits(limits);
+    vectispire_cp_access::auth_routes(Arc::new(flow), credentials, branding)
+}

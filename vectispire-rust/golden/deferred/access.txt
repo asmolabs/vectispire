@@ -1,29 +1,22 @@
 # The recordings not replayed yet that `access`'s port ends: its routes, and its stand-ins the served routes meet.
 # README.md beside this file says the format and the rules.
-ceiling 22
+ceiling 13
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
-route DELETE /api/v1/auth/session | access — Phase 1, task 1.7
 route DELETE /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route DELETE /scim/v2/Users/{id} | access — Phase 1, task 1.7
-route GET /api/v1/auth/me | access — Phase 1, task 1.7
-route GET /api/v1/auth/methods | access — Phase 1, task 1.7
 route GET /scim/v2/Groups | access — Phase 1, task 1.7
 route GET /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route GET /scim/v2/Users | access — Phase 1, task 1.7
 route GET /scim/v2/Users/{id} | access — Phase 1, task 1.7
 route PATCH /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route PATCH /scim/v2/Users/{id} | access — Phase 1, task 1.7
-route POST /api/v1/auth/change-password | access — Phase 1, task 1.7
-route POST /api/v1/auth/login | access — Phase 1, task 1.7
-route POST /api/v1/auth/mfa/disable | access — Phase 1, task 1.7
-route POST /api/v1/auth/mfa/enable | access — Phase 1, task 1.7
-route POST /api/v1/auth/mfa/setup | access — Phase 1, task 1.7
-route POST /api/v1/auth/mfa/verify | access — Phase 1, task 1.7
-route POST /api/v1/auth/session/exchange | access — Phase 1, task 1.7
 route POST /scim/v2/Groups | access — Phase 1, task 1.7
 route POST /scim/v2/Users | access — Phase 1, task 1.7
 route PUT /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route PUT /scim/v2/Users/{id} | access — Phase 1, task 1.7
 
 # ── Added on 2026-11-12, Phase 0: routes Java 1.0's tests now record; the ceiling raised once, here ──
+
+# ── Met by the sign-in routes (task 1.7, second stage): what cp-http answers for every route, not access ──
+golden api.ProblemDetailsRoutesTest/anUnacceptableAccept--001-GET-api_v1_auth_me | cp-http negotiates no Accept header: Spring answers 406 for an Accept no converter can write; a chain-wide change, cp-http's

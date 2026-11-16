@@ -139,6 +139,7 @@ mod tests {
             stored_role: role.map(str::to_owned),
             restriction,
             actor: None,
+            session_hash: None,
         })
     }
 

@@ -160,6 +160,8 @@ fn stand_ins() -> StandIns {
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
     let (db_for_access, audit_for_access, creds_for_access) = (db.clone(), audit.clone(), creds.clone());
+    let (audit_for_sign_in, creds_for_sign_in, encryption_for_sign_in) =
+        (audit.clone(), creds.clone(), encryption.clone());
 
     let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
         db.clone(),
@@ -265,8 +267,20 @@ fn stand_ins() -> StandIns {
             Arc::new(NoAccessSettings),
             Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
         ),
-        targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access)),
+        targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
     });
+    let mut access = access;
+    access.extend(vectispire_cp_app::access::sign_in_routes(vectispire_cp_app::access::SignInRoutesParts {
+        db: db_for_access,
+        audit: audit_for_sign_in,
+        credentials: creds_for_sign_in,
+        clock: Arc::new(vectispire_cp_access::credentials::SystemClock),
+        encryption: encryption_for_sign_in,
+        provider: None,
+        password_login: true,
+        branding: vectispire_cp_access::Branding::of(None, None),
+        limits: vectispire_cp_access::login_throttle::SignInLimits::default(),
+    }));
     (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access)
 }
 

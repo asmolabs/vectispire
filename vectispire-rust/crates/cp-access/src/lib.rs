@@ -55,7 +55,7 @@ pub mod totp;
 pub mod visibility;
 mod web;
 
-pub use web::{Administration, administration_routes};
+pub use web::{Administration, Branding, HANDOFF_COOKIE, administration_routes, auth_routes};
 
 pub use approvers::TriageApprovers;
 pub use persistence::credentials::in_transaction::CredentialTables;
