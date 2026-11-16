@@ -66,3 +66,88 @@ pub fn compose(settings: &SignIn, credentials: Arc<CredentialService>, db: Db, c
         ),
     }
 }
+
+/// The access services' audit port on the audit log: each entry under the operation of the same name, its SIEM event
+/// when it names one. Recording never fails the gesture it describes, as Java's `record`.
+#[derive(Clone)]
+pub struct AccessAudit(pub Arc<vectispire_cp_audit::AuditLog>);
+
+impl std::fmt::Debug for AccessAudit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("AccessAudit")
+    }
+}
+
+impl vectispire_cp_access::accounts::Audit for AccessAudit {
+    async fn record(&self, record: vectispire_cp_access::accounts::AuditRecord) {
+        let Some(operation) = vectispire_cp_audit::AuditOperation::from_wire(record.operation.name()) else {
+            // Both enumerations are Java's `AuditOperation`; one the log does not know is a port defect, logged rather
+            // than written under another name.
+            tracing::error!(operation = record.operation.name(), "An access audit entry names no known operation");
+            return;
+        };
+        let entry = vectispire_cp_audit::Record {
+            operation,
+            resource_id: Some(record.resource),
+            description: Some(record.description),
+            user_id: record.username,
+            ip_address: record.ip_address,
+            user_agent: record.user_agent,
+            signal: record.signal.map(vectispire_cp_audit::Signal),
+        };
+        self.0.record(entry).await;
+    }
+}
+
+/// What the access module's administration routes are composed from.
+#[allow(missing_debug_implementations)] // a bag of parts
+pub struct AdministrationParts {
+    pub db: Db,
+    pub audit: Arc<vectispire_cp_audit::AuditLog>,
+    pub credentials: Arc<CredentialService>,
+    pub clock: SharedClock,
+    pub guard: vectispire_cp_outbound::OutboundUrlGuard,
+    pub visibility: vectispire_cp_access::VisibilityService,
+    pub targets: Arc<dyn vectispire_cp_access::GrantableTargets>,
+}
+
+/// `UsersController`, `AccountRequestsController`, `TeamsController` and `ApiKeysController`, over the services as
+/// Java's beans compose them: accounts under four-eyes read from the settings, their writes closing sessions and
+/// revoking keys in the account's transaction, a team's channel judged by the outbound guard.
+pub fn administration_routes(parts: AdministrationParts) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    use vectispire_cp_access::accounts::{Accounts, ApproverIndependence};
+    let AdministrationParts { db, audit, credentials, clock, guard, visibility, targets } = parts;
+    let audit = AccessAudit(audit);
+    let settings = Arc::new(vectispire_cp_settings::Settings::new(db.clone()));
+    let accounts = Accounts::new(
+        vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit.clone(),
+        clock.clone(),
+    )
+    .with_four_eyes(ApproverIndependence::new(db.clone(), settings.clone()));
+    let teams = vectispire_cp_access::teams::TeamAdministration::new(vectispire_cp_access::teams::TeamParts {
+        db: db.clone(),
+        audit: audit.clone(),
+        clock: clock.clone(),
+        outbound: guard,
+        policy: settings,
+        targets: targets.clone(),
+        integrations: crate::registry::integrations(&db),
+    });
+    let keys = vectispire_cp_access::api_key_administration::ApiKeyAdministration::new(
+        vectispire_cp_access::api_key_administration::ApiKeyParts {
+            db: db.clone(),
+            credentials: (*credentials).clone(),
+            targets: targets.clone(),
+            issuer_sees: Arc::new(vectispire_cp_access::IssuerVisibility::new(db.clone(), visibility, targets.clone())),
+            audit: audit.clone(),
+            clock,
+        },
+    );
+    vectispire_cp_access::administration_routes(vectispire_cp_access::Administration {
+        accounts: Arc::new(accounts),
+        account_targets: Arc::new(vectispire_cp_access::account_targets::AccountTargets::new(db, audit, targets)),
+        teams: Arc::new(teams),
+        keys: Arc::new(keys),
+    })
+}

@@ -53,13 +53,17 @@ pub mod teams;
 pub mod throttle;
 pub mod totp;
 pub mod visibility;
+mod web;
+
+pub use web::{Administration, administration_routes};
 
 pub use approvers::TriageApprovers;
+pub use persistence::credentials::in_transaction::CredentialTables;
 pub use persistence::sign_in::SqlSignInStore;
 pub use persistence::{SessionsAndKeys, SqlAccountStore};
 pub use roles::{Role, RoleFlags};
 pub use rows::NotFound;
-pub use security::{CallerScope, CallerVisibility, PrincipalDirectory, PrincipalGrounds};
+pub use security::{CallerScope, CallerVisibility, IssuerVisibility, PrincipalDirectory, PrincipalGrounds};
 pub use visibility::{
     AccessError, AccessSettings, AccountRef, Allowance, GrantableTargets, Labels, TargetGrant, VisibilityMode,
     VisibilityService,

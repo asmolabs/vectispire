@@ -197,6 +197,11 @@ impl Fixture {
             outbound: guard(&self.lookups),
             policy: Arc::new(Private(private)),
             targets: Arc::new(TableTargets(self.db.clone())),
+            integrations: vectispire_cp_settings::Integrations::new(
+                self.db.clone(),
+                Vec::new(),
+                Arc::new(time::OffsetDateTime::now_utc),
+            ),
         })
     }
 

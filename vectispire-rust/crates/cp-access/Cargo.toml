@@ -20,13 +20,19 @@ postgres-queries = []
 # the same format. Only `alloc` — the derivation itself; the PHC string is read and written here, as Java does it, so
 # the `password-hash` crate's own (stricter) parser never decides whether a stored hash verifies.
 argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+# The access routes (task 1.7): the server stack is the control plane's (deny.toml lists this crate among axum's
+# wrappers).
+axum.workspace = true
 base64.workspace = true
 # HMAC-SHA1 over the time step, RFC 6238 as `Totp` computes it: the workspace's, already linked by the agent (git).
 hmac.workspace = true
 http.workspace = true
+# A query parameter decoded as Spring decodes it.
+percent-encoding.workspace = true
 rand_core.workspace = true
 # A SCIM PATCH's `value` is whatever tree the directory sent: the operations are read from it as Java reads its
 # `JsonNode`. The workspace's, already linked by the domain.
+serde.workspace = true
 serde_json.workspace = true
 sha1.workspace = true
 sha2.workspace = true
@@ -72,6 +78,8 @@ time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
+# The contract test: the routes against `openapi.json` and the list of routes not ported.
+vectispire-cp-contract = { path = "../cp-contract" }
 # The second factor's engine test seals with the real `Encryption`, whose Vault door names `vectispire-cp-outbound`.
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }

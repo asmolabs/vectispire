@@ -84,7 +84,7 @@ public class AccountAdminService {
     @Transactional
     public List<TargetGrants.RevokedKey> saveRevokingEverything(UserEntity user) {
         UserEntity saved = save(user, true);
-        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserId(saved.getId()).stream()
+        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserIdOrderByCreatedAtAscIdAsc(saved.getId()).stream()
                 .map(key -> new TargetGrants.RevokedKey(key.getId(), key.getName()))
                 .toList();
         keys.revokeOwnedBy(saved.getId());
@@ -107,7 +107,7 @@ public class AccountAdminService {
             long userId, String passwordHash, Instant at, Optional<String> keepSession) {
         users.changePassword(userId, passwordHash, at);
         keepSession.ifPresent(kept -> sessions.deleteByUserIdExcept(userId, kept));
-        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserId(userId).stream()
+        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserIdOrderByCreatedAtAscIdAsc(userId).stream()
                 .map(key -> new TargetGrants.RevokedKey(key.getId(), key.getName()))
                 .toList();
         keys.revokeOwnedBy(userId);

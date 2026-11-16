@@ -37,8 +37,12 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
     /**
      * The integration keys an account issued for itself, to be named one by one when a reset
      * revokes them — see {@code AccountAdminService#saveRevokingEverything}.
+     *
+     * <p><b>In the order they were issued</b>, the identifier after it: each is audited under its own id, one entry
+     * after the other in the hash chain, and an unordered read answered them in the order of their random
+     * identifiers — a different chain on every run of the same gesture.
      */
-    List<ApiKeyEntity> findByOwnerUserId(Long ownerUserId);
+    List<ApiKeyEntity> findByOwnerUserIdOrderByCreatedAtAscIdAsc(Long ownerUserId);
 
     /**
      * Revokes every integration key an account issued for itself — see
