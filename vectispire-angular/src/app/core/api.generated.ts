@@ -2609,7 +2609,7 @@ export interface paths {
         };
         /**
          * List checklist contacts
-         * @description The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as "PO / BA" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill to a caller who may relink it, not_reminded to one who may not. Empty while the project has no checklist. 404 for a project the caller does not see whole.
+         * @description The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as "PO / BA" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill to a caller who may relink it, not_reminded to one who may not — and whether that account is the caller's (mine). Empty while the project has no checklist. 404 for a project the caller does not see whole.
          */
         get: operations["checklistContacts"];
         put?: never;
@@ -5403,6 +5403,7 @@ export interface components {
             /** @description The linked account's display name, as the candidates give it; null while none is linked, for an account gone, and when it has none that may be printed. */
             accountName?: string | null;
             label?: string;
+            mine: boolean;
             /** Format: int32 */
             openLines: number;
             profile?: string;
@@ -5553,6 +5554,7 @@ export interface components {
             /** Format: int32 */
             position?: number;
             problems?: ("unanswered" | "awaiting_confirmation" | "measurement_contradicted" | "comment_required" | "evidence_required" | "evidence_expired")[];
+            profiles?: string[];
             rule?: components["schemas"]["ChecklistRuleForm"];
         };
         ChecklistLinkRequest: {

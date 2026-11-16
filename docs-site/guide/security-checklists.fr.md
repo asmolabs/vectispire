@@ -442,6 +442,16 @@ Le rappel est en texte brut, en anglais comme les autres e-mails de Vectispire, 
 checklist quand l'adresse publique du déploiement (`VECTISPIRE_PUBLIC_URL`) est définie. Un destinataire
 dont le relais refuse le message est réessayé l'heure suivante ; les autres ne reçoivent rien deux fois.
 
+### Filtrer les lignes {#filtrer-les-lignes}
+
+Au-dessus des lignes, **Demandé à** les restreint à un ou plusieurs profils — une ligne *PO / BA* est aux
+deux profils, et une ligne marquée `AUTO` n'est à personne : elle est masquée dès qu'un profil est choisi.
+**Mes lignes** choisit les profils liés à votre compte dans la carte Contacts : les lignes que nomme le
+rappel hebdomadaire. **À remplir seulement** garde les lignes sans réponse ou en attente de confirmation,
+comme la carte les compte. La barre dit combien de lignes elle affiche sur combien ; **Afficher toutes les
+lignes** l'efface. Le filtre est une vue : les compteurs de l'en-tête, la soumission et l'approbation pèsent
+toujours toutes les lignes.
+
 ## Le document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` renvoie la révision comme un document à

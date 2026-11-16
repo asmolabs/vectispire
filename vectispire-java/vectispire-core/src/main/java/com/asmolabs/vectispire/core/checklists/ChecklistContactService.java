@@ -99,7 +99,8 @@ public class ChecklistContactService {
      * @param detailed whether the caller may relink the profiles, and so is told why an account would not
      *     be reminded; otherwise only that it would not ({@link #NOT_REMINDED})
      */
-    public ChecklistContactsView contacts(long projectId, VisibilityService.Allowance allowance, boolean detailed) {
+    public ChecklistContactsView contacts(long projectId, VisibilityService.Allowance allowance, boolean detailed,
+            Optional<Long> caller) {
         Guarded guarded = requireWhole(projectId, allowance);
         Optional<ChecklistEntity> latest = checklists.findFirstByProjectIdOrderByRevisionDesc(projectId);
         if (latest.isEmpty()) {
@@ -117,14 +118,15 @@ public class ChecklistContactService {
             int openLines = open.getOrDefault(profile.key(), List.of()).size();
             ChecklistContactEntity link = linked.get(profile.key());
             if (link == null) {
-                profiles.add(new ChecklistContactView(profile.key(), profile.label(), openLines, null, null, null));
+                profiles.add(new ChecklistContactView(profile.key(), profile.label(), openLines, null, null, null, false));
                 continue;
             }
             Optional<UserView> account = accounts.byId(link.getAccountId());
             profiles.add(new ChecklistContactView(profile.key(), profile.label(), openLines, link.getAccountId(),
                     account.flatMap(ChecklistContactService::nameOf).orElse(null),
                     gapOf(account, guarded.project().projectId(), guarded.repositoryIds())
-                            .map(gap -> detailed ? gap.wireName() : NOT_REMINDED).orElse(null)));
+                            .map(gap -> detailed ? gap.wireName() : NOT_REMINDED).orElse(null),
+                    caller.map(link.getAccountId()::equals).orElse(false)));
         }
         return new ChecklistContactsView(projectId, checklist.getRevision(), draft, profiles);
     }
@@ -169,13 +171,13 @@ public class ChecklistContactService {
         Optional<Long> previous = store(projectId, named.key(), accountId, who.username());
         // By value: two boxed ids are the same object only up to 127, and an install has more accounts.
         if (previous.equals(Optional.of(accountId))) {
-            return contacts(projectId, allowance, true);
+            return contacts(projectId, allowance, true, Optional.of(who.accountId()));
         }
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_CONTACT_CHANGED, resource(projectId, named.key()),
                 "Checklist profile " + named.label() + " of project \"" + guarded.project().name() + "\" linked to account "
                         + account.id()
                         + previous.map(before -> ", in place of account " + before).orElse("") + "."));
-        return contacts(projectId, allowance, true);
+        return contacts(projectId, allowance, true, Optional.of(who.accountId()));
     }
 
     /** Unlinks a profile; its lines go to the CISOs until it is linked again. Unlinking an unlinked profile is not an error. */
@@ -191,7 +193,7 @@ public class ChecklistContactService {
                     "Checklist profile " + key + " of project \"" + guarded.project().name() + "\" unlinked from account "
                             + link.get().getAccountId() + "."));
         }
-        return contacts(projectId, allowance, true);
+        return contacts(projectId, allowance, true, Optional.of(who.accountId()));
     }
 
     // ------------------------------------------------------------------ shared with the reminder

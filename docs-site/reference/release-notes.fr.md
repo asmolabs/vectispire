@@ -42,6 +42,9 @@ Ce qui suit se compare à 1.0.0-rc.2.
 - **La sélection filtre sur `branches`** (l'un ou l'autre des noms) ; `unjudged` peut compter `branch`.
 - **Un dépôt découvert porte `trackedBranches`** (null quand la forge ne l'a pas dit), un candidat
   `importedTargets`, et la page des candidats les `trackedBranches` configurées.
+- **Une ligne de checklist porte `profiles`**, les profils que nomme sa cellule de contact, par les clés de la route
+  des contacts (`PO`, `ARCH` ; aucun pour `AUTO`), et **un contact porte `mine`**, si le compte qui lui est lié
+  est celui de l'appelant.
 
 ### Nouveautés {#nouveautes-100-rc3}
 
@@ -50,6 +53,10 @@ Ce qui suit se compare à 1.0.0-rc.2.
   montre et filtre dessus, et l'import crée une cible sur chaque branche choisie — `acme/api` et
   `acme/api (develop)`, chacune avec ses propres constats. Voir
   [Connexions de forge](../administration/forge-connections.fr.md#selectionner-et-importer).
+- **Les lignes d'une checklist se filtrent selon à qui elles sont demandées.** Choisissez un ou plusieurs
+  profils de la colonne de contact — *PO*, *BA*, *Arch* — ou **Mes lignes**, les profils liés à votre compte
+  dans la carte Contacts, et cochez **À remplir seulement**. L'en-tête et la soumission pèsent toujours toutes
+  les lignes. Voir [Checklists de sécurité](../guide/security-checklists.md#filtrer-les-lignes).
 
 ### Corrigé {#corrige-100-rc3}
 

@@ -222,6 +222,36 @@ export function incompleteLinesOf(failure: unknown): ChecklistIncompleteLine[] |
  * Lines grouped by domain, then by objective, each in the order its first line appears — the
  * template's own order, which the positions carry.
  */
+/** What the lines are narrowed to: profiles (none for every line), and only those still to fill in. */
+export interface LineFilter {
+    profiles: readonly string[];
+    toFill: boolean;
+}
+
+export const NO_FILTER: LineFilter = { profiles: [], toFill: false };
+
+/**
+ * Still to fill in, as the contacts count it and the weekly reminder lists it: no answer yet, or a carried
+ * one waiting for its confirmation. A line kept back only for a proof or a comment has its answer.
+ */
+export function stillToFill(line: ChecklistLine): boolean {
+    return line.problems.includes('unanswered') || line.problems.includes('awaiting_confirmation');
+}
+
+/**
+ * The lines the filter keeps. A line belongs to the profiles the server split its contact cell into
+ * (`profiles`) — never to a split made here, which would disagree with the reminders on "PO / BA", on
+ * "Arch" against "ARCH" and on `AUTO`. A line naming no profile is kept only while no profile is chosen.
+ */
+export function filterLines(lines: readonly ChecklistLine[], filter: LineFilter): ChecklistLine[] {
+    const chosen = new Set(filter.profiles);
+    return lines.filter(
+        (line) =>
+            (chosen.size === 0 || (line.profiles ?? []).some((profile) => chosen.has(profile))) &&
+            (!filter.toFill || stillToFill(line))
+    );
+}
+
 export function groupsOf(lines: ChecklistLine[]): DomainGroup[] {
     const groups: DomainGroup[] = [];
     for (const line of [...lines].sort((a, b) => a.position - b.position)) {

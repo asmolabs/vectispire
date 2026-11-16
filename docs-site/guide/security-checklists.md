@@ -417,6 +417,15 @@ The reminder is plain text, in English like Vectispire's other e-mails, and link
 when the deployment's public address (`VECTISPIRE_PUBLIC_URL`) is set. A recipient whose message the
 relay refuses is retried the next hour; the others are not sent twice.
 
+### Filtering the lines {#filtering-the-lines}
+
+Above the lines, **Asked of** narrows them to one or more profiles — a line of *PO / BA* is both
+profiles', and a line marked `AUTO` is nobody's, so it is hidden while a profile is chosen. **My lines**
+chooses the profiles linked to your account on the Contacts card: the lines the weekly reminder names.
+**Still to fill in only** keeps the lines unanswered or waiting for confirmation, as the card counts
+them. The bar says how many lines it shows of how many; **Show every line** clears it. The filter is a
+view: the header's counts, the submission and the sign-off still weigh every line.
+
 ## The document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` returns the revision as a document to hand

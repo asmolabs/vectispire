@@ -46,12 +46,18 @@
     }
 
     <!-- Who each profile of the contact column is, reminded weekly of its lines (decision 0044). -->
-    <app-checklist-contacts [projectId]="page.id()" [writes]="page.writes()" [edition]="current.edition" />
+    <app-checklist-contacts
+        [projectId]="page.id()"
+        [writes]="page.writes()"
+        [edition]="current.edition"
+        (contactsRead)="page.contacts.set($event)"
+    />
 
     <!-- The lines, grouped as the template groups them: by domain, then by objective. -->
     <p-card styleClass="mb-4">
         <ng-template #title>{{ 'project_checklist.lines_title' | translate }}</ng-template>
         <app-checklist-as-measured />
+        <app-checklist-filter />
         @for (group of page.groups(); track group.domain) {
             <section class="mb-6" [attr.data-testid]="'domain-' + $index">
                 <h3 class="text-lg font-semibold mt-0 mb-2">

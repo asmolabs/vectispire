@@ -358,21 +358,24 @@ export const CONTACTS: ChecklistContacts = asSchema('ChecklistContactsView', {
             openLines: 2,
             accountId: 41,
             accountName: 'Product owner',
-            warning: null
+            warning: null,
+            mine: false
         }),
         asSchema('ChecklistContactView', {
             ...named('ARCH', 'Arch'),
             openLines: 1,
             accountId: 42,
             accountName: null,
-            warning: 'no_email'
+            warning: 'no_email',
+            mine: false
         }),
         asSchema('ChecklistContactView', {
             ...named('BA', 'BA'),
             openLines: 0,
             accountId: null,
             accountName: null,
-            warning: null
+            warning: null,
+            mine: false
         })
     ]
 });

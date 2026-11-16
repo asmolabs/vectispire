@@ -6,6 +6,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ChecklistActs } from './checklist-acts';
 import { ChecklistAsMeasuredPanel } from './checklist-as-measured';
 import { ChecklistContactsPanel } from './checklist-contacts';
+import { ChecklistFilterBar } from './checklist-filter';
 import { ChecklistHeader } from './checklist-header';
 import { ChecklistLineCard } from './checklist-line';
 import { ChecklistOpening } from './checklist-opening';
@@ -37,6 +38,7 @@ import { ChecklistRevisions } from './checklist-revisions';
         ChecklistActs,
         ChecklistAsMeasuredPanel,
         ChecklistContactsPanel,
+        ChecklistFilterBar,
         ChecklistHeader,
         ChecklistLineCard,
         ChecklistOpening,

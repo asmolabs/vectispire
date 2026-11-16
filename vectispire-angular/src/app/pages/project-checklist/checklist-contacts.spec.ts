@@ -1,3 +1,4 @@
+import type { ChecklistContacts } from '@/app/core/api.models';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -28,6 +29,9 @@ describe('the checklist contacts panel', () => {
         }
     });
 
+    /** Every list the panel handed the page, for the lines' filter. */
+    let read: ChecklistContacts[] = [];
+
     async function start(writes: boolean, edition = 5): Promise<void> {
         await TestBed.configureTestingModule({
             imports: [ChecklistContactsPanel],
@@ -38,6 +42,8 @@ describe('the checklist contacts panel', () => {
         fixture.componentRef.setInput('projectId', PROJECT_ID);
         fixture.componentRef.setInput('writes', writes);
         fixture.componentRef.setInput('edition', edition);
+        read = [];
+        fixture.componentInstance.contactsRead.subscribe((contacts) => read.push(contacts));
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         http.expectOne({ method: 'GET', url: BASE }).flush(CONTACTS);
@@ -49,6 +55,11 @@ describe('the checklist contacts panel', () => {
     const rows = () => Array.from(dom().querySelectorAll('[data-testid="contact-row"]'));
     const cell = (row: Element, id: string) =>
         row.querySelector(`[data-testid="${id}"]`)?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    it('hands the page every list it reads, for the lines’ filter', async () => {
+        await start(false);
+        expect(read).toEqual([CONTACTS]);
+    });
 
     it('names every warning in both languages — the i18n check cannot see them', () => {
         const lookup = (bundle: unknown, key: string) =>

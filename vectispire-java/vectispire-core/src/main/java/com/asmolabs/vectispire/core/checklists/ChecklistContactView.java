@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param warning why the account linked would not be reminded: {@code account_gone}, {@code
  *     account_inactive}, {@code no_email} or {@code cannot_fill} to a caller who may relink it, {@code
  *     not_reminded} to one who may not; null when it would, and while none is linked
+ * @param mine whether the account linked is the caller's: the lines a screen offers as "mine" are this
+ *     profile's. The id alone would not do — a reader who may not relink is not told who is linked
  */
 public record ChecklistContactView(
         String profile,
@@ -29,4 +31,5 @@ public record ChecklistContactView(
         @Schema(types = {"string", "null"}, allowableValues = {"account_gone", "account_inactive", "no_email", "cannot_fill",
                 "not_reminded"}, description = "Why the linked account would not be reminded, to a caller who may relink "
                 + "it; not_reminded alone to one who may not; null when it would, and while none is linked.")
-                String warning) {}
+                String warning,
+        boolean mine) {}
