@@ -166,6 +166,18 @@ class ChecklistRendererTest {
         }
 
         @Test
+        @DisplayName("a row's spans hint that reads as nothing is dropped, not thrown out of the renderer")
+        void unreadableSpans() {
+            XlsxFixture fixture = new XlsxFixture();
+            // ":" splits into no bounds at all: bounds[0] threw ArrayIndexOutOfBoundsException, a 500 at the sign-off.
+            fixture.put(SHEET, fixture.parts.get(SHEET).replace("<row r=\"7\">", "<row r=\"7\" spans=\":\">"));
+
+            String sheet = texts(render(fixture, true)).get(SHEET);
+
+            assertThat(sheet).contains("<row r=\"7\">").doesNotContain("spans");
+        }
+
+        @Test
         @DisplayName("a revision renders to the same bytes twice")
         void deterministic() {
             XlsxFixture fixture = new XlsxFixture();
