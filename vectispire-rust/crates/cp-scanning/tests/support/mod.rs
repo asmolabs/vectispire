@@ -346,6 +346,7 @@ pub fn principal(username: &str, id: i64, role: Role, restriction: Restriction, 
         stored_role: Some(role.name().to_owned()),
         restriction,
         actor: Some(if key { format!("{username} (pipeline)") } else { username.to_owned() }),
+        session_hash: None,
     })
 }
 

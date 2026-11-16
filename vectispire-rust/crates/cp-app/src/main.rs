@@ -575,6 +575,21 @@ async fn serve() -> ExitCode {
             visibility: visibility.clone(),
             targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
         });
+    let mut access_routes = access_routes;
+    access_routes.extend(vectispire_cp_app::access::sign_in_routes(vectispire_cp_app::access::SignInRoutesParts {
+        db: db.clone(),
+        audit: audit.clone(),
+        credentials: creds.clone(),
+        clock: access_clock.clone(),
+        encryption: encryption.clone(),
+        provider: settings.oidc.provider.as_ref().map(|provider| provider.name.clone()),
+        password_login: settings.oidc.password_login,
+        branding: vectispire_cp_access::Branding::of(
+            Some(&settings.branding.name),
+            Some(&settings.branding.gitlab_url),
+        ),
+        limits: access.limits,
+    }));
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),

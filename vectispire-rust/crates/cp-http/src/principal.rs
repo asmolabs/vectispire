@@ -171,6 +171,9 @@ pub struct Grounds {
     pub restriction: Restriction,
     /// `RequestActors.of`: the username, or `user (key name)` for an integration key.
     pub actor: Option<String>,
+    /// `principal.session()`: the stored hash of the session the request came on — what signing out revokes and what a
+    /// password change spares. `None` for any other credential.
+    pub session_hash: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

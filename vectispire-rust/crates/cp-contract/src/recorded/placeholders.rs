@@ -371,6 +371,9 @@ pub struct Bindings<'m> {
     today: Date,
     clock: OffsetDateTime,
     next_long: u64,
+    /// The TOTP secret the test last sent in a `secret` member (the enrolment's, as the setup answered it), and the
+    /// last step a code was made for: see `Placeholder::OneTimeCode`.
+    totp: Option<(String, Option<i64>)>,
 }
 
 impl std::fmt::Debug for Bindings<'_> {
@@ -479,6 +482,7 @@ impl<'m> Bindings<'m> {
             today: now.date(),
             clock: now,
             next_long: 100_000_000_000_000,
+            totp: None,
         }
     }
 
@@ -618,6 +622,11 @@ impl<'m> Bindings<'m> {
                 Segment::Placeholder(found) => out.push_str(&self.concrete_one(&found, field, context)?),
             }
         }
+        // A TOTP secret the test sends back — the enrolment's, as the setup answered it: the codes it makes from now on
+        // are this secret's.
+        if context == Context::Wire && field == "secret" && totp::is_secret(&out) {
+            self.totp = Some((out.clone(), None));
+        }
         Ok(out)
     }
 
@@ -739,6 +748,23 @@ impl<'m> Bindings<'m> {
             }
             Placeholder::HttpDate => hidden("«http-date»"),
             Placeholder::Stamp => hidden("«stamp»"),
+            // The code the test computed for the secret it enrolled: made here for the same secret, at a step the server
+            // accepts — within one of now — and **above every step already used**, since a step is accepted once. A
+            // test that sends more codes than that window holds, or one for a secret it never sent, is not replayable.
+            Placeholder::OneTimeCode if context == Context::Wire => {
+                let Some((secret, last)) = self.totp.clone() else { return hidden("«one-time-code»") };
+                let now = totp::step_of(OffsetDateTime::now_utc());
+                let step = last.map_or(now, |last| last.saturating_add(1).max(now));
+                if step > now.saturating_add(1) {
+                    return Err(Unseedable(format!(
+                        "«one-time-code» in `{field}`: every step the server accepts now was already used"
+                    )));
+                }
+                let code = totp::code(&secret, step)
+                    .ok_or_else(|| Unseedable("«one-time-code»: the enrolled secret is not base32".into()))?;
+                self.totp = Some((secret, Some(step)));
+                Ok(code)
+            }
             Placeholder::OneTimeCode => hidden("«one-time-code»"),
             // In a row played in Java's place (a webhook's hit in `t_rate_window`), the epoch's window: one that ended
             // long ago, so a served route counting the same subject starts a window of its own instead of finding
@@ -1139,7 +1165,9 @@ fn collapse(today: Date, column: &str, text: &str) -> String {
     });
     static SEALED: LazyLock<Regex> = LazyLock::new(|| pattern(r"v2:[A-Za-z0-9+/_-]+=*"));
     let column = column.to_ascii_lowercase();
-    if column == "totp_last_step" || column == "totplaststep" {
+    // A step, whichever: two steps render alike. **Not `null`**, which is no step — collapsed too, enrolling (null to a
+    // step) and resetting the factor (a step to null) read as no change, and the replay dropped them.
+    if (column == "totp_last_step" || column == "totplaststep") && text != "null" {
         return "«clock-step»".to_owned();
     }
     let sealed = SEALED.replace_all(text, "«sealed»");
@@ -1158,4 +1186,72 @@ fn collapse(today: Date, column: &str, text: &str) -> String {
             }
         })
         .into_owned()
+}
+
+/// RFC 6238 over the secret a test enrolled: thirty-second steps, six digits, HMAC-SHA1 — what an authenticator, and
+/// `cp-access`' `totp`, compute.
+mod totp {
+    use hmac::{Hmac, Mac};
+    use time::OffsetDateTime;
+
+    const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+    /// A base32 secret of at least sixteen characters, the shape `Totp.generateSecret` gives.
+    pub(super) fn is_secret(text: &str) -> bool {
+        text.len() >= 16 && text.bytes().all(|byte| ALPHABET.contains(&byte))
+    }
+
+    pub(super) fn step_of(instant: OffsetDateTime) -> i64 {
+        instant.unix_timestamp().div_euclid(30)
+    }
+
+    fn decode(secret: &str) -> Option<Vec<u8>> {
+        let mut bits: u64 = 0;
+        let mut held = 0u32;
+        let mut out = Vec::new();
+        for byte in secret.bytes() {
+            let value = u64::try_from(ALPHABET.iter().position(|letter| *letter == byte)?).ok()?;
+            bits = (bits << 5) | value;
+            held = held.saturating_add(5);
+            if held >= 8 {
+                held = held.saturating_sub(8);
+                out.push(u8::try_from((bits >> held) & 0xff).ok()?);
+            }
+        }
+        (!out.is_empty()).then_some(out)
+    }
+
+    pub(super) fn code(secret: &str, step: i64) -> Option<String> {
+        let key = decode(secret)?;
+        let mut mac = Hmac::<sha1::Sha1>::new_from_slice(&key).ok()?;
+        mac.update(&step.to_be_bytes());
+        let hash = mac.finalize().into_bytes();
+        let offset = usize::from(hash.last()? & 0x0f);
+        let window = hash.get(offset..offset.checked_add(4)?)?;
+        let value = u32::from_be_bytes(window.try_into().ok()?) & 0x7fff_ffff;
+        Some(format!("{:06}", value % 1_000_000))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn a_step_set_or_cleared_is_a_change_and_one_step_for_another_is_not() {
+            let today = time::Date::from_calendar_date(2026, time::Month::November, 16).unwrap_or(time::Date::MIN);
+            assert!(super::super::renders_alike(today, "totp_last_step", "59000001", "59000002"));
+            assert!(!super::super::renders_alike(today, "totp_last_step", "null", "59000001"));
+            assert!(!super::super::renders_alike(today, "totp_last_step", "59000001", "null"));
+        }
+
+        #[test]
+        fn the_codes_are_rfc_6238_s() {
+            // RFC 6238's SHA-1 vectors, the secret "12345678901234567890" in base32, cut to six digits.
+            let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+            assert_eq!(code(secret, 59 / 30).as_deref(), Some("287082"));
+            assert_eq!(code(secret, 1_111_111_109 / 30).as_deref(), Some("081804"));
+            assert_eq!(code(secret, 2_000_000_000 / 30).as_deref(), Some("279037"));
+            assert!(is_secret(secret) && !is_secret("not-base32") && !is_secret("ABC"));
+        }
+    }
 }

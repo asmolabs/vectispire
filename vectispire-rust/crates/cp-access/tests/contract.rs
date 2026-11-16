@@ -51,6 +51,16 @@ const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("POST", "/api/v1/api-keys", "create_8", &[]),
     ("DELETE", "/api/v1/api-keys/{id}", "remove_9", &[]),
     ("GET", "/api/v1/api-keys/targets", "targets_2", &[]),
+    ("POST", "/api/v1/auth/change-password", "changePassword", &[]),
+    ("POST", "/api/v1/auth/login", "login", &[]),
+    ("GET", "/api/v1/auth/me", "me", &[]),
+    ("GET", "/api/v1/auth/methods", "methods", &[]),
+    ("POST", "/api/v1/auth/mfa/disable", "disableMfa", &[]),
+    ("POST", "/api/v1/auth/mfa/enable", "enableMfa", &[]),
+    ("POST", "/api/v1/auth/mfa/setup", "setupMfa", &[]),
+    ("POST", "/api/v1/auth/mfa/verify", "verifyMfa", &[]),
+    ("DELETE", "/api/v1/auth/session", "logout", &[]),
+    ("POST", "/api/v1/auth/session/exchange", "exchange", &[]),
 ];
 
 /// The ports the probe never reaches: it asks the routes' shape, not a grant.
@@ -102,6 +112,42 @@ impl vectispire_cp_access::credentials::AgentDirectory for NoAgents {
     }
 }
 
+/// `AuthController`'s routes over a flow on the unreachable database, as the binary composes them.
+fn sign_in_routes(db: vectispire_cp_db::Db) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    let door = VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+    };
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(SystemClock);
+    let credentials = Arc::new(CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        SessionPolicy::default(),
+        Arc::new(NoAgents),
+        ScimToken::default(),
+    ));
+    let flow = vectispire_cp_access::sign_in::SignInFlow::new(vectispire_cp_access::sign_in::SignInParts {
+        users: SqlAccountStore::new(db.clone(), CredentialTables),
+        audit: Silent,
+        store: vectispire_cp_access::SqlSignInStore::new(db),
+        sessions: credentials.clone(),
+        seal: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+        clock,
+        methods: vectispire_cp_access::sign_in::SignInMethodPolicy::new(false, true),
+        provider_label: None,
+    });
+    vectispire_cp_access::auth_routes(Arc::new(flow), credentials, vectispire_cp_access::Branding::of(None, None))
+}
+
+/// The sign-in flow's audit, never written: the probe reads the routes' shape.
+#[derive(Clone)]
+struct Silent;
+
+impl Audit for Silent {
+    async fn record(&self, _: AuditRecord) {}
+}
+
 fn unreachable_db() -> vectispire_cp_db::Db {
     let settings = DbSettings {
         url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
@@ -126,7 +172,7 @@ async fn the_routes_are_the_documented_ones() {
         ScimToken::default(),
     );
     let visibility = VisibilityService::new(db.clone(), Arc::new(Nobody), targets.clone());
-    let entries = administration_routes(Administration {
+    let mut entries = administration_routes(Administration {
         accounts: Arc::new(Accounts::new(SqlAccountStore::new(db.clone(), CredentialTables), Nobody, clock.clone())),
         account_targets: Arc::new(vectispire_cp_access::account_targets::AccountTargets::new(
             db.clone(),
@@ -155,12 +201,30 @@ async fn the_routes_are_the_documented_ones() {
             clock,
         })),
     });
-    assert_eq!(entries.len(), DECLARED.len());
-    // Every one of the four controllers is `@RequiresAdministrator` on its class, and invites no API key.
+    // Every one of the four administration controllers is `@RequiresAdministrator` on its class.
     for entry in &entries {
         assert_eq!(entry.decl().access, Access::Administrator, "{} {}", entry.decl().method, entry.decl().path);
-        assert!(entry.decl().accepts_api_key.is_none(), "{} {}", entry.decl().method, entry.decl().path);
     }
+    entries.extend(sign_in_routes(db.clone()));
+    assert_eq!(entries.len(), DECLARED.len());
+    assert!(entries.iter().all(|entry| entry.decl().accepts_api_key.is_none()), "no access route invites an API key");
+    // `AuthController`'s markers on its methods: signing in is anybody's, the rest an account's; `@PasswordChangeGate`
+    // on the three an account owing a password change still reaches.
+    let marker = |method: &str, path: &str| {
+        let decl =
+            entries.iter().find(|entry| entry.decl().method == method && entry.decl().path == path).unwrap().decl();
+        (decl.access, decl.allows_pending_password_change)
+    };
+    for path in ["/api/v1/auth/login", "/api/v1/auth/mfa/verify", "/api/v1/auth/session/exchange"] {
+        assert_eq!(marker("POST", path), (Access::Anonymous, false), "{path}");
+    }
+    assert_eq!(marker("GET", "/api/v1/auth/methods"), (Access::Anonymous, false));
+    for path in ["/api/v1/auth/mfa/setup", "/api/v1/auth/mfa/enable", "/api/v1/auth/mfa/disable"] {
+        assert_eq!(marker("POST", path), (Access::Account, false), "{path}");
+    }
+    assert_eq!(marker("DELETE", "/api/v1/auth/session"), (Access::Account, true));
+    assert_eq!(marker("POST", "/api/v1/auth/change-password"), (Access::Account, true));
+    assert_eq!(marker("GET", "/api/v1/auth/me"), (Access::Account, true));
 
     let declared: Vec<RouteDecl> = DECLARED
         .iter()

@@ -31,7 +31,8 @@ use crate::accounts::{
 use crate::credentials::{CredentialService, IssuedSession, SessionView, hash_of};
 use crate::login_throttle::{self, SignInLimits};
 pub use crate::persistence::sign_in::Challenge;
-use crate::persistence::sign_in::SignInStore;
+/// The store the sign-in flow is built over, named here so that the routes bound their generics on the service.
+pub use crate::persistence::sign_in::SignInStore;
 use crate::second_factor::{SecondFactor, SecondFactorError, SecretSeal};
 use crate::throttle::{SharedClock, Throttle, client};
 
@@ -844,6 +845,11 @@ where
     }
 
     /// Whether single sign-on is wired, its label, and whether a password is accepted.
+    /// `principal.requireUser()` as `/me` reads it: the account as it stands now, every property but its secrets.
+    pub async fn account(&self, id: i64) -> Result<Option<UserView>, SignInError> {
+        Ok(self.accounts.store().find_by_id(id).await?.map(|user| UserView::of(&user)))
+    }
+
     pub fn options(&self) -> SignInOptions {
         SignInOptions {
             single_sign_on: self.methods.single_sign_on_available(),

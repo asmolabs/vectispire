@@ -81,6 +81,28 @@ macro_rules! read {
     };
 }
 
+mod auth;
+
+pub use auth::{Branding, HANDOFF_COOKIE};
+
+/// `AuthController`'s ten routes, over the sign-in flow and the credential service the binary composes.
+pub fn auth_routes<S, A, T, D, V>(
+    flow: Arc<crate::sign_in::SignInFlow<S, A, T, D, V>>,
+    credentials: Arc<crate::credentials::CredentialService>,
+    branding: Branding,
+) -> Vec<RouteEntry>
+where
+    S: AccountStore + Clone + Send + Sync + 'static,
+    A: Audit + Clone + Send + Sync + 'static,
+    T: crate::sign_in::SignInStore + Clone + Send + Sync + 'static,
+    D: crate::sign_in::SessionDoor + 'static,
+    V: crate::second_factor::SecretSeal + 'static,
+{
+    let mut entries = Vec::new();
+    auth::routes(flow, credentials, branding, &mut entries);
+    entries
+}
+
 fn ok<T: Serialize + ?Sized>(status: StatusCode, value: &T) -> Response {
     let mut response = Response::new(Body::from(vectispire_domain::wire::to_wire_string(value)));
     *response.status_mut() = status;
@@ -95,11 +117,14 @@ fn no_content() -> Response {
 /// `RequestActors.of(principal, request)`: the account — with the key beside it for an integration key — the client's
 /// address as the trusted proxies resolve it, and the user agent.
 fn actor(caller: &Caller, address: &ClientAddress, headers: &HeaderMap) -> RequestActor {
-    RequestActor {
-        username: caller.0.actor(),
-        ip_address: Some(address.0.clone()),
-        user_agent: headers.get(header::USER_AGENT).and_then(|value| value.to_str().ok()).map(str::to_owned),
-    }
+    RequestActor { username: caller.0.actor(), ip_address: Some(address.0.clone()), user_agent: user_agent(headers) }
+}
+
+/// The `User-Agent` header as the servlet container hands it to Java: its bytes read as text, **not only visible
+/// ASCII** — `HeaderValue::to_str` gives up on anything else, and a browser's agent string past ASCII was then no agent
+/// at all, where Java stores it (clipped where its column ends).
+pub(crate) fn user_agent(headers: &HeaderMap) -> Option<String> {
+    headers.get(header::USER_AGENT).map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned())
 }
 
 /// `principal.user().map(UserView::id)`.
