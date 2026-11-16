@@ -1,0 +1,196 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, kind, status, account_id, username, email, display_name, held_role,\n               requested_role, password_hash, requested_by_id, requested_by,\n               requested_at as \"requested_at: UtcInstant\", decided_by, decided_at as \"decided_at: UtcInstant\"\n               from t_account_request where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "account_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "username",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "username"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "email",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "display_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "held_role",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "held_role"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "requested_role",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "requested_role"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "password_hash",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "password_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "requested_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "requested_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "requested_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "requested_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "requested_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "requested_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "decided_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "decided_by"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "decided_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_account_request",
+            "name": "decided_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "de8e5d0caee9816e27fc83c4885f03df2a9cae69cc00f14d9f9bd27466e411e4"
+}

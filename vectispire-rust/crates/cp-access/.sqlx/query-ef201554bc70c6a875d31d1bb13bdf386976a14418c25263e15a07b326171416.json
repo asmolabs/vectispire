@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_account_request (kind, status, account_id, username, email, display_name, held_role, requested_role, password_hash, requested_by_id, requested_by, requested_at) values (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "ef201554bc70c6a875d31d1bb13bdf386976a14418c25263e15a07b326171416"
+}

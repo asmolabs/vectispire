@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select gesture from t_account_administration where account_id = ? and administrator_id = ? and occurred_at >= ? order by occurred_at desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gesture",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 128
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_account_administration",
+            "name": "gesture"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "90b56b41be34301845fc54d32fbb0246e800a010a97138b701cb1aa83e950443"
+}
