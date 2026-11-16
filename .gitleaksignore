@@ -207,3 +207,5 @@ ce4c52af788c1620313e1aad67567c80279583aa:vectispire-rust/crates/cp-contract/test
 # result-signing key — made up for the fixture, half of no key pair anyone holds, and public by nature. Read first.
 8b4e5ae54c1c0e97ffce6dd4112a2d8d85f99907:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/agents/AgentAdministrationReferenceSetTest.java:generic-api-key:57
 8b4e5ae54c1c0e97ffce6dd4112a2d8d85f99907:vectispire-rust/reference/agents/administration.json:generic-api-key:2
+# The RFC 6238 test vector (base32 of "12345678901234567890", the standard's own published secret) the replay's TOTP unit test checks its codes against — not a credential.
+79d3bb73185c17df11fbf8cbbafc91cca1f1b3ac:vectispire-rust/crates/cp-contract/src/recorded/placeholders.rs:generic-api-key:1250
