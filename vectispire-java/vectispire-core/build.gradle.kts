@@ -578,6 +578,10 @@ tasks.named<Test>("test") {
     // `cp-agents`' administration: the refusals, the audit sentences and the stored row of a declaration, a change, a
     // pinned or removed signing key, a sealing-key reset and a removal — `AgentAdministrationReferenceSetTest`.
     inputs.dir(rootProject.file("../vectispire-rust/reference/agents")).withPropertyName("agentsReferenceSet")
+    // `cp-posture`'s: the formula of decision 0036, the grades, the coverage cap, the badge, the backlog's series and the
+    // posture analytics, the remediation distribution and coverage, the fix a version recommends and the weekly report's
+    // text — `PostureReferenceSetTest`, written before the Rust port of the module.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/posture")).withPropertyName("postureReferenceSet")
 }
 
 /**

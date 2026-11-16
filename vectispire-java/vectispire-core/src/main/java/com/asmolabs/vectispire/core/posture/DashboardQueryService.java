@@ -25,7 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -287,7 +287,9 @@ public class DashboardQueryService {
      * agree; that link is what made the exclusion possible here, where it had been held back.
      */
     private Map<String, Long> backlogBySeverity(Visibility allowed) {
-        Map<String, Long> counts = new HashMap<>();
+        // In the severities' order, most severe first. A `HashMap` sent its keys in its table's order, which
+        // nothing promised and a reader of the wire cannot reproduce without the table itself.
+        Map<String, Long> counts = new LinkedHashMap<>();
         for (Severity severity : Severity.values()) {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),

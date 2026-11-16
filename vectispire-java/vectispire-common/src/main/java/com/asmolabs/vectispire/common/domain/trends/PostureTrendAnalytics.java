@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Enterprise security posture analytics, multi-echelon MTTR trends,
@@ -154,7 +155,8 @@ public record PostureTrendAnalytics(
         }
 
         Double overallMttr = average(allResolvedDurations);
-        Map<String, Double> mttrBySev = new HashMap<>();
+        // By severity name: a `HashMap`'s order was its table's, which the wire carried and nothing promised.
+        Map<String, Double> mttrBySev = new TreeMap<>();
         for (Map.Entry<String, List<Double>> e : resolvedDurationsBySev.entrySet()) {
             mttrBySev.put(e.getKey(), average(e.getValue()));
         }

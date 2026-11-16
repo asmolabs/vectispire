@@ -25,7 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -237,7 +237,8 @@ public class PostureDigestService {
 
     /** The same per-severity counts the dashboard shows, and by the same clause. */
     private Map<String, Long> backlogBySeverity(Visibility allowed) {
-        Map<String, Long> counts = new HashMap<>();
+        // Most severe first, as the dashboard's: the report lists them in this order.
+        Map<String, Long> counts = new LinkedHashMap<>();
         for (Severity severity : Severity.values()) {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -68,7 +70,10 @@ public record PostureDigest(
                 summary(weekStarting, counts),
                 weekStarting.toString(),
                 counts.openTotal(),
-                Map.copyOf(counts.backlogBySeverity() == null ? Map.of() : counts.backlogBySeverity()),
+                // Copied in the order it was handed over. `Map.copyOf` kept no order — a salted one, new at each
+                // start — so the report's "stable order" below was one per JVM run, and the webhook's too.
+                Collections.unmodifiableMap(new LinkedHashMap<>(
+                        counts.backlogBySeverity() == null ? Map.of() : counts.backlogBySeverity())),
                 counts.openedThisWeek(),
                 counts.resolvedThisWeek(),
                 counts.overdueCount(),
@@ -132,7 +137,7 @@ public record PostureDigest(
         body.append("Mean days to resolve: ")
                 .append(meanDaysToResolve == null
                         ? "no issue was resolved this week"
-                        : String.format("%.1f", meanDaysToResolve))
+                        : String.format(Locale.ROOT, "%.1f", meanDaysToResolve))
                 .append('\n');
         body.append('\n');
         body.append("Targets failing the gate: ").append(failingTargets).append(" of ").append(totalTargets)

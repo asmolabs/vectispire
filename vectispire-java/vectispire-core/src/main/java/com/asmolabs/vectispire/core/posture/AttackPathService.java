@@ -134,7 +134,7 @@ public class AttackPathService {
                 "INFO",
                 true,
                 AttackPathNode.NodeNote.PUBLIC_INGRESS,
-                Map.of("exposure", "PUBLIC", "protocol", "HTTPS / HTTP")));
+                ordered("exposure", "PUBLIC", "protocol", "HTTPS / HTTP")));
 
         // 2. Map Unauthenticated / Public API Endpoints
         List<ApiInventoryService.EndpointView> exposedEndpoints = new ArrayList<>();
@@ -269,7 +269,7 @@ public class AttackPathService {
                 "CRITICAL",
                 !criticalVulns.isEmpty(),
                 AttackPathNode.NodeNote.SENSITIVE_DATA_STORE,
-                Map.of("asset", "PostgreSQL / MySQL Storage", "impact", "Data Exfiltration & Integrity Loss")));
+                ordered("asset", "PostgreSQL / MySQL Storage", "impact", "Data Exfiltration & Integrity Loss")));
 
         if (!criticalVulns.isEmpty()) {
             for (IssueRows.GraphNode vuln : criticalVulns) {
@@ -329,7 +329,7 @@ public class AttackPathService {
             paths.add(new AttackPath(
                     "path-rce-exfil",
                     AttackPath.Scenario.UNAUTH_RCE_CHAIN,
-                    Map.of(
+                    ordered(
                             "method", unauthEp.method() != null ? unauthEp.method() : "",
                             "path", unauthEp.path() != null ? unauthEp.path() : "",
                             "identifier", topVuln.identifier() != null ? topVuln.identifier() : "",
@@ -447,6 +447,19 @@ public class AttackPathService {
                     issuesByRepo.getOrDefault(repo.id(), List.of())));
         }
         return graphs;
+    }
+
+    /**
+     * A node's metadata or a path's parameters, in the order written. {@code Map.of} with more than one entry
+     * iterates in an order salted at each start, so the same graph went out with its keys in another order after
+     * a restart — the wire carries that order, and a reader comparing two answers saw them differ.
+     */
+    private static Map<String, String> ordered(String... keysAndValues) {
+        Map<String, String> ordered = new LinkedHashMap<>();
+        for (int index = 0; index < keysAndValues.length; index += 2) {
+            ordered.put(keysAndValues[index], keysAndValues[index + 1]);
+        }
+        return java.util.Collections.unmodifiableMap(ordered);
     }
 
     private static boolean isSensitive(String path) {
