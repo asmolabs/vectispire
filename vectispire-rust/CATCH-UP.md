@@ -46,9 +46,9 @@ not serve at all yet is ported with that module, not stood up alone during the c
             while no access route is served). `cp-app --test access_composition`, on a real database.
       *Closed 2026-11-13: the address buckets (the last sub-item) were done in cp-http on 2026-11-12;
       `sign_in_reference_set` is green.*
-- [→] **Account requests** *(moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
+- [x] **Account requests** *(served 2026-11-16, wave 1, access administration stage; moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
       `ACCOUNT_REQUEST_FILED / _APPROVED / _REJECTED` (SIEM maps them to `ACCOUNT_CHANGED`). Not-yet-ported list.
-- [→] **`DELETE /users/{id}/second-factor`** *(moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
+- [x] **`DELETE /users/{id}/second-factor`** *(served 2026-11-16, wave 1; moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
       - [x] `scim_managed` read on `User`, `UserView` and SCIM's rows, set by every provisioning write
             (`scim_on_both_engines`).
       - [x] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — at the

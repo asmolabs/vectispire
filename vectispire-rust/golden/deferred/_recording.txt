@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 1
+ceiling 13
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
@@ -12,3 +12,17 @@ golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositor
 # ── Met by the SIEM routes' replay (task 4.2, fourth stage): the five agents' lines were listed under siem, whose event they now queue; their key is what still keeps them red ──
 
 # ── Added on 2026-11-12, Phase 1: recordings Java 1.0's tests made of routes the port now serves ──
+
+# ── Met by the access administration routes (task 1.7, first stage, 2026-11-16) ──
+golden api.PasswordChangeRequirementRoutesTest/nonAdministratorsAreRefused--002-DELETE-api_v1_users_t_user_1_password-change-requirement | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.PasswordChangeRequirementRoutesTest/nonAdministratorsAreRefused--003-DELETE-api_v1_users_t_user_1_password-change-requirement | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.PasswordChangeRequirementRoutesTest/nonAdministratorsAreRefused--004-DELETE-api_v1_users_t_user_1_password-change-requirement | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.SecondFactorResetRoutesTest/nonAdministratorsAreRefused--002-DELETE-api_v1_users_t_user_1_second-factor | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.SecondFactorResetRoutesTest/nonAdministratorsAreRefused--003-DELETE-api_v1_users_t_user_1_second-factor | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.SecondFactorResetRoutesTest/nonAdministratorsAreRefused--004-DELETE-api_v1_users_t_user_1_second-factor | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.AccountRequestsRoutesTest/notByAnApproverTheRequesterMade--004-POST-api_v1_account-requests_t_account_request_1_approve | a session seeded before its token is first sent is recorded as «sha256:N», and the replay pairs the token with the wrong seeded session; the recorder should record which seeded hash a secret opens
+golden api.AccountRevocationAtomicityTest/rolls_the_password_reset_back_with_it--001-PATCH-api_v1_users_t_user_1_ | the test makes a repository throw through a Mockito spy bean, which the replay cannot do; the store's transaction is held by cp-access' engine tests instead
+golden api.TeamWriteAtomicityTest/keepsTheMembers--003-PUT-api_v1_teams_t_team_1_members | the test makes a repository throw through a Mockito spy bean, which the replay cannot do; the store's transaction is held by cp-access' engine tests instead
+golden api.TeamWriteAtomicityTest/keepsTheTargets--003-PUT-api_v1_teams_t_team_1_targets | the test makes a repository throw through a Mockito spy bean, which the replay cannot do; the store's transaction is held by cp-access' engine tests instead
+golden api.TeamWriteAtomicityTest/leavesTheTeamWhole--003-DELETE-api_v1_teams_t_team_1_ | the test makes a repository throw through a Mockito spy bean, which the replay cannot do; the store's transaction is held by cp-access' engine tests instead
+golden api.ApproverIndependenceRoutesTest/admittedAfterTheWindow--003-POST-api_v1_issues_t_issue_1_triage | the test rewrites t_account_administration through a repository between two requests (gestures aged past the window), a state the replay does not see

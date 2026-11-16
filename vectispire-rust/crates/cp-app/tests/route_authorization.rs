@@ -79,6 +79,7 @@ type StandIns = (
     Arc<vectispire_cp_gate::GateModule>,
     Arc<vectispire_cp_siem::SiemExporterService>,
     registry::Platform,
+    Vec<vectispire_cp_http::routes::RouteEntry>,
 );
 
 fn stand_ins() -> StandIns {
@@ -158,6 +159,7 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
+    let (db_for_access, audit_for_access, creds_for_access) = (db.clone(), audit.clone(), creds.clone());
 
     let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
         db.clone(),
@@ -252,16 +254,41 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
     );
 
-    (targets, scanning, agents, rules, inventory, issues, gate, siem, platform)
+    let access = vectispire_cp_app::access::administration_routes(vectispire_cp_app::access::AdministrationParts {
+        db: db_for_access.clone(),
+        audit: audit_for_access,
+        credentials: creds_for_access,
+        clock: Arc::new(vectispire_cp_access::credentials::SystemClock),
+        guard: OutboundUrlGuard::new(Vec::new()),
+        visibility: vectispire_cp_access::VisibilityService::new(
+            db_for_access.clone(),
+            Arc::new(NoAccessSettings),
+            Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
+        ),
+        targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access)),
+    });
+    (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access)
+}
+
+/// The visibility's settings, never asked: the probe reads the routes' shape, not an allowance.
+struct NoAccessSettings;
+
+impl vectispire_cp_access::AccessSettings for NoAccessSettings {
+    fn target_visibility(
+        &self,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'_, Result<String, vectispire_cp_access::AccessError>> {
+        Box::pin(async { Ok(String::new()) })
+    }
 }
 
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
 #[tokio::test]
 async fn the_registry_holds_to_the_authorization_rules() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform) = stand_ins();
-    let routes =
-        descriptors(&registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem, platform));
+    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access) = stand_ins();
+    let routes = descriptors(&registry::routes(
+        targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access,
+    ));
     let not_ported: BTreeSet<String> = Allowlist::committed().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
 
@@ -288,8 +315,8 @@ async fn the_registry_holds_to_the_authorization_rules() {
 /// ceiling. It replaces the count of routes per module this test used to pin, which every port had to edit.
 #[tokio::test]
 async fn the_registry_serves_exactly_what_has_left_the_list_of_routes_not_ported() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform) = stand_ins();
-    let registry = registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem, platform);
+    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access) = stand_ins();
+    let registry = registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access);
     let served: BTreeSet<(String, String)> =
         registry.table().iter().map(|decl| (decl.method.clone(), decl.path.clone())).collect();
     assert_eq!(served.len(), registry.table().len(), "a route registered twice");

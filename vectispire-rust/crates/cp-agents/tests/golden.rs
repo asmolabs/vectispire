@@ -633,6 +633,8 @@ fn phase_three(
             integrations,
             clock: Arc::new(AuditClock),
         }));
+    let audit_for_access = audit.clone();
+    let targets_for_access: Arc<dyn vectispire_cp_access::GrantableTargets> = Arc::new(TargetsForAccess(db.clone()));
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -650,7 +652,95 @@ fn phase_three(
     routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
+    routes.extend(access_administration(db, audit_for_access, targets_for_access));
     routes
+}
+
+/// `cp-app`'s `access::administration_routes`, composed here as the binary composes it (the replay cannot name
+/// `cp-app`, which names this crate): accounts under four-eyes read from the settings, their writes closing sessions
+/// and revoking keys in the account's transaction.
+fn access_administration(
+    db: &Db,
+    audit: Arc<AuditLog>,
+    targets: Arc<dyn vectispire_cp_access::GrantableTargets>,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    use vectispire_cp_access::accounts::{Accounts, ApproverIndependence};
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(AccessClock);
+    let credentials = CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        SessionPolicy::default(),
+        Arc::new(AgentDirectoryImpl::new(db.clone())),
+        ScimToken::default(),
+    );
+    let audit = AccessAudit(audit);
+    let settings = Arc::new(Settings::new(db.clone()));
+    let accounts = Accounts::new(
+        vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit.clone(),
+        clock.clone(),
+    )
+    .with_four_eyes(ApproverIndependence::new(db.clone(), settings.clone()));
+    let visibility = VisibilityService::new(
+        db.clone(),
+        Arc::new(StoredSettings(Settings::new(db.clone()))),
+        Arc::new(TargetsForAccess(db.clone())),
+    );
+    let teams = vectispire_cp_access::teams::TeamAdministration::new(vectispire_cp_access::teams::TeamParts {
+        db: db.clone(),
+        audit: audit.clone(),
+        clock: clock.clone(),
+        outbound: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+        policy: settings,
+        targets: targets.clone(),
+        integrations: vectispire_cp_settings::Integrations::new(
+            db.clone(),
+            vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)],
+            Arc::new(time::OffsetDateTime::now_utc),
+        ),
+    });
+    let keys = vectispire_cp_access::api_key_administration::ApiKeyAdministration::new(
+        vectispire_cp_access::api_key_administration::ApiKeyParts {
+            db: db.clone(),
+            credentials,
+            targets: targets.clone(),
+            issuer_sees: Arc::new(vectispire_cp_access::IssuerVisibility::new(db.clone(), visibility, targets.clone())),
+            audit: audit.clone(),
+            clock,
+        },
+    );
+    vectispire_cp_access::administration_routes(vectispire_cp_access::Administration {
+        accounts: Arc::new(accounts),
+        account_targets: Arc::new(vectispire_cp_access::account_targets::AccountTargets::new(
+            db.clone(),
+            audit,
+            targets,
+        )),
+        teams: Arc::new(teams),
+        keys: Arc::new(keys),
+    })
+}
+
+/// `cp-app`'s `access::AccessAudit`: the access services' audit port on the audit log.
+#[derive(Clone)]
+struct AccessAudit(Arc<AuditLog>);
+
+impl vectispire_cp_access::accounts::Audit for AccessAudit {
+    async fn record(&self, record: vectispire_cp_access::accounts::AuditRecord) {
+        let operation = vectispire_cp_audit::AuditOperation::from_wire(record.operation.name())
+            .expect("every access operation is the log's");
+        self.0
+            .record(vectispire_cp_audit::Record {
+                operation,
+                resource_id: Some(record.resource),
+                description: Some(record.description),
+                user_id: record.username,
+                ip_address: record.ip_address,
+                user_agent: record.user_agent,
+                signal: record.signal.map(vectispire_cp_audit::Signal),
+            })
+            .await;
+    }
 }
 
 type Answer<'a, T> = std::pin::Pin<

@@ -19,6 +19,9 @@ pub enum AdminError {
     /// `NotFoundException`: 404, the message as Java writes it ("Team not found.", "No repository with id 3.").
     #[error("{0}")]
     NotFound(String),
+    /// `IntegrationDisabledException`: 409 `integration-disabled`, naming the integration in the member `integration`.
+    #[error("{}", .0.disabled_message(""))]
+    IntegrationDisabled(vectispire_domain::integrations::Integration),
     /// `UnsafeUrlException`: 422 — the URL guard refused the destination.
     #[error("{0}")]
     UnsafeUrl(String),

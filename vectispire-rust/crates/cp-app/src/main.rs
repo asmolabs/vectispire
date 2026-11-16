@@ -565,6 +565,16 @@ async fn serve() -> ExitCode {
         access_settings,
         Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
     );
+    let access_routes =
+        vectispire_cp_app::access::administration_routes(vectispire_cp_app::access::AdministrationParts {
+            db: db.clone(),
+            audit: audit.clone(),
+            credentials: creds.clone(),
+            clock: access_clock.clone(),
+            guard: guard.clone(),
+            visibility: visibility.clone(),
+            targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
+        });
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
@@ -589,6 +599,7 @@ async fn serve() -> ExitCode {
                 Arc::new(vectispire_cp_audit::SystemClock),
             ),
         },
+        access_routes,
     ) {
         routes = routes.route(entry);
     }

@@ -48,7 +48,7 @@ class PasswordChangeRevokesKeysRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("name", "minted-with-the-old-password", "scopes", List.of("read")))))
                 .andExpect(status().isOk());
-        assertThat(keys.findByOwnerUserId(id)).hasSize(1);
+        assertThat(keys.findByOwnerUserIdOrderByCreatedAtAscIdAsc(id)).hasSize(1);
 
         mvc.perform(authenticated(post("/api/v1/auth/change-password"), session)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -58,7 +58,7 @@ class PasswordChangeRevokesKeysRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.revokedApiKeys").value(1));
 
-        assertThat(keys.findByOwnerUserId(id)).isEmpty();
+        assertThat(keys.findByOwnerUserIdOrderByCreatedAtAscIdAsc(id)).isEmpty();
         assertThat(auditLog.findAll())
                 .filteredOn(entry -> AuditOperation.API_KEY_DELETED.wireName().equals(entry.getOperationType()))
                 .extracting(AuditLogEntity::getDescription)

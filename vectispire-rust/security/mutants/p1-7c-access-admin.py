@@ -39,7 +39,7 @@ MUTANTS = [
     ("account's repeats not collapsed", AT, "            if !wanted.contains(&grant) {\n                wanted.push(grant);\n            }", "            wanted.push(grant);", ENGINES),
     ("account's grants added to, not replaced", AT, "        store::delete_user_targets(&mut tx, id).await?;\n", "", ENGINES),
     ("no grant said as a count", AT, 'if wanted.is_empty() { "none".to_owned() }', 'if false { "none".to_owned() }', ENGINES),
-    ("absent account listed", AT, "        require_account(&mut tx, id).await?;\n        let grants", "        let grants", ENGINES),
+    ("absent account listed", AT, "        require_account(&mut tx, id).await?;\n        // After the account's 404", "        // After the account's 404", ENGINES),
     # ── teams
     ("list in byte order", TM, "java::compare_ignore_case(&left.name, &right.name)", "left.name.cmp(&right.name)", ENGINES),
     ("own name taken", TM, "Some(existing) if Some(existing.id) != allowed =>", "Some(existing) if existing.id != 0 =>", ENGINES),

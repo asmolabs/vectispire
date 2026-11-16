@@ -98,6 +98,8 @@ pub struct TeamParts<A, C> {
     pub outbound: OutboundUrlGuard,
     pub policy: Arc<dyn WebhookPolicy>,
     pub targets: Arc<dyn GrantableTargets>,
+    /// The integrations' registry: **a team's webhook is the webhook channel** (decision 0040, lot I6).
+    pub integrations: vectispire_cp_settings::Integrations,
 }
 
 /// `TeamAdministrationService`.
@@ -108,6 +110,7 @@ pub struct TeamAdministration<A, C> {
     outbound: OutboundUrlGuard,
     policy: Arc<dyn WebhookPolicy>,
     targets: Arc<dyn GrantableTargets>,
+    integrations: vectispire_cp_settings::Integrations,
 }
 
 impl<A, C> std::fmt::Debug for TeamAdministration<A, C> {
@@ -118,8 +121,8 @@ impl<A, C> std::fmt::Debug for TeamAdministration<A, C> {
 
 impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
     pub fn new(parts: TeamParts<A, C>) -> TeamAdministration<A, C> {
-        let TeamParts { db, audit, clock, outbound, policy, targets } = parts;
-        TeamAdministration { db, audit, clock, outbound, policy, targets }
+        let TeamParts { db, audit, clock, outbound, policy, targets, integrations } = parts;
+        TeamAdministration { db, audit, clock, outbound, policy, targets, integrations }
     }
 
     /// The teams by name, case-insensitively as `String.CASE_INSENSITIVE_ORDER` compares — unique whatever the
@@ -394,6 +397,11 @@ impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
             )
             .await;
         } else {
+            // **A team's webhook is the webhook channel** (decision 0040, lot I6): refused while
+            // `notification.webhook` is off, before the guard resolves anything — and held in the write's transaction,
+            // so a governor's switch arriving meanwhile waits for it and reads it as in use.
+            let channel = webhook_channel()?;
+            self.integrations.require_enabled(channel).await.map_err(integration_refusal)?;
             bounded_text::within(&url, MAX_WEBHOOK_URL_LENGTH, "The webhook URL")
                 .map_err(|refused| AdminError::InvalidInput(refused.0))?;
             let policy = if self.policy.private_destinations_allowed().await? {
@@ -410,6 +418,7 @@ impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
                 .map_err(|refused| AdminError::UnsafeUrl(refused.0))?;
             // Stored as typed (trimmed), not as the guard's cleaned form, as Java stores it.
             let mut tx = store::write(&self.db).await?;
+            self.integrations.hold_enabled(&mut tx, channel).await.map_err(integration_refusal)?;
             store::delete_webhook(&mut tx, id).await?;
             store::insert_webhook(&mut tx, id, &url).await?;
             store::commit(tx).await?;
@@ -438,6 +447,22 @@ impl<A: Audit + Sync, C: Clock + Sync> TeamAdministration<A, C> {
         let notified = store::webhook_url(&mut tx, team.id).await?.is_some();
         store::commit(tx).await?;
         Ok(TeamView::of(team, members, owned, notified))
+    }
+}
+
+/// `Integration.of(NotificationChannelKind.WEBHOOK)`.
+fn webhook_channel() -> Result<vectispire_domain::integrations::Integration, AdminError> {
+    vectispire_domain::integrations::Integration::by_key("notification.webhook")
+        .ok_or_else(|| AdminError::Failed("the registry names no notification.webhook".to_owned()))
+}
+
+/// `IntegrationDisabledException` is the 409 the route answers; anything else is a failure, never "enabled".
+fn integration_refusal(error: vectispire_cp_settings::IntegrationsError) -> AdminError {
+    match error {
+        vectispire_cp_settings::IntegrationsError::Disabled(integration) => {
+            AdminError::IntegrationDisabled(integration)
+        }
+        other => AdminError::Failed(other.to_string()),
     }
 }
 

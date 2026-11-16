@@ -275,9 +275,10 @@ impl ApproverIndependence {
     }
 }
 
-/// `clock.instant().minus(Duration.ofDays(days))`.
+/// `clock.instant().minus(Duration.ofDays(days))`. The window is bounded at ten years, so the subtraction holds; were it
+/// ever not to, the earliest instant there is counts every gesture, which refuses rather than admits.
 fn since(now: OffsetDateTime, days: i32) -> OffsetDateTime {
-    now - Duration::days(i64::from(days))
+    now.checked_sub(Duration::days(i64::from(days))).unwrap_or(OffsetDateTime::UNIX_EPOCH)
 }
 
 fn not_independent(sentence: String, gesture: Gesture, window_days: i32) -> IndependenceError {
