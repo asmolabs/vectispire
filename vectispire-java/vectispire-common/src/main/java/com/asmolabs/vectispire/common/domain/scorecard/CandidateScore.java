@@ -140,7 +140,9 @@ public final class CandidateScore {
      * underflows a double — beyond a weighted backlog of about 745·k.
      */
     public static double exact(Counts counts, Weights weights) {
-        return 100 * Math.exp(-riskPoints(counts, weights) / weights.k());
+        // `StrictMath`, not `Math`: `Math.exp` is the JVM's intrinsic, which may answer an ulp away from fdlibm on
+        // one platform and not on another, and a published grade must not depend on the machine computing it.
+        return 100 * StrictMath.exp(-riskPoints(counts, weights) / weights.k());
     }
 
     /**
