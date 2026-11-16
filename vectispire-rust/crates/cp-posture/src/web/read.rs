@@ -1,0 +1,177 @@
+//! Query and path variable readers matching Spring MVC coercion and error messages — cp-gate's, with the `Long` and
+//! `Double` request parameters posture's routes take.
+
+use http::StatusCode;
+use vectispire_cp_http::Problem;
+use vectispire_domain::java;
+
+fn mismatch(name: &str, value: &str) -> Problem {
+    Problem::handler(StatusCode::BAD_REQUEST, format!("Failed to convert '{name}' with value: '{value}'"))
+}
+
+fn trim_all_whitespace(text: &str) -> String {
+    text.chars().filter(|c| !java::is_whitespace(*c)).collect()
+}
+
+fn java_long(text: &str) -> Option<i64> {
+    let trimmed = trim_all_whitespace(text);
+    let (negative, unsigned) = match trimmed.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, trimmed.strip_prefix('+').unwrap_or(&trimmed)),
+    };
+    let hex =
+        unsigned.strip_prefix("0x").or_else(|| unsigned.strip_prefix("0X")).or_else(|| unsigned.strip_prefix('#'));
+    let (digits, radix) = match hex {
+        Some(digits) => (digits, 16),
+        None => (unsigned, 10),
+    };
+    if digits.is_empty() || digits.starts_with(['-', '+']) {
+        return None;
+    }
+    let mut value: i64 = 0;
+    for c in digits.chars() {
+        let digit = if radix == 10 { java::digit(c)? } else { c.to_digit(16)? };
+        value = value.checked_mul(radix)?.checked_sub(i64::from(digit))?;
+    }
+    if negative { Some(value) } else { value.checked_neg() }
+}
+
+pub fn path_long(name: &str, value: &str) -> Result<i64, Problem> {
+    java_long(value).ok_or_else(|| mismatch(name, value))
+}
+
+pub fn query_int(query: Option<&str>, name: &str) -> Result<Option<i32>, Problem> {
+    let Some(raw) = first_value(query, name) else {
+        return Ok(None);
+    };
+    // Spring applies `defaultValue` to an empty value only: " " reaches the conversion, which strips every space and
+    // refuses what is left.
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    match java_long(&raw).and_then(|val| i32::try_from(val).ok()) {
+        Some(v) => Ok(Some(v)),
+        None => Err(mismatch(name, &raw)),
+    }
+}
+
+/// A `Long` request parameter: absent or empty is `None`, what does not convert is Spring's 400.
+pub fn query_long(query: Option<&str>, name: &str) -> Result<Option<i64>, Problem> {
+    let Some(raw) = first_value(query, name) else {
+        return Ok(None);
+    };
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    java_long(&raw).map(Some).ok_or_else(|| mismatch(name, &raw))
+}
+
+/// A `Double` request parameter, as `Double.valueOf` reads it after Spring strips every space: decimal or exponent
+/// form, an optional `d`/`f` suffix, `NaN` and `Infinity` spelled so — not Rust's `inf` or `nan`, which Java refuses.
+pub fn query_double(query: Option<&str>, name: &str) -> Result<Option<f64>, Problem> {
+    let Some(raw) = first_value(query, name) else {
+        return Ok(None);
+    };
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    java_double(&trim_all_whitespace(&raw)).map(Some).ok_or_else(|| mismatch(name, &raw))
+}
+
+fn java_double(text: &str) -> Option<f64> {
+    let (sign, unsigned) = match text.strip_prefix('-') {
+        Some(rest) => (-1.0, rest),
+        None => (1.0, text.strip_prefix('+').unwrap_or(text)),
+    };
+    match unsigned {
+        "NaN" => return Some(f64::NAN),
+        "Infinity" => return Some(sign * f64::INFINITY),
+        _ => {}
+    }
+    let body = unsigned.strip_suffix(['d', 'D', 'f', 'F']).unwrap_or(unsigned);
+    let decimal = |part: &str| part.bytes().all(|b| b.is_ascii_digit());
+    let (mantissa, exponent) = match body.split_once(['e', 'E']) {
+        Some((mantissa, exponent)) => (mantissa, Some(exponent)),
+        None => (body, None),
+    };
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let exponent_ok = exponent.is_none_or(|exponent| {
+        let digits = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+        !digits.is_empty() && decimal(digits)
+    });
+    if (whole.is_empty() && fraction.is_empty()) || !decimal(whole) || !decimal(fraction) || !exponent_ok {
+        return None;
+    }
+    body.parse::<f64>().ok().map(|value| sign * value)
+}
+
+fn first_value(query: Option<&str>, name: &str) -> Option<String> {
+    query?.split('&').find_map(|pair| {
+        let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+        (decode(key) == name).then(|| decode(value))
+    })
+}
+
+/// The bytes decoded, then read as UTF-8 as the servlet container does: pushing each byte as a `char` read `%C3%A9`
+/// as two Latin-1 characters, and a refusal quoted the value Java does not.
+fn decode(text: &str) -> String {
+    let mut decoded = Vec::with_capacity(text.len());
+    let mut bytes = text.bytes();
+    while let Some(b) = bytes.next() {
+        if b == b'+' {
+            decoded.push(b' ');
+        } else if b == b'%' {
+            let h1 = bytes.next().and_then(hex_val);
+            let h2 = bytes.next().and_then(hex_val);
+            if let (Some(h1), Some(h2)) = (h1, h2) {
+                decoded.push((h1 << 4) | h2);
+            }
+        } else {
+            decoded.push(b);
+        }
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0' => Some(0),
+        b'1' => Some(1),
+        b'2' => Some(2),
+        b'3' => Some(3),
+        b'4' => Some(4),
+        b'5' => Some(5),
+        b'6' => Some(6),
+        b'7' => Some(7),
+        b'8' => Some(8),
+        b'9' => Some(9),
+        b'a' | b'A' => Some(10),
+        b'b' | b'B' => Some(11),
+        b'c' | b'C' => Some(12),
+        b'd' | b'D' => Some(13),
+        b'e' | b'E' => Some(14),
+        b'f' | b'F' => Some(15),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn doubles_read_as_java_reads_them() {
+        assert_eq!(java_double("2.5"), Some(2.5));
+        assert_eq!(java_double("1e3"), Some(1000.0));
+        assert_eq!(java_double(".5"), Some(0.5));
+        assert_eq!(java_double("5."), Some(5.0));
+        assert_eq!(java_double("3d"), Some(3.0));
+        assert_eq!(java_double("-Infinity"), Some(f64::NEG_INFINITY));
+        assert!(java_double("NaN").is_some_and(f64::is_nan));
+        assert_eq!(java_double("inf"), None);
+        assert_eq!(java_double("nan"), None);
+        assert_eq!(java_double("abc"), None);
+        assert_eq!(java_double("."), None);
+        assert_eq!(java_double("1e"), None);
+    }
+}

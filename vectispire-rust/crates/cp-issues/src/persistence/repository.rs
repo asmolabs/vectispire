@@ -748,7 +748,7 @@ impl TriageEventRepository {
 }
 
 /// The backlog's criteria but the reader's visibility, which [`visible_issues`] writes first.
-fn criteria(filters: &IssueFilters) -> Condition {
+pub(super) fn criteria(filters: &IssueFilters) -> Condition {
     let mut all = Condition::all();
     if let Some(state) = &filters.state {
         all = all.add(IssueColumn::State.eq(state.as_str()));

@@ -1,0 +1,49 @@
+[package]
+name = "vectispire-cp-posture"
+description = "The control plane's figures of risk: dashboard, scorecards and badges, security debt, quality, remediation, attack paths, the weekly digest."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+base64.workspace = true
+http.workspace = true
+rand_core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
+tokio = { workspace = true, features = ["time", "rt"] }
+tracing.workspace = true
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-gate = { path = "../cp-gate" }
+vectispire-cp-http.workspace = true
+vectispire-cp-inventory = { path = "../cp-inventory" }
+vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-scanning = { path = "../cp-scanning" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
+tower.workspace = true
+vectispire-cp-contract = { path = "../cp-contract" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
+vectispire-cp-rules = { path = "../cp-rules" }
+vectispire-tls = { path = "../tls" }
+# The reference set's doubles read exactly: without it a decimal can parse an ulp away from the double Java wrote.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

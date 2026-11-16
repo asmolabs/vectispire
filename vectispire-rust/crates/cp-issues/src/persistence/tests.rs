@@ -88,6 +88,7 @@ fn run(engine: Engine) {
             the_exceptions_register_pages_by_cursor_and_visibility,
             the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule,
             a_scan_raises_a_leak_once_when_it_creates_its_issue,
+            the_aggregates_posture_reads_decode_and_count,
         );
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
@@ -937,5 +938,90 @@ async fn a_passed_deadline_is_raised_with_its_mark_and_not_again(db: &Db) -> Che
     }
     signals.signal_crossings().await.map_err(|e| e.to_string())?;
     ensure_eq!(raised.taken().len(), 0, "a deadline raised once");
+    Ok(())
+}
+
+/// The aggregates `cp-posture` reads (`persistence/aggregates.rs`), each statement run and its rows decoded: a column
+/// selected under one name and read under another fails here, not as a 500 on a dashboard — the derive's `from_col`,
+/// which sea-orm ignores, was found by the replay that way.
+async fn the_aggregates_posture_reads_decode_and_count(tx: &mut Tx) -> Check {
+    use crate::persistence::aggregates::{Axis, IssueAggregates};
+
+    let mut log4j = issue("agg-1", Some(REPO_A), None);
+    log4j.type_ = "vulnerability".to_owned();
+    log4j.severity = "critical".to_owned();
+    log4j.package_name = Some("log4j".to_owned());
+    log4j.package_version = Some("2.14".to_owned());
+    log4j.fix_versions = Some("2.17.1, 2.15".to_owned());
+    log4j.is_kev = true;
+    log4j.epss_score = Some(0.97);
+    insert(tx, log4j).await?;
+    let mut unnamed = issue("agg-2", Some(REPO_A), None);
+    unnamed.type_ = "vulnerability".to_owned();
+    unnamed.package_name = Some("  ".to_owned());
+    insert(tx, unnamed).await?;
+    let mut leak = issue("agg-3", None, Some(IMAGE_A));
+    leak.type_ = "secret".to_owned();
+    leak.state = "resolved".to_owned();
+    leak.resolved_at = Some(at(7_200));
+    leak.resolution_seconds = Some(7_200);
+    insert(tx, leak).await?;
+
+    let every = IssueFilters { state: None, ..IssueFilters::new(Visibility::Everything) };
+    let open = IssueFilters::new(Visibility::Everything);
+    let err = |e: crate::persistence::StoreError| e.to_string();
+
+    let mut by_type: Vec<(String, i64)> = IssueAggregates::count_grouped_by_severity_and_type(tx, &open)
+        .await
+        .map_err(err)?
+        .into_iter()
+        .map(|row| (row.type_, row.c))
+        .collect();
+    by_type.sort();
+    ensure_eq!(by_type, vec![("vulnerability".to_owned(), 1), ("vulnerability".to_owned(), 1)], "severity and type");
+
+    let packaging = IssueAggregates::count_open_by_type_and_packaging(tx, &open).await.map_err(err)?;
+    ensure_eq!(
+        packaging.iter().map(|row| (row.type_.as_str(), row.package_named, row.unnamed)).collect::<Vec<_>>(),
+        vec![("vulnerability", 1, 1)],
+        "packaging"
+    );
+
+    let weights = IssueAggregates::weigh_packages(tx, &open).await.map_err(err)?;
+    ensure_eq!(
+        weights
+            .iter()
+            .map(|w| (w.package_name.as_str(), w.version.as_deref(), w.distinct_identifiers, w.critical_count))
+            .collect::<Vec<_>>(),
+        vec![("log4j", Some("2.14"), 1, 1)],
+        "package weights"
+    );
+    let details = IssueAggregates::detail_packages(tx, &open, &["log4j".to_owned()]).await.map_err(err)?;
+    ensure_eq!(details.len(), 1, "package details");
+
+    let nodes = IssueAggregates::unsettled_of_repositories(tx, "open", &[REPO_A], &["fixed"]).await.map_err(err)?;
+    ensure_eq!(
+        nodes.iter().map(|n| (n.type_.as_str(), n.is_kev, n.epss_score)).collect::<Vec<_>>(),
+        vec![("vulnerability", true, Some(0.97)), ("vulnerability", false, None)],
+        "graph nodes"
+    );
+
+    let grading = IssueAggregates::count_for_grading_by_target(tx, &every).await.map_err(err)?;
+    ensure_eq!(grading.iter().map(|row| row.c).sum::<i64>(), 3, "grading counts");
+    let resolved = IssueAggregates::count_resolved_by_target(tx, &every).await.map_err(err)?;
+    ensure_eq!(
+        resolved.iter().map(|row| (row.container_id, row.resolved, row.average_seconds)).collect::<Vec<_>>(),
+        vec![(Some(IMAGE_A), 1, Some(7_200.0))],
+        "resolutions"
+    );
+    let durations = IssueAggregates::resolved_durations_since(tx, &every, at(0)).await.map_err(err)?;
+    ensure_eq!(durations.iter().map(|row| row.resolution_seconds).collect::<Vec<_>>(), vec![7_200], "durations");
+    let backlog = IssueAggregates::open_backlog_by_severity(tx, &every).await.map_err(err)?;
+    ensure_eq!(backlog.iter().map(|row| row.total).sum::<i64>(), 2, "open backlog");
+    ensure_eq!(backlog[0].oldest_first_seen, Some(at(0)), "oldest");
+    ensure_eq!(IssueAggregates::observations(tx, &every).await.map_err(err)?.len(), 3, "observations");
+    ensure_eq!(IssueAggregates::count_distinct(tx, &every, Axis::Rule).await.map_err(err)?, 3, "distinct rules");
+    let top = IssueAggregates::count_grouped_repository(tx, &every, 8).await.map_err(err)?;
+    ensure_eq!(top, vec![(REPO_A, 2)], "top repositories");
     Ok(())
 }

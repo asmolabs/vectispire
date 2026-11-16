@@ -27,6 +27,7 @@ vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-http = { path = "../cp-http" }
 vectispire-cp-inventory = { path = "../cp-inventory" }
+vectispire-cp-posture = { path = "../cp-posture" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }

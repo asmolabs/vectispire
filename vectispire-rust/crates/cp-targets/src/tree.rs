@@ -380,6 +380,57 @@ impl Targets {
         )?)
     }
 
+    /// `visibleScopes`: every project, then every solution, as far as the caller sees each — what [`Self::visible_project`]
+    /// and [`Self::visible_solution`] would answer one by one, for a reader that walks them all (the score simulation).
+    /// A scope the guard refuses is left out, as the tree leaves it out: the rule is `rows`', not a copy of it. Four reads
+    /// for the estate rather than three per scope.
+    pub async fn visible_scopes(&self, allowance: &Allowance) -> Result<Vec<VisibleScope>, TargetError> {
+        let mut tx = persistence::read(&self.db).await?;
+        let repositories = persistence::repositories(&mut tx).await?;
+        let containers = persistence::containers(&mut tx).await?;
+        let mut projects = persistence::projects(&mut tx).await?;
+        let mut solutions = persistence::solutions(&mut tx).await?;
+        tx.commit().await.map_err(StoreError::from)?;
+
+        let mut filed_by_project: BTreeMap<i64, Vec<ScanTarget>> = BTreeMap::new();
+        for repository in &repositories {
+            if let Some(project) = repository.project_id {
+                filed_by_project.entry(project).or_default().push(ScanTarget::Repository(repository.id));
+            }
+        }
+        for container in &containers {
+            if let Some(project) = container.project_id {
+                filed_by_project.entry(project).or_default().push(ScanTarget::Container(container.id));
+            }
+        }
+
+        projects.sort_by_key(|project| project.id);
+        let mut scopes = Vec::new();
+        let mut projects_by_solution: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
+        for project in &projects {
+            projects_by_solution.entry(project.solution_id).or_default().push(project.id);
+            let filed = filed_by_project.get(&project.id).map(Vec::as_slice).unwrap_or_default();
+            if let Ok(scope) = rows::require_visible_project(project.id, Some(&project.name), filed, allowance) {
+                scopes.push(scope);
+            }
+        }
+        solutions.sort_by_key(|solution| solution.id);
+        for solution in &solutions {
+            let project_ids = projects_by_solution.get(&solution.id).map(Vec::as_slice).unwrap_or_default();
+            let filed: Vec<ScanTarget> = project_ids
+                .iter()
+                .flat_map(|project| filed_by_project.get(project).map(Vec::as_slice).unwrap_or_default())
+                .copied()
+                .collect();
+            if let Ok(scope) =
+                rows::require_visible_solution(solution.id, Some(&solution.name), project_ids, &filed, allowance)
+            {
+                scopes.push(scope);
+            }
+        }
+        Ok(scopes)
+    }
+
     /// `visibleSolution`: the solution's scope, or "Solution not found.".
     pub async fn visible_solution(&self, solution_id: i64, allowance: &Allowance) -> Result<VisibleScope, TargetError> {
         let mut tx = persistence::read(&self.db).await?;

@@ -274,6 +274,73 @@ impl ScanCatalog {
         self.read(async |tx| persistence::catalog_queries::last_scan_at_per_repository(tx).await).await
     }
 
+    /// `history(null, null, limit)` and `recentWithin`: the newest `limit` scans `allowed` permits, newest first. A
+    /// restricted reader's targets are asked [`LOOKUP_BATCH`] at a time, repositories and images apart, the newest of
+    /// each batch kept — the newest of a union are among the newest of each of its parts — and a scan naming a
+    /// repository is its repository's, so an image granted does not let through a scan of a repository that is not.
+    pub async fn recent(&self, allowed: &Visibility, limit: usize) -> Result<Vec<ScanView>, StoreError> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let rows = match allowed {
+            Visibility::Everything => {
+                self.read(async |tx| persistence::history_page(tx, None, None, limit, 0).await).await?
+            }
+            Visibility::Only(targets) => {
+                let repositories: Vec<i64> = targets
+                    .iter()
+                    .filter_map(|target| match target {
+                        ScanTarget::Repository(id) => Some(*id),
+                        ScanTarget::Container(_) => None,
+                    })
+                    .collect();
+                let containers: Vec<i64> = targets
+                    .iter()
+                    .filter_map(|target| match target {
+                        ScanTarget::Container(id) => Some(*id),
+                        ScanTarget::Repository(_) => None,
+                    })
+                    .collect();
+                // `in ()` is not valid everywhere: the other column is asked for an id no identity column hands out.
+                let none = [-1i64];
+                let mut candidates = Vec::new();
+                for batch in repositories.chunks(LOOKUP_BATCH) {
+                    candidates.extend(
+                        self.read(async |tx| persistence::history_within(tx, None, None, batch, &none, limit, 0).await)
+                            .await?,
+                    );
+                }
+                for batch in containers.chunks(LOOKUP_BATCH) {
+                    candidates.extend(
+                        self.read(async |tx| persistence::history_within(tx, None, None, &none, batch, limit, 0).await)
+                            .await?,
+                    );
+                }
+                candidates.sort_by(|a, b| b.created_at.cmp(&a.created_at).then_with(|| b.id.cmp(&a.id)));
+                candidates.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+                candidates
+            }
+        };
+        Ok(rows.into_iter().map(ScanView::from).collect())
+    }
+
+    /// `targetsWithStatus`: each target holding a scan in this status, once — a scan naming a repository is its
+    /// repository's, one naming neither is unclassifiable and left out.
+    pub async fn targets_with_status(&self, status: &str) -> Result<Vec<ScanTarget>, StoreError> {
+        let rows = self.read(async |tx| persistence::catalog_queries::targets_with_status(tx, status).await).await?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(repository, container)| match (repository, container) {
+                (Some(id), _) => Some(ScanTarget::Repository(id)),
+                (None, Some(id)) => Some(ScanTarget::Container(id)),
+                (None, None) => None,
+            })
+            .collect())
+    }
+
+    /// Whether the target holds a scan with this status, ignoring case.
+    pub async fn has_scan_with_status(&self, target: ScanTarget, status: &str) -> Result<bool, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::has_scan_with_status(tx, target, status).await).await
+    }
+
     /// Scans of one repository, newest first.
     pub async fn history(&self, repo_id: i64, branch: Option<&str>, limit: usize) -> Result<Vec<ScanView>, StoreError> {
         Ok(self

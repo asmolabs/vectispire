@@ -5,8 +5,8 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3).
-const FILLED: [Sequence; 15] = [
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3), posture's one (wave 1).
+const FILLED: [Sequence; 16] = [
     Sequence::NotificationRelay,
     Sequence::SentMessages,
     Sequence::RepositoryIdentities,
@@ -22,6 +22,7 @@ const FILLED: [Sequence; 15] = [
     Sequence::SessionCleanup,
     Sequence::ScanMetrics,
     Sequence::AgentMetrics,
+    Sequence::WeeklyDigest,
 ];
 
 /// The filled slots and one more.
@@ -49,9 +50,9 @@ fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
     assert_eq!(
         entries.len(),
-        15,
-        "the outbox, the targets, scanning, agents, inventory, issues, gate, access and the gauges fill fifteen of \
-         Java's thirty"
+        14,
+        "the outbox, the targets, scanning, agents, inventory, issues, gate, access, posture and the gauges fill \
+         sixteen of Java's thirty"
     );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());
@@ -59,24 +60,27 @@ fn the_list_today_is_every_slot_with_its_reason() {
 
 #[test]
 fn a_slot_neither_filled_nor_deferred_fails() {
-    let problems = check(&FILLED, &without("WEEKLY_DIGEST"));
+    let problems = check(&FILLED, &without("CHECKLIST_REMINDERS"));
     assert_eq!(problems.len(), 1, "{problems:#?}");
     assert!(
         mentions(
             &problems,
-            "WEEKLY_DIGEST: Java runs WeeklyDigestTask (posture) on the maintenance turn; no Rust task fills the slot"
+            "CHECKLIST_REMINDERS: Java runs ChecklistReminderTask (checklists) on the maintenance turn; no Rust task fills the slot"
         ),
         "{problems:#?}"
     );
     // Filled, it passes.
-    assert!(check(&and(Sequence::WeeklyDigest), &without("WEEKLY_DIGEST")).is_empty());
+    assert!(check(&and(Sequence::ChecklistReminders), &without("CHECKLIST_REMINDERS")).is_empty());
 }
 
 #[test]
 fn a_slot_filled_and_still_deferred_fails() {
-    let problems = check(&and(Sequence::WeeklyDigest), DEFERRED);
+    let problems = check(&and(Sequence::ChecklistReminders), DEFERRED);
     assert_eq!(problems.len(), 1, "{problems:#?}");
-    assert!(mentions(&problems, "WEEKLY_DIGEST: filled by a Rust task and still in deferred.txt"), "{problems:#?}");
+    assert!(
+        mentions(&problems, "CHECKLIST_REMINDERS: filled by a Rust task and still in deferred.txt"),
+        "{problems:#?}"
+    );
 }
 
 #[test]

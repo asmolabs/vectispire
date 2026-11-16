@@ -45,6 +45,7 @@ vectispire-protocol.workspace = true
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-gate = { path = "../cp-gate" }
+vectispire-cp-posture = { path = "../cp-posture" }
 vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-cp-inventory = { path = "../cp-inventory" }
 # The replay composes the SIEM export as the binary does: its listener queues the events the recordings hold.

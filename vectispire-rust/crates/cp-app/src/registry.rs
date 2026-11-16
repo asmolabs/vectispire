@@ -1,5 +1,5 @@
 //! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues
-//! (10), gate (7), siem (3), platform (10 so far: the audit trail's, the signing key's, the integrations' and the
+//! (10), gate (7), posture (18), siem (3), platform (10 so far: the audit trail's, the signing key's, the integrations' and the
 //! settings catalog's and save).
 
 use std::sync::Arc;
@@ -8,6 +8,7 @@ use vectispire_cp_agents::Agents;
 use vectispire_cp_gate::GateModule;
 use vectispire_cp_http::routes::{NoVisibility, RouteEntry, Routes};
 use vectispire_cp_inventory::Inventory;
+use vectispire_cp_posture::PostureModule;
 use vectispire_cp_rules::RulesModule;
 use vectispire_cp_scanning::Scanning;
 use vectispire_cp_siem::SiemExporterService;
@@ -52,6 +53,7 @@ pub fn entries(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    posture: Arc<PostureModule>,
     siem: Arc<SiemExporterService>,
     platform: Platform,
 ) -> Vec<RouteEntry> {
@@ -63,6 +65,7 @@ pub fn entries(
     list.extend(vectispire_cp_inventory::routes(inventory, targets));
     list.extend(vectispire_cp_issues::routes(issues));
     list.extend(gate.routes());
+    list.extend(posture.routes());
     list.extend(vectispire_cp_siem::routes(siem));
     list.extend(vectispire_cp_platform::routes(platform.trail, platform.signing));
     list.extend(vectispire_cp_platform::integration_routes(platform.integrations));
@@ -81,11 +84,12 @@ pub fn routes(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    posture: Arc<PostureModule>,
     siem: Arc<SiemExporterService>,
     platform: Platform,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, siem, platform) {
+    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform) {
         routes = routes.route(entry);
     }
     routes

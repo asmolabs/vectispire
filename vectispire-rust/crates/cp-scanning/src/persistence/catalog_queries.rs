@@ -787,3 +787,39 @@ pub async fn latest_finished_of_target(tx: &mut Tx, target: ScanTarget) -> Resul
     let row: Option<Latest> = orm::fetch_optional(tx, &select).await?;
     Ok(row.map(LatestRow::from))
 }
+
+#[derive(Debug, FromQueryResult)]
+struct TargetColumns {
+    repo_id: Option<i64>,
+    container_id: Option<i64>,
+}
+
+/// `targetsWithStatus`: the distinct targets holding a scan in this status — columns, not scans, since the callers
+/// need only "has this target completed one" and the scans carry SBOMs.
+pub async fn targets_with_status(tx: &mut Tx, status: &str) -> Result<Vec<(Option<i64>, Option<i64>)>, StoreError> {
+    let select = Query::select()
+        .distinct()
+        .column(ScanColumn::RepoId)
+        .column(ScanColumn::ContainerId)
+        .from(Scans)
+        .and_where(Expr::col(ScanColumn::Status).eq(status))
+        .to_owned();
+    let rows: Vec<TargetColumns> = orm::fetch_all(tx, &select).await?;
+    Ok(rows.into_iter().map(|row| (row.repo_id, row.container_id)).collect())
+}
+
+/// `existsByRepoIdAndStatusIgnoreCase` / `existsByContainerIdAndStatusIgnoreCase`: Spring Data's `IgnoreCase` is
+/// `upper(column) = upper(?)`.
+pub async fn has_scan_with_status(tx: &mut Tx, target: ScanTarget, status: &str) -> Result<bool, StoreError> {
+    let (column, id) = match target {
+        ScanTarget::Repository(id) => (ScanColumn::RepoId, id),
+        ScanTarget::Container(id) => (ScanColumn::ContainerId, id),
+    };
+    let select = Query::select()
+        .expr(Expr::cust("count(*)"))
+        .from(Scans)
+        .and_where(Expr::col(column).eq(id))
+        .and_where(Expr::expr(Func::upper(Expr::col(ScanColumn::Status))).eq(Func::upper(Expr::val(status))))
+        .to_owned();
+    Ok(orm::fetch_count(tx, &select).await? > 0)
+}

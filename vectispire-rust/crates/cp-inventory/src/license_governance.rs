@@ -18,6 +18,14 @@ use crate::license::{
 };
 use crate::persistence::{InventoryRepository, StoreError};
 
+/// The refused licence entries a reader sees: each target's (only those refusing one), and in all.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LicenceViolations {
+    pub by_target: BTreeMap<ScanTarget, i64>,
+    /// At least the sum of `by_target`: an unrestricted reader's total holds the untargeted scans' entries too.
+    pub total: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct LicenseGovernanceService {
     db: Db,
@@ -151,6 +159,41 @@ impl LicenseGovernanceService {
         } else {
             Ok(inventory)
         }
+    }
+
+    /// `violations(allowed)`: how many entries of the inventory `allowed` sees the policy refuses — each target's, and
+    /// in all. **The scans attached to no target count in the total for a reader who sees everything**, as their
+    /// entries do in Java's inventory (`Visibility.permits(null)`), and for nobody else; they are in no target's count.
+    ///
+    /// Java reads this off per-target tallies it keeps in memory; counted here from the inventory itself, which those
+    /// tallies equal by their own contract (`violationsWithin`). The cost is a parse of the SBOMs in view per call.
+    pub async fn violations(&self, allowed: &Visibility) -> Result<LicenceViolations, InventoryError> {
+        let selected: Vec<ScanSbom> = match allowed {
+            Visibility::Only(only) => {
+                let targets: Vec<ScanTarget> = only.iter().copied().collect();
+                let mut theirs = self.scans.sboms_of_targets(&targets).await?;
+                theirs.retain(|scan| scan.target().is_some_and(|target| allowed.permits(target)));
+                theirs
+            }
+            Visibility::Everything => self.scans.sboms().await?,
+        };
+        let mut violations = LicenceViolations::default();
+        for entry in self.named(selected, |_| true).await? {
+            let target = Self::target_of(&entry);
+            let seen = match target {
+                Some(target) => allowed.permits(target),
+                None => matches!(allowed, Visibility::Everything),
+            };
+            if !seen || entry.compliant {
+                continue;
+            }
+            violations.total = violations.total.saturating_add(1);
+            if let Some(target) = target {
+                let count = violations.by_target.entry(target).or_default();
+                *count = count.saturating_add(1);
+            }
+        }
+        Ok(violations)
     }
 
     pub async fn get_summary(

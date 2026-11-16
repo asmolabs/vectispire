@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 1
+ceiling 10
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
@@ -12,3 +12,14 @@ golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositor
 # ── Met by the SIEM routes' replay (task 4.2, fourth stage): the five agents' lines were listed under siem, whose event they now queue; their key is what still keeps them red ──
 
 # ── Added on 2026-11-12, Phase 1: recordings Java 1.0's tests made of routes the port now serves ──
+
+# ── Posture (wave 1): figures of time over seeded instants the recorder hides — moved here from posture.txt's 18 route lines, which the port ended (2026-11-16) ──
+route GET /api/v1/dashboard/trends | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the series, its opened and resolved days and its mean — is drawn on today; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+route GET /api/v1/dashboard/posture-analytics | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the daily series, the window’s opened and resolved counts and every MTTR — is drawn on today; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--033-GET-api_v1_dashboard | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the overdue count — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--117-GET-api_v1_dashboard | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the overdue count — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.RemediationSlaRoutesTest/theFigureAndTheListAgree--001-GET-api_v1_dashboard | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the overdue count — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--069-GET-api_v1_scorecards_global | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the portfolio’s overdue count — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--153-GET-api_v1_scorecards_global | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the portfolio’s overdue count — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--058-GET-api_v1_remediation_distribution | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the overdue counts and the oldest open item’s age — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--142-GET-api_v1_remediation_distribution | an issue seeded at an instant the recorder hides («datetime») is replayed at the wall clock (README, “a clock value seeded”), so a figure of time — the overdue counts and the oldest open item’s age — reads none late and none old; ended by the recorder keeping a seeded instant relative to the request (cp-contract)

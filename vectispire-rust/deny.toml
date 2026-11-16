@@ -136,6 +136,7 @@ deny = [
         "vectispire-cp-inventory",
         "vectispire-cp-issues",
         "vectispire-cp-platform",
+        "vectispire-cp-posture",
         "vectispire-cp-rules",
         "vectispire-cp-scanning",
         "vectispire-cp-siem",

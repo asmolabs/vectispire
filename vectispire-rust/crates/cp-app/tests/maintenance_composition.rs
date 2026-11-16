@@ -338,6 +338,45 @@ fn session_cleanup() -> Arc<dyn vectispire_cp_maintenance::MaintenanceTask> {
     vectispire_cp_access::session_cleanup::session_cleanup_task(credentials, db, clock)
 }
 
+/// The posture module over a pool that never connects, as the binary composes it: its weekly digest fills
+/// `WEEKLY_DIGEST`, its channels the notifications stand-in.
+fn posture(
+    targets: Arc<vectispire_cp_targets::Targets>,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+    inventory: Arc<vectispire_cp_inventory::Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
+    gate: Arc<vectispire_cp_gate::GateModule>,
+) -> Arc<vectispire_cp_posture::PostureModule> {
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let audit = audit();
+    Arc::new(vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
+        db: db.clone(),
+        gate: gate.gate.clone(),
+        issues: issues.catalog().clone(),
+        sla: issues.sla().clone(),
+        scans: Arc::new(scanning.catalog().clone()),
+        targets,
+        licences: inventory.licenses().clone(),
+        apis: inventory.apis().clone(),
+        settings: Arc::new(vectispire_cp_settings::Settings::new(db)),
+        audit_log: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(vectispire_cp_audit::SystemClock),
+            Vec::new(),
+        )),
+        audit,
+        channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+    }))
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -347,6 +386,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let inventory = inventory(targets.clone(), scanning.clone());
     let issues = issues(targets.clone(), scanning.clone());
     let gate = gate(targets.clone(), scanning.clone(), issues.clone());
+    let posture = posture(targets.clone(), scanning.clone(), inventory.clone(), issues.clone(), gate.clone());
     let db_settings = vectispire_cp_db::settings::DbSettings {
         url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
         username: "nobody".into(),
@@ -365,6 +405,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         inventory,
         issues,
         gate,
+        posture,
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
         session_cleanup(),

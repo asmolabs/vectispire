@@ -41,6 +41,7 @@ use vectispire_cp_gate::GateModule;
 use vectispire_cp_inventory::Inventory;
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
+use vectispire_cp_posture::PostureModule;
 use vectispire_cp_scanning::Scanning;
 use vectispire_cp_settings::Settings;
 use vectispire_cp_targets::{Clock, Targets};
@@ -77,6 +78,7 @@ pub fn tasks(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    posture: Arc<PostureModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
@@ -95,6 +97,7 @@ pub fn tasks(
     ));
     tasks.push(session_cleanup);
     tasks.extend(gate.tasks(settings, clock));
+    tasks.extend(posture.tasks());
     tasks.extend(gauges.tasks());
     Ok(tasks)
 }
@@ -109,6 +112,7 @@ pub fn turns(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    posture: Arc<PostureModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
@@ -122,6 +126,7 @@ pub fn turns(
         inventory,
         issues,
         gate,
+        posture,
         settings,
         clock,
         session_cleanup,

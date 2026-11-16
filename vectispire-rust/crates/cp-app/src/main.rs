@@ -510,6 +510,29 @@ async fn serve() -> ExitCode {
         siem.security_events(),
     ));
 
+    // The figures of risk. The weekly report's channels are the notifications module's, not ported: the stand-in
+    // answers that none is configured, so the digest sends nothing and writes no entry (wave 2).
+    let posture = Arc::new(vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
+        db: db.clone(),
+        gate: gate.gate.clone(),
+        issues: issues.catalog().clone(),
+        sla: issues.sla().clone(),
+        scans: scan_catalog.clone(),
+        targets: targets.clone(),
+        licences: inventory.licenses().clone(),
+        apis: inventory.apis().clone(),
+        settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+        audit: audit.clone(),
+        // Counts the digest's own entries only: it verifies no chain, so it tells no listener of a break.
+        audit_log: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(vectispire_cp_audit::SystemClock),
+            Vec::new(),
+        )),
+        channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
+        clock: clock.clone(),
+    }));
+
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
@@ -519,6 +542,7 @@ async fn serve() -> ExitCode {
         inventory.clone(),
         issues.clone(),
         gate.clone(),
+        posture.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
         access.session_cleanup.clone(),
@@ -577,6 +601,7 @@ async fn serve() -> ExitCode {
         inventory.clone(),
         issues.clone(),
         gate.clone(),
+        posture.clone(),
         siem_service,
         vectispire_cp_app::registry::Platform {
             trail: trail.clone(),

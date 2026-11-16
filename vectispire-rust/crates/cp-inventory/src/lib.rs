@@ -52,7 +52,7 @@ pub use error::InventoryError;
 pub use internal::ScanInventory;
 pub use inventory_query::InventoryQueryService;
 pub use license::*;
-pub use license_governance::LicenseGovernanceService;
+pub use license_governance::{LicenceViolations, LicenseGovernanceService};
 pub use purge::listeners;
 pub use sbom_diff::SbomDiffService;
 

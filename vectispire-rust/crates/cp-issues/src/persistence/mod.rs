@@ -1,5 +1,6 @@
 //! Persistence layer for the issues crate.
 
+pub mod aggregates;
 pub mod checked;
 pub mod entities;
 pub mod filters;

@@ -533,7 +533,7 @@ fn signing_key_pem() -> String {
         .to_string()
 }
 
-/// The issues, gate, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
+/// The issues, gate, posture, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
 /// targets above.
 /// The issues and inventory modules as `cp-app` composes them — before scanning, whose ingestion writes into both.
 fn issues_and_inventory(
@@ -639,12 +639,34 @@ fn phase_three(
         Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
         targets.clone(),
         rules.coverage.clone(),
-        audit,
+        audit.clone(),
         Arc::new(SystemClock),
         siem.events.clone(),
     );
+    // As `cp-app` composes it: the weekly report's channels are the notifications module's stand-in, which no route
+    // reaches.
+    let posture = vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
+        db: db.clone(),
+        gate: gate.gate.clone(),
+        issues: issues.catalog().clone(),
+        sla: issues.sla().clone(),
+        scans: Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
+        targets: targets.clone(),
+        licences: inventory.licenses().clone(),
+        apis: inventory.apis().clone(),
+        settings: Arc::new(Settings::new(db.clone())),
+        audit_log: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(AuditClock),
+            Vec::new(),
+        )),
+        audit,
+        channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
+        clock: Arc::new(SystemClock),
+    });
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(gate.routes());
+    routes.extend(posture.routes());
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
     routes.extend(vectispire_cp_platform::routes(trail, signing));
