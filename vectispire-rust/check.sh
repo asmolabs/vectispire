@@ -42,4 +42,5 @@ cargo vet --locked
 # Each mutation script's guards must still be found in the sources, exactly once. This runs no mutant
 # (security/mutants/README.md): it keeps the lists from rotting silently when the code they break moves,
 # so that the next full run still means something.
-for script in security/mutants/p*.py; do python3 "$script" --check; done
+# Every script but the runner: `p<phase>-…` for the plan's phases, `w<wave>-…` for the waves of the port.
+for script in security/mutants/[!_]*.py; do python3 "$script" --check; done

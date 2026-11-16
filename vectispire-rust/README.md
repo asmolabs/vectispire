@@ -306,7 +306,7 @@ above or below it failing — so two ports never lower the same number; the tota
 day of the split) are printed by `cp-contract summary` and `replay-plan`. The `README.md` of each directory says the
 rules. The crate lists a new module used to join by hand are found instead: the workspace members (`crates/*`), the
 replay tests (`replay-goldens.sh`: every `crates/*/tests/golden.rs` reading `VECTISPIRE_GOLDEN_DIR`), the crates with
-checked queries (`sqlx-prepare.sh`: every `crates/*/.sqlx/`) and the mutation scripts (`security/mutants/p*.py`).
+checked queries (`sqlx-prepare.sh`: every `crates/*/.sqlx/`) and the mutation scripts (`security/mutants/[!_]*.py`).
 `deny.toml`'s `wrappers` stay written by hand — who may link a driver or a server is a review decision — one crate per
 line. What a port still edits in common is in `.claude/skills/port-module/SKILL.md` §5b.
 

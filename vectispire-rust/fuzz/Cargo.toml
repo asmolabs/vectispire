@@ -21,6 +21,7 @@ serde = "1"
 serde_json = { version = "1", features = ["unbounded_depth"] }
 tempfile = "3"
 vectispire-container = { path = "../crates/container" }
+vectispire-cp-checklists = { path = "../crates/cp-checklists" }
 vectispire-crypto = { path = "../crates/crypto" }
 vectispire-domain = { path = "../crates/domain" }
 vectispire-git = { path = "../crates/git" }
@@ -133,6 +134,13 @@ bench = false
 [[bin]]
 name = "collector_ca"
 path = "fuzz_targets/collector_ca.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "checklist_workbook"
+path = "fuzz_targets/checklist_workbook.rs"
 test = false
 doc = false
 bench = false

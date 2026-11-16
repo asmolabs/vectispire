@@ -450,7 +450,7 @@ digest-prefix fix). One pull request per stage:
 | Stage | What | State |
 |---|---|---|
 | 1a | The vocabulary: text, answers, items and pairing, contacts, reminders, rules and their canonical form, the evaluation and its evidence; the facts, a forge's review reading, Maven's order and ranges in `domain` | done, held to `reference/checklists/` |
-| 1b | The workbook: the hand-written xlsx reader (`WorkbookReader`, `XmlCursor`, fuzzed), the layout and its proposal, the template version, the renderer and `DocumentZip` byte for byte, `ChecklistStatement` | next |
+| 1b | The workbook: the hand-written xlsx reader (`WorkbookReader`, `XmlCursor`, fuzzed), the layout and its proposal, the template version, the renderer and `DocumentZip` byte for byte, `ChecklistStatement` | done (2026-11-16, `rust/w1-checklists-1b`), held to `reference/checklists/workbooks*.json`: 186 workbooks read or refused in Java's words, every render and trial the same bytes, `checklist.json` as Java writes it; zip and XML read as the JDK reads them (`flate2` on zlib), fuzzed (`checklist_workbook`); `w1-checklists-1b.py`. One Java defect fixed first: a row's `spans=":"` threw out of the renderer |
 | 2 | The services and persistence; the `RepositoryScanned` listener, the `checklist_answer` handler, the reminders' maintenance task, the `ProjectDeleted` purge | needs `AccountDirectory` and `AccountNames` in `cp-access`; the plugins' import catalogue and the mail channel behind ports with absent-answering stand-ins until wave 2 and 3 |
 | 3 | The 35 routes | |
 | 4 | The replay of their recordings | |

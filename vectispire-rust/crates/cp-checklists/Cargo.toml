@@ -9,6 +9,10 @@ publish.workspace = true
 
 [dependencies]
 serde_json.workspace = true
+# `java.util.zip`'s inflater and deflater, on zlib itself (`libz-sys`, already linked for libgit2): the renderer's
+# package must deflate to the bytes Java's `ZipOutputStream` writes, and the reader's ratio guard counts the
+# compressed bytes zlib consumed. `miniz_oxide`, flate2's default, compresses to other bytes and is left out.
+flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
 # `Digests.sha256Hex`: the rule's and the evidence's digests, which a measurement and a sign-off name.
 sha2.workspace = true
 thiserror.workspace = true
@@ -20,6 +24,7 @@ unicode-normalization = "0.1"
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+base64.workspace = true
 vectispire-testkit = { path = "../testkit" }
 
 [lints]

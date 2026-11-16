@@ -2,8 +2,8 @@
 
 The control plane's checklists module in Rust — `core.checklists` and the rules of `common.domain.checklists` (plan,
 Phase 5; ported in wave 1, decided 2026-10-28). Not shipped: the Java control plane is the product. Staged, one pull
-request per stage: **1a, this crate's vocabulary** (here); 1b the workbook reader and renderer; 2 the services and
-persistence; 3 the 35 routes; 4 the replay of their recorded traffic.
+request per stage: **1a, the vocabulary** and **1b, the workbook** (here); 2 the services and persistence; 3 the 35
+routes; 4 the replay of their recorded traffic.
 
 ## What it holds so far
 
@@ -20,6 +20,26 @@ persistence; 3 the 35 routes; 4 the replay of their recorded traffic.
 | `measurement` | `Measurement`, `MeasurementOutcome`, `NoDataReason`, `Reconciliation` | the evidence as stored and its digest, read back |
 | `source_languages` | `SourceLanguages` | which languages a static analysis must read |
 
+**The workbook (1b)**, held to `reference/checklists/workbooks.json` (`workbooks.py` writes it; `WorkbookReferenceSetTest`
+answers it in `workbooks-java-answers.json`; `tests/workbook_reference_set.rs` reads it):
+
+| Rust | Java | |
+|---|---|---|
+| `workbook_reader`, `zip_input` | `WorkbookReader`, `ZipInputStream` | the `.xlsx` read entry after entry from the local headers as JDK 25's stream reads it, every guard counted as the bytes come out of zlib — the ratio on the compressed bytes zlib consumed, 512 at a time |
+| `safe_xml` (private) | `SafeXml` (`Doctype.REFUSED`) | a strict XML 1.0 reader with namespaces: a DOCTYPE refused, no entity but the five, the depth, attribute and element bounds; the JDK's events and its positions |
+| `cell`, `workbook` | `CellRef`, `CellRange`, `CellValue`, `ListValidation`, `HeaderCell`, `Sheet`, `Workbook` | the grid, the values as stated, a validation list's words |
+| `layout` | `ChecklistLayout`, `LayoutProposal`, `TemplateItems`, `TemplateVersion` | where the checklist lives, proposed from the structure and confirmed; the items filled down |
+| `xml_cursor` (private) | `XmlCursor` | the tags with their offsets, what the renderer splices with |
+| `renderer` | `ChecklistRenderer`, `EvidenceSheet`, `WrittenFormulaException` | the filled workbook, **the same bytes as Java's**, and its trial; every cell a formula depends on named |
+| `document_zip` | `DocumentZip` | the archive `ZipOutputStream` writes, field for field, deflated by zlib at level 6 |
+| `statement` | `ChecklistStatement` | the document's statement and `checklist.json` as the control plane's mapper writes it |
+
+The reference set holds 186 workbooks — Office's shapes, the zip's guards and its corruptions, the XML's edges (70 of
+them each with the JDK's line and column), the cells' types — 25 layouts, 11 versions, 28 renders and 4 trials compared
+byte for byte, the statements, the serials and three archives. `fuzz/fuzz_targets/checklist_workbook.rs` fuzzes the
+reader, the proposal and the trial every night; `tests/workbook_corruption.rs` runs a few thousand corruptions of the
+same in the gate. `security/mutants/w1-checklists-1b.py` breaks each guard.
+
 What other modules build — the facts the owners of the evidence hand over (`MeasurementFacts`, `Look`) and a forge's
 review reading (`ChangeReviewEvidence`, which `forges` writes) — is `vectispire_domain::checklists`, as the Java types
 are `vectispire-common`'s; `MavenVersion` and its range are `vectispire_domain::maven_version`, the plugin id's rule
@@ -34,7 +54,9 @@ purpose, never to make a test pass. `security/mutants/p5-1a-checklists-domain.py
 
 **Three Java defects fixed on the Java side first, then followed here** (asmolabs/vectispire#81): a branch-coverage
 figure read "branchs" in the evidence a sign-off freezes; the reminder's cut could split a surrogate pair; a suite
-pattern's leading `*` was spent on a name's own `*` (`*a` did not match `*xa`).
+pattern's leading `*` was spent on a name's own `*` (`*a` did not match `*xa`). **And one in 1b**: a checklist row whose
+`spans` attribute was `:` threw `ArrayIndexOutOfBoundsException` out of `ChecklistRenderer.within` — a 500 at the
+sign-off of a template a person could open in Excel; it now reads as any other unreadable hint and is dropped.
 
 ## Shaped for Rust
 
@@ -57,3 +79,25 @@ Decided 2026-10-28 by the stage 1a port; neither reaches a value a person has st
   `serde_json`, whose decimals are doubles: a ratio written with more than fifteen significant digits is read as its
   nearest double's shortest digits, where Java reads every digit (and refuses it, past four decimals). A canonical
   form has four at most; the route's reading keeps the request's digits.
+
+Decided 2026-11-16 by the stage 1b port, for workbooks Office does not write:
+
+- **The XML reader is this crate's, not the JDK's.** It refuses what the JDK refuses on every case of the reference
+  set and names the same line and column there; on a malformed part outside it the sentence is the same and the
+  position may differ, since it is where this parser stopped. A DOCTYPE is refused as a DOCTYPE whatever follows it,
+  where the JDK may first find the declaration malformed. Names are XML 1.0 fifth edition's.
+- **Encodings**: UTF-8 (with or without its mark), UTF-16 by its mark or its first bytes, ISO-8859-1, US-ASCII and
+  windows-1252 are read; any other declared encoding is refused once the declaration is read, where the JDK reads
+  every charset its runtime knows.
+- **A character reference to a surrogate** in an attribute the renderer rewrites is left as written; Java would write
+  a lone surrogate. The reader has refused such a part already, so neither side reaches it.
+- **A header with no author** is a defect here; Java's renderer throws a `NullPointerException` on it.
+
+And one thing that is Java's and reproduced, not a difference: a directory entry's data is inflated outside the
+counters when the next entry is read, as `ZipInputStream.closeEntry` discards it — CPU spent, nothing kept.
+
+**The bytes are zlib's on both sides.** The renderer deflates through `flate2` on `libz-sys` (the zlib libgit2 already
+links), the JDK through the zlib it is built with; every zlib 1.2.x and 1.3.x deflates alike at level 6, and the
+reference set proves it on this build. A JDK linked against zlib-ng (some distributions ship it as `libz`) writes
+other bytes — for Java too, a document rendered twice on two such hosts would differ.
+

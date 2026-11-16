@@ -65,6 +65,14 @@ seed result_body ../reference/artifacts/*.json
 seed siem_cef ../reference/siem/inputs.json
 seed siem_endpoint ../reference/siem/inputs.json
 seed collector_ca ../reference/siem/collector-ca/*.pem
+# checklist_workbook: every workbook of the reference set, decoded from its base64.
+mkdir -p "$corpus/checklist_workbook"
+python3 - "$corpus/checklist_workbook" ../reference/checklists/workbooks.json <<'PY'
+import base64, hashlib, json, os, sys
+for case in json.load(open(sys.argv[2]))["workbooks"]:
+    data = base64.b64decode(case["xlsx"])
+    open(os.path.join(sys.argv[1], hashlib.sha1(data).hexdigest()), "wb").write(data)
+PY
 
 failed=""
 for target in $targets; do
