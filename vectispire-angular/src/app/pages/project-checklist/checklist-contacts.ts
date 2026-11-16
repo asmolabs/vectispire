@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    effect,
+    inject,
+    input,
+    output,
+    signal,
+    untracked
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -60,6 +70,8 @@ export class ChecklistContactsPanel {
     readonly writes = input(false);
     /** The revision's edition on screen: the lines to fill in change with it, so the list is read again. */
     readonly edition = input<number | null>(null);
+    /** Every list read or answered, for the lines' filter: its profiles' words and the caller's own. */
+    readonly contactsRead = output<ChecklistContacts>();
 
     readonly contacts = signal<ChecklistContacts | null>(null);
     readonly candidates = signal<ChecklistContactCandidate[]>([]);
@@ -137,7 +149,7 @@ export class ChecklistContactsPanel {
         this.error.set(null);
         request.subscribe({
             next: (contacts) => {
-                this.contacts.set(contacts);
+                this.show(contacts);
                 this.busy.set(false);
             },
             error: (failure) => {
@@ -149,9 +161,14 @@ export class ChecklistContactsPanel {
         });
     }
 
+    private show(contacts: ChecklistContacts): void {
+        this.contacts.set(contacts);
+        this.contactsRead.emit(contacts);
+    }
+
     private load(projectId: number): void {
         this.readRequest.run(this.api.checklistContacts(projectId), {
-            next: (contacts) => this.contacts.set(contacts),
+            next: (contacts) => this.show(contacts),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('checklist_contacts.load_failed')))
         });
     }

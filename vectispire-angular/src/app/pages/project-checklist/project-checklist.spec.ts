@@ -1,12 +1,14 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ChecklistContactsPanel } from './checklist-contacts';
+import { ChecklistPage } from './checklist-page';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
+    ChecklistContacts,
     ChecklistOfferedVersion,
     ChecklistVersionUnrenderable,
     ChecklistProjectContext,
@@ -18,6 +20,7 @@ import {
     CARRIED_LINE,
     CHECKLIST,
     conflict,
+    CONTACTS,
     CONTEXT,
     DRAFT_REVISION,
     EMPTY_CONTEXT,
@@ -59,6 +62,7 @@ class ContactsPanelStub {
     readonly projectId = input.required<number>();
     readonly writes = input(false);
     readonly edition = input<number | null>(null);
+    readonly contactsRead = output<ChecklistContacts>();
 }
 
 /**
@@ -220,6 +224,26 @@ describe('the project checklist screen', () => {
         expect(panel.projectId()).toBe(PROJECT_ID);
         expect(panel.writes()).toBe(writes);
         expect(panel.edition()).toBe(CHECKLIST.checklist.edition);
+    });
+
+    it('hands what the contacts panel read to the lines’ filter, so a linked reader finds their lines', async () => {
+        await start('USER');
+        expect(has('#filter-mine')).toBe(false);
+
+        const panel = fixture.debugElement.query(By.directive(ContactsPanelStub))
+            .componentInstance as ContactsPanelStub;
+        panel.contactsRead.emit({
+            ...CONTACTS,
+            profiles: CONTACTS.profiles.map((one) => ({ ...one, mine: one.profile === 'PO' }))
+        });
+        fixture.debugElement.injector
+            .get(ChecklistPage)
+            .view.update((view) =>
+                view ? { ...view, lines: view.lines.map((line) => ({ ...line, profiles: ['PO'] })) } : view
+            );
+        fixture.detectChanges();
+
+        expect(has('#filter-mine')).toBe(true);
     });
 
     it('shows no contacts panel before the project has a checklist', async () => {

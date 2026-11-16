@@ -89,6 +89,13 @@ export class ChecklistLineCard {
         return given ? answerLabel(this.i18n, given.value) : '';
     });
     protected readonly automatic = computed(() => isAutomatic(this.line().answer));
+    /**
+     * An automatic answer whose measurement has no data now: "measured by Vectispire" is true of the day
+     * it was recorded and of no later one, so the tag dates it and says the measurement lapsed.
+     */
+    protected readonly lapsed = computed(
+        () => this.automatic() && this.measured()?.reconciliation === 'declared_not_measured'
+    );
     protected readonly author = computed(() => {
         const given = this.line().answer;
         return given ? authorOf(this.i18n, given) : '';

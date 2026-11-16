@@ -393,7 +393,11 @@ cette preuve** — joignez-la, sinon la ligne retient la révision en *preuve re
 **Sur la page.** Une réponse automatique porte le badge **Automatique — mesuré par Vectispire** à
 côté d'elle, est *répondue par Vectispire*, et son commentaire généré s'affiche comme commentaire de la
 ligne. L'en-tête les compte — **N réponse(s) automatique(s)** — pour que vous voyiez d'un coup d'œil ce
-que les analyses ont rempli, et ce qui vous reste. La ligne reste à vous : **Changer la réponse** ouvre
+que les analyses ont rempli, et ce qui vous reste. Quand la mesure n'a plus de données — sa preuve la plus
+récente plus ancienne que la règle ne le permet — le badge est daté, **Automatique — mesuré par Vectispire le
+06/10/2026, sans données depuis**, et la mesure se lit **Mesuré auparavant, sans données aujourd’hui** plutôt
+que *Déclaré, non mesuré* : la réponse repose sur une mesure périmée, non sur la déclaration de quelqu'un.
+Une nouvelle analyse la rétablit. La ligne reste à vous : **Changer la réponse** ouvre
 le formulaire avec la réponse et le commentaire de Vectispire, et dit **Répondre remplace la réponse
 automatique : la ligne devient la vôtre.** Dans l'**historique** de la ligne, les entrées de Vectispire
 sont marquées *automatique*, et un retrait se lit **Réponse automatique retirée (plus de données)**.
@@ -437,6 +441,16 @@ remplir, et lie chacun à un compte
 Le rappel est en texte brut, en anglais comme les autres e-mails de Vectispire, et renvoie à la page de la
 checklist quand l'adresse publique du déploiement (`VECTISPIRE_PUBLIC_URL`) est définie. Un destinataire
 dont le relais refuse le message est réessayé l'heure suivante ; les autres ne reçoivent rien deux fois.
+
+### Filtrer les lignes {#filtrer-les-lignes}
+
+Au-dessus des lignes, **Demandé à** les restreint à un ou plusieurs profils — une ligne *PO / BA* est aux
+deux profils, et une ligne marquée `AUTO` n'est à personne : elle est masquée dès qu'un profil est choisi.
+**Mes lignes** choisit les profils liés à votre compte dans la carte Contacts : les lignes que nomme le
+rappel hebdomadaire. **À remplir seulement** garde les lignes sans réponse ou en attente de confirmation,
+comme la carte les compte. La barre dit combien de lignes elle affiche sur combien ; **Afficher toutes les
+lignes** l'efface. Le filtre est une vue : les compteurs de l'en-tête, la soumission et l'approbation pèsent
+toujours toutes les lignes.
 
 ## Le document
 

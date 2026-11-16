@@ -3,6 +3,7 @@ import { forkJoin, type Observable } from 'rxjs';
 import { messageOf } from '../../core/api-error';
 import { ChecklistsApi } from '../../core/api/checklists.api';
 import type {
+    ChecklistContacts,
     ChecklistLine,
     ChecklistLineHistory,
     ChecklistLineProblem,
@@ -25,7 +26,10 @@ import {
     CONFLICT_KEYS,
     conflictOf,
     EvidenceDraft,
+    filterLines,
     groupsOf,
+    LineFilter,
+    NO_FILTER,
     incompleteLinesOf,
     Refusal,
     todayUtc
@@ -121,7 +125,15 @@ export class ChecklistPage {
     readonly status = computed(() => this.summary()?.status ?? null);
     /** Lines are answered and proven on the newest revision while it is a draft, by those who write. */
     readonly editable = computed(() => this.writes() && this.isLatest() && this.status() === 'draft');
-    readonly groups = computed(() => groupsOf(this.view()?.lines ?? []));
+    /** The project's profiles as the contacts card last read them: the filter's words and "my" profiles. */
+    readonly contacts = signal<ChecklistContacts | null>(null);
+    /**
+     * Which lines are shown. A view only: the header's counts, the submission and the sign-off still
+     * judge every line, so a filtered page never hides what keeps the revision back.
+     */
+    readonly lineFilter = signal<LineFilter>(NO_FILTER);
+    readonly shownLines = computed(() => filterLines(this.view()?.lines ?? [], this.lineFilter()));
+    readonly groups = computed(() => groupsOf(this.shownLines()));
     readonly unready = computed(() =>
         (this.view()?.lines ?? []).filter((line) => line.problems.length > 0).map((line) => line.position)
     );

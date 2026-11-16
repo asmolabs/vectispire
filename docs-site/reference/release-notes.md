@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 1.0.0-rc.3 — unreleased
+## 1.0.0-rc.3 — 2026-11-13
 
 What follows is against 1.0.0-rc.2.
 
@@ -41,6 +41,8 @@ What follows is against 1.0.0-rc.2.
 - **The selection filters on `branches`** (any of the names); `unjudged` may count `branch`.
 - **A discovered repository carries `trackedBranches`** (null when the forge did not say), a candidate
   `importedTargets`, and the candidates page the configured `trackedBranches`.
+- **A checklist line carries `profiles`**, the profiles its contact cell names by the contacts route's keys (`PO`,
+  `ARCH`; none for `AUTO`), and **a contact carries `mine`**, whether its linked account is the caller's.
 
 ### New {#new-100-rc3}
 
@@ -48,10 +50,18 @@ What follows is against 1.0.0-rc.2.
   repository has (`VECTISPIRE_FORGES_DISCOVERY_TRACKEDBRANCHES` names others), the selection shows and filters
   them, and the import makes a target on each branch chosen — `acme/api` and `acme/api (develop)`, each with its
   own findings. See [Forge connections](../administration/forge-connections.md#selecting-and-importing).
+- **A checklist's lines filter by whom they are asked of.** Choose one or more profiles of the contact column —
+  *PO*, *BA*, *Arch* — or **My lines**, the profiles linked to your account on the Contacts card, and tick
+  **Still to fill in only**. The header and the submission still weigh every line. See
+  [Security checklists](../guide/security-checklists.md#filtering-the-lines).
 
 ### Fixed {#fixed-100-rc3}
 
 - **The header shows the instance's name with its own case**: `CloudSecElection`, no longer `CLOUDSECELECTION`.
+- **A checklist line answered automatically no longer reads *Declared, not measured* once its measurement
+  lapses.** The badge is dated (*Automatic — measured by Vectispire on …, no data since*) and the measurement
+  reads *Measured before, no data now*. The line's labels keep their space: *Answer: No*, *Evidence: none
+  attached*, and *Measured by* before its rule.
 
 ## 1.0.0-rc.2 — 2026-11-12
 

@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.checklists.AnswerAuthor;
 import com.asmolabs.vectispire.common.domain.checklists.AnswerWords;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistAnswer;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistItem;
+import com.asmolabs.vectispire.common.domain.checklists.ContactProfiles;
 import com.asmolabs.vectispire.common.domain.checklists.EvidenceRequirement;
 import com.asmolabs.vectispire.common.domain.checklists.GivenAnswer;
 import com.asmolabs.vectispire.common.domain.checklists.Measurement;
@@ -2102,7 +2103,8 @@ public class ProjectChecklistService {
                             answer == null ? null : ChecklistAnswerView.of(answer),
                             attached.stream().map(row -> evidenceView(row, today)).toList(),
                             editions.getOrDefault(item.getId(), 0),
-                            wire(problems(item, answer, attached, today, Optional.ofNullable(measured.get(item.getId())))));
+                            wire(problems(item, answer, attached, today, Optional.ofNullable(measured.get(item.getId())))),
+                            List.copyOf(ContactProfiles.keysOf(item.getContact())));
                 })
                 .toList();
     }

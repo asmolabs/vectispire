@@ -60,6 +60,28 @@ class ChecklistContactsRoutesTest extends ChecklistContactsTestBase {
             assertThat(profile(contacts, "PO").at("/warning").isNull()).isTrue();
         }
 
+        /**
+         * The screen filters the lines by profile. Splitting {@code contact} itself, it would disagree with
+         * the reminders on a shared line, on two spellings of one profile and on {@code AUTO}: each line
+         * carries the keys the contacts route uses, split here once.
+         */
+        @Test
+        @DisplayName("each line of the checklist names its profiles by the contacts' keys")
+        void eachLineNamesItsProfiles() throws Exception {
+            openChecklist(developer).andExpect(status().isCreated());
+
+            List<List<String>> perLine = new ArrayList<>();
+            read(mvc.perform(authenticated(get(checklistPath() + "/1"), developer.token())).andExpect(status().isOk()))
+                    .at("/lines").forEach(line -> {
+                        List<String> keys = new ArrayList<>();
+                        line.at("/profiles").forEach(key -> keys.add(key.asText()));
+                        perLine.add(keys);
+                    });
+
+            assertThat(perLine).containsExactly(
+                    List.of("PO"), List.of("PO", "BA"), List.of("ARCH"), List.of(), List.of("ARCH"));
+        }
+
         @Test
         @DisplayName("an answered line is filled in, for each profile it names")
         void anAnswerFillsALineIn() throws Exception {
@@ -91,6 +113,27 @@ class ChecklistContactsRoutesTest extends ChecklistContactsTestBase {
     @Nested
     @DisplayName("linking")
     class Linking {
+
+        /**
+         * "My lines" on the screen are the lines of the profiles linked to the reader. The session carries no
+         * account id, and a reader who may not relink is not told who is linked, so the server says it.
+         */
+        @Test
+        @DisplayName("says which profiles are linked to the caller, and to nobody else")
+        void saysWhichAreMine() throws Exception {
+            openChecklist(developer).andExpect(status().isCreated());
+
+            JsonNode byTheLinker = read(link(champion.token(), "arch", developer.id()).andExpect(status().isOk()));
+            assertThat(profile(byTheLinker, "ARCH").at("/mine").asBoolean()).as("linked to someone else").isFalse();
+
+            JsonNode mine = contacts(developer.token());
+            assertThat(profile(mine, "ARCH").at("/mine").asBoolean()).isTrue();
+            assertThat(profile(mine, "PO").at("/mine").asBoolean()).as("linked to nobody").isFalse();
+            assertThat(profile(contacts(asAuditor()), "ARCH").at("/mine").asBoolean()).isFalse();
+
+            JsonNode ownLink = read(link(developer.token(), "PO", developer.id()).andExpect(status().isOk()));
+            assertThat(profile(ownLink, "PO").at("/mine").asBoolean()).as("the link's own answer").isTrue();
+        }
 
         @Test
         @DisplayName("links a profile by any spelling, names the account, says it has no address, and audits it")

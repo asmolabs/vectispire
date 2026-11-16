@@ -373,7 +373,10 @@ proof** — attach it, or the line keeps the revision back as *evidence required
 **On the page.** An automatic answer carries the badge **Automatic — measured by Vectispire** beside
 it, is *answered by Vectispire*, and its generated comment shows as the line's comment. The header
 counts them — **N automatic answer(s)** — so that you see at a glance what the scans filled, and what
-is left for you. The line stays yours to answer: **Change the answer** opens the form with
+is left for you. When the measurement has no data any more — its newest evidence older than the rule
+allows — the badge is dated, **Automatic — measured by Vectispire on 06/10/2026, no data since**, and the
+measurement reads **Measured before, no data now** rather than *Declared, not measured*: the answer
+stands on a measurement that has lapsed, not on anyone's declaration. A new scan brings it back. The line stays yours to answer: **Change the answer** opens the form with
 Vectispire's answer and comment in it, and says **Answering replaces the automatic answer: the line
 becomes yours.** In the line's **History**, Vectispire's rows are marked *automatic*, and a withdrawal
 reads **Automatic answer withdrawn (no more data)**. **Answer every measured line as measured** is still
@@ -413,6 +416,15 @@ account ([decision 0044](https://github.com/asmolabs/vectispire/blob/main/docs/a
 The reminder is plain text, in English like Vectispire's other e-mails, and links to the checklist's page
 when the deployment's public address (`VECTISPIRE_PUBLIC_URL`) is set. A recipient whose message the
 relay refuses is retried the next hour; the others are not sent twice.
+
+### Filtering the lines {#filtering-the-lines}
+
+Above the lines, **Asked of** narrows them to one or more profiles — a line of *PO / BA* is both
+profiles', and a line marked `AUTO` is nobody's, so it is hidden while a profile is chosen. **My lines**
+chooses the profiles linked to your account on the Contacts card: the lines the weekly reminder names.
+**Still to fill in only** keeps the lines unanswered or waiting for confirmation, as the card counts
+them. The bar says how many lines it shows of how many; **Show every line** clears it. The filter is a
+view: the header's counts, the submission and the sign-off still weigh every line.
 
 ## The document
 

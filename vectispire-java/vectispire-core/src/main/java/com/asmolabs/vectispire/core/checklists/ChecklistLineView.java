@@ -20,6 +20,10 @@ import java.util.List;
  *     ready. On a draft they are the submission's own judgement, its measured lines measured for the
  *     read: a "yes" against a failing measurement is contradicted, a "yes" where there is no data asks
  *     for a comment and a proof in date. Past the draft they are its answers' and proofs' alone
+ * @param profiles the profiles its contact cell names, by the key the contacts route gives them ({@code PO},
+ *     {@code ARCH}): what a screen filters the lines by, and the same split as the reminders' — a screen
+ *     splitting {@code contact} itself would disagree with them on "PO / BA", on "Arch" against "ARCH" and on
+ *     {@code AUTO}, which names none (decision 0044)
  */
 public record ChecklistLineView(
         Long itemId,
@@ -36,10 +40,12 @@ public record ChecklistLineView(
         ChecklistAnswerView answer,
         List<ChecklistEvidenceView> evidence,
         int edition,
-        List<String> problems) {
+        List<String> problems,
+        List<String> profiles) {
 
     public ChecklistLineView {
         evidence = List.copyOf(evidence);
         problems = List.copyOf(problems);
+        profiles = List.copyOf(profiles);
     }
 }

@@ -56,13 +56,14 @@ public class ChecklistContactsController {
             + "newest checklist version names — every value but AUTO, a cell such as \"PO / BA\" naming both, compared "
             + "without case — each with the account linked to it, the lines it still has to fill in in the draft, and "
             + "a warning when that account would not be reminded: account_gone, account_inactive, no_email, "
-            + "cannot_fill to a caller who may relink it, not_reminded to one who may not. Empty while the project "
+            + "cannot_fill to a caller who may relink it, not_reminded to one who may not — and whether that account is "
+            + "the caller's (mine). Empty while the project "
             + "has no checklist. 404 for a project the caller does not see whole.")
     @GetMapping
     @RequiresAccount
     public ChecklistContactsView checklistContacts(
             @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return contacts.contacts(projectId, allowanceOf(principal), writes(principal));
+        return contacts.contacts(projectId, allowanceOf(principal), writes(principal), principal.user().map(user -> user.id()));
     }
 
     @Operation(summary = "List checklist contact candidates", description = "The accounts a profile of this project "
