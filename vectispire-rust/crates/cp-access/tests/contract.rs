@@ -61,6 +61,18 @@ const DECLARED: &[(&str, &str, &str, &[&str])] = &[
     ("POST", "/api/v1/auth/mfa/verify", "verifyMfa", &[]),
     ("DELETE", "/api/v1/auth/session", "logout", &[]),
     ("POST", "/api/v1/auth/session/exchange", "exchange", &[]),
+    ("GET", "/scim/v2/Groups", "listGroups", &["startIndex", "count"]),
+    ("POST", "/scim/v2/Groups", "createGroup", &[]),
+    ("DELETE", "/scim/v2/Groups/{id}", "deleteGroup", &[]),
+    ("GET", "/scim/v2/Groups/{id}", "getGroup", &[]),
+    ("PATCH", "/scim/v2/Groups/{id}", "patchGroup", &[]),
+    ("PUT", "/scim/v2/Groups/{id}", "updateGroup", &[]),
+    ("GET", "/scim/v2/Users", "listUsers", &["filter", "startIndex", "count"]),
+    ("POST", "/scim/v2/Users", "createUser", &[]),
+    ("DELETE", "/scim/v2/Users/{id}", "deleteUser", &[]),
+    ("GET", "/scim/v2/Users/{id}", "getUser", &[]),
+    ("PATCH", "/scim/v2/Users/{id}", "patchUser", &[]),
+    ("PUT", "/scim/v2/Users/{id}", "updateUser", &[]),
 ];
 
 /// The ports the probe never reaches: it asks the routes' shape, not a grant.
@@ -206,6 +218,17 @@ async fn the_routes_are_the_documented_ones() {
         assert_eq!(entry.decl().access, Access::Administrator, "{} {}", entry.decl().method, entry.decl().path);
     }
     entries.extend(sign_in_routes(db.clone()));
+    // `ScimUsersController` and `ScimGroupsController`: `@RequiresAdministrator`, the SCIM token's principal one.
+    let scim = vectispire_cp_access::scim_routes(Arc::new(vectispire_cp_access::scim::ScimProvisioning::new(
+        vectispire_cp_access::scim::ScimParts {
+            db: db.clone(),
+            audit: Nobody,
+            clock: Arc::new(SystemClock) as vectispire_cp_access::throttle::SharedClock,
+            link_privileged: false,
+        },
+    )));
+    assert!(scim.iter().all(|entry| entry.decl().access == Access::Administrator));
+    entries.extend(scim);
     assert_eq!(entries.len(), DECLARED.len());
     assert!(entries.iter().all(|entry| entry.decl().accepts_api_key.is_none()), "no access route invites an API key");
     // `AuthController`'s markers on its methods: signing in is anybody's, the rest an account's; `@PasswordChangeGate`

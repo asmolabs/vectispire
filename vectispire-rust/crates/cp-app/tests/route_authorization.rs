@@ -271,8 +271,8 @@ fn stand_ins() -> StandIns {
     });
     let mut access = access;
     access.extend(vectispire_cp_app::access::sign_in_routes(vectispire_cp_app::access::SignInRoutesParts {
-        db: db_for_access,
-        audit: audit_for_sign_in,
+        db: db_for_access.clone(),
+        audit: audit_for_sign_in.clone(),
         credentials: creds_for_sign_in,
         clock: Arc::new(vectispire_cp_access::credentials::SystemClock),
         encryption: encryption_for_sign_in,
@@ -281,6 +281,12 @@ fn stand_ins() -> StandIns {
         branding: vectispire_cp_access::Branding::of(None, None),
         limits: vectispire_cp_access::login_throttle::SignInLimits::default(),
     }));
+    access.extend(vectispire_cp_app::access::scim_routes(
+        db_for_access,
+        audit_for_sign_in,
+        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        false,
+    ));
     (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access)
 }
 

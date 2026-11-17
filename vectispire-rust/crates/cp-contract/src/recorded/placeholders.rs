@@ -261,6 +261,12 @@ pub struct Unseedable(pub String);
 /// The credentials a replay mints and checks, with the control plane's own code — implemented by the caller,
 /// because the contract crate depends on no module (`edges.toml`) and the hashing is `cp-access`'s.
 pub trait Minting: Send + Sync {
+    /// The SCIM token the Java suite's context configures (`vectispire.scim.token`), when the replay's control plane
+    /// is composed with it: a bearer the recording hid, opening no session the test seeded, is the SCIM token the
+    /// suite drives `/scim` with (`asScim()`). `None`: no such bearer is known.
+    fn scim_token(&self) -> Option<String> {
+        None
+    }
     /// A session token as `AuthService` issues one.
     fn session_token(&self) -> String;
     /// A full API key as `ApiKeys.generate()` makes one.
@@ -374,6 +380,9 @@ pub struct Bindings<'m> {
     /// The TOTP secret the test last sent in a `secret` member (the enrolment's, as the setup answered it), and the
     /// last step a code was made for: see `Placeholder::OneTimeCode`.
     totp: Option<(String, Option<i64>)>,
+    /// Whether the request being built is SCIM's: there a bearer the recording hid is the SCIM token, whatever
+    /// session the seed left unclaimed.
+    on_scim: bool,
 }
 
 impl std::fmt::Debug for Bindings<'_> {
@@ -483,6 +492,7 @@ impl<'m> Bindings<'m> {
             clock: now,
             next_long: 100_000_000_000_000,
             totp: None,
+            on_scim: false,
         }
     }
 
@@ -516,6 +526,11 @@ impl<'m> Bindings<'m> {
     }
 
     /// Binds a secret, and runs the checks owed to it.
+    /// The path of the request about to be built.
+    pub fn requesting(&mut self, path: &str) {
+        self.on_scim = path.starts_with("/scim/");
+    }
+
     fn bind_secret(&mut self, ordinal: u32, value: &str) {
         self.family(Family::Secret).bind(ordinal, value);
         let owed = std::mem::take(&mut self.owed);
@@ -646,10 +661,33 @@ impl<'m> Bindings<'m> {
             // the one the token opens — the oldest one nobody has claimed. Narrow on purpose: only an `Authorization`
             // header takes one, and a wrong pick is a refusal or another account's answer, a difference, never a
             // green.
+            // On `/scim`, the SCIM token first: a session the seed left unclaimed there belongs to another request of the
+            // test, since `/scim` takes the token alone.
+            Placeholder::Secret(n)
+                if field == "authorization"
+                    && self.on_scim
+                    && self.bound(Family::Secret, *n).is_none()
+                    && self.minting.scim_token().is_some() =>
+            {
+                let token = self.minting.scim_token().unwrap_or_default();
+                self.bind_secret(*n, &token);
+                Ok(token)
+            }
             Placeholder::Secret(n)
                 if field == "authorization" && self.bound(Family::Secret, *n).is_none() && !self.orphans.is_empty() =>
             {
                 let (_, token) = self.orphans.remove(0);
+                self.bind_secret(*n, &token);
+                Ok(token)
+            }
+            // A bearer that opens no seeded session: the SCIM token, the one credential of the suite that is
+            // configured rather than issued. On any route but `/scim` it opens nothing, as an unknown token would.
+            Placeholder::Secret(n)
+                if field == "authorization"
+                    && self.bound(Family::Secret, *n).is_none()
+                    && self.minting.scim_token().is_some() =>
+            {
+                let token = self.minting.scim_token().unwrap_or_default();
                 self.bind_secret(*n, &token);
                 Ok(token)
             }

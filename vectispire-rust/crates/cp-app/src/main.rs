@@ -590,6 +590,12 @@ async fn serve() -> ExitCode {
         ),
         limits: access.limits,
     }));
+    access_routes.extend(vectispire_cp_app::access::scim_routes(
+        db.clone(),
+        audit.clone(),
+        access_clock.clone(),
+        settings.oidc.link_privileged_accounts,
+    ));
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),

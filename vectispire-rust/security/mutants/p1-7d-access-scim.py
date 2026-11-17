@@ -82,7 +82,7 @@ MUTANTS = [
     ("every patch recorded", SC, "        if deactivated {\n            self.record(", "        if true {\n            self.record(", ENGINES),
     ("patch path in its case", SC, "let path = java::to_lower_root(operation.path.as_deref().unwrap_or(\"\"));",
      "let path = operation.path.as_deref().unwrap_or(\"\").to_owned();", ENGINES),
-    ("entry attributed to the caller", SC, "username: Some(username.to_owned()),", "username: actor.username.clone(),", ENGINES),
+    ("entry attributed to the caller", SC, "username: Some(ACTOR.to_owned()),", "username: actor.username.clone(),", ENGINES),
     ("users never cut", SC, "Ok(Page::of(found, start_index, count)", "Ok(Page::of(found, None, None)", ENGINES),
     ("subject filter by name", SC, "store::account_bound_to(&mut tx, &subject).await?.into_iter().collect()",
      "store::account_named(&mut tx, &subject).await?.into_iter().collect()", ENGINES),

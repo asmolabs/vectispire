@@ -63,7 +63,15 @@ use support::Migrated;
 /// The credentials, minted and checked with `cp-access`'s own code: what the chain will accept is what it wrote.
 struct AccessMinting;
 
+/// `vectispire.scim.token` in the Java suite's `application-apitest.yaml`: the replay's control plane takes it as Java's
+/// context does, so that the SCIM recordings' bearer opens `/scim` here too.
+const SCIM_TOKEN: &str = "apitest-scim-token-0123456789abcdef";
+
 impl Minting for AccessMinting {
+    fn scim_token(&self) -> Option<String> {
+        Some(SCIM_TOKEN.to_owned())
+    }
+
     fn session_token(&self) -> String {
         keys::issue_session_token().token.expose().to_owned()
     }
@@ -356,6 +364,8 @@ const TEST_PROPERTIES: &[(&str, &str, &str)] = &[
     ("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example"),
     // MockMvc's peer declared a proxy, so `X-Forwarded-For` names the client the audit entry records.
     ("api.ClientAddressRoutesTest", "vectispire.security.trusted-proxies", "127.0.0.1"),
+    // The suite's SCIM token, switched off for the class that proves a disabled one is refused.
+    ("access.web.scim.ScimTokenDisabledTest", "vectispire.scim.enabled", "false"),
 ];
 
 fn property(class: &str, key: &str) -> Option<&'static str> {
@@ -425,7 +435,10 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         Arc::new(AccessClock),
         SessionPolicy::default(),
         Arc::new(AgentDirectoryImpl::new(db.clone())),
-        ScimToken::default(),
+        ScimToken {
+            enabled: property(class, "vectispire.scim.enabled") != Some("false"),
+            token: Some(vectispire_domain::secret::Secret::new(SCIM_TOKEN)),
+        },
     ));
     let outbox = Arc::new(Outbox::on_database(
         db.clone(),
@@ -653,7 +666,16 @@ fn phase_three(
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
     routes.extend(access_administration(db, audit_for_access.clone(), targets_for_access));
-    routes.extend(access_sign_in(db, audit_for_access));
+    routes.extend(access_sign_in(db, audit_for_access.clone()));
+    // `cp-app`'s `access::scim_routes`, as the Java suite's context composes it: no privileged account linked.
+    routes.extend(vectispire_cp_access::scim_routes(Arc::new(vectispire_cp_access::scim::ScimProvisioning::new(
+        vectispire_cp_access::scim::ScimParts {
+            db: db.clone(),
+            audit: AccessAudit(audit_for_access),
+            clock: Arc::new(AccessClock) as vectispire_cp_access::throttle::SharedClock,
+            link_privileged: false,
+        },
+    ))));
     routes
 }
 

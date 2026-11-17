@@ -82,6 +82,18 @@ macro_rules! read {
 }
 
 mod auth;
+mod scim;
+
+/// `ScimUsersController`'s and `ScimGroupsController`'s twelve routes, over SCIM's provisioning service.
+pub fn scim_routes<A, C>(provisioning: Arc<crate::scim::ScimProvisioning<A, C>>) -> Vec<RouteEntry>
+where
+    A: Audit + Send + Sync + 'static,
+    C: Clock + Send + Sync + 'static,
+{
+    let mut entries = Vec::new();
+    scim::routes(provisioning, &mut entries);
+    entries
+}
 
 pub use auth::{Branding, HANDOFF_COOKIE};
 
