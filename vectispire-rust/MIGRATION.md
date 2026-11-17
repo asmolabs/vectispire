@@ -451,9 +451,9 @@ digest-prefix fix). One pull request per stage:
 |---|---|---|
 | 1a | The vocabulary: text, answers, items and pairing, contacts, reminders, rules and their canonical form, the evaluation and its evidence; the facts, a forge's review reading, Maven's order and ranges in `domain` | done, held to `reference/checklists/` |
 | 1b | The workbook: the hand-written xlsx reader (`WorkbookReader`, `XmlCursor`, fuzzed), the layout and its proposal, the template version, the renderer and `DocumentZip` byte for byte, `ChecklistStatement` | done (2026-11-16, `rust/w1-checklists-1b`), held to `reference/checklists/workbooks*.json`: 186 workbooks read or refused in Java's words, every render and trial the same bytes, `checklist.json` as Java writes it; zip and XML read as the JDK reads them (`flate2` on zlib), fuzzed (`checklist_workbook`); `w1-checklists-1b.py`. One Java defect fixed first: a row's `spans=":"` threw out of the renderer |
-| 2 | The services and persistence; the `RepositoryScanned` listener, the `checklist_answer` handler, the reminders' maintenance task, the `ProjectDeleted` purge | needs `AccountDirectory` and `AccountNames` in `cp-access`; the plugins' import catalogue and the mail channel behind ports with absent-answering stand-ins until wave 2 and 3 |
-| 3 | The 35 routes | |
-| 4 | The replay of their recordings | |
+| 2 | The services and persistence; the `RepositoryScanned` listener, the `checklist_answer` handler, the reminders' maintenance task, the `ProjectDeleted` purge | done (2026-11-17, `rust/w1-checklists`): every repository in checked queries for both engines, the owners' readings (`ScanCatalog`, `IssueCatalog`, `ComponentCatalog`, `Targets`) behind the measurer's ports; the plugins' imports and reviews and the mail channel are absent-answering stand-ins until waves 2 and 3; `w1-checklists-2.py` |
+| 3 | The 35 routes | done (2026-11-17): served from `cp-checklists`, composed in `cp-app`; `not-yet-ported/checklists.txt` deleted |
+| 4 | The replay of their recordings | done (2026-11-17): of 5,356 recordings replayed, 5,149 green; `golden/deferred/checklists.txt` down to one line (compliance's OWASP report message), the rest moved to the module or recording limit that keeps them red — the plugins' stand-in, forges' change review, signed packages' bytes. Replay fixes on the way: binary request bodies, the recorder's late-secret digests (Java `TrafficRecorder`), `oneOf` read as `anyOf` |
 
 ---
 

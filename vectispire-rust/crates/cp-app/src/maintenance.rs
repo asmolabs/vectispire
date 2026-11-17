@@ -55,14 +55,23 @@ pub enum MaintenanceError {
 }
 
 /// The outbox's handlers and channels this binary has: the agents' audit delivery (`agent_result_audit`, task 2.9) and
-/// the SIEM export's (`siem_event`, task 4.2). Java relays eleven types (`reference/outbox/registry.json`); the
-/// notifications' channels and token alerts, the checklists' and compliance's deliveries come with Phases 4 and 5.
+/// the SIEM export's (`siem_event`, task 4.2) and the checklists' answers (`checklist_answer`, wave 1). Java relays
+/// eleven types (`reference/outbox/registry.json`); the notifications' channels and token alerts and compliance's
+/// deliveries come with their modules.
 /// Until all eleven are here the relay task is held — and each one that is here is registered, or the relay would open
 /// without it the day the others land: the agents' entries were enqueued by every accepted result and had no handler.
 #[must_use]
-pub fn outbox_registry(audit: Arc<vectispire_cp_audit::AuditLog>, siem: &crate::siem::Siem) -> Registry {
+pub fn outbox_registry(
+    audit: Arc<vectispire_cp_audit::AuditLog>,
+    siem: &crate::siem::Siem,
+    checklist_answers: Arc<vectispire_cp_checklists::ChecklistAnswerDelivery>,
+) -> Registry {
     Registry::new(
-        vec![Arc::new(vectispire_cp_agents::AgentResultAuditDelivery::new(audit)), siem.delivery.clone()],
+        vec![
+            Arc::new(vectispire_cp_agents::AgentResultAuditDelivery::new(audit)),
+            siem.delivery.clone(),
+            checklist_answers,
+        ],
         Vec::new(),
     )
 }
@@ -80,6 +89,7 @@ pub fn tasks(
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
+    checklist_reminders: Arc<dyn MaintenanceTask>,
     gauges: &crate::gauges::Gauges,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
@@ -94,6 +104,7 @@ pub fn tasks(
         clock.clone(),
     ));
     tasks.push(session_cleanup);
+    tasks.push(checklist_reminders);
     tasks.extend(gate.tasks(settings, clock));
     tasks.extend(gauges.tasks());
     Ok(tasks)
@@ -112,6 +123,7 @@ pub fn turns(
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
+    checklist_reminders: Arc<dyn MaintenanceTask>,
     gauges: &crate::gauges::Gauges,
 ) -> Result<Turns, MaintenanceError> {
     Ok(Turns::new(tasks(
@@ -125,6 +137,7 @@ pub fn turns(
         settings,
         clock,
         session_cleanup,
+        checklist_reminders,
         gauges,
     )?)?)
 }

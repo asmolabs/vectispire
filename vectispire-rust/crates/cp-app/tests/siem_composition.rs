@@ -77,7 +77,11 @@ fn compose(db: &Db, guard: OutboundUrlGuard) -> Composed {
     let audit = AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(SystemClock), siem::audit_listeners(&siem));
     let outbox = Outbox::on_database(
         db.clone(),
-        maintenance::outbox_registry(Arc::new(audit.clone()), &siem),
+        maintenance::outbox_registry(
+            Arc::new(audit.clone()),
+            &siem,
+            vectispire_cp_app::checklists::answer_delivery().0,
+        ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     );
     let service = siem::service(&siem, db.clone(), encryption, audit, Arc::new(SystemClock));

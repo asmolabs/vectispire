@@ -175,7 +175,11 @@ fn stand_ins() -> StandIns {
 
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem),
+        vectispire_cp_app::maintenance::outbox_registry(
+            audit.clone(),
+            &siem,
+            vectispire_cp_app::checklists::answer_delivery().0,
+        ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
 
@@ -226,6 +230,7 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_targets::SystemClock),
         siem.security_events(),
     ));
+    let checklist_audit = audit.clone();
     let platform = registry::Platform {
         trail: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
             (*audit).clone(),
@@ -282,11 +287,36 @@ fn stand_ins() -> StandIns {
         limits: vectispire_cp_access::login_throttle::SignInLimits::default(),
     }));
     access.extend(vectispire_cp_app::access::scim_routes(
-        db_for_access,
+        db_for_access.clone(),
         audit_for_sign_in,
         Arc::new(vectispire_cp_access::credentials::SystemClock),
         false,
     ));
+    // The checklists' routes, as `main.rs` composes them into the same registry.
+    access.extend(
+        vectispire_cp_app::checklists::compose(vectispire_cp_app::checklists::ChecklistParts {
+            db: db_for_access.clone(),
+            targets: targets.clone(),
+            scans: vectispire_cp_scanning::ScanCatalog::new(
+                db_for_access.clone(),
+                Arc::new(vectispire_cp_targets::SystemClock),
+            ),
+            issues: vectispire_cp_issues::IssueCatalog::new(db_for_access.clone()),
+            audit: checklist_audit.clone(),
+            trail: platform.trail.clone(),
+            signing: platform.signing.clone(),
+            visibility: vectispire_cp_access::VisibilityService::new(
+                db_for_access.clone(),
+                Arc::new(NoAccessSettings),
+                Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
+            ),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+            product_version: None,
+            max_workbook_bytes: 1,
+            max_file_bytes: 1,
+        })
+        .routes,
+    );
     (targets, scanning, agents, rules, inventory, issues, gate, siem, platform, access)
 }
 
