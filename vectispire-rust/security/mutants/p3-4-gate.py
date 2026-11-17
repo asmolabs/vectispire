@@ -54,8 +54,8 @@ MUTANTS = [
     ("stored threshold in rust whitespace", C + "service.rs", "        if java::is_blank(stored) {\n", "        if stored.trim().is_empty() {\n", L),
     ("stored unknown kept", C + "service.rs", "if severity == Severity::Unknown { GatePolicy::BUILT_IN.fail_on_severity } else { Some(severity) }", "Some(severity)", L),
     # The observation a scan stands for, and the overview.
-    ("in flight read as its status", C + "observation.rs", "                if status.is_in_flight() {\n", "                if false {\n", D),
-    ("in progress examined", C + "observation.rs", "        self == Observation::Ok\n", "        self != Observation::NeverScanned\n", D),
+    ("in flight read as its status", "crates/domain/src/observation.rs", "                if status.is_in_flight() {\n", "                if false {\n", D),
+    ("in progress examined", "crates/domain/src/observation.rs", "        self == Observation::Ok\n", "        self != Observation::NeverScanned\n", D),
     ("verdict on the running scan", C + "overview.rs", "Observation::of(input.latest_finished_scans.get(&named.target).map(|s| s.status))", "observation", D),
     ("kev banner counts every violation", C + "overview.rs", ".filter(|v| v.rule == Rule::Kev)", ".filter(|_| true)", D),
     ("overview ignores coverage", C + "overview.rs", "&Coverage::new(uncovered)", "&Coverage::new(Vec::new())", D),

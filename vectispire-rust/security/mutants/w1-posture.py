@@ -32,7 +32,7 @@ MUTANTS = [
     ("fdlibm polynomial broken", C + "arithmetic.rs", "    let p5 = f64::from_bits(0x3E66_3769_72BE_A4D0);\n", "    let p5 = 0.0;\n", [L, R]),
     ("badge status width", C + "scorecard.rs", "let status_width = java::utf16_len(grade).saturating_mul(7).saturating_add(18);", "let status_width = java::utf16_len(grade).saturating_mul(7).saturating_add(17);", R),
     # Java's arithmetic.
-    ("a half rounds down", C + "arithmetic.rs", "let rounded = if value - floor >= 0.5 { floor + 1.0 } else { floor };\n    // Java's cast saturates", "let rounded = if value - floor > 0.5 { floor + 1.0 } else { floor };\n    // Java's cast saturates", [L, R]),
+    ("a half rounds down", "crates/domain/src/java_math.rs", "let rounded = if value - floor >= 0.5 { floor + 1.0 } else { floor };\n    // Java's cast saturates", "let rounded = if value - floor > 0.5 { floor + 1.0 } else { floor };\n    // Java's cast saturates", [L, R]),
     ("seconds truncated", C + "arithmetic.rs", "nanos.div_euclid(1_000_000_000)", "nanos / 1_000_000_000", L),
     ("fixed rounds the exact value", C + "arithmetic.rs", "let shortest = format!(\"{}\", value.abs());", "let shortest = format!(\"{:.60}\", value.abs());", [L, R]),
     ("coverage never capped", C + "coverage.rs", "    if coverage.never() > 0 {\n", "    if coverage.never() > 1 {\n", R),

@@ -1,5 +1,6 @@
 //! The four pieces of Java arithmetic every posture figure goes through, written once: `Math.round` on a double and
-//! on a float, `Duration.between(..).toSeconds()`, and `String.format("%.Nf")`.
+//! on a float (`vectispire_domain::java_math`, re-exported), `Duration.between(..).toSeconds()`, and
+//! `String.format("%.Nf")`.
 //!
 //! Each differs from the Rust spelling that reads the same: `f64::round` rounds a half away from zero where Java
 //! rounds it towards positive infinity, `time::Duration::whole_seconds` truncates towards zero where Java's floors,
@@ -8,48 +9,9 @@
 
 use time::OffsetDateTime;
 
-/// `Math.round(double)`: the closest `long`, a half rounded towards positive infinity. Exact: `value - floor(value)` is
-/// representable for every double whose floor is, so no addition of 0.5 can round first.
-pub fn round(value: f64) -> i64 {
-    if value.is_nan() {
-        return 0;
-    }
-    let floor = value.floor();
-    let rounded = if value - floor >= 0.5 { floor + 1.0 } else { floor };
-    // Java's cast saturates at the ends of `long`, and so does Rust's: the bounds are said, not left to the cast.
-    if rounded >= 9.223_372_036_854_776e18 {
-        i64::MAX
-    } else if rounded < -9.223_372_036_854_776e18 {
-        i64::MIN
-    } else {
-        #[allow(clippy::cast_possible_truncation)] // In range, checked above; integral, being a floor.
-        let whole = rounded as i64;
-        whole
-    }
-}
-
-/// `Math.round(float)`: the same on a float, as `SecurityScorecardService.cappedToCoverage` divides in `float`.
-pub fn round_f32(value: f32) -> i32 {
-    if value.is_nan() {
-        return 0;
-    }
-    let floor = value.floor();
-    let rounded = if value - floor >= 0.5 { floor + 1.0 } else { floor };
-    if rounded >= 2_147_483_648.0 {
-        i32::MAX
-    } else if rounded < -2_147_483_648.0 {
-        i32::MIN
-    } else {
-        #[allow(clippy::cast_possible_truncation)] // In range, checked above; integral, being a floor.
-        let whole = rounded as i32;
-        whole
-    }
-}
-
-/// `Math.round(value * 10.0) / 10.0`, the one decimal every figure of days and hours is shown with.
-pub fn tenths(value: f64) -> f64 {
-    round(value * 10.0) as f64 / 10.0
-}
+// `Math.round` on a double and on a float, and the tenth every figure of days is shown with, live in the domain crate
+// since compliance's MTTR and its engine round as posture does: one spelling of Java's rounding for both.
+pub use vectispire_domain::java_math::{round, round_f32, tenths};
 
 /// `Duration.between(from, to).toSeconds()`: whole seconds, **floored** — a duration of minus half a second is minus
 /// one second in Java, where truncation would say zero.
