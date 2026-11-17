@@ -415,11 +415,43 @@ public final class TrafficRecorder {
             if (files.isEmpty() && notes.isEmpty()) {
                 return;
             }
+            nameDigestsOfLaterSecrets();
             List<String> sorted = new ArrayList<>(files);
             sorted.sort(null);
             JsonNode shownBaseline = baseline == null || baseline.isEmpty() ? null : placeholders.render(baseline);
             MANIFEST.computeIfAbsent(classKey, key -> new ConcurrentHashMap<>())
                     .put(testKey, new TestEntry(testKey, outcome, List.copyOf(sorted), shownBaseline, List.copyOf(notes)));
+        }
+
+        /**
+         * Names, in the files already written, a bare {@code «sha256:K»} that a token the test presented later
+         * accounts for: a session seeded before its token was seen. Digests only — a secret's own value stays as each
+         * file rendered it, since a key a request hid only later is one an earlier file was right to show as sent.
+         */
+        private void nameDigestsOfLaterSecrets() {
+            Map<String, String> named;
+            synchronized (placeholders) {
+                named = placeholders.digestsNamedSince();
+            }
+            if (named.isEmpty()) {
+                return;
+            }
+            Path directory = OUTPUT.orElseThrow().resolve(directoryOf(classKey));
+            for (String name : List.copyOf(files)) {
+                Path file = directory.resolve(name);
+                try {
+                    String text = Files.readString(file, StandardCharsets.UTF_8);
+                    String renamed = text;
+                    for (Map.Entry<String, String> entry : named.entrySet()) {
+                        renamed = renamed.replace("\"" + entry.getKey() + "\"", "\"" + entry.getValue() + "\"");
+                    }
+                    if (!renamed.equals(text)) {
+                        Files.writeString(file, renamed, StandardCharsets.UTF_8);
+                    }
+                } catch (IOException failed) {
+                    throw new UncheckedIOException(failed);
+                }
+            }
         }
 
         private String fileName(int number, JsonNode request) {
