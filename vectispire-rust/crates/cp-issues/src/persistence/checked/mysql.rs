@@ -66,3 +66,15 @@ impl IssueRepository {
         .await?)
     }
 }
+
+/// When V68 — the migration that began recording reopenings — was applied, as Flyway stored it: a `timestamp`, in the
+/// session's zone, which the caller reads with a day's margin (`ReopeningsRecord`).
+pub async fn reopening_migration_installed_on(
+    conn: &mut MySqlConnection,
+) -> Result<Vec<time::OffsetDateTime>, StoreError> {
+    Ok(sqlx::query_scalar!(
+        r#"/* mysql */ select installed_on as "installed_on!: time::OffsetDateTime" from flyway_schema_history where version = '68' and success = true"#
+    )
+    .fetch_all(conn)
+    .await?)
+}

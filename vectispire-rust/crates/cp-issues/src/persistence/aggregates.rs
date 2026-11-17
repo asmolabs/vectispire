@@ -11,12 +11,14 @@
 //! average, as JDBC's `getDouble` reads it, to a 64-bit integer for a sum of ones.
 
 use sea_orm::sea_query::{Alias, Expr, ExprTrait, Func, Order, SelectStatement, SimpleExpr};
-use sea_orm::{ColumnTrait, FromQueryResult};
+use sea_orm::{ColumnTrait, FromQueryResult, QueryFilter, QueryTrait};
 use time::OffsetDateTime;
 use vectispire_cp_db::{Engine, Tx, orm};
+use vectispire_domain::owasp_coverage;
 
-use super::entities::{IssueColumn, visible_issues};
+use super::entities::{IssueColumn, issues, visible_issues};
 use super::filters::IssueFilters;
+use super::lived;
 use super::repository::{StoreError, criteria};
 
 /// What a vulnerability without an identifier is counted under.
@@ -198,6 +200,59 @@ struct IdKey {
 struct Total {
     total: i64,
 }
+
+/// `OwaspCategoryCount`: open code-analysis issues per declared category.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct OwaspCategoryCount {
+    pub owasp_category: String,
+    pub c: i64,
+}
+
+/// `WeeklyFlow`: per week and per (type, category), the issues open at its end, opened, resolved and reopened in it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WeeklyFlow {
+    pub week_start: OffsetDateTime,
+    pub type_: String,
+    pub owasp_category: Option<String>,
+    pub open_at_end: i64,
+    pub opened: i64,
+    pub resolved: i64,
+    pub reopened: i64,
+}
+
+/// `IssueRows.Resolution`: what the MTTR is computed from.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct Resolution {
+    pub severity: Option<String>,
+    pub first_seen_at: OffsetDateTime,
+    pub resolved_at: Option<OffsetDateTime>,
+}
+
+/// `IssueRows.Identified`: an issue and the identifier the OWASP report's links key it by.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct Identified {
+    pub id: i64,
+    pub identifier: Option<String>,
+}
+
+/// `TargetBreakdown`: one group of open, unsettled issues of the whole estate.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct TargetBreakdown {
+    pub repo_id: Option<i64>,
+    pub container_id: Option<i64>,
+    pub severity: Option<String>,
+    #[sea_orm(from_alias = "type")]
+    pub type_: String,
+    pub is_kev: bool,
+    pub c: i64,
+}
+
+/// Weeks per statement — `WEEKS_PER_STATEMENT`. Each week is four conditional sums over two bound instants: thirteen
+/// weeks, a quarter, keep the select list and the binds small on every engine, and a year is four reads.
+pub const WEEKS_PER_STATEMENT: usize = 13;
+
+/// The conditional sums of one week, in the order they are selected.
+const FIGURES: usize = 4;
 
 #[derive(Debug, Clone, Copy)]
 pub struct IssueAggregates;
@@ -411,6 +466,149 @@ impl IssueAggregates {
         let statement = Self::grouped(filters, Axis::Repository, limit);
         let rows: Vec<IdKey> = orm::fetch_all(tx, &statement).await?;
         Ok(rows.into_iter().filter_map(|row| row.key.map(|key| (key, row.total))).collect())
+    }
+
+    /// `countOpenGroupedByTarget`: **every target's, whatever the reader may see** — Java's statement is target-scoped
+    /// and its one caller, the compliance matrix, reads only the groups of targets it already holds visible.
+    pub async fn count_open_grouped_by_target(
+        tx: &mut Tx,
+        state: &str,
+        settled: &[&str],
+    ) -> Result<Vec<TargetBreakdown>, StoreError> {
+        let mut statement = issues()
+            .filter(IssueColumn::State.eq(state))
+            .filter(IssueColumn::TriageStatus.is_not_in(settled.iter().copied()))
+            .into_query();
+        statement.clear_selects();
+        let columns = [
+            IssueColumn::RepoId,
+            IssueColumn::ContainerId,
+            IssueColumn::Severity,
+            IssueColumn::Type,
+            IssueColumn::IsKev,
+        ];
+        for column in columns {
+            statement.column(column).add_group_by([Expr::col(column)]);
+        }
+        statement.expr_as(Expr::col(IssueColumn::Id).count(), Alias::new("c"));
+        Ok(orm::fetch_all(tx, &statement).await?)
+    }
+
+    /// `countOpenSastByOwaspCategory`: the type the grid reads the column of, named where the placement is
+    /// (`owasp_coverage::DECLARES_ITS_CATEGORY`), so the backlog's filter and this count cannot name two.
+    pub async fn count_open_sast_by_owasp_category(
+        tx: &mut Tx,
+        filters: &IssueFilters,
+    ) -> Result<Vec<OwaspCategoryCount>, StoreError> {
+        let extra = sea_orm::Condition::all()
+            .add(IssueColumn::Type.eq(owasp_coverage::DECLARES_ITS_CATEGORY.wire_name()))
+            .add(IssueColumn::OwaspCategory.is_not_null());
+        let mut statement = over(filters, Some(extra));
+        statement
+            .column(IssueColumn::OwaspCategory)
+            .expr_as(Expr::col(IssueColumn::Id).count(), Alias::new("c"))
+            .add_group_by([Expr::col(IssueColumn::OwaspCategory)]);
+        Ok(orm::fetch_all(tx, &statement).await?)
+    }
+
+    /// `rows(filters, Resolution.class)`: in the engine's order — the caller averages them.
+    pub async fn resolutions(tx: &mut Tx, filters: &IssueFilters) -> Result<Vec<Resolution>, StoreError> {
+        let mut statement = over(filters, None);
+        statement.column(IssueColumn::Severity).column(IssueColumn::FirstSeenAt).column(IssueColumn::ResolvedAt);
+        Ok(orm::fetch_all(tx, &statement).await?)
+    }
+
+    /// `rows(filters, Identified.class)`: in the engine's order — the caller keys them by identifier.
+    pub async fn identified(tx: &mut Tx, filters: &IssueFilters) -> Result<Vec<Identified>, StoreError> {
+        let mut statement = over(filters, None);
+        statement.column(IssueColumn::Id).column(IssueColumn::Identifier);
+        Ok(orm::fetch_all(tx, &statement).await?)
+    }
+
+    /// `weeklyFlows`: the weeks distinct and in order, thirteen per statement; a (type, category) group is listed for
+    /// a week only where one of its four figures is not zero. The clauses are the backlog's own ([`lived`]), so a cell
+    /// and the list it opens cannot disagree.
+    pub async fn weekly_flows(
+        tx: &mut Tx,
+        filters: &IssueFilters,
+        week_starts: &[OffsetDateTime],
+    ) -> Result<Vec<WeeklyFlow>, StoreError> {
+        let mut weeks = week_starts.to_vec();
+        weeks.sort_unstable();
+        weeks.dedup();
+        let mut flows = Vec::new();
+        for batch in weeks.chunks(WEEKS_PER_STATEMENT) {
+            flows.extend(Self::weekly_flows_of(tx, filters, batch).await?);
+        }
+        Ok(flows)
+    }
+
+    async fn weekly_flows_of(
+        tx: &mut Tx,
+        filters: &IssueFilters,
+        weeks: &[OffsetDateTime],
+    ) -> Result<Vec<WeeklyFlow>, StoreError> {
+        let (Some(first), Some(last)) = (weeks.first(), weeks.last()) else {
+            return Ok(Vec::new());
+        };
+        let engine = tx.engine();
+        let week = time::Duration::days(7);
+        // Only the issues that can count in one of these weeks: seen before the last one ends, and not resolved before
+        // the first one starts.
+        let extra = sea_orm::Condition::all().add(IssueColumn::FirstSeenAt.lt(*last + week)).add(
+            sea_orm::Condition::any().add(IssueColumn::ResolvedAt.is_null()).add(IssueColumn::ResolvedAt.gte(*first)),
+        );
+        let mut statement = over(filters, Some(extra));
+        statement
+            .expr_as(Expr::col(IssueColumn::Type), Alias::new("type"))
+            .expr_as(Expr::col(IssueColumn::OwaspCategory), Alias::new("owasp_category"));
+        for (index, start) in weeks.iter().enumerate() {
+            let end = *start + week;
+            let opened = sea_orm::Condition::all()
+                .add(IssueColumn::FirstSeenAt.gte(*start))
+                .add(IssueColumn::FirstSeenAt.lt(end));
+            let figures = [
+                lived::open_at(end),
+                opened,
+                lived::resolved_within(Some(*start), Some(end)),
+                lived::reopened_within(Some(*start), Some(end)),
+            ];
+            for (figure, condition) in figures.into_iter().enumerate() {
+                statement.expr_as(
+                    as_long(engine, Func::sum(Expr::case(condition, 1).finally(0)).into()),
+                    Alias::new(format!("w{index}_{figure}")),
+                );
+            }
+        }
+        statement.add_group_by([Expr::col(IssueColumn::Type), Expr::col(IssueColumn::OwaspCategory)]);
+
+        let mut flows = Vec::new();
+        for row in orm::fetch_rows(tx, &statement).await? {
+            let type_: String = row.try_get("", "type").map_err(|e| StoreError::Other(e.to_string()))?;
+            let owasp_category: Option<String> =
+                row.try_get("", "owasp_category").map_err(|e| StoreError::Other(e.to_string()))?;
+            for (index, start) in weeks.iter().enumerate() {
+                let mut figures = [0_i64; FIGURES];
+                for (figure, value) in figures.iter_mut().enumerate() {
+                    let sum: Option<i64> =
+                        row.try_get("", &format!("w{index}_{figure}")).map_err(|e| StoreError::Other(e.to_string()))?;
+                    *value = sum.unwrap_or(0);
+                }
+                let [open_at_end, opened, resolved, reopened] = figures;
+                if figures.iter().any(|figure| *figure > 0) {
+                    flows.push(WeeklyFlow {
+                        week_start: *start,
+                        type_: type_.clone(),
+                        owasp_category: owasp_category.clone(),
+                        open_at_end,
+                        opened,
+                        resolved,
+                        reopened,
+                    });
+                }
+            }
+        }
+        Ok(flows)
     }
 
     fn grouped(filters: &IssueFilters, axis: Axis, limit: u64) -> SelectStatement {

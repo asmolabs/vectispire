@@ -823,3 +823,71 @@ pub async fn has_scan_with_status(tx: &mut Tx, target: ScanTarget, status: &str)
         .to_owned();
     Ok(orm::fetch_count(tx, &select).await? > 0)
 }
+
+/// `findOutlinesOf`'s row: a scan as a document describes it, without the SBOM and the CVE list a whole row carries.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct OutlineRow {
+    pub id: i64,
+    pub created_at: OffsetDateTime,
+    pub duration_ms: Option<i64>,
+    pub examined_types: Option<String>,
+    pub error: Option<String>,
+    pub plugin_steps: Option<String>,
+}
+
+/// `findLanguagesOf`'s row: the languages the census found and those the Semgrep rules read, each null where the scan
+/// recorded none.
+#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
+pub struct LanguagesRow {
+    pub id: i64,
+    pub detected_languages: Option<String>,
+    pub sast_languages: Option<String>,
+}
+
+/// `idsAndTargetsNewestFirst`'s row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromQueryResult)]
+pub struct ScanOfTargetRow {
+    pub id: i64,
+    pub repo_id: Option<i64>,
+    pub container_id: Option<i64>,
+}
+
+/// `findOutlinesOf`: a scan that does not exist is absent. The caller hands at most a thousand identifiers.
+pub async fn outlines_of(tx: &mut Tx, ids: &[i64]) -> Result<Vec<OutlineRow>, StoreError> {
+    let select = Query::select()
+        .columns([
+            ScanColumn::Id,
+            ScanColumn::CreatedAt,
+            ScanColumn::DurationMs,
+            ScanColumn::ExaminedTypes,
+            ScanColumn::Error,
+            ScanColumn::PluginSteps,
+        ])
+        .from(Scans)
+        .and_where(Expr::col(ScanColumn::Id).is_in(ids.iter().copied()))
+        .to_owned();
+    Ok(orm::fetch_all(tx, &select).await?)
+}
+
+/// `findLanguagesOf`: a scan that does not exist is absent. The caller hands at most a thousand identifiers.
+pub async fn languages_of(tx: &mut Tx, ids: &[i64]) -> Result<Vec<LanguagesRow>, StoreError> {
+    let select = Query::select()
+        .columns([ScanColumn::Id, ScanColumn::DetectedLanguages, ScanColumn::SastLanguages])
+        .from(Scans)
+        .and_where(Expr::col(ScanColumn::Id).is_in(ids.iter().copied()))
+        .to_owned();
+    Ok(orm::fetch_all(tx, &select).await?)
+}
+
+/// `idsAndTargetsNewestFirst`: newest by creation, then by key — `findAll()`'s order had the evidence bundle ship the
+/// twenty earliest attestations of the deployment's life instead of the current ones.
+pub async fn ids_and_targets_newest_first(tx: &mut Tx, status: &str) -> Result<Vec<ScanOfTargetRow>, StoreError> {
+    let select = Query::select()
+        .columns([ScanColumn::Id, ScanColumn::RepoId, ScanColumn::ContainerId])
+        .from(Scans)
+        .and_where(Expr::col(ScanColumn::Status).eq(status))
+        .order_by(ScanColumn::CreatedAt, Order::Desc)
+        .order_by(ScanColumn::Id, Order::Desc)
+        .to_owned();
+    Ok(orm::fetch_all(tx, &select).await?)
+}

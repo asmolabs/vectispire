@@ -40,6 +40,34 @@ pub struct ScanLabel {
     pub version: Option<String>,
 }
 
+/// `ScanCatalog.ScanOutline`: a scan as a document describes it. `examined_types` is `None` where the scan did not
+/// record it, which is not the empty set; `failures` the failed steps as recorded, `None` when none failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScanOutline {
+    pub id: i64,
+    pub created_at: OffsetDateTime,
+    pub duration_ms: Option<i64>,
+    pub examined_types: Option<Vec<vectispire_domain::FindingType>>,
+    pub failures: Option<String>,
+    pub plugins: Vec<crate::views::PluginOutcome>,
+}
+
+/// `ScanCatalog.ScanLanguages`: what the census found and what the Semgrep rules read, each `None` where the scan
+/// recorded none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScanLanguages {
+    pub detected: Option<Vec<&'static str>>,
+    pub sast_rules: Option<Vec<&'static str>>,
+}
+
+/// `ScanCatalog.ScanOfTarget`: a scan as identifier and target columns only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScanOfTarget {
+    pub id: i64,
+    pub repo_id: Option<i64>,
+    pub container_id: Option<i64>,
+}
+
 /// `AttemptedScan`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AttemptedScan {
@@ -123,6 +151,61 @@ impl ScanCatalog {
     pub async fn labels_of(&self, ids: &[i64]) -> Result<BTreeMap<i64, ScanLabel>, StoreError> {
         let rows = self.read(async |tx| persistence::labels_of(tx, ids).await).await?;
         Ok(rows.into_iter().map(|(id, branch, version)| (id, ScanLabel { branch, version })).collect())
+    }
+
+    /// `outlinesOf`: each of these scans' outline, by id; a scan that does not exist is absent. A thousand
+    /// identifiers per statement. **A `null` plugin outcome fails the read**, as Java's `List.copyOf` does past
+    /// `PluginOutcome.read`'s catch.
+    pub async fn outlines_of(&self, ids: &[i64]) -> Result<BTreeMap<i64, ScanOutline>, StoreError> {
+        let mut outlines = BTreeMap::new();
+        for batch in distinct(ids).chunks(LOOKUP_BATCH) {
+            let rows = self.read(async |tx| persistence::catalog_queries::outlines_of(tx, batch).await).await?;
+            for row in rows {
+                let plugins = crate::views::PluginOutcome::read(row.plugin_steps.as_deref())
+                    .map_err(|refused| StoreError(Box::new(refused)))?;
+                outlines.insert(
+                    row.id,
+                    ScanOutline {
+                        id: row.id,
+                        created_at: row.created_at,
+                        duration_ms: row.duration_ms,
+                        examined_types: crate::views::examined_types::read(row.examined_types.as_deref()),
+                        failures: row.error,
+                        plugins,
+                    },
+                );
+            }
+        }
+        Ok(outlines)
+    }
+
+    /// `languagesOf`: each of these scans' languages, by id — what tells a tree its static analysis read from one it
+    /// did not (decision 0032 §6). A scan that does not exist is absent; a thousand identifiers per statement.
+    pub async fn languages_of(&self, ids: &[i64]) -> Result<BTreeMap<i64, ScanLanguages>, StoreError> {
+        let mut languages = BTreeMap::new();
+        for batch in distinct(ids).chunks(LOOKUP_BATCH) {
+            let rows = self.read(async |tx| persistence::catalog_queries::languages_of(tx, batch).await).await?;
+            for row in rows {
+                languages.insert(
+                    row.id,
+                    ScanLanguages {
+                        detected: detected_languages::read(row.detected_languages.as_deref()),
+                        sast_rules: detected_languages::read(row.sast_languages.as_deref()),
+                    },
+                );
+            }
+        }
+        Ok(languages)
+    }
+
+    /// `withStatusNewestFirst`: scans with this status, newest first, as identifier and target only.
+    pub async fn with_status_newest_first(&self, status: &str) -> Result<Vec<ScanOfTarget>, StoreError> {
+        let rows =
+            self.read(async |tx| persistence::catalog_queries::ids_and_targets_newest_first(tx, status).await).await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| ScanOfTarget { id: row.id, repo_id: row.repo_id, container_id: row.container_id })
+            .collect())
     }
 
     /// `waitingWithAttempts`: the waiting scans of repositories that were counted at least one attempt.
@@ -365,4 +448,10 @@ impl ScanCatalog {
             .map(FindingOnScan::from)
             .collect())
     }
+}
+
+/// The identifiers once each, in the order first given — Java's `batches` over a `LinkedHashSet`.
+fn distinct(ids: &[i64]) -> Vec<i64> {
+    let mut seen = BTreeSet::new();
+    ids.iter().copied().filter(|id| seen.insert(*id)).collect()
 }

@@ -6,8 +6,9 @@ use crate::error::IssueError;
 use crate::persistence::IssueFilters;
 use crate::persistence::IssueRepository;
 use crate::persistence::aggregates::{
-    Axis, GraphNode, IssueAggregates, Observation, OpenBacklog, PackageDetail, PackageWeight, ResolvedDuration,
-    SeverityTypeCount, TargetGradingCount, TargetResolutions, TypePackaging,
+    Axis, GraphNode, Identified, IssueAggregates, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail,
+    PackageWeight, Resolution, ResolvedDuration, SeverityTypeCount, TargetBreakdown, TargetGradingCount,
+    TargetResolutions, TypePackaging, WeeklyFlow,
 };
 use crate::views::IssueView;
 
@@ -152,6 +153,56 @@ impl IssueCatalog {
         limit: u64,
     ) -> Result<Vec<(i64, i64)>, IssueError> {
         self.read(async |tx| IssueAggregates::count_grouped_repository(tx, filters, limit).await).await
+    }
+
+    // ------------------------------------------------------------------ the reads compliance adds
+
+    /// Every target's open, unsettled groups — see `IssueAggregates::count_open_grouped_by_target`: the caller narrows
+    /// to the targets it holds visible.
+    pub async fn count_open_grouped_by_target(
+        &self,
+        state: &str,
+        settled: &[&str],
+    ) -> Result<Vec<TargetBreakdown>, IssueError> {
+        self.read(async |tx| IssueAggregates::count_open_grouped_by_target(tx, state, settled).await).await
+    }
+
+    pub async fn count_open_sast_by_owasp_category(
+        &self,
+        filters: &IssueFilters,
+    ) -> Result<Vec<OwaspCategoryCount>, IssueError> {
+        self.read(async |tx| IssueAggregates::count_open_sast_by_owasp_category(tx, filters).await).await
+    }
+
+    pub async fn resolutions(&self, filters: &IssueFilters) -> Result<Vec<Resolution>, IssueError> {
+        self.read(async |tx| IssueAggregates::resolutions(tx, filters).await).await
+    }
+
+    pub async fn identified(&self, filters: &IssueFilters) -> Result<Vec<Identified>, IssueError> {
+        self.read(async |tx| IssueAggregates::identified(tx, filters).await).await
+    }
+
+    /// Per week, the issues open at its end, opened, resolved and reopened in it — none read for no week.
+    pub async fn weekly_flows(
+        &self,
+        filters: &IssueFilters,
+        week_starts: &[time::OffsetDateTime],
+    ) -> Result<Vec<WeeklyFlow>, IssueError> {
+        if week_starts.is_empty() {
+            return Ok(Vec::new());
+        }
+        self.read(async |tx| IssueAggregates::weekly_flows(tx, filters, week_starts).await).await
+    }
+
+    /// `ReopeningsRecord.recordedSince`: the instant from which every reopening has an entry — V68's installation, a
+    /// day later — or nothing when that is not known (no V68 row in Flyway's history, or a failed one), in which case no
+    /// figure of reopenings is a figure. **The day's margin** covers the zone Flyway stored the instant in: the
+    /// server's on PostgreSQL, the session's on MySQL. A reader asking about whole weeks loses at most the week of the
+    /// upgrade, whose first days were not recorded anyway.
+    pub async fn reopenings_recorded_since(&self) -> Result<Option<time::OffsetDateTime>, IssueError> {
+        let installed =
+            self.read(async |tx| crate::persistence::checked::reopening_migration_installed_on(tx).await).await?;
+        Ok(installed.into_iter().min().map(|at| at + time::Duration::days(1)))
     }
 
     async fn read<T>(

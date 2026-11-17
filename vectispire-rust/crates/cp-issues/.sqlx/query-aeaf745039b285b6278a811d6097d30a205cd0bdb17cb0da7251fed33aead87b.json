@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select installed_on as \"installed_on!: time::OffsetDateTime\" from flyway_schema_history where version = '68' and success = true",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "installed_on!: time::OffsetDateTime",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | BINARY | TIMESTAMP",
+          "collation": 63,
+          "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.flyway_schema_history",
+            "name": "installed_on"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aeaf745039b285b6278a811d6097d30a205cd0bdb17cb0da7251fed33aead87b"
+}

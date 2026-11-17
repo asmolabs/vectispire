@@ -247,7 +247,7 @@ public final class IssueSpecifications {
      *
      * <p>An issue resolved at that very instant was still open until then; the intervals are half open
      * the same way, so an issue counts as not open at {@code at} when a resolution began before it and
-     * the reopening that ended it came at or after it — {@code [previous resolved_at, reopened at)}.
+     * the reopening that ended it came at or after it — {@code at} in {@code (previous resolved_at, reopened at]}.
      *
      * <p><b>The earlier resolutions come from the triage history</b>: a reopening is an entry of origin
      * {@code reopen} carrying the resolution it ended (V68). The issue itself keeps only its latest

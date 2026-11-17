@@ -53,6 +53,19 @@ pub async fn count_decisions_for_repository(
     .await?)
 }
 
+/// When V68 was applied, as Flyway stored it: a `timestamp` without a zone, the server's — read as UTC by the caller,
+/// with a day's margin (`ReopeningsRecord`).
+pub async fn reopening_migration_installed_on(
+    conn: &mut PgConnection,
+) -> Result<Vec<time::OffsetDateTime>, StoreError> {
+    let stored = sqlx::query_scalar!(
+        r#"/* postgres */ select installed_on as "installed_on!: time::PrimitiveDateTime" from flyway_schema_history where version = '68' and success = true"#
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(stored.into_iter().map(time::PrimitiveDateTime::assume_utc).collect())
+}
+
 /// Named as `cp-arch-tests`' `sql-known.toml` names it: the sweep reads targets' tables, a listed exception.
 pub struct IssueRepository;
 

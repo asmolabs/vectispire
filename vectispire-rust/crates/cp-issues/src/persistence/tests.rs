@@ -85,6 +85,8 @@ fn run(engine: Engine) {
             the_triage_history_is_written_and_read_in_both_orders,
             the_backlog_page_is_most_severe_first_and_filtered,
             the_owasp_filter_places_as_the_grid_does,
+            the_dates_are_half_open_and_read_the_reopenings,
+            the_reads_compliance_adds,
             the_backlog_shows_a_reader_only_what_it_was_granted,
             the_exceptions_register_pages_by_cursor_and_visibility,
             the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule,
@@ -715,6 +717,241 @@ async fn the_owasp_filter_places_as_the_grid_does(tx: &mut Tx) -> Check {
         ensure_eq!(found, expected, "{what}");
         ensure_eq!(total, i64::try_from(expected.len()).unwrap(), "{what}: the total");
     }
+    Ok(())
+}
+
+/// Java's `IssueSpecifications.openAt`, `resolvedWithin` and `reopenedWithin`: half open at both ends, and an earlier
+/// resolution a reopening recorded (V68) is a time the issue was not open. The port compared `first_seen <= at` and
+/// `resolved > at`, and read the issue alone.
+async fn the_dates_are_half_open_and_read_the_reopenings(tx: &mut Tx) -> Check {
+    // Seen at 0, resolved at 10, back at 20 — open again, its latest resolution cleared.
+    let back = insert(tx, NewIssue { first_seen_at: at(0), ..issue("d-back", Some(REPO_A), None) }).await?;
+    IssueRepository::insert_triage_events(
+        tx,
+        &[NewTriageEvent {
+            issue_id: back.id,
+            from_status: "untriaged".into(),
+            to_status: "untriaged".into(),
+            justification: None,
+            comment: None,
+            actor: None,
+            origin: "reopen".into(),
+            occurred_at: at(20),
+            expires_at: None,
+            requested_status: None,
+            scan_id: None,
+            previous_resolved_at: Some(at(10)),
+        }],
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    // Seen at 0, resolved at 30, never back.
+    insert(
+        tx,
+        NewIssue {
+            first_seen_at: at(0),
+            state: "resolved".into(),
+            resolved_at: Some(at(30)),
+            ..issue("d-closed", Some(REPO_A), None)
+        },
+    )
+    .await?;
+
+    let lived = |lifetime: Lifetime| IssueFilters {
+        state: None,
+        lifetime: Some(lifetime),
+        ..IssueFilters::new(Visibility::everything())
+    };
+    let open_at = |seconds: i64| lived(Lifetime { open_at: Some(at(seconds)), ..Lifetime::default() });
+    let checks: Vec<(&str, IssueFilters, Vec<&str>)> = vec![
+        ("open at its first sighting: not yet", open_at(0), vec![]),
+        ("open after it", open_at(5), vec!["d-back", "d-closed"]),
+        ("open until the instant it was resolved", open_at(10), vec!["d-back", "d-closed"]),
+        ("inside the earlier resolution, just after", open_at(11), vec!["d-closed"]),
+        ("inside the earlier resolution", open_at(15), vec!["d-closed"]),
+        ("at its reopening, not yet back", open_at(20), vec!["d-closed"]),
+        ("back after it", open_at(21), vec!["d-back", "d-closed"]),
+        ("open at the instant it resolves", open_at(30), vec!["d-back", "d-closed"]),
+        ("after it resolved", open_at(31), vec!["d-back"]),
+        (
+            "resolved: an earlier resolution counts",
+            lived(Lifetime { resolved_from: Some(at(10)), resolved_before: Some(at(11)), ..Lifetime::default() }),
+            vec!["d-back"],
+        ),
+        (
+            "resolved: the latest one, the end excluded",
+            lived(Lifetime { resolved_from: Some(at(11)), resolved_before: Some(at(30)), ..Lifetime::default() }),
+            vec![],
+        ),
+        (
+            "reopened",
+            lived(Lifetime { reopened_from: Some(at(20)), reopened_before: Some(at(21)), ..Lifetime::default() }),
+            vec!["d-back"],
+        ),
+        (
+            "reopened, the end excluded",
+            lived(Lifetime { reopened_from: Some(at(0)), reopened_before: Some(at(20)), ..Lifetime::default() }),
+            vec![],
+        ),
+    ];
+    for (what, filters, expected) in checks {
+        let (page, total) = IssueRepository::page_issues(tx, &filters, 50, 0).await.map_err(|e| e.to_string())?;
+        let mut found = fingerprints(&page);
+        found.sort_unstable();
+        ensure_eq!(found, expected, "{what}");
+        ensure_eq!(total, i64::try_from(expected.len()).unwrap(), "{what}: the total");
+    }
+    Ok(())
+}
+
+/// The reads the compliance module adds: the weekly flows over the backlog's own date clauses, thirteen weeks per
+/// statement; the code findings by declared category; the estate's open groups, settled triage left out; the rows the
+/// MTTR and the OWASP report's links are drawn from; and when V68 was applied.
+async fn the_reads_compliance_adds(tx: &mut Tx) -> Check {
+    use crate::persistence::aggregates::{IssueAggregates, TargetBreakdown, WeeklyFlow};
+    let err = |e: crate::persistence::StoreError| e.to_string();
+    const WEEK: i64 = 7 * 24 * 3600;
+    let kind = |fingerprint: &str, type_: &str, seen: i64| NewIssue {
+        type_: type_.into(),
+        first_seen_at: at(seen),
+        ..issue(fingerprint, Some(REPO_A), None)
+    };
+
+    // Seen in week 0, still open.
+    let still = insert(tx, kind("w-a", "vulnerability", 100)).await?;
+    // Seen in week 0, resolved in week 1.
+    insert(
+        tx,
+        NewIssue {
+            owasp_category: Some("A03".into()),
+            state: "resolved".into(),
+            resolved_at: Some(at(WEEK + 100)),
+            ..kind("w-b", "sast", 100)
+        },
+    )
+    .await?;
+    // Seen at the very instant week 0 ends: week 1's, not week 0's.
+    insert(tx, kind("w-e", "vulnerability", WEEK)).await?;
+    // Resolved before the first week starts: no week reads it.
+    insert(tx, NewIssue { state: "resolved".into(), resolved_at: Some(at(-5)), ..kind("w-c", "vulnerability", -10) })
+        .await?;
+    // Seen in week 0, resolved in it, back in week 1.
+    let back = insert(tx, kind("w-d", "secret", 100)).await?;
+    IssueRepository::insert_triage_events(
+        tx,
+        &[NewTriageEvent {
+            issue_id: back.id,
+            from_status: "untriaged".into(),
+            to_status: "untriaged".into(),
+            justification: None,
+            comment: None,
+            actor: None,
+            origin: "reopen".into(),
+            occurred_at: at(WEEK + 200),
+            expires_at: None,
+            requested_status: None,
+            scan_id: None,
+            previous_resolved_at: Some(at(200)),
+        }],
+    )
+    .await
+    .map_err(err)?;
+
+    let every = IssueFilters { state: None, ..IssueFilters::new(Visibility::everything()) };
+    // Fifteen weeks, one repeated: two statements, the second holding weeks 13 and 14.
+    let mut weeks: Vec<OffsetDateTime> = (0..15).map(|week| at(week * WEEK)).collect();
+    weeks.push(at(0));
+    let mut flows = IssueAggregates::weekly_flows(tx, &every, &weeks).await.map_err(err)?;
+    flows.sort_by(|a, b| (a.week_start, &a.type_).cmp(&(b.week_start, &b.type_)));
+    let flow = |week: i64, type_: &str, category: Option<&str>, figures: [i64; 4]| WeeklyFlow {
+        week_start: at(week * WEEK),
+        type_: type_.into(),
+        owasp_category: category.map(str::to_owned),
+        open_at_end: figures[0],
+        opened: figures[1],
+        resolved: figures[2],
+        reopened: figures[3],
+    };
+    let mut expected = vec![
+        flow(0, "sast", Some("A03"), [1, 1, 0, 0]),
+        flow(0, "secret", None, [0, 1, 1, 0]),
+        flow(0, "vulnerability", None, [1, 1, 0, 0]),
+        flow(1, "sast", Some("A03"), [0, 0, 1, 0]),
+        flow(1, "secret", None, [1, 0, 0, 1]),
+        flow(1, "vulnerability", None, [2, 1, 0, 0]),
+    ];
+    for week in 2..15 {
+        expected.push(flow(week, "secret", None, [1, 0, 0, 0]));
+        expected.push(flow(week, "vulnerability", None, [2, 0, 0, 0]));
+    }
+    ensure_eq!(flows, expected, "the weekly flows");
+    ensure_eq!(IssueAggregates::weekly_flows(tx, &every, &[]).await.map_err(err)?, vec![], "no week");
+
+    // Code findings by declared category: open, code analysis only, a category declared.
+    insert(tx, NewIssue { owasp_category: Some("A03".into()), ..kind("s-1", "sast", 0) }).await?;
+    insert(tx, NewIssue { owasp_category: Some("A03".into()), ..kind("s-2", "sast", 0) }).await?;
+    insert(tx, kind("s-3", "sast", 0)).await?;
+    insert(tx, NewIssue { owasp_category: Some("A03".into()), ..kind("s-4", "plugin", 0) }).await?;
+    insert(
+        tx,
+        NewIssue { owasp_category: Some("A10".into()), triage_status: "fixed".into(), ..kind("s-5", "sast", 0) },
+    )
+    .await?;
+    insert(tx, NewIssue { is_kev: true, ..kind("k-1", "vulnerability", 0) }).await?;
+    let open = IssueFilters::new(Visibility::everything());
+    let by_category = IssueAggregates::count_open_sast_by_owasp_category(tx, &open).await.map_err(err)?;
+    let mut by_category: Vec<(String, i64)> = by_category.into_iter().map(|row| (row.owasp_category, row.c)).collect();
+    by_category.sort();
+    ensure_eq!(by_category, vec![("A03".to_owned(), 2), ("A10".to_owned(), 1)], "code findings by category");
+
+    // The estate's open groups, settled triage left out — `s-5` is fixed.
+    let mut groups =
+        IssueAggregates::count_open_grouped_by_target(tx, "open", &["not_affected", "fixed", "will_not_fix"])
+            .await
+            .map_err(err)?;
+    groups.sort_by(|a, b| (&a.type_, a.is_kev).cmp(&(&b.type_, b.is_kev)));
+    let group = |type_: &str, is_kev: bool, c: i64| TargetBreakdown {
+        repo_id: Some(REPO_A),
+        container_id: None,
+        severity: Some("HIGH".into()),
+        type_: type_.into(),
+        is_kev,
+        c,
+    };
+    ensure_eq!(
+        groups,
+        vec![
+            group("plugin", false, 1),
+            group("sast", false, 3),
+            group("secret", false, 1),
+            group("vulnerability", false, 2),
+            group("vulnerability", true, 1),
+        ],
+        "the open groups"
+    );
+
+    let resolved = IssueFilters { state: Some("resolved".into()), ..IssueFilters::new(Visibility::everything()) };
+    let mut resolutions = IssueAggregates::resolutions(tx, &resolved).await.map_err(err)?;
+    resolutions.sort_by_key(|row| row.first_seen_at);
+    ensure_eq!(
+        resolutions.into_iter().map(|row| (row.first_seen_at, row.resolved_at)).collect::<Vec<_>>(),
+        vec![(at(-10), Some(at(-5))), (at(100), Some(at(WEEK + 100)))],
+        "the resolutions"
+    );
+    let identified = IssueAggregates::identified(
+        tx,
+        &IssueFilters { identifier: Some("CVE-2026-w-a".into()), ..IssueFilters::new(Visibility::everything()) },
+    )
+    .await
+    .map_err(err)?;
+    ensure_eq!(
+        identified.into_iter().map(|row| (row.id, row.identifier)).collect::<Vec<_>>(),
+        vec![(still.id, Some("CVE-2026-w-a".to_owned()))],
+        "the identified rows"
+    );
+
+    let installed = crate::persistence::checked::reopening_migration_installed_on(tx).await.map_err(err)?;
+    ensure_eq!(installed.len(), 1, "V68 applied once");
     Ok(())
 }
 

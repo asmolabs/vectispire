@@ -182,6 +182,12 @@ not serve at all yet is ported with that module, not stood up alone during the c
       rule (a vulnerability is A06 with no column) or code analysis declaring the category; a plugin's declared
       category places nothing. The port had compared the column alone. *Fixed 2026-11-17, before compliance builds
       on it.* Red: `cp-issues --lib persistence::tests`, `security/mutants/w1-compliance-0a-owasp-placement.py`.
+- [x] The backlog's date filters (`open_at`, `resolved_*`, `reopened_*`) are Java's `IssueSpecifications.openAt`,
+      `resolvedWithin` and `reopenedWithin`: half open as Java's (the port compared `first_seen <= at` and
+      `resolved > at`), an earlier resolution a reopening recorded (V68) read from the triage history, and
+      `reopened_*` applied at all — the port parsed it and asked nothing of it. The weekly flows count with the same
+      clauses. *Fixed 2026-11-17.* Java's javadoc wrote the interval `[…)` against its own code; corrected there.
+      Red: as above.
 
 ## The golden replay of Java 1.0's traffic
 

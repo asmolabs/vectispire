@@ -19,6 +19,7 @@ use super::entities::{
     insert_issue, issues, update_issues, visible_issues,
 };
 use super::filters::{IssueFilters, OwaspPlacement};
+use super::lived;
 use vectispire_domain::owasp_coverage;
 
 #[derive(Debug, thiserror::Error)]
@@ -834,10 +835,8 @@ pub(super) fn criteria(filters: &IssueFilters) -> Condition {
         }));
     }
     if let Some(lifetime) = &filters.lifetime {
-        if let Some(open_at) = lifetime.open_at {
-            all = all
-                .add(IssueColumn::FirstSeenAt.lte(open_at))
-                .add(Condition::any().add(IssueColumn::ResolvedAt.is_null()).add(IssueColumn::ResolvedAt.gt(open_at)));
+        if let Some(at) = lifetime.open_at {
+            all = all.add(lived::open_at(at));
         }
         if let Some(from) = lifetime.first_seen_from {
             all = all.add(IssueColumn::FirstSeenAt.gte(from));
@@ -845,11 +844,11 @@ pub(super) fn criteria(filters: &IssueFilters) -> Condition {
         if let Some(before) = lifetime.first_seen_before {
             all = all.add(IssueColumn::FirstSeenAt.lt(before));
         }
-        if let Some(from) = lifetime.resolved_from {
-            all = all.add(IssueColumn::ResolvedAt.gte(from));
+        if lifetime.resolved_from.is_some() || lifetime.resolved_before.is_some() {
+            all = all.add(lived::resolved_within(lifetime.resolved_from, lifetime.resolved_before));
         }
-        if let Some(before) = lifetime.resolved_before {
-            all = all.add(IssueColumn::ResolvedAt.lt(before));
+        if lifetime.reopened_from.is_some() || lifetime.reopened_before.is_some() {
+            all = all.add(lived::reopened_within(lifetime.reopened_from, lifetime.reopened_before));
         }
     }
     if let Some(within) = &filters.targets_within {

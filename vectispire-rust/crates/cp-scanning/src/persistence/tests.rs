@@ -88,6 +88,7 @@ fn run(engine: Engine) {
             a_repository_s_history_is_newest_first_by_branch,
             an_issue_s_sightings_are_newest_scan_first,
             the_latest_finished_scan_is_completed_or_failed_never_in_flight,
+            the_reads_compliance_adds,
         );
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
@@ -642,6 +643,68 @@ async fn the_latest_finished_scan_is_completed_or_failed_never_in_flight(tx: &mu
 
 /// The two entities against the migrated schema — the declarations the catalog's statements are built from — and a
 /// renamed column refused, so that a check that compared nothing cannot pass.
+/// The reads compliance adds: each scan's outline and languages by id, an absent scan absent; and the scans of one
+/// status, newest by instant then key.
+async fn the_reads_compliance_adds(tx: &mut Tx) -> Check {
+    let err = |e: crate::persistence::StoreError| e.to_string();
+    let first = scan(tx, Some(REPO_A), None, "completed", 1, None).await?;
+    let tie = scan(tx, None, Some(IMAGE_A), "completed", 5, None).await?;
+    let newest_of_tie = scan(tx, Some(REPO_B), Some(IMAGE_A), "completed", 5, None).await?;
+    let failed = scan(tx, Some(REPO_A), None, "failed", 9, None).await?;
+    let result = ResultWrite {
+        id: first,
+        status: "completed".into(),
+        findings_count: 0,
+        new_issues_count: 0,
+        resolved_issues_count: 0,
+        duration_ms: Some(2_500),
+        sbom: None,
+        project: None,
+        error: None,
+        plugin_steps: Some("[{\"pluginId\":\"p\",\"state\":\"ran\"}]".into()),
+        detected_languages: Some("python,java".into()),
+        examined_types: Some("vulnerability,secret".into()),
+    };
+    persistence::write_result(tx, &result).await.map_err(err)?;
+    persistence::record_sast_languages(tx, first, Some("python")).await.map_err(err)?;
+
+    let outlines = catalog::outlines_of(tx, &[first, failed, 999_999]).await.map_err(err)?;
+    let mut outlines: Vec<_> = outlines
+        .into_iter()
+        .map(|row| (row.id, row.created_at, row.duration_ms, row.examined_types, row.error))
+        .collect();
+    outlines.sort();
+    ensure_eq!(
+        outlines,
+        vec![
+            (first, at(1), Some(2_500), Some("vulnerability,secret".to_owned()), None),
+            (failed, at(9), Some(1_500), None, Some("the clone failed".to_owned())),
+        ],
+        "the outlines, an absent scan absent"
+    );
+    let languages = catalog::languages_of(tx, &[first, tie]).await.map_err(err)?;
+    let mut languages: Vec<_> =
+        languages.into_iter().map(|row| (row.id, row.detected_languages, row.sast_languages)).collect();
+    languages.sort();
+    ensure_eq!(
+        languages,
+        vec![(first, Some("python,java".to_owned()), Some("python".to_owned())), (tie, None, None)],
+        "the languages"
+    );
+    let newest: Vec<_> = catalog::ids_and_targets_newest_first(tx, "completed")
+        .await
+        .map_err(err)?
+        .into_iter()
+        .map(|row| (row.id, row.repo_id, row.container_id))
+        .collect();
+    ensure_eq!(
+        newest,
+        vec![(newest_of_tie, Some(REPO_B), Some(IMAGE_A)), (tie, None, Some(IMAGE_A)), (first, Some(REPO_A), None)],
+        "completed, newest by instant then key"
+    );
+    Ok(())
+}
+
 async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
     let tables = crate::persistence::entities::tables()?;
     parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;

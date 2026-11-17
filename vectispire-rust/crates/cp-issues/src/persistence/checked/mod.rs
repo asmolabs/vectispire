@@ -64,3 +64,11 @@ pub async fn find_orphaned_ids(tx: &mut Tx) -> Result<Vec<i64>, StoreError> {
         postgres::IssueRepository::find_orphaned_ids(conn).await
     )
 }
+
+pub async fn reopening_migration_installed_on(tx: &mut Tx) -> Result<Vec<time::OffsetDateTime>, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::reopening_migration_installed_on(conn).await,
+        postgres::reopening_migration_installed_on(conn).await
+    )
+}

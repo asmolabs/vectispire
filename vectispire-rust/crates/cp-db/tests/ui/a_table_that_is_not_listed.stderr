@@ -13,6 +13,7 @@ help: the trait `query::sealed::Sealed` is not implemented for `Mine`
             Containers
             GateVerdicts
             Issues
+            OwaspWeeklyCoverage
             Repositories
             Scans
             vectispire_cp_db::query::Components
@@ -29,3 +30,4 @@ note: required by a bound in `TargetTable`
             vectispire_cp_db::query::GateVerdicts
             vectispire_cp_db::query::Repositories
             vectispire_cp_db::query::Containers
+            vectispire_cp_db::query::OwaspWeeklyCoverage

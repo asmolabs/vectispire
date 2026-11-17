@@ -4,6 +4,7 @@ pub mod aggregates;
 pub mod checked;
 pub mod entities;
 pub mod filters;
+mod lived;
 pub mod repository;
 
 pub use filters::{IssueFilters, Lifetime, OwaspPlacement};

@@ -37,6 +37,9 @@ pub enum TargetColumns {
     Repository(&'static str),
     /// The row is an image's.
     Container(&'static str),
+    /// The row names its target by kind and identifier — `repository` or `container`, as `ScanTarget.KIND_*` spells
+    /// them. Each kind matched by its own value: a repository and an image may carry the same number.
+    Kinded { kind: &'static str, id: &'static str },
 }
 
 mod sealed {
@@ -72,7 +75,13 @@ target_tables! {
     GateVerdicts = "t_gate_verdict", TargetColumns::Either { repository: "repo_id", container: "container_id" };
     Repositories = "t_repository", TargetColumns::Repository("id");
     Containers = "t_container", TargetColumns::Container("id");
+    /// The weekly OWASP record, one row per target, week and category (compliance, V67).
+    OwaspWeeklyCoverage = "t_owasp_weekly_coverage", TargetColumns::Kinded { kind: "target_kind", id: "target_id" };
 }
+
+/// `ScanTarget.KIND_REPOSITORY` and `KIND_CONTAINER`: how a [`TargetColumns::Kinded`] row spells its target's kind.
+pub const KIND_REPOSITORY: &str = "repository";
+pub const KIND_CONTAINER: &str = "container";
 
 /// How many identifiers one `IN` list carries — `IssueSpecifications.IN_LIST_BATCH`.
 pub const IN_LIST_BATCH: usize = 1_000;
@@ -113,6 +122,14 @@ pub(crate) fn visible<T: TargetTable>(visibility: &Visibility) -> Option<Conditi
         TargetColumns::Container(column) => {
             if !containers.is_empty() {
                 either = either.add(in_literals(column, &containers));
+            }
+        }
+        TargetColumns::Kinded { kind, id } => {
+            for (spelt, ids) in [(KIND_REPOSITORY, &repositories), (KIND_CONTAINER, &containers)] {
+                if !ids.is_empty() {
+                    either = either
+                        .add(Condition::all().add(Expr::col(Alias::new(kind)).eq(spelt)).add(in_literals(id, ids)));
+                }
             }
         }
     }

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select installed_on as \"installed_on!: time::PrimitiveDateTime\" from flyway_schema_history where version = '68' and success = true",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "installed_on!: time::PrimitiveDateTime",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "flyway_schema_history",
+            "name": "installed_on"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "df643e6f869d52592becbffc711cd8d24a06d5ee8e6a7f76654d44fb478289b4"
+}
