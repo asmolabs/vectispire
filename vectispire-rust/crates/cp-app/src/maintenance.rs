@@ -79,6 +79,7 @@ pub fn tasks(
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
     posture: Arc<PostureModule>,
+    compliance: Arc<vectispire_cp_compliance::Services>,
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
@@ -97,7 +98,7 @@ pub fn tasks(
         clock.clone(),
     ));
     tasks.push(session_cleanup);
-    tasks.extend(vectispire_cp_compliance::tasks(issues_db, settings.clone(), clock.clone()));
+    tasks.extend(vectispire_cp_compliance::tasks(issues_db, settings.clone(), clock.clone(), &compliance));
     tasks.extend(gate.tasks(settings, clock));
     tasks.extend(posture.tasks());
     tasks.extend(gauges.tasks());
@@ -115,6 +116,7 @@ pub fn turns(
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
     posture: Arc<PostureModule>,
+    compliance: Arc<vectispire_cp_compliance::Services>,
     settings: Settings,
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
@@ -129,6 +131,7 @@ pub fn turns(
         issues,
         gate,
         posture,
+        compliance,
         settings,
         clock,
         session_cleanup,

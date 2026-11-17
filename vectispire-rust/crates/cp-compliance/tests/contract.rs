@@ -33,6 +33,20 @@ const DECLARED: &[DeclaredRoute] = &[
     ("PUT", "/api/v1/compliance/scope/repositories/{id}", "setRepository", &[("in_scope", true)]),
     ("PUT", "/api/v1/compliance/scope/containers/{id}", "setContainer", &[("in_scope", true)]),
     ("GET", "/api/v1/compliance/history", "history_2", &[]),
+    ("GET", "/api/v1/owasp/coverage", "grid", &[("project_id", false), ("solution_id", false)]),
+    (
+        "GET",
+        "/api/v1/owasp/coverage/export.csv",
+        "exportOwaspCoverageCsv",
+        &[("project_id", false), ("solution_id", false), ("language", false)],
+    ),
+    (
+        "GET",
+        "/api/v1/owasp/coverage/weekly",
+        "weeklyCoverage",
+        &[("from", false), ("to", false), ("project_id", false), ("solution_id", false)],
+    ),
+    ("PUT", "/api/v1/owasp/coverage/{category}/declaration", "declare", &[]),
 ];
 
 #[tokio::test]

@@ -92,6 +92,8 @@ pub fn services_on(
         audit: audit.clone(),
     });
     let compliance_scans = scans.clone();
+    let compliance_issues = issues.catalog().clone();
+    let compliance_rules = rules.coverage.clone();
     let compliance_audit = audit.clone();
     let posture = PostureModule::new(PostureConfig {
         db: db.clone(),
@@ -131,6 +133,8 @@ pub fn services_on(
         db.clone(),
         targets_for_scopes,
         compliance_scans,
+        compliance_issues,
+        compliance_rules,
         vectispire_cp_settings::Settings::new(db),
         compliance_audit,
         clock,

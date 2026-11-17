@@ -291,6 +291,8 @@ fn stand_ins() -> StandIns {
         db.clone(),
         targets.clone(),
         Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(vectispire_cp_targets::SystemClock))),
+        issues.catalog().clone(),
+        rules.coverage.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         audit.clone(),
         Arc::new(vectispire_cp_targets::SystemClock),

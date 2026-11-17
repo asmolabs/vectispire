@@ -377,6 +377,77 @@ fn posture(
     }))
 }
 
+/// A deployment no task reads here: building compliance's services reads nothing.
+struct NoPlatform;
+
+impl vectispire_cp_compliance::ports::Platform for NoPlatform {
+    fn posture(
+        &self,
+    ) -> vectispire_cp_http::credentials::BoxFuture<
+        '_,
+        Result<vectispire_cp_compliance::decisions::PlatformPosture, String>,
+    > {
+        Box::pin(async { Err("not read here".to_owned()) })
+    }
+
+    fn audit_chain_valid(&self) -> vectispire_cp_http::credentials::BoxFuture<'_, Result<bool, String>> {
+        Box::pin(async { Err("not read here".to_owned()) })
+    }
+}
+
+/// Compliance's services over a pool that never connects, as the binary composes them: its monthly capture fills
+/// `COMPLIANCE_HISTORY` and its weekly record `OWASP_WEEKLY_COVERAGE`.
+fn compliance(
+    targets: Arc<vectispire_cp_targets::Targets>,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+    inventory: Arc<vectispire_cp_inventory::Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
+    gate: Arc<vectispire_cp_gate::GateModule>,
+    posture: Arc<vectispire_cp_posture::PostureModule>,
+) -> Arc<vectispire_cp_compliance::Services> {
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let audit = audit();
+    let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(vectispire_cp_targets::SystemClock);
+    let rules = vectispire_cp_rules::RulesModule::new(
+        db.clone(),
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit.clone(),
+    );
+    let matrix = vectispire_cp_compliance::matrix::ComplianceService::new(
+        gate.gate.clone(),
+        issues.catalog().clone(),
+        issues.sla().clone(),
+        vectispire_cp_settings::Settings::new(db.clone()),
+        Arc::new(NoPlatform),
+        Arc::new(vectispire_cp_app::compliance::InventoryFacts(inventory.query().clone())),
+        clock.clone(),
+    );
+    Arc::new(vectispire_cp_compliance::Services::new(
+        matrix.clone(),
+        vectispire_cp_compliance::scope::ScopeComplianceService::new(
+            targets.clone(),
+            matrix,
+            posture.scorecards.clone(),
+        ),
+        db.clone(),
+        targets,
+        Arc::new(scanning.catalog().clone()),
+        issues.catalog().clone(),
+        rules.coverage.clone(),
+        vectispire_cp_settings::Settings::new(db),
+        audit,
+        clock,
+    ))
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -387,6 +458,8 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let issues = issues(targets.clone(), scanning.clone());
     let gate = gate(targets.clone(), scanning.clone(), issues.clone());
     let posture = posture(targets.clone(), scanning.clone(), inventory.clone(), issues.clone(), gate.clone());
+    let compliance =
+        compliance(targets.clone(), scanning.clone(), inventory.clone(), issues.clone(), gate.clone(), posture.clone());
     let db_settings = vectispire_cp_db::settings::DbSettings {
         url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
         username: "nobody".into(),
@@ -406,6 +479,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         issues,
         gate,
         posture,
+        compliance,
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
         session_cleanup(),

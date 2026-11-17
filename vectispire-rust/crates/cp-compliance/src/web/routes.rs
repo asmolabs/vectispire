@@ -73,6 +73,9 @@ pub struct Services {
     pub soa: StatementOfApplicabilityService,
     pub certified: CertifiedScopeService,
     pub history: ComplianceHistoryService,
+    pub grid: crate::grid::OwaspGridService,
+    pub weekly: crate::weekly::OwaspWeeklyHistoryService,
+    pub weekly_capture: crate::weekly_capture::OwaspWeeklyCoverageService,
 }
 
 /// `DeclarationRequest`, members in the record's order; the three snake_case names are its `@JsonProperty`s.
@@ -172,6 +175,7 @@ pub fn routes(services: Arc<Services>) -> Vec<RouteEntry> {
     let s = &services;
     let mut entries = governance(s);
     entries.extend(matrix(s));
+    entries.extend(owasp(s));
     entries
 }
 
@@ -227,16 +231,7 @@ fn governance(s: &Arc<Services>) -> Vec<RouteEntry> {
                         let JsonBody(body) = or_answer!(body.map_err(IntoResponse::into_response));
                         // The account's username, or none: Java's `principal.user().map(username)`.
                         let actor = caller.0.account.as_ref().map(|account| account.username.clone());
-                        let submission = Submission {
-                            applicability: body.applicability,
-                            justification: body.justification,
-                            implementation: body.implementation,
-                            evidence_source: body.evidence_source,
-                            external_evidence: body.external_evidence,
-                            owner: body.owner,
-                            review_due_at: body.review_due_at,
-                        };
-                        answer(m.soa.declare(framework, &control_id, submission, actor.as_deref()).await)
+                        answer(m.soa.declare(framework, &control_id, submission(body), actor.as_deref()).await)
                     }
                     .await;
                     download_guard::guard(uri.path(), DECLARE, answered)
@@ -287,6 +282,115 @@ fn scope_membership(path: &str, services: &Arc<Services>, kind: TargetKind) -> R
             }
         },
     )
+}
+
+/// The OWASP grid: the categories now, as a spreadsheet, week by week, and a category declared. **No API key on
+/// any of them.**
+fn owasp(s: &Arc<Services>) -> Vec<RouteEntry> {
+    let grid = s.clone();
+    let csv = s.clone();
+    let weekly = s.clone();
+    let declare = s.clone();
+    vec![
+        Route::get("/api/v1/owasp/coverage").requires(Access::Account).scoped().handler(
+            move |Scoped(scope): Scoped<CallerScope>, RawQuery(query): RawQuery| {
+                let m = grid.clone();
+                async move {
+                    let allowed = or_answer!(allowance(scope));
+                    let (project, solution) = or_answer!(scope_ids(query.as_deref()));
+                    answer(m.grid.grid(project, solution, &allowed).await)
+                }
+            },
+        ),
+        Route::get("/api/v1/owasp/coverage/export.csv").requires(Access::Account).scoped().handler(
+            move |Scoped(scope): Scoped<CallerScope>, RawQuery(query): RawQuery| {
+                let m = csv.clone();
+                async move {
+                    let allowed = or_answer!(allowance(scope));
+                    let (project, solution) = or_answer!(scope_ids(query.as_deref()));
+                    let language = read::query_string(query.as_deref(), "language");
+                    match m.grid.csv(project, solution, &allowed, language.as_deref()).await {
+                        Ok(document) => csv_attachment(document, project, solution),
+                        Err(refused) => refused.into_response(),
+                    }
+                }
+            },
+        ),
+        Route::get("/api/v1/owasp/coverage/weekly").requires(Access::Account).scoped().handler(
+            move |Scoped(scope): Scoped<CallerScope>, RawQuery(query): RawQuery| {
+                let m = weekly.clone();
+                async move {
+                    let allowed = or_answer!(allowance(scope));
+                    let (project_id, solution_id) = or_answer!(scope_ids(query.as_deref()));
+                    let request = crate::weekly::Request {
+                        from: read::query_string(query.as_deref(), "from"),
+                        to: read::query_string(query.as_deref(), "to"),
+                        project_id,
+                        solution_id,
+                    };
+                    answer(m.weekly.weeks(&request, &allowed).await)
+                }
+            },
+        ),
+        Route::put("/api/v1/owasp/coverage/{category}/declaration")
+            .requires(Access::SecurityLead)
+            .names_no_target()
+            .handler(
+                move |caller: Caller, Path(category): Path<String>, JsonBody(body): JsonBody<DeclarationRequest>| {
+                    let m = declare.clone();
+                    async move {
+                        // Case-sensitive, as Java's `CATEGORIES.containsKey`: `a03` is not a category.
+                        if !vectispire_domain::owasp_coverage::is_category(&category) {
+                            return ComplianceError::NotFound(format!(
+                                "{category} is not a category of the OWASP Top 10:2021."
+                            ))
+                            .into_response();
+                        }
+                        // The account's username, or "unknown" — this route's fallback, not the statement's null.
+                        let actor =
+                            caller.0.account.as_ref().map_or_else(|| "unknown".to_owned(), |a| a.username.clone());
+                        answer(
+                            m.soa.declare_key(crate::grid::FRAMEWORK, &category, submission(body), Some(&actor)).await,
+                        )
+                    }
+                },
+            ),
+    ]
+}
+
+/// `project_id` and `solution_id`, each read before either is judged.
+#[allow(clippy::result_large_err)]
+fn scope_ids(query: Option<&str>) -> Result<(Option<i64>, Option<i64>), Response> {
+    let project = read::query_long(query, "project_id").map_err(IntoResponse::into_response)?;
+    let solution = read::query_long(query, "solution_id").map_err(IntoResponse::into_response)?;
+    Ok((project, solution))
+}
+
+/// The spreadsheet as an attachment named after its scope.
+fn csv_attachment(document: String, project: Option<i64>, solution: Option<i64>) -> Response {
+    let filename = match (project, solution) {
+        (Some(id), _) => format!("vectispire-owasp-coverage-project-{id}.csv"),
+        (None, Some(id)) => format!("vectispire-owasp-coverage-solution-{id}.csv"),
+        (None, None) => "vectispire-owasp-coverage.csv".to_owned(),
+    };
+    let mut response = Response::new(Body::from(document));
+    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/csv;charset=utf-8"));
+    if let Ok(disposition) = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\"")) {
+        response.headers_mut().insert(header::CONTENT_DISPOSITION, disposition);
+    }
+    response
+}
+
+fn submission(body: DeclarationRequest) -> Submission {
+    Submission {
+        applicability: body.applicability,
+        justification: body.justification,
+        implementation: body.implementation,
+        evidence_source: body.evidence_source,
+        external_evidence: body.external_evidence,
+        owner: body.owner,
+        review_due_at: body.review_due_at,
+    }
 }
 
 /// The matrix: the summary, one framework, and a project's or a solution's reading.

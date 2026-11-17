@@ -28,17 +28,22 @@ pub mod decisions {
     pub use crate::{engine, framework, history, instant_text, manifest, soa};
 }
 pub mod certified;
+pub mod coverage;
 pub mod declarations;
 pub mod engine;
 pub mod error;
 pub mod framework;
+pub mod grid;
 pub mod history;
 pub mod instant_text;
 mod internal;
 pub mod manifest;
 pub mod matrix;
+pub mod owasp_words;
 pub mod scope_coverage;
 pub mod soa;
+pub mod weekly;
+pub mod weekly_capture;
 // The statements stages 2 to 4 serve (the statement of applicability, the history, the weekly record, the report) are
 // written and tested ahead of their services; `expect` and not `allow`, so the attribute fails the build the day they
 // are all in use and has to go.
@@ -59,10 +64,12 @@ use vectispire_cp_maintenance::MaintenanceTask;
 use vectispire_cp_settings::Settings;
 use vectispire_cp_targets::Clock;
 
-/// The module's maintenance tasks so far: the evidence window of the snapshots and of the weekly OWASP record, and the
-/// abandoned reports. The history's capture and the weekly record's come with their services.
-pub fn tasks(db: Db, settings: Settings, clock: Arc<dyn Clock>) -> Vec<Arc<dyn MaintenanceTask>> {
+/// The module's maintenance tasks: the month's captures and the week's OWASP record, the evidence window of both,
+/// and the abandoned reports.
+pub fn tasks(db: Db, settings: Settings, clock: Arc<dyn Clock>, services: &Services) -> Vec<Arc<dyn MaintenanceTask>> {
     vec![
+        Arc::new(internal::tasks::ComplianceHistoryTask(services.history.clone())),
+        Arc::new(internal::tasks::OwaspWeeklyCoverageTask(services.weekly_capture.clone())),
         Arc::new(internal::tasks::SnapshotRetentionTask::new(db.clone(), settings.clone(), clock.clone())),
         Arc::new(internal::tasks::WeeklyRetentionTask::new(db.clone(), settings, clock.clone())),
         Arc::new(internal::tasks::AbandonedReviewsTask::new(db, clock)),
@@ -70,7 +77,7 @@ pub fn tasks(db: Db, settings: Settings, clock: Arc<dyn Clock>) -> Vec<Arc<dyn M
 }
 
 impl Services {
-    /// The matrix and the scopes as composed, and the governance services over the same estate.
+    /// The matrix and the scopes as composed, and the governance and the OWASP grid over the same estate.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         compliance: matrix::ComplianceService,
@@ -78,19 +85,39 @@ impl Services {
         db: vectispire_cp_db::Db,
         targets: Arc<vectispire_cp_targets::Targets>,
         scans: Arc<vectispire_cp_scanning::ScanCatalog>,
+        issues: Arc<vectispire_cp_issues::queries::IssueCatalog>,
+        rules: Arc<vectispire_cp_rules::RuleCoverageService>,
         settings: vectispire_cp_settings::Settings,
         audit: Arc<vectispire_cp_audit::AuditLog>,
         clock: Arc<dyn vectispire_cp_targets::Clock>,
     ) -> Services {
+        let soa = declarations::StatementOfApplicabilityService::new(
+            db.clone(),
+            compliance.clone(),
+            audit.clone(),
+            clock.clone(),
+        );
+        let coverage = coverage::OwaspCoverageService::new(
+            issues.clone(),
+            scans.clone(),
+            targets.clone(),
+            rules,
+            settings.clone(),
+        );
         Services {
-            soa: declarations::StatementOfApplicabilityService::new(
+            certified: certified::CertifiedScopeService::new(targets, scans, settings.clone(), clock.clone(), audit),
+            history: progress::ComplianceHistoryService::capturing(
                 db.clone(),
                 compliance.clone(),
-                audit.clone(),
+                soa.clone(),
+                coverage.clone(),
+                settings,
                 clock.clone(),
             ),
-            certified: certified::CertifiedScopeService::new(targets, scans, settings, clock, audit),
-            history: progress::ComplianceHistoryService::new(db),
+            grid: grid::OwaspGridService::new(coverage.clone(), soa.clone()),
+            weekly: weekly::OwaspWeeklyHistoryService::new(db.clone(), issues, coverage.clone(), clock.clone()),
+            weekly_capture: weekly_capture::OwaspWeeklyCoverageService::new(db, coverage, clock),
+            soa,
             compliance,
             scopes,
         }

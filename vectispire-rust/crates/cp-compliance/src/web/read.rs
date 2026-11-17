@@ -96,6 +96,18 @@ pub fn query_string(query: Option<&str>, name: &str) -> Option<String> {
     first_value(query, name)
 }
 
+/// An optional `Long` request parameter: absent or empty is `None` (Spring converts an empty value to null),
+/// anything else read as Java reads a `long` or refused in Spring's sentence.
+pub fn query_long(query: Option<&str>, name: &str) -> Result<Option<i64>, Problem> {
+    let Some(raw) = first_value(query, name) else {
+        return Ok(None);
+    };
+    if java::trim(&raw).is_empty() {
+        return Ok(None);
+    }
+    java_long(&raw).map(Some).ok_or_else(|| mismatch(name, &raw))
+}
+
 /// A required `boolean` request parameter as Spring converts it: `true`/`on`/`yes`/`1` and their opposites, any case,
 /// trimmed. Absent, or present and empty — converted to null — is refused as missing.
 pub fn required_bool(query: Option<&str>, name: &str) -> Result<bool, Problem> {

@@ -25,6 +25,7 @@ vectispire-cp-http.workspace = true
 vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-posture = { path = "../cp-posture" }
+vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }
@@ -43,7 +44,6 @@ vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-inventory = { path = "../cp-inventory" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
-vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-tls = { path = "../tls" }
 
 [lints]

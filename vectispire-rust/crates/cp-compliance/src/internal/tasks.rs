@@ -187,3 +187,37 @@ impl std::fmt::Debug for AbandonedReviewsTask {
         formatter.debug_struct("AbandonedReviewsTask").finish_non_exhaustive()
     }
 }
+
+/// `ComplianceHistoryTask`: the month's captures rewritten every hour; the service logs its own failure.
+#[derive(Debug, Clone)]
+pub struct ComplianceHistoryTask(pub crate::progress::ComplianceHistoryService);
+
+impl MaintenanceTask for ComplianceHistoryTask {
+    fn sequence(&self) -> Sequence {
+        Sequence::ComplianceHistory
+    }
+
+    fn run(&self) -> TaskRun<'_> {
+        Box::pin(async move {
+            self.0.capture().await;
+            Ok(())
+        })
+    }
+}
+
+/// `OwaspWeeklyCoverageTask`: hourly, the service's six-hour gate deciding whether the week is rewritten.
+#[derive(Debug, Clone)]
+pub struct OwaspWeeklyCoverageTask(pub crate::weekly_capture::OwaspWeeklyCoverageService);
+
+impl MaintenanceTask for OwaspWeeklyCoverageTask {
+    fn sequence(&self) -> Sequence {
+        Sequence::OwaspWeeklyCoverage
+    }
+
+    fn run(&self) -> TaskRun<'_> {
+        Box::pin(async move {
+            self.0.capture().await;
+            Ok(())
+        })
+    }
+}

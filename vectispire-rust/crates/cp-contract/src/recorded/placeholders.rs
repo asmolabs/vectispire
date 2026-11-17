@@ -752,6 +752,14 @@ impl<'m> Bindings<'m> {
                 if lower.contains("expire") || lower.contains("until") {
                     at = at.saturating_add(Duration::days(1));
                 }
+                // A week's start is a Monday at midnight UTC by its column's contract (`CoverageWeek.startOf`), and
+                // the week a test recorded is the one its clock stood in: seeded as any other instant, the row fell
+                // on no week a route reads.
+                if lower == "week_start" {
+                    let midnight = at.replace_time(time::Time::MIDNIGHT);
+                    at = midnight
+                        .saturating_sub(Duration::days(i64::from(midnight.weekday().number_days_from_monday())));
+                }
                 Ok(clock_text(at, context, matches!(placeholder, Placeholder::Instant)))
             }
             // A stub server's port the test named in a sentence: any port is as good, one per ordinal.

@@ -667,6 +667,7 @@ fn phase_three(
     // reaches.
     let compliance_audit = audit.clone();
     let governance_audit = audit.clone();
+    let compliance_rules = rules.coverage.clone();
     let posture = vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
         db: db.clone(),
         gate: gate.gate.clone(),
@@ -713,6 +714,8 @@ fn phase_three(
         db.clone(),
         targets.clone(),
         Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
+        issues.catalog().clone(),
+        compliance_rules,
         Settings::new(db.clone()),
         governance_audit,
         Arc::new(SystemClock),

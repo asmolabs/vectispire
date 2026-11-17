@@ -9,8 +9,6 @@ TICKET_SWEEP | tickets, a later phase
 TICKET_TOKEN_CHECK | tickets, a later phase
 FORGE_TOKEN_WATCH | forges, a later phase
 CHECKLIST_REMINDERS | checklists, a later phase
-COMPLIANCE_HISTORY | compliance, a later phase
-OWASP_WEEKLY_COVERAGE | compliance, a later phase
 REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
 KEV_CATALOGUE | threatintel, a later phase
 EPSS_SCORES | threatintel, a later phase
