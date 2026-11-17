@@ -288,6 +288,8 @@ impl Targets {
             )
             .await
             .map_err(TargetError::unexpected)?;
+            // `ProjectDeleted`, in this transaction: the modules above purge the rows naming the project.
+            self.purge.publish_project(&mut tx, id).await.map_err(TargetError::Unexpected)?;
             persistence::delete_project(&mut tx, id).await?;
             Ok::<_, TargetError>((row, detached, detached_images, revoked.grants))
         }

@@ -1,0 +1,55 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select s.repo_id as \"repo_id!\", count(s.id) as \"completed!: i64\", cast(coalesce(sum(case when s.examined_types is null then 1 else 0 end), 0) as signed) as \"unrecorded!: i64\" from t_scan s where s.repo_id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j) and s.status = ? and s.created_at >= ? group by s.repo_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repo_id!",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "repo_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "completed!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "unrecorded!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "092d8f9551551e4b18e5a058a91d8f920a174252d3e7e69d23793162d74ad869"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select s.repo_id as \"repo_id!\", count(s.id) as \"completed!\", coalesce(sum(case when s.examined_types is null then 1 else 0 end), 0) as \"unrecorded!\" from t_scan s where s.repo_id = any($1) and s.status = $2 and s.created_at >= $3 group by s.repo_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repo_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "repo_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "completed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "unrecorded!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "f6c848e3fb6c91ad852dafd895aba5d1560f644830752fd9f465621548f17140"
+}

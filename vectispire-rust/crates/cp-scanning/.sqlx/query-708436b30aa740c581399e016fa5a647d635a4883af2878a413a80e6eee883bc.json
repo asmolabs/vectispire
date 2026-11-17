@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select distinct s.repo_id as \"repo_id!\" from t_scan s where s.repo_id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j) and s.status = ? and s.created_at < ? and s.plugin_steps like ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repo_id!",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "MULTIPLE_KEY",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_scan",
+            "name": "repo_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "708436b30aa740c581399e016fa5a647d635a4883af2878a413a80e6eee883bc"
+}

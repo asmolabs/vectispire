@@ -59,6 +59,7 @@ async fn on_both_engines() {
         every_service_refuses_what_its_caller_cannot_see(&db).await;
         the_forms_refuse_as_java_does(&db).await;
         access_names_and_finds_what_it_grants(&db).await;
+        a_checklist_reads_schedules_and_names_as_the_owner_does(&db).await;
         println!("{engine}: the targets' suite passed");
         db.close().await;
     }
@@ -875,4 +876,72 @@ async fn access_names_and_finds_what_it_grants(db: &Db) {
     assert_eq!(labels.repository(unnamed), Some("granted/web"));
     assert_eq!(labels.container(image), Some("granted/worker:1.2"));
     assert_eq!(labels.container(gone), None);
+}
+
+/// What `checklists` asks of this module: `ChecklistMeasurer.scheduled` — `Schedules.runsAtLeastEvery` over
+/// `TargetSchedules.of(repository)` and the installation's default (seven days unless set) — and
+/// `TargetNaming.repositoryNames`.
+async fn a_checklist_reads_schedules_and_names_as_the_owner_does(db: &Db) {
+    let (targets, _) = support::targets(db, PurgeRegistry::stand_ins());
+    let repository = |slug: &str, columns: &str, values: &str| {
+        format!(
+            "insert into t_repository (url, branch, tier{columns}) values ('https://forge.example/cadence/{slug}.git', \
+             'main', 'TIER_2_BUSINESS_OPERATIONAL'{values})"
+        )
+    };
+    let mut ids = std::collections::BTreeMap::new();
+    for (slug, columns, values) in [
+        ("manual", ", scan_manual_only", format!(", {}", bool_literal(db, true))),
+        ("daily", ", scan_cron", ", '0 2 * * *'".to_owned()),
+        ("monthly", ", scan_cron", ", '0 2 1 * *'".to_owned()),
+        ("broken", ", scan_cron", ", 'not a cron'".to_owned()),
+        ("hourly", ", scan_interval_minutes", ", 60".to_owned()),
+        ("fortnightly", ", scan_interval_minutes", ", 20160".to_owned()),
+        ("default", "", String::new()),
+        ("named", ", name", ", 'Cadence API'".to_owned()),
+    ] {
+        exec(db, &repository(slug, columns, &values)).await;
+        ids.insert(slug, count(db, "select max(id) from t_repository").await);
+    }
+    let id = |slug: &str| ids[slug];
+    let gone = id("named") + 1_000_000;
+    let now = OffsetDateTime::from_unix_timestamp(1_792_000_000).unwrap();
+    let asked: Vec<i64> = ids.values().copied().chain([gone, id("daily")]).collect();
+
+    let week = targets.runs_at_least_every(&asked, time::Duration::days(7), now).await.unwrap();
+    let expected = |pairs: &[(&str, bool)]| -> std::collections::BTreeMap<i64, bool> {
+        pairs.iter().map(|(slug, runs)| (id(slug), *runs)).collect()
+    };
+    assert_eq!(
+        week,
+        expected(&[
+            ("manual", false),
+            ("daily", true),
+            ("monthly", false),
+            ("broken", false),
+            ("hourly", true),
+            ("fortnightly", false),
+            ("default", true),
+            ("named", true),
+        ]),
+        "manual never; a cron walked; an interval at most the age; the default's seven days; a gone repository absent"
+    );
+    let three_days = targets.runs_at_least_every(&[id("default"), id("hourly")], time::Duration::days(3), now).await;
+    assert_eq!(
+        three_days.unwrap(),
+        expected(&[("default", false), ("hourly", true)]),
+        "the default interval is the installation's, read against the age asked"
+    );
+    assert!(targets.runs_at_least_every(&[], time::Duration::days(7), now).await.unwrap().is_empty());
+
+    let names = targets.repository_names(&[id("named"), id("daily"), gone, id("named")]).await.unwrap();
+    assert_eq!(
+        names,
+        std::collections::BTreeMap::from([
+            (id("daily"), "cadence/daily".to_owned()),
+            (id("named"), "Cadence API".to_owned()),
+        ]),
+        "the operator's name, else the URL's short form; a repository that does not exist absent"
+    );
+    assert!(targets.repository_names(&[]).await.unwrap().is_empty());
 }

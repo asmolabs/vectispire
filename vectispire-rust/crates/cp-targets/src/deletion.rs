@@ -141,6 +141,16 @@ impl PurgeListener for StandIn {
 #[derive(Clone, Default)]
 pub struct PurgeRegistry {
     listeners: Vec<Arc<dyn PurgeListener>>,
+    /// `ProjectDeleted`'s listeners that are ported; those of [`JAVA_PROJECT_LISTENERS`] not among them leave their rows.
+    projects: Vec<Arc<dyn ProjectPurge>>,
+}
+
+/// One owner's purge of a deleted project's rows — Java's `@EventListener` on `ProjectDeleted`, in the transaction
+/// that deletes the project (the tables above `targets` hold no foreign key to it).
+pub trait ProjectPurge: Send + Sync {
+    /// The module, and its Java class and method, as [`JAVA_PROJECT_LISTENERS`] names it.
+    fn name(&self) -> (&'static str, &'static str);
+    fn purge<'a>(&'a self, tx: &'a mut Tx, project_id: i64) -> BoxFuture<'a, Result<(), PurgeError>>;
 }
 
 impl std::fmt::Debug for PurgeRegistry {
@@ -152,7 +162,26 @@ impl std::fmt::Debug for PurgeRegistry {
 impl PurgeRegistry {
     pub fn new(mut listeners: Vec<Arc<dyn PurgeListener>>) -> PurgeRegistry {
         listeners.sort_by_key(|listener| listener.phase());
-        PurgeRegistry { listeners }
+        PurgeRegistry { listeners, projects: Vec::new() }
+    }
+
+    /// The same, with these `ProjectDeleted` listeners.
+    pub fn with_projects(mut self, ported: Vec<Arc<dyn ProjectPurge>>) -> PurgeRegistry {
+        self.projects.extend(ported);
+        self
+    }
+
+    /// The `ProjectDeleted` listeners composed, by module and listener.
+    pub fn project_names(&self) -> Vec<(&'static str, &'static str)> {
+        self.projects.iter().map(|listener| listener.name()).collect()
+    }
+
+    /// Publishes `ProjectDeleted` in `tx`; the first failure stops it, and the caller rolls the deletion back.
+    pub async fn publish_project(&self, tx: &mut Tx, project_id: i64) -> Result<(), PurgeError> {
+        for listener in &self.projects {
+            listener.purge(tx, project_id).await?;
+        }
+        Ok(())
     }
 
     /// Java's listeners, each a [`StandIn`] — what a binary composes before any owner's purge is ported.
@@ -174,7 +203,7 @@ impl PurgeRegistry {
         let mut listeners: Vec<Arc<dyn PurgeListener>> =
             self.listeners.into_iter().filter(|listener| !names.contains(&listener.name())).collect();
         listeners.extend(ported);
-        PurgeRegistry::new(listeners)
+        PurgeRegistry::new(listeners).with_projects(self.projects)
     }
 
     /// The listeners, in the order they run.
