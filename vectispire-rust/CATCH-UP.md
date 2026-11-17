@@ -178,6 +178,10 @@ not serve at all yet is ported with that module, not stood up alone during the c
 - [x] Checklists: NO_DATA reason `forge_integration_disabled`, and the suspended reading checked first. Nothing feeds
       `ReviewFacts::Suspended` yet: the facts reader learns it with the integrations registry (decision 0040). Red: `cp-checklists --test reference_set`.
 - [→] `GET /owasp/coverage/export.csv` *(moved 2026-11-13 to compliance, wave 1: a route of a module Rust does not serve yet is ported with its module)*. Not-yet-ported list.
+- [x] The backlog's `owasp_category` places issues as Java's `IssueSpecifications.placedIn` does: a type placed by
+      rule (a vulnerability is A06 with no column) or code analysis declaring the category; a plugin's declared
+      category places nothing. The port had compared the column alone. *Fixed 2026-11-17, before compliance builds
+      on it.* Red: `cp-issues --lib persistence::tests`, `security/mutants/w1-compliance-0a-owasp-placement.py`.
 
 ## The golden replay of Java 1.0's traffic
 

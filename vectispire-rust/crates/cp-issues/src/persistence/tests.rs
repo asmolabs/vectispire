@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use self::support::Migrated;
 use crate::persistence::{
-    IssueFilters, IssueRepository, IssueRow, Lifetime, NewIssue, NewTriageEvent, TriageEventRepository,
+    IssueFilters, IssueRepository, IssueRow, Lifetime, NewIssue, NewTriageEvent, OwaspPlacement, TriageEventRepository,
 };
 use time::{Duration, OffsetDateTime};
 use vectispire_cp_db::parity;
@@ -84,6 +84,7 @@ fn run(engine: Engine) {
             the_ids_of_a_target_are_found_and_deleted,
             the_triage_history_is_written_and_read_in_both_orders,
             the_backlog_page_is_most_severe_first_and_filtered,
+            the_owasp_filter_places_as_the_grid_does,
             the_backlog_shows_a_reader_only_what_it_was_granted,
             the_exceptions_register_pages_by_cursor_and_visibility,
             the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule,
@@ -664,6 +665,55 @@ async fn the_backlog_page_is_most_severe_first_and_filtered(tx: &mut Tx) -> Chec
             total,
             "{what}: the count alone"
         );
+    }
+    Ok(())
+}
+
+/// Java's `IssueSpecifications.placedIn`: a type placed by rule, or code analysis declaring the
+/// category. Before, the port compared the column alone — a vulnerability (A06, no column) was in no
+/// category, and a plugin declaring one was counted where the grid does not count it.
+async fn the_owasp_filter_places_as_the_grid_does(tx: &mut Tx) -> Check {
+    let typed = |fingerprint: &str, type_: &str, category: Option<&str>| NewIssue {
+        type_: type_.into(),
+        owasp_category: category.map(str::to_owned),
+        ..issue(fingerprint, Some(REPO_A), None)
+    };
+    insert(tx, typed("o-vuln", "vulnerability", None)).await?;
+    insert(tx, typed("o-eol", "eol", None)).await?;
+    insert(tx, typed("o-iac", "iac", None)).await?;
+    insert(tx, typed("o-secret", "secret", None)).await?;
+    insert(tx, typed("o-sast-a03", "sast", Some("A03"))).await?;
+    insert(tx, typed("o-sast-a06", "sast", Some("A06"))).await?;
+    insert(tx, typed("o-sast-none", "sast", None)).await?;
+    insert(tx, typed("o-sast-odd", "sast", Some("A11"))).await?;
+    insert(tx, typed("o-plugin-a03", "plugin", Some("A03"))).await?;
+    insert(tx, typed("o-licence", "license", None)).await?;
+
+    let placed = |placement: OwaspPlacement| IssueFilters {
+        owasp_placement: Some(placement),
+        ..IssueFilters::new(Visibility::everything())
+    };
+    let checks: Vec<(&str, IssueFilters, Vec<&str>)> = vec![
+        (
+            "A06: both types and code analysis declaring it",
+            placed(OwaspPlacement::In("A06".into())),
+            vec!["o-eol", "o-sast-a06", "o-vuln"],
+        ),
+        ("A03: code analysis only, not a plugin", placed(OwaspPlacement::In("A03".into())), vec!["o-sast-a03"]),
+        ("A05", placed(OwaspPlacement::In("A05".into())), vec!["o-iac"]),
+        ("A01: nothing reaches it", placed(OwaspPlacement::In("A01".into())), vec![]),
+        (
+            "anywhere",
+            placed(OwaspPlacement::Anywhere),
+            vec!["o-eol", "o-iac", "o-sast-a03", "o-sast-a06", "o-secret", "o-vuln"],
+        ),
+    ];
+    for (what, filters, expected) in checks {
+        let (page, total) = IssueRepository::page_issues(tx, &filters, 50, 0).await.map_err(|e| e.to_string())?;
+        let mut found = fingerprints(&page);
+        found.sort_unstable();
+        ensure_eq!(found, expected, "{what}");
+        ensure_eq!(total, i64::try_from(expected.len()).unwrap(), "{what}: the total");
     }
     Ok(())
 }

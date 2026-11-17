@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use time::OffsetDateTime;
 use vectispire_cp_db::{ScanTarget, Visibility};
+pub use vectispire_domain::owasp_coverage::OwaspPlacement;
 
 /// Lifetime date boundaries for issue history filtering.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -46,7 +47,7 @@ pub struct IssueFilters {
     pub touching_since: Option<OffsetDateTime>,
     pub cve_only: bool,
     pub targets_within: Option<BTreeSet<ScanTarget>>,
-    pub owasp_category: Option<String>,
+    pub owasp_placement: Option<OwaspPlacement>,
     pub lifetime: Option<Lifetime>,
     pub identifier: Option<String>,
 }
@@ -69,7 +70,7 @@ impl IssueFilters {
             touching_since: None,
             cve_only: false,
             targets_within: None,
-            owasp_category: None,
+            owasp_placement: None,
             lifetime: None,
             identifier: None,
         }

@@ -25,6 +25,7 @@ pub mod language;
 pub mod list_window;
 pub mod maven_version;
 pub mod net;
+pub mod owasp_coverage;
 pub mod owasp_tag;
 pub mod pinned_ca;
 pub mod plugin_manifest;

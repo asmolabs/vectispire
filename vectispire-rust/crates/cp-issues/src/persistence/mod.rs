@@ -6,7 +6,7 @@ pub mod entities;
 pub mod filters;
 pub mod repository;
 
-pub use filters::{IssueFilters, Lifetime};
+pub use filters::{IssueFilters, Lifetime, OwaspPlacement};
 pub use repository::*;
 
 // The repository on both engines (persistence/tests.rs): in the crate, so that it reaches `persistence` without

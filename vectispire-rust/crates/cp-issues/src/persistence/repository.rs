@@ -18,7 +18,8 @@ use super::entities::{
     IssueActive, IssueColumn, IssueModel, TriageEventColumn, TriageEventModel, TriageEvents, delete_issues,
     insert_issue, issues, update_issues, visible_issues,
 };
-use super::filters::IssueFilters;
+use super::filters::{IssueFilters, OwaspPlacement};
+use vectispire_domain::owasp_coverage;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -342,6 +343,29 @@ async fn event_rows(tx: &mut Tx, select: Select<TriageEvents>) -> Result<Vec<Tri
 
 fn upper(column: IssueColumn) -> Expr {
     Expr::expr(Func::upper(Expr::col(column)))
+}
+
+/// The issues `OwaspCoverage.placementOf` puts in one category, or in any: of a type placed there, or
+/// of the type that declares its category declaring it. Java's `IssueSpecifications.placedIn` and
+/// `placedAnywhere` — the halves the grid and the weekly flows count with, so the list a figure opens
+/// holds what the figure counted. A vulnerability is A06 with no column; a plugin's declared
+/// category places nothing.
+fn placed(placement: &OwaspPlacement) -> Condition {
+    let (types, declared): (Vec<&'static str>, Vec<String>) = match placement {
+        OwaspPlacement::In(category) => (owasp_coverage::types_placed_in(category), vec![category.clone()]),
+        OwaspPlacement::Anywhere => {
+            (owasp_coverage::types_placed_anywhere(), owasp_coverage::codes().map(str::to_owned).collect())
+        }
+    };
+    let mut either = Condition::any();
+    if !types.is_empty() {
+        either = either.add(IssueColumn::Type.is_in(types));
+    }
+    either.add(
+        Condition::all()
+            .add(IssueColumn::Type.eq(owasp_coverage::DECLARES_ITS_CATEGORY.wire_name()))
+            .add(IssueColumn::OwaspCategory.is_in(declared)),
+    )
 }
 
 fn lower_like(column: IssueColumn, pattern: &str) -> Expr {
@@ -793,12 +817,8 @@ pub(super) fn criteria(filters: &IssueFilters) -> Condition {
         all =
             all.add(Expr::expr(Func::lower(Expr::col(IssueColumn::Identifier))).eq(Func::lower(Expr::val(identifier))));
     }
-    if let Some(owasp) = &filters.owasp_category {
-        all = all.add(if owasp.eq_ignore_ascii_case("any") {
-            IssueColumn::OwaspCategory.is_not_null()
-        } else {
-            upper(IssueColumn::OwaspCategory).eq(Func::upper(Expr::val(owasp.as_str())))
-        });
+    if let Some(placement) = &filters.owasp_placement {
+        all = all.add(placed(placement));
     }
     if let Some(touching) = filters.touching_since {
         all =

@@ -6,10 +6,10 @@ use time::{Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time};
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::{Targets, naming};
-use vectispire_domain::{FindingType, Severity, bounded_text};
+use vectispire_domain::{FindingType, Severity, bounded_text, owasp_coverage};
 
 use crate::error::IssueError;
-use crate::persistence::{IssueFilters, Lifetime};
+use crate::persistence::{IssueFilters, Lifetime, OwaspPlacement};
 use crate::persistence::{IssueRepository, IssueRow, TriageEventRepository};
 use crate::sla::SlaService;
 use crate::triage::TriageStatus;
@@ -198,7 +198,7 @@ impl IssueQueryService {
             touching_since: None,
             cve_only: false,
             targets_within: None,
-            owasp_category: owasp_val,
+            owasp_placement: owasp_val,
             lifetime,
             identifier: identifier_val,
         };
@@ -278,7 +278,7 @@ fn finding_type(raw: Option<&str>) -> Result<Option<String>, IssueError> {
     Err(IssueError::InvalidInput(format!("Unknown finding type \"{trimmed}\". Expected one of: {expected}.")))
 }
 
-fn owasp_category(raw: Option<&str>) -> Result<Option<String>, IssueError> {
+fn owasp_category(raw: Option<&str>) -> Result<Option<OwaspPlacement>, IssueError> {
     let Some(raw) = raw else {
         return Ok(None);
     };
@@ -288,15 +288,14 @@ fn owasp_category(raw: Option<&str>) -> Result<Option<String>, IssueError> {
     }
     let upper = trimmed.to_uppercase();
     if upper == ANY_OWASP_CATEGORY {
-        return Ok(Some("any".to_string()));
+        return Ok(Some(OwaspPlacement::Anywhere));
     }
-    let valid_categories = ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10"];
-    if valid_categories.contains(&upper.as_str()) {
-        return Ok(Some(upper));
+    if owasp_coverage::is_category(&upper) {
+        return Ok(Some(OwaspPlacement::In(upper)));
     }
     Err(IssueError::InvalidInput(format!(
         "Unknown OWASP category \"{trimmed}\". Expected one of: {}, or any.",
-        valid_categories.join(", ")
+        owasp_coverage::codes().collect::<Vec<_>>().join(", ")
     )))
 }
 
