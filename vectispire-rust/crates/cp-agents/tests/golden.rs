@@ -106,6 +106,26 @@ impl Minting for AccessMinting {
             _ => None,
         }
     }
+
+    /// `cp-audit`'s own chain over the entry as seeded: the timestamp read as the column holds it, in UTC, as the
+    /// server reads it back to verify.
+    fn audit_entry_hash(&self, fields: [Option<&str>; 8]) -> Option<String> {
+        let [previous, timestamp, operation, resource, user, ip, agent, description] = fields;
+        let format =
+            time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second][optional [.[subsecond]]]");
+        let timestamp = time::PrimitiveDateTime::parse(timestamp?, format).ok()?.assume_utc();
+        let owned = |field: Option<&str>| field.map(str::to_owned);
+        Some(vectispire_cp_audit::chain::entry_hash(&vectispire_cp_audit::chain::Entry {
+            previous_hash: owned(previous),
+            timestamp: Some(timestamp),
+            operation_type: owned(operation),
+            resource_id: owned(resource),
+            user_id: owned(user),
+            ip_address: owned(ip),
+            user_agent: owned(agent),
+            description: owned(description),
+        }))
+    }
 }
 
 /// `target_visibility` as the settings store holds it — a test that switches the installation to `assigned` seeds
@@ -645,6 +665,7 @@ fn phase_three(
     );
     // As `cp-app` composes it: the weekly report's channels are the notifications module's stand-in, which no route
     // reaches.
+    let compliance_audit = audit.clone();
     let posture = vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
         db: db.clone(),
         gate: gate.gate.clone(),
@@ -664,9 +685,35 @@ fn phase_three(
         channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
         clock: Arc::new(SystemClock),
     });
+    // As `cp-app` composes it, its two ports reproduced below: the Java suite's context names no identity provider
+    // and keeps password sign-in on.
+    let compliance_service = vectispire_cp_compliance::matrix::ComplianceService::new(
+        gate.gate.clone(),
+        issues.catalog().clone(),
+        issues.sla().clone(),
+        Settings::new(db.clone()),
+        Arc::new(CompliancePlatform {
+            encryption: support::encryption(),
+            audit: compliance_audit,
+            settings: Settings::new(db.clone()),
+            sign_in: vectispire_cp_access::sign_in::SignInMethodPolicy::new(false, true),
+            accounts: vectispire_cp_access::SqlSignInStore::new(db.clone()),
+        }),
+        Arc::new(ComplianceInventories(inventory.query().clone())),
+        Arc::new(SystemClock),
+    );
+    let compliance = Arc::new(vectispire_cp_compliance::Services {
+        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
+            targets.clone(),
+            compliance_service.clone(),
+            posture.scorecards.clone(),
+        ),
+        compliance: compliance_service,
+    });
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(gate.routes());
     routes.extend(posture.routes());
+    routes.extend(vectispire_cp_compliance::routes(compliance));
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
     routes.extend(vectispire_cp_platform::routes(trail, signing));
@@ -678,6 +725,80 @@ fn phase_three(
 type Answer<'a, T> = std::pin::Pin<
     Box<dyn std::future::Future<Output = Result<T, vectispire_cp_platform::CollaboratorError>> + Send + 'a>,
 >;
+
+/// `cp-app`'s `compliance::PlatformFacts`: the deployment's controls, read on every evaluation.
+struct CompliancePlatform {
+    encryption: Arc<vectispire_cp_crypto::Encryption>,
+    audit: Arc<AuditLog>,
+    settings: Settings,
+    sign_in: vectispire_cp_access::sign_in::SignInMethodPolicy,
+    accounts: vectispire_cp_access::SqlSignInStore,
+}
+
+impl vectispire_cp_compliance::ports::Platform for CompliancePlatform {
+    fn posture(
+        &self,
+    ) -> vectispire_cp_http::credentials::BoxFuture<
+        '_,
+        Result<vectispire_cp_compliance::decisions::PlatformPosture, String>,
+    > {
+        use vectispire_cp_access::sign_in::SignInStore;
+        Box::pin(async move {
+            let password_accounts = if self.sign_in.single_sign_on_available() {
+                vectispire_cp_compliance::decisions::PasswordAccounts { accounts: 0, without_second_factor: 0 }
+            } else {
+                let accounts = self.accounts.count_active_with_password().await.map_err(|e| e.to_string())?;
+                let without =
+                    self.accounts.count_active_with_password_and_no_second_factor().await.map_err(|e| e.to_string())?;
+                let long = |count: u64| i64::try_from(count).unwrap_or(i64::MAX);
+                vectispire_cp_compliance::decisions::PasswordAccounts {
+                    accounts: long(accounts),
+                    without_second_factor: long(accounts.min(without)),
+                }
+            };
+            Ok(vectispire_cp_compliance::decisions::PlatformPosture {
+                encryption_configured: self.encryption.is_configured(),
+                external_kms: self.encryption.is_externally_managed(),
+                audit_mirror_configured: self.audit.mirror_configured(),
+                four_eyes_required: self
+                    .settings
+                    .is_enabled(vectispire_cp_settings::Setting::FourEyesApprovalRequired)
+                    .await
+                    .map_err(|e| e.to_string())?,
+                single_sign_on_configured: self.sign_in.single_sign_on_available(),
+                password_login_open: self.sign_in.password_allowed(),
+                password_accounts,
+            })
+        })
+    }
+
+    fn audit_chain_valid(&self) -> vectispire_cp_http::credentials::BoxFuture<'_, Result<bool, String>> {
+        Box::pin(async move { self.audit.recent_entries_match_their_hashes().await.map_err(|e| e.to_string()) })
+    }
+}
+
+/// `cp-app`'s `compliance::InventoryFacts`.
+struct ComplianceInventories(Arc<vectispire_cp_inventory::inventory_query::InventoryQueryService>);
+
+impl vectispire_cp_compliance::ports::Inventories for ComplianceInventories {
+    fn targets_with_inventory(
+        &self,
+    ) -> vectispire_cp_http::credentials::BoxFuture<
+        '_,
+        Result<std::collections::BTreeSet<vectispire_cp_db::ScanTarget>, String>,
+    > {
+        Box::pin(async move {
+            let mut held = std::collections::BTreeSet::new();
+            for id in self.0.distinct_repositories_with_components().await.map_err(|e| e.to_string())? {
+                held.insert(vectispire_cp_db::ScanTarget::Repository(id));
+            }
+            for id in self.0.distinct_containers_with_components().await.map_err(|e| e.to_string())? {
+                held.insert(vectispire_cp_db::ScanTarget::Container(id));
+            }
+            Ok(held)
+        })
+    }
+}
 
 /// `cp-app`'s `settings_screen::AccessApprovers`: `access`' `TriageApprovers` behind the settings save's seam.
 struct AccessApprovers(vectispire_cp_access::TriageApprovers);

@@ -10,7 +10,6 @@ pub mod agent_labels;
 pub mod asset_tier;
 pub mod bounded_text;
 pub mod checklists;
-pub mod compliance;
 pub mod contract;
 pub mod cron;
 pub mod dependency_graph;

@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::java;
+use vectispire_domain::java;
 
 /// A requirement within a framework — `ComplianceControl`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]

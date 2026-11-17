@@ -3,7 +3,8 @@
 
 pub use crate::catalog::*;
 pub use crate::persistence::aggregates::{
-    Axis, GraphNode, Observation, OpenBacklog, PackageDetail, PackageWeight, ResolvedDuration, SeverityTypeCount,
-    TargetGradingCount, TargetResolutions, TypePackaging,
+    Axis, GraphNode, Identified, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail, PackageWeight,
+    Resolution, ResolvedDuration, SeverityTypeCount, TargetBreakdown, TargetGradingCount, TargetResolutions,
+    TypePackaging, WeeklyFlow,
 };
 pub use crate::persistence::{IssueFilters, Lifetime};

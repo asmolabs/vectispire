@@ -3,7 +3,7 @@
 //!
 //! `f64::round` rounds a half away from zero where Java rounds it towards positive infinity: `-0.5` is `-1` in Rust
 //! and `0` in Java, and a score of 66.5 % must read 67 on both sides. Moved here from `cp-posture`'s `arithmetic`,
-//! which re-exports it, so the compliance engine (`compliance::engine`) and the MTTR (`mttr`) round with the same code.
+//! which re-exports it, so the compliance engine (`cp-compliance`'s `decisions::engine`) and the MTTR (`mttr`) round with the same code.
 
 /// `Math.round(double)`: the closest `long`, a half rounded towards positive infinity. Exact: `value - floor(value)` is
 /// representable for every double whose floor is, so no addition of 0.5 can round first.

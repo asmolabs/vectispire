@@ -17,7 +17,7 @@ use vectispire_cp_contract::recorded::placeholders::{
     secret_kinds, segments,
 };
 use vectispire_cp_contract::recorded::replay::{Outcome, Replayed, compare_headers, compare_rows};
-use vectispire_cp_contract::recorded::rows::{Column, Kind, Schema, Table};
+use vectispire_cp_contract::recorded::rows::{Column, Kind, Schema, Table, Writes};
 use vectispire_cp_contract::shrinking::ListFile;
 use vectispire_cp_db::Engine;
 
@@ -39,6 +39,10 @@ impl Minting for Fake {
     }
     fn password_verifies(&self, plain: &str, hash: &str) -> bool {
         hash == self.password_hash(plain)
+    }
+    /// A visible stand-in for the chain's hash: what it covered, in order.
+    fn audit_entry_hash(&self, fields: [Option<&str>; 8]) -> Option<String> {
+        Some(format!("h({})", fields.map(|field| field.unwrap_or("")).join("|")))
     }
 }
 
@@ -722,4 +726,47 @@ fn a_padded_body_is_rebuilt_from_its_runs() {
     assert_eq!(padded.expanded().as_deref(), Some(&b"{   }"[..]));
     assert_eq!(binary(6, Some(vec![(b'{', 1), (b' ', 3), (b'}', 1)])).expanded(), None, "a length the runs miss");
     assert_eq!(binary(5, None).expanded(), None, "no runs, nothing to send");
+}
+
+/// A seeded audit entry whose hash the recorder hid gets the one its fields make, and the next entry, linking to the same
+/// placeholder, names it: a made-up digest read as a modified entry to every check of the chain, which Java's run never
+/// saw. An entry whose hash was recorded keeps it.
+#[test]
+fn a_seeded_audit_entry_carries_its_own_hash_and_the_chain_links_to_it() {
+    let column = |name: &str| Column {
+        name: name.into(),
+        kind: Kind::Text,
+        cast: "text".into(),
+        zoned: false,
+        generated: false,
+        max_chars: None,
+    };
+    let schema = Schema {
+        engine: Engine::MySql,
+        tables: vec![Table {
+            name: "t_audit_log".into(),
+            columns: ["id", "description", "operation_type", "previous_hash", "entry_hash"].map(column).to_vec(),
+            key: vec![0],
+            identity: None,
+            always: false,
+            base: None,
+        }],
+    };
+    let seed = json(
+        r#"{"t_audit_log":{"inserted":[
+            {"id":"«uuid:2»","description":"two","operation_type":"B","previous_hash":"«sha256:1»","entry_hash":"«sha256:2»"},
+            {"id":"«uuid:1»","description":"one","operation_type":"A","previous_hash":null,"entry_hash":"«sha256:1»"}]}}"#,
+    );
+    let mut b = bindings();
+    let writes = format!("{:?}", Writes::plan(&schema, &seed, &mut b).unwrap());
+    let first = "h(||A|||||one)";
+    let second = format!("h({first}||B|||||two)");
+    assert!(writes.contains(&format!("Text(\"{first}\")")), "the first entry's own hash: {writes}");
+    assert_eq!(writes.matches(&format!("Text(\"{first}\")")).count(), 2, "the second links to it: {writes}");
+    assert!(writes.contains(&format!("Text(\"{second}\")")), "the second's hash covers the link: {writes}");
+    let kept = json(
+        r#"{"t_audit_log":{"inserted":[{"id":"«uuid:3»","description":"kept","operation_type":"C","previous_hash":null,"entry_hash":"abc"}]}}"#,
+    );
+    let writes = format!("{:?}", Writes::plan(&schema, &kept, &mut b).unwrap());
+    assert!(writes.contains("Text(\"abc\")"), "a recorded hash is kept: {writes}");
 }

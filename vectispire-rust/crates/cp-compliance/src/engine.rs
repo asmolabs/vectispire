@@ -8,8 +8,8 @@
 
 use serde::Serialize;
 
-use super::framework::{Category, ComplianceControl, ComplianceFramework, Status};
-use crate::java_math::round_f32;
+use crate::framework::{Category, ComplianceControl, ComplianceFramework, Status};
+use vectispire_domain::java_math::round_f32;
 
 /// Aggregated security posture input for compliance assessment — `ComplianceEngine.PostureInput`.
 ///

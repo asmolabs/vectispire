@@ -5,8 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::instant_text;
-use crate::instant::Instant;
+use crate::instant_text;
+use vectispire_domain::instant::Instant;
 
 /// `total_audit_log_entries` is absent when section 02 was withheld — a count of an estate's audit trail is not zero
 /// merely because this archive does not include it; `withheld` names each section left out and why.

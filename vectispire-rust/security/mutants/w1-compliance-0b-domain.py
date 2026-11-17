@@ -8,12 +8,15 @@ import sys
 
 import _runner
 
-R = ["-p", "vectispire-domain", "--test", "compliance_reference_set"]
+R = ["-p", "vectispire-cp-compliance", "--test", "compliance_reference_set"]
 U = ["-p", "vectispire-domain", "--lib"]
 D = "crates/domain/src/"
-E = D + "compliance/engine.rs"
-S = D + "compliance/soa.rs"
-H = D + "compliance/history.rs"
+C = "crates/cp-compliance/src/"
+E = C + "engine.rs"
+S = C + "soa.rs"
+H = C + "history.rs"
+# The decisions' own unit tests, since they moved to cp-compliance (an agent-linked crate may not name the key).
+CU = ["-p", "vectispire-cp-compliance", "--lib"]
 O = D + "owasp_coverage.rs"
 
 # Equivalent, and removed (each was written, survived, and is listed so that nobody writes it again): the supply chain's and governance's `max(1)` on the total — the only estates with no target
@@ -39,28 +42,28 @@ MUTANTS = [
     # The platform's caps.
     ("encryption never capped", E, "            if platform.encryption_configured {\n", "            if true {\n", R),
     ("four eyes never capped", E, "            if platform.four_eyes_required {\n", "            if true {\n", R),
-    ("no accounts read as enrolled", E, "if local.accounts > 0 && local.without_second_factor == 0 {", "if local.without_second_factor == 0 {", [U, R]),
+    ("no accounts read as enrolled", E, "if local.accounts > 0 && local.without_second_factor == 0 {", "if local.without_second_factor == 0 {", [CU, R]),
     ("open password beside a provider", E, "    if platform.password_login_open {\n", "    if false {\n", R),
     ("a cap greens no data", E, "        Status::NonCompliant | Status::NoData => assessment.status,\n        Status::Compliant | Status::Partial => Status::Partial,", "        Status::NonCompliant => assessment.status,\n        Status::Compliant | Status::Partial | Status::NoData => Status::Partial,", R),
     # The coverage cap.
     ("stale estate uncapped", E, "    if never == 0 && stale == 0 {\n", "    if never == 0 {\n", R),
     ("never scanned only partial", E, "let status = if never > 0 { Status::NonCompliant } else { worse_of(assessment.status, Status::Partial) };", "let status = worse_of(assessment.status, Status::Partial);", R),
     ("a cap whitewashes", E, "    if left >= right { left } else { right }", "    if left <= right { left } else { right }", R),
-    ("score not capped by observation", E, "score_percentage: assessment.score_percentage.min(observed),", "score_percentage: assessment.score_percentage,", [U, R]),
+    ("score not capped by observation", E, "score_percentage: assessment.score_percentage.min(observed),", "score_percentage: assessment.score_percentage,", [CU, R]),
     # The declaration of applicability.
-    ("exclusion judged", S, "    if declaration.applicability == Some(Applicability::Excluded) {\n", "    if false {\n", [U, R]),
+    ("exclusion judged", S, "    if declaration.applicability == Some(Applicability::Excluded) {\n", "    if false {\n", [CU, R]),
     ("external judged", S, "    if declaration.evidence_source == Some(EvidenceSource::External) {\n", "    if false {\n", R),
-    ("no data consistent", S, "let Some(measured) = measured.filter(|status| status.measured()) else {", "let Some(measured) = measured else {", [U, R]),
+    ("no data consistent", S, "let Some(measured) = measured.filter(|status| status.measured()) else {", "let Some(measured) = measured else {", [CU, R]),
     ("understated read as consistent", S, "            if measured == Status::Compliant {\n", "            if measured == Status::Partial {\n", R),
     ("due today overdue", S, "self.review_due_at.is_some_and(|due| due < now)", "self.review_due_at.is_some_and(|due| due <= now)", R),
     ("other frameworks reconciled", S, ".filter(|declaration| declaration.framework == framework.name())", ".filter(|_| true)", R),
     # The history.
-    ("one point is the work", H, "    } else if delta >= NOISE {\n", "    } else if delta >= 1 {\n", [U, R]),
+    ("one point is the work", H, "    } else if delta >= NOISE {\n", "    } else if delta >= 1 {\n", [CU, R]),
     ("shape ignored", H, "    } else if snapshot.shape() != previous.shape() {\n", "    } else if false {\n", R),
     ("months unordered", H, "    ordered.sort_by(|left, right| java::compare_utf16(&left.period, &right.period));\n", "", R),
     ("one month comparable", H, "    let comparable = steps.len() > 1\n", "    let comparable = steps.len() > 0\n", R),
     # The scope.
-    ("undeclared scope has a gap", D + "compliance/scope.rs", "if self.declared_assets <= 0 { 0 } else {", "if self.declared_assets < 0 { 0 } else {", R),
+    ("undeclared scope has a gap", C + "scope_coverage.rs", "if self.declared_assets <= 0 { 0 } else {", "if self.declared_assets < 0 { 0 } else {", R),
     # The OWASP grid.
     ("sast placed by its type", O, "if type_ == DECLARES_ITS_CATEGORY { declared_category.and_then(category_code) } else { None }", "declared_category.and_then(category_code)", R),
     ("an image read for secrets", O, "matches!(type_, FindingType::Vulnerability | FindingType::Eol | FindingType::License)", "matches!(type_, FindingType::Vulnerability | FindingType::Eol | FindingType::License | FindingType::Secret)", [U, R]),

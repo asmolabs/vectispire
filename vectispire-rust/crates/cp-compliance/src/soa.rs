@@ -10,11 +10,11 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::engine::ComplianceEvaluation;
-use super::framework::{ComplianceControl, ComplianceFramework, Status};
-use super::instant_text;
-use crate::instant::Instant;
-use crate::java;
+use crate::engine::ComplianceEvaluation;
+use crate::framework::{ComplianceControl, ComplianceFramework, Status};
+use crate::instant_text;
+use vectispire_domain::instant::Instant;
+use vectispire_domain::java;
 
 /// Applicable, or excluded from the scope of the management system (clause 6.1.3 d, with a justification).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -223,7 +223,7 @@ fn diverge(declaration: Option<&Declaration>, measured: Option<Status>) -> Diver
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compliance::engine::ControlAssessment;
+    use crate::decisions::engine::ControlAssessment;
 
     fn evaluation(status: Status) -> ComplianceEvaluation {
         let controls = ComplianceFramework::Iso27001

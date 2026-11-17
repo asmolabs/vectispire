@@ -7,6 +7,7 @@ pub mod repository;
 mod tests;
 
 use time::OffsetDateTime;
+pub use vectispire_cp_db::query::{KIND_CONTAINER, KIND_REPOSITORY};
 use vectispire_cp_db::{Db, Tx};
 
 #[derive(Debug, thiserror::Error)]

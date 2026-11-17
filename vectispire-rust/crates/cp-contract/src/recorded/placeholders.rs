@@ -283,6 +283,13 @@ pub trait Minting: Send + Sync {
         let _ = (kind, seed, scan_id, body);
         None
     }
+    /// The hash an audit entry carries (`AuditChain.entryHash`) from its fields as seeded — `previous_hash`,
+    /// `timestamp` (as written into the column), `operation_type`, `resource_id`, `user_id`, `ip_address`,
+    /// `user_agent`, `description` — or `None` when this replay cannot compute one: the chain is `cp-audit`'s.
+    fn audit_entry_hash(&self, fields: [Option<&str>; 8]) -> Option<String> {
+        let _ = fields;
+        None
+    }
 }
 
 /// How a secret the replay must mint itself is minted: an API key when the test ever shows its stored prefix,
@@ -491,6 +498,25 @@ impl<'m> Bindings<'m> {
     /// The differences found since the last call, when a secret became known and a check owed to it failed.
     pub fn take_violations(&mut self) -> Vec<String> {
         std::mem::take(&mut self.violations)
+    }
+
+    /// A seeded audit entry's own hash, where the recorder hid it (`«sha256:N»`): computed from the entry's fields as
+    /// the server computed it, and bound to `N` — so the next entry of the chain, whose `previous_hash` is the same
+    /// placeholder, names it. A made-up digest instead would read as a modified entry to every check of the chain,
+    /// which Java's run, holding the real one, never saw. `None` when the value is not a bare digest placeholder or the
+    /// caller cannot hash.
+    pub fn seal_audit_entry(&mut self, template: &str, fields: [Option<&str>; 8]) -> Option<String> {
+        let inner = template.strip_prefix('«')?.strip_suffix('»')?;
+        let Placeholder::Digest(ordinal) = placeholder(inner)? else {
+            return None;
+        };
+        let hash = self.minting.audit_entry_hash(fields)?;
+        let digests = self.family(Family::Digest);
+        if let Some(previous) = digests.by_ordinal.get(&ordinal).cloned() {
+            digests.by_value.remove(&previous);
+        }
+        digests.bind(ordinal, &hash);
+        Some(hash)
     }
 
     fn family(&mut self, family: Family) -> &mut Ordinals {

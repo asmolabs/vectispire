@@ -565,6 +565,9 @@ impl Writes {
                         writes.identities_written.insert(name.clone());
                     }
                 }
+                if name == AUDIT_LOG {
+                    seal_audit_entry(row_fields(row)?, &columns, &mut values, bindings, engine);
+                }
                 let overriding =
                     if engine == Engine::PostgreSql && table.always { " overriding system value" } else { "" };
                 writes.inserts.push(Statement {
@@ -625,6 +628,50 @@ impl Writes {
             }
         }
         Ok(writes)
+    }
+}
+
+/// The audit log, whose seeded entries are given their own hash ([`seal_audit_entry`]).
+const AUDIT_LOG: &str = "t_audit_log";
+
+/// The fields an audit entry's hash covers, in `AuditChain.entryHash`'s order.
+const HASHED: [&str; 8] = [
+    "previous_hash",
+    "timestamp",
+    "operation_type",
+    "resource_id",
+    "user_id",
+    "ip_address",
+    "user_agent",
+    "description",
+];
+
+/// A seeded audit entry whose hash the recorder hid gets the one its fields make, through
+/// [`Bindings::seal_audit_entry`]; any other entry keeps its recorded hash. `columns` are quoted as written, `values`
+/// in the same order.
+fn seal_audit_entry(
+    recorded: &[(String, Json)],
+    columns: &[String],
+    values: &mut [Bound],
+    bindings: &mut Bindings<'_>,
+    engine: Engine,
+) {
+    let position = |name: &str| columns.iter().position(|column| *column == quoted(engine, name));
+    let Some(Json::Str(template)) = recorded.iter().find(|(name, _)| name == "entry_hash").map(|(_, value)| value)
+    else {
+        return;
+    };
+    let text = |name: &str| match position(name).and_then(|at| values.get(at)) {
+        Some(Bound::Text(text)) => Some(text.clone()),
+        Some(Bound::Integer(number)) => Some(number.to_string()),
+        _ => None,
+    };
+    let owned: Vec<Option<String>> = HASHED.iter().map(|name| text(name)).collect();
+    let fields: [Option<&str>; 8] = std::array::from_fn(|at| owned.get(at).and_then(|field| field.as_deref()));
+    if let (Some(hash), Some(at)) = (bindings.seal_audit_entry(template, fields), position("entry_hash"))
+        && let Some(slot) = values.get_mut(at)
+    {
+        *slot = Bound::Text(hash);
     }
 }
 

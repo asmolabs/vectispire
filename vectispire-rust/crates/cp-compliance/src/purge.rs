@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
-use vectispire_cp_db::query::{KIND_CONTAINER, KIND_REPOSITORY};
 use vectispire_cp_db::{ScanTarget, Tx};
 use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_cp_targets::deletion::PurgeError;
 use vectispire_cp_targets::{ListenerName, Phase, PurgeListener, TargetPurge};
 
 use crate::persistence::repository::{ReviewRepository, WeeklyRepository};
+use crate::persistence::{KIND_CONTAINER, KIND_REPOSITORY};
 
 /// `PurgedScans.inBatches`' batch.
 const BATCH: usize = 1_000;

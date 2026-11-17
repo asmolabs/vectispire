@@ -7,10 +7,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::framework::{ComplianceFramework, Status};
-use super::instant_text;
-use crate::instant::Instant;
-use crate::java;
+use crate::framework::{ComplianceFramework, Status};
+use crate::instant_text;
+use vectispire_domain::instant::Instant;
+use vectispire_domain::java;
 
 /// One framework's verdict and the state of the estate that produced it — `ComplianceSnapshot`. `period` is the
 /// month, `yyyy-MM`.

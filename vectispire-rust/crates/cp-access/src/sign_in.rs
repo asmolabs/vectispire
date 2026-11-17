@@ -31,7 +31,7 @@ use crate::accounts::{
 use crate::credentials::{CredentialService, IssuedSession, SessionView, hash_of};
 use crate::login_throttle::{self, SignInLimits};
 pub use crate::persistence::sign_in::Challenge;
-use crate::persistence::sign_in::SignInStore;
+pub use crate::persistence::sign_in::SignInStore;
 use crate::second_factor::{SecondFactor, SecondFactorError, SecretSeal};
 use crate::throttle::{SharedClock, Throttle, client};
 

@@ -534,6 +534,35 @@ async fn serve() -> ExitCode {
         clock: clock.clone(),
     }));
 
+    // Compliance: the matrix over the gate's posture, the issues' counts and the deployment's own controls, read
+    // through the two ports the binary answers (`compliance.rs`).
+    let compliance_service = vectispire_cp_compliance::matrix::ComplianceService::new(
+        gate.gate.clone(),
+        issues.catalog().clone(),
+        issues.sla().clone(),
+        vectispire_cp_settings::Settings::new(db.clone()),
+        Arc::new(vectispire_cp_app::compliance::PlatformFacts {
+            encryption: encryption.clone(),
+            audit: audit.clone(),
+            settings: vectispire_cp_settings::Settings::new(db.clone()),
+            sign_in: vectispire_cp_access::sign_in::SignInMethodPolicy::new(
+                settings.oidc.provider.is_some(),
+                settings.oidc.password_login,
+            ),
+            accounts: vectispire_cp_access::SqlSignInStore::new(db.clone()),
+        }),
+        Arc::new(vectispire_cp_app::compliance::InventoryFacts(inventory.query().clone())),
+        clock.clone(),
+    );
+    let compliance = Arc::new(vectispire_cp_compliance::Services {
+        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
+            targets.clone(),
+            compliance_service.clone(),
+            posture.scorecards.clone(),
+        ),
+        compliance: compliance_service,
+    });
+
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
@@ -615,6 +644,7 @@ async fn serve() -> ExitCode {
                 Arc::new(vectispire_cp_audit::SystemClock),
             ),
         },
+        compliance.clone(),
     ) {
         routes = routes.route(entry);
     }

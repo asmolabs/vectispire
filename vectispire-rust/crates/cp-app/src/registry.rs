@@ -56,6 +56,7 @@ pub fn entries(
     posture: Arc<PostureModule>,
     siem: Arc<SiemExporterService>,
     platform: Platform,
+    compliance: Arc<vectispire_cp_compliance::Services>,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
     list.extend(vectispire_cp_targets::routes(targets.clone()));
@@ -66,6 +67,7 @@ pub fn entries(
     list.extend(vectispire_cp_issues::routes(issues));
     list.extend(gate.routes());
     list.extend(posture.routes());
+    list.extend(vectispire_cp_compliance::routes(compliance));
     list.extend(vectispire_cp_siem::routes(siem));
     list.extend(vectispire_cp_platform::routes(platform.trail, platform.signing));
     list.extend(vectispire_cp_platform::integration_routes(platform.integrations));
@@ -87,9 +89,11 @@ pub fn routes(
     posture: Arc<PostureModule>,
     siem: Arc<SiemExporterService>,
     platform: Platform,
+    compliance: Arc<vectispire_cp_compliance::Services>,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform) {
+    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance)
+    {
         routes = routes.route(entry);
     }
     routes

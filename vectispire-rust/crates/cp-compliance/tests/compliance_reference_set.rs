@@ -11,11 +11,11 @@
 use std::collections::{BTreeSet, HashMap};
 
 use serde_json::Value;
-use vectispire_domain::FindingType;
-use vectispire_domain::compliance::{
+use vectispire_cp_compliance::decisions::{
     self, ComplianceEvaluation, ComplianceFramework, ComplianceSnapshot, ControlAssessment, Declaration,
     EvidenceBundleManifest, PasswordAccounts, PlatformPosture, PostureInput, ScopeCoverage, Status,
 };
+use vectispire_domain::FindingType;
 use vectispire_domain::instant::Instant;
 use vectispire_domain::language::Language;
 use vectispire_domain::observation::Observation;
@@ -109,7 +109,7 @@ fn the_engine_over_every_estate_and_platform() {
     assert!(rows.len() > 150, "the grid was read");
     for row in rows {
         let estate = input(&row["input"]);
-        let evaluations = compliance::evaluate_all(&estate, &platform(&row["platform"]));
+        let evaluations = decisions::evaluate_all(&estate, &platform(&row["platform"]));
         let frameworks: Vec<String> = evaluations
             .iter()
             .map(|evaluation| {
@@ -146,7 +146,7 @@ fn the_engine_over_every_estate_and_platform() {
         assert_eq!(seen.len(), categories.len(), "every category Java assessed is assessed here");
     }
     for row in set["shapes"].as_array().unwrap() {
-        let evaluation = compliance::evaluate(
+        let evaluation = decisions::evaluate(
             ComplianceFramework::Soc2,
             &input(&row["input"]),
             &platform(&serde_json::json!([1, 1, 1, 1, 0, 1, 3, 1])),
@@ -203,7 +203,7 @@ fn the_declaration_of_applicability() {
         let measured: Vec<(String, Status)> =
             status(fields[4]).map(|status| ("ISO-A.8.8".to_owned(), status)).into_iter().collect();
         let statement =
-            compliance::reconcile(&evaluation_of(ComplianceFramework::Iso27001, &measured), &[declaration], now);
+            decisions::reconcile(&evaluation_of(ComplianceFramework::Iso27001, &measured), &[declaration], now);
         assert_eq!(text(&statement.lines[0].divergence), format!("\"{}\"", fields[5]), "{}", str_of(row));
     }
     for row in set["statements"].as_array().unwrap() {
@@ -219,7 +219,7 @@ fn the_declaration_of_applicability() {
             .collect();
         let declarations: Vec<Declaration> = serde_json::from_value(row["declarations"].clone()).unwrap();
         assert_eq!(text(&declarations), text(&row["declarations"]), "a declaration reads back as Java wrote it");
-        let statement = compliance::reconcile(&evaluation_of(framework, &measured), &declarations, now);
+        let statement = decisions::reconcile(&evaluation_of(framework, &measured), &declarations, now);
         assert_eq!(text(&statement), text(&row["statement"]));
     }
 }
@@ -230,7 +230,7 @@ fn the_history_attributes_each_month() {
     for row in set["series"].as_array().unwrap() {
         let snapshots: Vec<ComplianceSnapshot> = serde_json::from_value(row["snapshots"].clone()).unwrap();
         assert_eq!(text(&snapshots), text(&row["snapshots"]));
-        let series = compliance::history::of(framework(str_of(&row["framework"])), &snapshots);
+        let series = decisions::history::of(framework(str_of(&row["framework"])), &snapshots);
         assert_eq!(text(&series), text(&row["series"]));
     }
 }
