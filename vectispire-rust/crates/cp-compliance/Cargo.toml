@@ -12,7 +12,13 @@ sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", 
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
 thiserror.workspace = true
 time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
+tracing.workspace = true
 vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-http.workspace = true
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-scanning = { path = "../cp-scanning" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]

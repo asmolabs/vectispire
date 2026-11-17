@@ -84,6 +84,7 @@ pub fn tasks(
     session_cleanup: Arc<dyn MaintenanceTask>,
     gauges: &crate::gauges::Gauges,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
+    let issues_db = issues.db().clone();
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
     tasks.extend(vectispire_cp_scanning::tasks(scanning.clone()));
@@ -96,6 +97,7 @@ pub fn tasks(
         clock.clone(),
     ));
     tasks.push(session_cleanup);
+    tasks.extend(vectispire_cp_compliance::tasks(issues_db, settings.clone(), clock.clone()));
     tasks.extend(gate.tasks(settings, clock));
     tasks.extend(posture.tasks());
     tasks.extend(gauges.tasks());

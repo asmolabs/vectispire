@@ -4127,6 +4127,7 @@ dependencies = [
  "vectispire-cp-agents",
  "vectispire-cp-arch-tests",
  "vectispire-cp-audit",
+ "vectispire-cp-compliance",
  "vectispire-cp-contract",
  "vectispire-cp-crypto",
  "vectispire-cp-db",
@@ -4208,7 +4209,13 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tracing",
  "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-scanning",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
  "vectispire-domain",
 ]
 

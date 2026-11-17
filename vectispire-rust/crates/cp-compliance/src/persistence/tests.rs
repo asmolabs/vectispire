@@ -75,6 +75,10 @@ fn run(engine: Engine) {
             the_weekly_record_is_gated_rewritten_and_purged_by_week,
             a_reader_sums_only_the_weeks_of_its_own_targets,
         );
+        // Last: they commit.
+        the_purges_and_the_tasks_take_their_rows(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_purges_and_the_tasks_take_their_rows: {failure}"));
+        });
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
         });
@@ -289,6 +293,8 @@ async fn a_report_is_settled_once_and_the_abandoned_ones_by_the_sweep(tx: &mut T
     let err = |e: crate::persistence::StoreError| e.to_string();
     let awaited = ReviewRepository::insert(tx, &review(0, "running", Some(100))).await.map_err(err)?;
     let abandoned = ReviewRepository::insert(tx, &review(0, "running", Some(40))).await.map_err(err)?;
+    // Answered, its deadline still written: the sweep turns only a running row into a failed one.
+    let answered = ReviewRepository::insert(tx, &review(0, "completed", Some(40))).await.map_err(err)?;
     ensure_eq!(ReviewRepository::any_awaited(tx, "running", at(50)).await.map_err(err)?, true, "one still awaited");
     ensure_eq!(ReviewRepository::any_awaited(tx, "running", at(100)).await.map_err(err)?, false, "none past 100");
 
@@ -296,6 +302,11 @@ async fn a_report_is_settled_once_and_the_abandoned_ones_by_the_sweep(tx: &mut T
         ReviewRepository::settle_abandoned(tx, "running", "failed", "abandoned", at(50)).await.map_err(err)?,
         1,
         "the one past its deadline"
+    );
+    ensure_eq!(
+        ReviewRepository::find_by_id(tx, answered).await.map_err(err)?.unwrap().status,
+        "completed",
+        "an answered report is not swept"
     );
     let swept = ReviewRepository::find_by_id(tx, abandoned).await.map_err(err)?.unwrap();
     ensure_eq!(
@@ -317,7 +328,7 @@ async fn a_report_is_settled_once_and_the_abandoned_ones_by_the_sweep(tx: &mut T
         "a settled report is not swept"
     );
     ensure_eq!(ReviewRepository::delete_by_scan_ids(tx, &[]).await.map_err(err)?, 0, "no scan");
-    ensure_eq!(ReviewRepository::delete_by_scan_ids(tx, &[SCAN_A]).await.map_err(err)?, 2, "the scan's reports");
+    ensure_eq!(ReviewRepository::delete_by_scan_ids(tx, &[SCAN_A]).await.map_err(err)?, 3, "the scan's reports");
     Ok(())
 }
 
@@ -417,6 +428,103 @@ async fn a_reader_sums_only_the_weeks_of_its_own_targets(tx: &mut Tx) -> Check {
         vec![],
         "a reader who sees nothing reads no row"
     );
+    Ok(())
+}
+
+/// The three purge listeners in a deletion's transaction, and what the two retention tasks run: the weekly record cut
+/// at the Monday of the cutoff's week, the abandoned reports settled. Committed, so last.
+async fn the_purges_and_the_tasks_take_their_rows(db: &Db) -> Check {
+    use crate::internal::tasks::{ABANDONED, purge_weeks_ended_before, settle_abandoned};
+    use crate::purge::{ReviewPurge, WeeklyCoveragePurge, WeeklyCoverageSweep};
+    use vectispire_cp_targets::{PurgeListener, TargetPurge};
+    let err = |e: crate::persistence::StoreError| e.to_string();
+    const MONDAY: i64 = 1_767_571_200; // 2026-01-05, 00:00 UTC
+    const WEEK: i64 = 7 * 24 * 3600;
+    let monday = |weeks: i64| OffsetDateTime::from_unix_timestamp(MONDAY + weeks * WEEK).unwrap();
+    let row = |weeks: i64, kind: &str, id: i64| WeeklyRow {
+        week_start: monday(weeks),
+        target_kind: kind.to_owned(),
+        target_id: id,
+        category: "A06".to_owned(),
+        state: "FINDINGS".to_owned(),
+        open_count: 1,
+        settled_count: 0,
+        captured_at: monday(weeks),
+    };
+
+    let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
+    WeeklyRepository::insert_all(
+        &mut tx,
+        &[
+            row(0, "repository", REPO_A),
+            row(0, "repository", REPO_B),
+            row(0, "container", IMAGE_A),
+            row(0, "repository", 999),
+            row(0, "galaxy", 7),
+            row(1, "repository", REPO_A),
+            row(2, "repository", REPO_A),
+        ],
+    )
+    .await
+    .map_err(err)?;
+    let report = ReviewRepository::insert(&mut tx, &review(0, "completed", None)).await.map_err(err)?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    let names = |rows: Vec<WeeklyTarget>| rows.into_iter().map(|t| (t.kind, t.id)).collect::<Vec<_>>();
+    let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
+    WeeklyCoveragePurge
+        .purge(&mut tx, &TargetPurge::Deleted(ScanTarget::Repository(REPO_B)))
+        .await
+        .map_err(|e| e.to_string())?;
+    WeeklyCoveragePurge.purge(&mut tx, &TargetPurge::Orphans).await.map_err(|e| e.to_string())?;
+    WeeklyCoverageSweep
+        .purge(&mut tx, &TargetPurge::Deleted(ScanTarget::Repository(REPO_A)))
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(
+        names(WeeklyRepository::targets(&mut tx).await.map_err(err)?),
+        vec![
+            ("container".to_owned(), IMAGE_A),
+            ("galaxy".to_owned(), 7),
+            ("repository".to_owned(), REPO_A),
+            ("repository".to_owned(), 999),
+        ],
+        "a deleted target's rows, and only on its deletion"
+    );
+    WeeklyCoverageSweep.purge(&mut tx, &TargetPurge::Orphans).await.map_err(|e| e.to_string())?;
+    ensure_eq!(
+        names(WeeklyRepository::targets(&mut tx).await.map_err(err)?),
+        vec![("container".to_owned(), IMAGE_A), ("galaxy".to_owned(), 7), ("repository".to_owned(), REPO_A)],
+        "the sweep: a missing target's rows; an unknown kind left alone"
+    );
+    ReviewPurge
+        .purge(&mut tx, &TargetPurge::Deleted(ScanTarget::Repository(REPO_B)))
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(ReviewRepository::find_by_id(&mut tx, report).await.map_err(err)?.is_some(), true, "another's scans");
+    ReviewPurge
+        .purge(&mut tx, &TargetPurge::Deleted(ScanTarget::Repository(REPO_A)))
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(ReviewRepository::find_by_id(&mut tx, report).await.map_err(err)?, None, "the target's scans' reports");
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    // A cutoff on the Wednesday of week 1: week 0 goes, week 1 stays whole.
+    let wednesday = monday(1) + Duration::days(2) + Duration::hours(5);
+    ensure_eq!(purge_weeks_ended_before(db, wednesday).await.map_err(err)?, 3, "the weeks before the cutoff's");
+    let mut tx = db.begin(Mode::ReadOnly).await.map_err(|e| e.to_string())?;
+    ensure_eq!(WeeklyRepository::newest_capture_of(&mut tx, monday(1)).await.map_err(err)?, Some(monday(1)), "kept");
+    tx.commit().await.map_err(|e| e.to_string())?;
+    ensure_eq!(purge_weeks_ended_before(db, monday(2)).await.map_err(err)?, 1, "a Monday is its own week");
+
+    let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
+    let stale = ReviewRepository::insert(&mut tx, &review(0, "running", Some(10))).await.map_err(err)?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+    ensure_eq!(settle_abandoned(db, at(20)).await.map_err(err)?, 1, "settled");
+    let mut tx = db.begin(Mode::ReadOnly).await.map_err(|e| e.to_string())?;
+    let swept = ReviewRepository::find_by_id(&mut tx, stale).await.map_err(err)?.unwrap();
+    tx.commit().await.map_err(|e| e.to_string())?;
+    ensure_eq!((swept.status.as_str(), swept.error.as_deref()), ("failed", Some(ABANDONED)), "with Java's sentence");
     Ok(())
 }
 

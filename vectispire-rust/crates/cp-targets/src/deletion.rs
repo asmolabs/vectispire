@@ -258,3 +258,21 @@ pub async fn record(
             .await;
     }
 }
+
+/// Which of these targets still exist, read in the caller's transaction — what an owner's orphan sweep asks of the
+/// catalogue (`OwaspCoveragePurge.sweep` reads `TargetCatalog.repositories(ids)` and `containers(ids)` in the purge's
+/// transaction). A listener cannot hold [`crate::Targets`], which is built from the registry it is part of.
+pub async fn existing(
+    tx: &mut Tx,
+    repositories: &[i64],
+    containers: &[i64],
+) -> Result<std::collections::BTreeSet<ScanTarget>, StoreError> {
+    let mut found = std::collections::BTreeSet::new();
+    for row in persistence::repositories_by_ids(tx, repositories).await? {
+        found.insert(ScanTarget::Repository(row.id));
+    }
+    for row in persistence::containers_by_ids(tx, containers).await? {
+        found.insert(ScanTarget::Container(row.id));
+    }
+    Ok(found)
+}

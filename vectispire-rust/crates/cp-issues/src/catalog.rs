@@ -202,7 +202,7 @@ impl IssueCatalog {
     pub async fn reopenings_recorded_since(&self) -> Result<Option<time::OffsetDateTime>, IssueError> {
         let installed =
             self.read(async |tx| crate::persistence::checked::reopening_migration_installed_on(tx).await).await?;
-        Ok(installed.into_iter().min().map(|at| at + time::Duration::days(1)))
+        Ok(installed.into_iter().min().and_then(|at| at.checked_add(time::Duration::days(1))))
     }
 
     async fn read<T>(

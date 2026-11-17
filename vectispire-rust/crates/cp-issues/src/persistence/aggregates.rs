@@ -553,9 +553,14 @@ impl IssueAggregates {
         };
         let engine = tx.engine();
         let week = time::Duration::days(7);
+        // A week past the calendar's end is no week an issue can be seen in: such a bound reads nothing.
+        let end_of = |start: OffsetDateTime| {
+            start.checked_add(week).ok_or_else(|| StoreError::Other(format!("no week ends after {start}")))
+        };
+        let last_end = end_of(*last)?;
         // Only the issues that can count in one of these weeks: seen before the last one ends, and not resolved before
         // the first one starts.
-        let extra = sea_orm::Condition::all().add(IssueColumn::FirstSeenAt.lt(*last + week)).add(
+        let extra = sea_orm::Condition::all().add(IssueColumn::FirstSeenAt.lt(last_end)).add(
             sea_orm::Condition::any().add(IssueColumn::ResolvedAt.is_null()).add(IssueColumn::ResolvedAt.gte(*first)),
         );
         let mut statement = over(filters, Some(extra));
@@ -563,7 +568,7 @@ impl IssueAggregates {
             .expr_as(Expr::col(IssueColumn::Type), Alias::new("type"))
             .expr_as(Expr::col(IssueColumn::OwaspCategory), Alias::new("owasp_category"));
         for (index, start) in weeks.iter().enumerate() {
-            let end = *start + week;
+            let end = end_of(*start)?;
             let opened = sea_orm::Condition::all()
                 .add(IssueColumn::FirstSeenAt.gte(*start))
                 .add(IssueColumn::FirstSeenAt.lt(end));

@@ -358,7 +358,8 @@ async fn serve() -> ExitCode {
         .with(vectispire_cp_scanning::purge::listeners())
         .with(vectispire_cp_issues::purge::listeners())
         .with(vectispire_cp_inventory::listeners())
-        .with(vectispire_cp_gate::purge::listeners());
+        .with(vectispire_cp_gate::purge::listeners())
+        .with(vectispire_cp_compliance::purge::listeners());
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
