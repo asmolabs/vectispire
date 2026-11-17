@@ -417,6 +417,7 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         }
     };
     let path = bindings.concrete(&request.path, "path", Context::Wire)?;
+    bindings.requesting(&path);
     let query = match &request.query {
         Some(query) => Some(bindings.concrete(query, "query", Context::Wire)?),
         None => None,

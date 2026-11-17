@@ -72,6 +72,11 @@ pub fn query_int(query: Option<&str>, name: &str) -> Result<Option<i32>, Problem
     }
 }
 
+/// An optional `String` query parameter: the first value, decoded; absent is `None`.
+pub fn query_text(query: Option<&str>, name: &str) -> Option<String> {
+    first_value(query, name)
+}
+
 /// The first value of a query parameter, decoded as a form is (`+` is a space).
 fn first_value(query: Option<&str>, name: &str) -> Option<String> {
     query?.split('&').find_map(|pair| {

@@ -188,3 +188,20 @@ pub fn sign_in_routes(parts: SignInRoutesParts) -> Vec<vectispire_cp_http::route
     .with_limits(limits);
     vectispire_cp_access::auth_routes(Arc::new(flow), credentials, branding)
 }
+
+/// `ScimUsersController` and `ScimGroupsController`, over `ScimProvisioningService` as Java's beans compose it: a
+/// privileged account linked to the directory's subject only under `vectispire.oidc.link-privileged-accounts`.
+pub fn scim_routes(
+    db: Db,
+    audit: Arc<vectispire_cp_audit::AuditLog>,
+    clock: SharedClock,
+    link_privileged: bool,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    let provisioning = vectispire_cp_access::scim::ScimProvisioning::new(vectispire_cp_access::scim::ScimParts {
+        db,
+        audit: AccessAudit(audit),
+        clock,
+        link_privileged,
+    });
+    vectispire_cp_access::scim_routes(Arc::new(provisioning))
+}

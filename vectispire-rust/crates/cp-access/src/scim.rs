@@ -53,7 +53,8 @@ pub const ORIGIN_SCIM: &str = "scim";
 const IDENTITY_COLUMN: usize = 255;
 
 /// What every entry this service writes names as its resource.
-const RESOURCE: &str = "SCIM";
+/// `ScimProvisioningService.ACTOR`: who the audit log says acted — the directory, which is not an account.
+pub const ACTOR: &str = "SCIM provisioning";
 
 /// A team the directory creates says where it came from.
 const CREATED_VIA_SCIM: &str = "Created via SCIM";
@@ -279,8 +280,13 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
             .ok_or_else(|| ScimError::Failed(format!("the account {id} just inserted is not there")))?;
         teams::commit(tx).await?;
 
-        self.record(actor, AuditOperation::UserCreated, &username, format!("SCIM provisioned account: {username}"))
-            .await;
+        self.record(
+            actor,
+            AuditOperation::UserCreated,
+            &saved.id.to_string(),
+            format!("SCIM provisioned account: {username}"),
+        )
+        .await;
         Ok(UserCreation::Created(Box::new(view(&saved))))
     }
 
@@ -347,7 +353,7 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
         };
         teams::commit(tx).await?;
 
-        self.record(actor, AuditOperation::UserUpdated, &user.username, description).await;
+        self.record(actor, AuditOperation::UserUpdated, &user.id.to_string(), description).await;
         Ok(UserChange::Changed(Box::new(view(&user))))
     }
 
@@ -383,7 +389,7 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
             self.record(
                 actor,
                 AuditOperation::UserUpdated,
-                &user.username,
+                &user.id.to_string(),
                 format!("SCIM deactivated account and revoked active sessions for {}", user.username),
             )
             .await;
@@ -406,7 +412,7 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
         self.record(
             actor,
             AuditOperation::UserDeleted,
-            &user.username,
+            &user.id.to_string(),
             format!("SCIM deleted account: {}", user.username),
         )
         .await;
@@ -582,14 +588,16 @@ impl<A: Audit + Sync, C: Clock + Sync> ScimProvisioning<A, C> {
         Ok(())
     }
 
-    /// The entry of an account's gesture: under `SCIM`, attributed to the account's username, as Java writes it.
-    async fn record(&self, actor: &RequestActor, operation: AuditOperation, username: &str, description: String) {
+    /// An entry of the directory's: under the resource the gesture names — an account's id, a team's name — and
+    /// attributed to [`ACTOR`], as Java 1.0 writes it (`ScimProvisioningService.ACTOR`). 0.11 wrote every entry under
+    /// `SCIM` and in the account's name, which read as the account having acted on itself.
+    async fn record(&self, actor: &RequestActor, operation: AuditOperation, resource: &str, description: String) {
         self.audit
             .record(AuditRecord {
                 operation,
-                resource: RESOURCE.to_owned(),
+                resource: resource.to_owned(),
                 description,
-                username: Some(username.to_owned()),
+                username: Some(ACTOR.to_owned()),
                 ip_address: actor.ip_address.clone(),
                 user_agent: actor.user_agent.clone(),
                 signal: None,
