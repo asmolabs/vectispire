@@ -513,6 +513,6 @@ fn count<T>(items: impl Iterator<Item = T>) -> i32 {
     i32::try_from(items.count()).unwrap_or(i32::MAX)
 }
 
-fn instant(at: OffsetDateTime) -> Instant {
+pub(crate) fn instant(at: OffsetDateTime) -> Instant {
     Instant { epoch_second: at.unix_timestamp(), nano: at.nanosecond() }
 }

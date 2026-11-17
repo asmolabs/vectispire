@@ -682,7 +682,15 @@ async fn problems(State(chain): State<Arc<Chain>>, request: Request, next: Next)
         return Problem::chain(StatusCode::FORBIDDEN, FORBIDDEN).at(path).into_response();
     }
     match response.extensions().get::<Problem>() {
-        Some(problem) if problem.instance().is_none() => problem.clone().at(path).into_response(),
+        Some(problem) if problem.instance().is_none() => {
+            // Rebuilt with its `instance`, and the one header a route sets on a problem kept: Spring's download guard
+            // (`download_guard`) marks the refusals of a path ending in an extension as it marks the answers.
+            let mut rebuilt = problem.clone().at(path).into_response();
+            if let Some(disposition) = response.headers().get(http::header::CONTENT_DISPOSITION) {
+                rebuilt.headers_mut().insert(http::header::CONTENT_DISPOSITION, disposition.clone());
+            }
+            rebuilt
+        }
         _ => response,
     }
 }

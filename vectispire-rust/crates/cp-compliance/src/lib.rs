@@ -27,6 +27,8 @@ pub mod decisions {
     };
     pub use crate::{engine, framework, history, instant_text, manifest, soa};
 }
+pub mod certified;
+pub mod declarations;
 pub mod engine;
 pub mod error;
 pub mod framework;
@@ -43,6 +45,7 @@ pub mod soa;
 #[expect(dead_code, reason = "the repositories of the routes still to port, tested ahead of their services")]
 mod persistence;
 pub mod ports;
+pub mod progress;
 pub mod purge;
 pub mod scope;
 
@@ -64,4 +67,32 @@ pub fn tasks(db: Db, settings: Settings, clock: Arc<dyn Clock>) -> Vec<Arc<dyn M
         Arc::new(internal::tasks::WeeklyRetentionTask::new(db.clone(), settings, clock.clone())),
         Arc::new(internal::tasks::AbandonedReviewsTask::new(db, clock)),
     ]
+}
+
+impl Services {
+    /// The matrix and the scopes as composed, and the governance services over the same estate.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        compliance: matrix::ComplianceService,
+        scopes: scope::ScopeComplianceService,
+        db: vectispire_cp_db::Db,
+        targets: Arc<vectispire_cp_targets::Targets>,
+        scans: Arc<vectispire_cp_scanning::ScanCatalog>,
+        settings: vectispire_cp_settings::Settings,
+        audit: Arc<vectispire_cp_audit::AuditLog>,
+        clock: Arc<dyn vectispire_cp_targets::Clock>,
+    ) -> Services {
+        Services {
+            soa: declarations::StatementOfApplicabilityService::new(
+                db.clone(),
+                compliance.clone(),
+                audit.clone(),
+                clock.clone(),
+            ),
+            certified: certified::CertifiedScopeService::new(targets, scans, settings, clock, audit),
+            history: progress::ComplianceHistoryService::new(db),
+            compliance,
+            scopes,
+        }
+    }
 }

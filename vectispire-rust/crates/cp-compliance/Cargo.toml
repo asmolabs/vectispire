@@ -18,6 +18,7 @@ thiserror.workspace = true
 time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
 tracing.workspace = true
 vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-http.workspace = true
@@ -28,6 +29,7 @@ vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
@@ -36,7 +38,6 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"
 # The reference set's doubles read exactly: without it a decimal can parse an ulp away from the double Java wrote.
 serde_json = { workspace = true, features = ["float_roundtrip"] }
 vectispire-testkit = { path = "../testkit" }
-vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-contract = { path = "../cp-contract" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-inventory = { path = "../cp-inventory" }

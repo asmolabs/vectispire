@@ -95,3 +95,32 @@ fn hex_val(b: u8) -> Option<u8> {
 pub fn query_string(query: Option<&str>, name: &str) -> Option<String> {
     first_value(query, name)
 }
+
+/// A required `boolean` request parameter as Spring converts it: `true`/`on`/`yes`/`1` and their opposites, any case,
+/// trimmed. Absent, or present and empty — converted to null — is refused as missing.
+pub fn required_bool(query: Option<&str>, name: &str) -> Result<bool, Problem> {
+    let raw = first_value(query, name).unwrap_or_default();
+    match java::trim(&raw).to_ascii_lowercase().as_str() {
+        "" => Err(Problem::handler(StatusCode::BAD_REQUEST, format!("Required parameter '{name}' is not present."))),
+        "true" | "on" | "yes" | "1" => Ok(true),
+        "false" | "off" | "no" | "0" => Ok(false),
+        _ => Err(mismatch(name, &raw)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_required_boolean_reads_as_spring_converts_it() {
+        assert_eq!(required_bool(Some("in_scope=ON"), "in_scope").ok(), Some(true));
+        assert_eq!(required_bool(Some("in_scope=%200%20"), "in_scope").ok(), Some(false));
+        let missing = required_bool(Some("other=1"), "in_scope").err().map(|problem| problem.body());
+        assert!(missing.is_some_and(|body| body.contains("Required parameter 'in_scope' is not present.")));
+        let empty = required_bool(Some("in_scope="), "in_scope").err().map(|problem| problem.body());
+        assert!(empty.is_some_and(|body| body.contains("is not present")));
+        let wrong = required_bool(Some("in_scope=maybe"), "in_scope").err().map(|problem| problem.body());
+        assert!(wrong.is_some_and(|body| body.contains("Failed to convert 'in_scope' with value: 'maybe'")));
+    }
+}

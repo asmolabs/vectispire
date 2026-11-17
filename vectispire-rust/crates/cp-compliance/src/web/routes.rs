@@ -1,7 +1,12 @@
-//! Compliance's routes — so far `ComplianceController`'s summary and framework, and `ScopeComplianceController`:
+//! Compliance's routes — so far `ComplianceController`'s summary and framework, `ScopeComplianceController`, and the
+//! governance: `StatementOfApplicabilityController`, `CertifiedScopeController`, `ComplianceHistoryController`.
 //!
 //! - `GET /api/v1/compliance/summary`, `GET /api/v1/compliance/frameworks/{framework}`
 //! - `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance`
+//! - `GET /api/v1/compliance/soa`, `GET /api/v1/compliance/soa/{framework}`, `GET /api/v1/compliance/soa/reviews/overdue`,
+//!   `PUT /api/v1/compliance/soa/{framework}/{controlId}`
+//! - `GET /api/v1/compliance/scope`, `PUT /api/v1/compliance/scope/repositories/{id}`, `PUT …/containers/{id}`
+//! - `GET /api/v1/compliance/history`
 //!
 //! Every one resolves the caller's allowance and reads only what it permits; a scope the caller sees nothing of is
 //! refused as an absent one, **404 and never 403**.
@@ -12,16 +17,23 @@ use crate::decisions::ComplianceFramework;
 use axum::body::Body;
 use axum::extract::{Path, RawQuery};
 use axum::response::{IntoResponse, Response};
-use http::{HeaderValue, StatusCode, header};
-use serde::Serialize;
+use http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
+use serde::{Deserialize, Deserializer, Serialize};
 use vectispire_cp_access::{Allowance, CallerScope};
+use vectispire_cp_audit::RequestActor;
 use vectispire_cp_http::access::Access;
+use vectispire_cp_http::download_guard;
 use vectispire_cp_http::routes::{Route, RouteEntry};
-use vectispire_cp_http::{ApiKeyScope, Problem, Scoped};
+use vectispire_cp_http::{ApiKeyScope, Caller, ClientAddress, JsonBody, Problem, Scoped};
+use vectispire_domain::instant::Instant;
 
 use super::read;
+use crate::certified::{CertifiedScopeService, TargetKind};
+use crate::decisions::{Applicability, EvidenceSource, Implementation};
+use crate::declarations::{StatementOfApplicabilityService, Submission};
 use crate::error::ComplianceError;
 use crate::matrix::ComplianceService;
+use crate::progress::ComplianceHistoryService;
 use crate::scope::ScopeComplianceService;
 
 #[allow(clippy::result_large_err)]
@@ -58,6 +70,65 @@ macro_rules! or_answer {
 pub struct Services {
     pub compliance: ComplianceService,
     pub scopes: ScopeComplianceService,
+    pub soa: StatementOfApplicabilityService,
+    pub certified: CertifiedScopeService,
+    pub history: ComplianceHistoryService,
+}
+
+/// `DeclarationRequest`, members in the record's order; the three snake_case names are its `@JsonProperty`s.
+#[derive(Debug, Deserialize)]
+struct DeclarationRequest {
+    applicability: Option<Applicability>,
+    justification: Option<String>,
+    implementation: Option<Implementation>,
+    evidence_source: Option<EvidenceSource>,
+    external_evidence: Option<String>,
+    owner: Option<String>,
+    #[serde(default, deserialize_with = "jackson_instant")]
+    review_due_at: Option<Instant>,
+}
+
+/// An `Instant` as Jackson's `InstantDeserializer` reads one: ISO-8601 text, or a number of seconds from the epoch
+/// whose fraction is the nanoseconds.
+fn jackson_instant<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Instant>, D::Error> {
+    let refused = || serde::de::Error::custom("not an instant");
+    match Option::<serde_json::Value>::deserialize(deserializer)? {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(text)) => {
+            let text = text.trim();
+            if text.is_empty() { Ok(None) } else { Instant::parse_java(text).map(Some).ok_or_else(refused) }
+        }
+        Some(serde_json::Value::Number(number)) => match number.as_i64() {
+            Some(seconds) => Ok(Some(Instant::of_epoch_second(seconds))),
+            None => {
+                let text = number.to_string();
+                let (whole, fraction) = text.split_once('.').ok_or_else(refused)?;
+                let seconds: i64 = whole.parse().map_err(|_| refused())?;
+                let digits: String = fraction.chars().chain(std::iter::repeat('0')).take(9).collect();
+                let nano: u32 = digits.parse().map_err(|_| refused())?;
+                Ok(Some(Instant { epoch_second: seconds, nano }))
+            }
+        },
+        Some(_) => Err(refused()),
+    }
+}
+
+fn request_actor(caller: &Caller, address: &ClientAddress, headers: &HeaderMap) -> RequestActor {
+    RequestActor {
+        username: caller.0.actor(),
+        ip_address: Some(address.0.clone()),
+        user_agent: headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_owned),
+    }
+}
+
+/// `@PathVariable ComplianceFramework`: Spring's enum conversion, the constant's exact name — stricter than the
+/// summary's `fromIdentifier`, as Java is.
+#[allow(clippy::result_large_err)]
+fn framework_named(raw: &str) -> Result<ComplianceFramework, Response> {
+    ComplianceFramework::from_name(raw.trim()).ok_or_else(|| {
+        Problem::handler(StatusCode::BAD_REQUEST, format!("Failed to convert 'framework' with value: '{raw}'"))
+            .into_response()
+    })
 }
 
 /// A read over the caller's allowance and the query string, an API key of the read scope accepted.
@@ -99,6 +170,127 @@ where
 /// Every route of the module so far.
 pub fn routes(services: Arc<Services>) -> Vec<RouteEntry> {
     let s = &services;
+    let mut entries = governance(s);
+    entries.extend(matrix(s));
+    entries
+}
+
+const DECLARE: &str = "/api/v1/compliance/soa/{framework}/{controlId}";
+
+/// The statement of applicability, the certified scope and the history. **Governance reads take no API key**, and a
+/// declaration names no target for a visibility to narrow — the role is the lock.
+fn governance(s: &Arc<Services>) -> Vec<RouteEntry> {
+    let soa_all = s.clone();
+    let soa_one = s.clone();
+    let overdue = s.clone();
+    let declare = s.clone();
+    let scope = s.clone();
+    let history = s.clone();
+    vec![
+        Route::get("/api/v1/compliance/soa").requires(Access::GovernanceRead).scoped().handler(
+            move |Scoped(scope): Scoped<CallerScope>| {
+                let m = soa_all.clone();
+                async move {
+                    let allowed = or_answer!(allowance(scope));
+                    answer(m.soa.statements(&allowed.visibility).await)
+                }
+            },
+        ),
+        Route::get("/api/v1/compliance/soa/reviews/overdue")
+            .requires(Access::GovernanceRead)
+            .names_no_target()
+            .handler(move || {
+                let m = overdue.clone();
+                async move { answer(m.soa.review_overdue().await) }
+            }),
+        Route::get("/api/v1/compliance/soa/{framework}").requires(Access::GovernanceRead).scoped().handler(
+            move |Scoped(scope): Scoped<CallerScope>, Path(raw): Path<String>| {
+                let m = soa_one.clone();
+                async move {
+                    let allowed = or_answer!(allowance(scope));
+                    let framework = or_answer!(framework_named(&raw));
+                    answer(m.soa.statement(framework, &allowed.visibility).await)
+                }
+            },
+        ),
+        // Every answer of this route, the refusals of its body included, through Spring's download guard: a control
+        // identifier's dots read as a file extension there.
+        Route::put(DECLARE).requires(Access::SecurityLead).names_no_target().handler(
+            move |caller: Caller,
+                  uri: Uri,
+                  Path((raw, control_id)): Path<(String, String)>,
+                  body: Result<JsonBody<DeclarationRequest>, Problem>| {
+                let m = declare.clone();
+                async move {
+                    let answered = async {
+                        let framework = or_answer!(framework_named(&raw));
+                        let JsonBody(body) = or_answer!(body.map_err(IntoResponse::into_response));
+                        // The account's username, or none: Java's `principal.user().map(username)`.
+                        let actor = caller.0.account.as_ref().map(|account| account.username.clone());
+                        let submission = Submission {
+                            applicability: body.applicability,
+                            justification: body.justification,
+                            implementation: body.implementation,
+                            evidence_source: body.evidence_source,
+                            external_evidence: body.external_evidence,
+                            owner: body.owner,
+                            review_due_at: body.review_due_at,
+                        };
+                        answer(m.soa.declare(framework, &control_id, submission, actor.as_deref()).await)
+                    }
+                    .await;
+                    download_guard::guard(uri.path(), DECLARE, answered)
+                }
+            },
+        ),
+        Route::get("/api/v1/compliance/scope").requires(Access::Account).scoped().handler(
+            move |Scoped(caller_scope): Scoped<CallerScope>| {
+                let m = scope.clone();
+                async move {
+                    let allowed = or_answer!(allowance(caller_scope));
+                    answer(m.certified.view(&allowed.visibility).await)
+                }
+            },
+        ),
+        scope_membership("/api/v1/compliance/scope/repositories/{id}", s, TargetKind::Repository),
+        scope_membership("/api/v1/compliance/scope/containers/{id}", s, TargetKind::Container),
+        Route::get("/api/v1/compliance/history").requires(Access::GovernanceRead).names_no_target().handler(
+            move || {
+                let m = history.clone();
+                async move { answer(m.history.history().await) }
+            },
+        ),
+    ]
+}
+
+/// `setRepository` / `setContainer`: the membership set, then the scope read again over the caller's view.
+fn scope_membership(path: &str, services: &Arc<Services>, kind: TargetKind) -> RouteEntry {
+    let services = services.clone();
+    Route::put(path).requires(Access::SecurityLead).scoped().handler(
+        move |caller: Caller,
+              address: ClientAddress,
+              headers: HeaderMap,
+              Scoped(scope): Scoped<CallerScope>,
+              Path(raw): Path<String>,
+              RawQuery(query): RawQuery| {
+            let m = services.clone();
+            async move {
+                let allowed = or_answer!(allowance(scope));
+                let id = or_answer!(read::path_long("id", &raw).map_err(IntoResponse::into_response));
+                let in_scope =
+                    or_answer!(read::required_bool(query.as_deref(), "in_scope").map_err(IntoResponse::into_response));
+                let actor = request_actor(&caller, &address, &headers);
+                if let Err(refused) = m.certified.set_in_scope(kind, id, &allowed.visibility, in_scope, &actor).await {
+                    return refused.into_response();
+                }
+                answer(m.certified.view(&allowed.visibility).await)
+            }
+        },
+    )
+}
+
+/// The matrix: the summary, one framework, and a project's or a solution's reading.
+fn matrix(s: &Arc<Services>) -> Vec<RouteEntry> {
     vec![
         read_route("/api/v1/compliance/summary", s, async |m, allowed, query| {
             let target = read::query_string(query.as_deref(), "targetId");

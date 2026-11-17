@@ -25,6 +25,14 @@ const DECLARED: &[DeclaredRoute] = &[
     ("GET", "/api/v1/compliance/frameworks/{framework}", "framework", &[]),
     ("GET", "/api/v1/projects/{id}/compliance", "project", &[]),
     ("GET", "/api/v1/solutions/{id}/compliance", "solution", &[]),
+    ("GET", "/api/v1/compliance/soa", "all", &[]),
+    ("GET", "/api/v1/compliance/soa/reviews/overdue", "reviewOverdue", &[]),
+    ("GET", "/api/v1/compliance/soa/{framework}", "one", &[]),
+    ("PUT", "/api/v1/compliance/soa/{framework}/{controlId}", "declare_1", &[]),
+    ("GET", "/api/v1/compliance/scope", "scope", &[]),
+    ("PUT", "/api/v1/compliance/scope/repositories/{id}", "setRepository", &[("in_scope", true)]),
+    ("PUT", "/api/v1/compliance/scope/containers/{id}", "setContainer", &[("in_scope", true)]),
+    ("GET", "/api/v1/compliance/history", "history_2", &[]),
 ];
 
 #[tokio::test]

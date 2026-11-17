@@ -666,6 +666,7 @@ fn phase_three(
     // As `cp-app` composes it: the weekly report's channels are the notifications module's stand-in, which no route
     // reaches.
     let compliance_audit = audit.clone();
+    let governance_audit = audit.clone();
     let posture = vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
         db: db.clone(),
         gate: gate.gate.clone(),
@@ -702,14 +703,20 @@ fn phase_three(
         Arc::new(ComplianceInventories(inventory.query().clone())),
         Arc::new(SystemClock),
     );
-    let compliance = Arc::new(vectispire_cp_compliance::Services {
-        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
+    let compliance = Arc::new(vectispire_cp_compliance::Services::new(
+        compliance_service.clone(),
+        vectispire_cp_compliance::scope::ScopeComplianceService::new(
             targets.clone(),
-            compliance_service.clone(),
+            compliance_service,
             posture.scorecards.clone(),
         ),
-        compliance: compliance_service,
-    });
+        db.clone(),
+        targets.clone(),
+        Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
+        Settings::new(db.clone()),
+        governance_audit,
+        Arc::new(SystemClock),
+    ));
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(gate.routes());
     routes.extend(posture.routes());

@@ -281,14 +281,20 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_app::compliance::InventoryFacts(inventory.query().clone())),
         Arc::new(vectispire_cp_targets::SystemClock),
     );
-    let compliance = Arc::new(vectispire_cp_compliance::Services {
-        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
+    let compliance = Arc::new(vectispire_cp_compliance::Services::new(
+        compliance_service.clone(),
+        vectispire_cp_compliance::scope::ScopeComplianceService::new(
             targets.clone(),
-            compliance_service.clone(),
+            compliance_service,
             posture.scorecards.clone(),
         ),
-        compliance: compliance_service,
-    });
+        db.clone(),
+        targets.clone(),
+        Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(vectispire_cp_targets::SystemClock))),
+        vectispire_cp_settings::Settings::new(db.clone()),
+        audit.clone(),
+        Arc::new(vectispire_cp_targets::SystemClock),
+    ));
     let siem = vectispire_cp_app::siem::service(
         &siem,
         db,

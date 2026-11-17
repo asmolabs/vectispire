@@ -554,14 +554,20 @@ async fn serve() -> ExitCode {
         Arc::new(vectispire_cp_app::compliance::InventoryFacts(inventory.query().clone())),
         clock.clone(),
     );
-    let compliance = Arc::new(vectispire_cp_compliance::Services {
-        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
+    let compliance = Arc::new(vectispire_cp_compliance::Services::new(
+        compliance_service.clone(),
+        vectispire_cp_compliance::scope::ScopeComplianceService::new(
             targets.clone(),
-            compliance_service.clone(),
+            compliance_service,
             posture.scorecards.clone(),
         ),
-        compliance: compliance_service,
-    });
+        db.clone(),
+        targets.clone(),
+        scan_catalog.clone(),
+        vectispire_cp_settings::Settings::new(db.clone()),
+        audit.clone(),
+        clock.clone(),
+    ));
 
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(

@@ -24,8 +24,14 @@ fn unreachable_db() -> vectispire_cp_db::Db {
 
 /// The services composed over a database nobody listens on: building routes reads nothing.
 pub fn services() -> Arc<vectispire_cp_compliance::Services> {
-    let db = unreachable_db();
-    let clock = Arc::new(vectispire_cp_targets::SystemClock);
+    services_on(unreachable_db(), Arc::new(vectispire_cp_targets::SystemClock))
+}
+
+/// The same over a database and a clock of the test's own.
+pub fn services_on(
+    db: vectispire_cp_db::Db,
+    clock: Arc<dyn vectispire_cp_targets::Clock>,
+) -> Arc<vectispire_cp_compliance::Services> {
     let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
         db.clone(),
         Arc::new(vectispire_cp_audit::NoMirror),
@@ -85,6 +91,8 @@ pub fn services() -> Arc<vectispire_cp_compliance::Services> {
         targets: targets.clone(),
         audit: audit.clone(),
     });
+    let compliance_scans = scans.clone();
+    let compliance_audit = audit.clone();
     let posture = PostureModule::new(PostureConfig {
         db: db.clone(),
         gate: gate.gate.clone(),
@@ -108,39 +116,47 @@ pub fn services() -> Arc<vectispire_cp_compliance::Services> {
         gate.gate.clone(),
         issues.catalog().clone(),
         issues.sla().clone(),
-        vectispire_cp_settings::Settings::new(db),
+        vectispire_cp_settings::Settings::new(db.clone()),
         Arc::new(NoPlatform),
         Arc::new(NoInventories),
-        clock,
+        clock.clone(),
     );
-    Arc::new(vectispire_cp_compliance::Services {
-        scopes: vectispire_cp_compliance::scope::ScopeComplianceService::new(
-            targets_for_scopes,
-            compliance.clone(),
+    Arc::new(vectispire_cp_compliance::Services::new(
+        compliance.clone(),
+        vectispire_cp_compliance::scope::ScopeComplianceService::new(
+            targets_for_scopes.clone(),
+            compliance,
             posture.scorecards.clone(),
         ),
-        compliance,
-    })
+        db.clone(),
+        targets_for_scopes,
+        compliance_scans,
+        vectispire_cp_settings::Settings::new(db),
+        compliance_audit,
+        clock,
+    ))
 }
 
-/// Nothing to say about the deployment: no route reads it in these tests.
+/// A deployment with every control on and an intact chain: the governance tests read a statement, never the
+/// platform's verdicts themselves.
 struct NoPlatform;
 
 impl vectispire_cp_compliance::ports::Platform for NoPlatform {
     fn posture(&self) -> BoxFuture<'_, Result<vectispire_cp_compliance::decisions::PlatformPosture, String>> {
-        Box::pin(async { Err("not read here".to_owned()) })
+        Box::pin(async { Ok(vectispire_cp_compliance::decisions::PlatformPosture::FULLY_ENABLED) })
     }
     fn audit_chain_valid(&self) -> BoxFuture<'_, Result<bool, String>> {
-        Box::pin(async { Err("not read here".to_owned()) })
+        Box::pin(async { Ok(true) })
     }
 }
 
+/// No target holds an inventory.
 struct NoInventories;
 
 impl vectispire_cp_compliance::ports::Inventories for NoInventories {
     fn targets_with_inventory(
         &self,
     ) -> BoxFuture<'_, Result<std::collections::BTreeSet<vectispire_cp_db::ScanTarget>, String>> {
-        Box::pin(async { Err("not read here".to_owned()) })
+        Box::pin(async { Ok(std::collections::BTreeSet::new()) })
     }
 }

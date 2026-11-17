@@ -31,6 +31,7 @@ pub mod address;
 pub mod buckets;
 pub mod chain;
 pub mod credentials;
+pub mod download_guard;
 pub mod extract;
 pub mod interface;
 pub mod limits;
