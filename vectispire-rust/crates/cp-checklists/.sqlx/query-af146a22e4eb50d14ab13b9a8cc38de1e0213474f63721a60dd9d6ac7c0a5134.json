@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_checklist_file where project_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "af146a22e4eb50d14ab13b9a8cc38de1e0213474f63721a60dd9d6ac7c0a5134"
+}

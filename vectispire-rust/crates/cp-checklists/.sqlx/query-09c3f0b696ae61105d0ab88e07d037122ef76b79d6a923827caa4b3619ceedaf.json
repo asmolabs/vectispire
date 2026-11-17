@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_checklist_evidence where checklist_id in (select c.id from t_checklist c where c.project_id = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "09c3f0b696ae61105d0ab88e07d037122ef76b79d6a923827caa4b3619ceedaf"
+}

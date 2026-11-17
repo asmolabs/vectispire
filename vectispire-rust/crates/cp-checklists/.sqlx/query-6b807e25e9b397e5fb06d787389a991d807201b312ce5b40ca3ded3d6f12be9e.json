@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, slug, name, created_at as \"created_at: UtcInstant\", created_by\n               from t_checklist_template order by slug asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template",
+            "name": "created_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6b807e25e9b397e5fb06d787389a991d807201b312ce5b40ca3ded3d6f12be9e"
+}

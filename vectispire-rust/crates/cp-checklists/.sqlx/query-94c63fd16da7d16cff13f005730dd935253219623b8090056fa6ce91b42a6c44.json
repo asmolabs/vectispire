@@ -1,0 +1,235 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, checklist_id, project_id, content, size_bytes, sha256, workbook_sha256, workbook_signature,\n           statement_sha256, statement_signature, signing_key_id, product_version,\n           produced_at as \"produced_at: UtcInstant\" from t_checklist_document where checklist_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | UNIQUE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sha256",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "workbook_sha256",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "workbook_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "workbook_signature",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "workbook_signature"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "statement_sha256",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "statement_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "statement_signature",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "statement_signature"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "signing_key_id",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 512
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "signing_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "product_version",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 400
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "product_version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "produced_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_document",
+            "name": "produced_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "94c63fd16da7d16cff13f005730dd935253219623b8090056fa6ce91b42a6c44"
+}

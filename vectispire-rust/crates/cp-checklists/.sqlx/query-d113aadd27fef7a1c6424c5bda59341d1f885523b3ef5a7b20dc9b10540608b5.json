@@ -1,0 +1,252 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, version_id, item_key, item_position as position, domain, objective, control,\n               contact, kpi, content_digest, sheet_row, evidence_kind, evidence_validity_months, bound_rule\n               from t_checklist_item where version_id = ? order by item_position asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "version_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_key",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "item_key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "position",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "item_position"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "domain",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4000
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "domain"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "objective",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4000
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "objective"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "control",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "control"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "contact",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "contact"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "kpi",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "kpi"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "content_digest",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "content_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sheet_row",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "sheet_row"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "evidence_kind",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "evidence_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "evidence_validity_months",
+        "type_info": {
+          "type": "Long",
+          "flags": "",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "evidence_validity_months"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "bound_rule",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "bound_rule"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "d113aadd27fef7a1c6424c5bda59341d1f885523b3ef5a7b20dc9b10540608b5"
+}

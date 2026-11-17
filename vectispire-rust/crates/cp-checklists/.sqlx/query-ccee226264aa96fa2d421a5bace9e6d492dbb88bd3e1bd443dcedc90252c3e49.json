@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_checklist (project_id, template_version_id, revision, status, edition, open_slot, author_id, author, opened_at, opened_by, supersedes_id) values ($1, $2, $3, $4, 1, 1, $5, $6, $7, $6, $8) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ccee226264aa96fa2d421a5bace9e6d492dbb88bd3e1bd443dcedc90252c3e49"
+}

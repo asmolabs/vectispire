@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist set status = ?, edition = edition + 1, returned_at = ?, returned_by = ?, return_reason = ? where id = ? and edition = ? and status = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "c29d211c9928b2b2f4d346b1868562a67314607911e0ac99f29c5fba918ae799"
+}

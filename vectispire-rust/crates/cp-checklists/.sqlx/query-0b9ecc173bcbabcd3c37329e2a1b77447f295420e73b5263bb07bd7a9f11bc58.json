@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_item (version_id, item_key, item_position, domain, objective, control, contact, kpi, content_digest, sheet_row, evidence_kind, evidence_validity_months, bound_rule) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": []
+  },
+  "hash": "0b9ecc173bcbabcd3c37329e2a1b77447f295420e73b5263bb07bd7a9f11bc58"
+}

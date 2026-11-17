@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select source_bytes from t_checklist_template_version where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_bytes",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "source_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cc2d7abbb7129438df464e0dba1586b34a51334d364322a74629a08572ec6dad"
+}

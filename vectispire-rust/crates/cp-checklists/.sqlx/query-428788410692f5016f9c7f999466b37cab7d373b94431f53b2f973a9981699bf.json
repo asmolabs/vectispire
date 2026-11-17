@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_checklist_evidence (checklist_id, item_id, kind, link, file_id, file_name, media_type, file_size, file_sha256, performed_on, valid_until, added_by, added_by_id, added_at, carried_from_id, carried_by_id, edition) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_evidence",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz",
+        "Varchar",
+        "Int8",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "428788410692f5016f9c7f999466b37cab7d373b94431f53b2f973a9981699bf"
+}

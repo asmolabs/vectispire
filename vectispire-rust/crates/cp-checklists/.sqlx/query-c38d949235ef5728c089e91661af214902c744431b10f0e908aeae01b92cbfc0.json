@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_answer (checklist_id, item_id, answer_value, answer_comment, answered_by, answered_by_id, answered_by_kind, answered_at, measurement_id, carried_from_id, carried_by, carried_by_id, carried_at, needs_confirmation, withdrawn, edition) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": []
+  },
+  "hash": "c38d949235ef5728c089e91661af214902c744431b10f0e908aeae01b92cbfc0"
+}

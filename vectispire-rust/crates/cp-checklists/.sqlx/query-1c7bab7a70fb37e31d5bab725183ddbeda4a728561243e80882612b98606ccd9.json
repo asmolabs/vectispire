@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_checklist_measurement where checklist_id in (select c.id from t_checklist c where c.project_id = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1c7bab7a70fb37e31d5bab725183ddbeda4a728561243e80882612b98606ccd9"
+}

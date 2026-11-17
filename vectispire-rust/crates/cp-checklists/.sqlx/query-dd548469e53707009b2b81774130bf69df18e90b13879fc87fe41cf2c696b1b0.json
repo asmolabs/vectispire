@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist_template_version set status = $1, revision = revision + 1, retired_at = $2, retired_by = $3 where id = $4 and status = $5 and revision = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Varchar",
+        "Int8",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd548469e53707009b2b81774130bf69df18e90b13879fc87fe41cf2c696b1b0"
+}

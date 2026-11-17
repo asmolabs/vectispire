@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_contact (project_id, profile, account_id, linked_by, linked_at) values (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "ddd50c41e0174ddee41bf28dd28f471a3d3782a25940532e84d7861c6393ad14"
+}

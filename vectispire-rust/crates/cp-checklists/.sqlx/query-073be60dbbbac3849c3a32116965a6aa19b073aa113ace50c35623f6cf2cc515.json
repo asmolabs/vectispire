@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select version_id, count(*) as \"n!: i64\" from t_checklist_item where version_id in\n               (select id from t_checklist_template_version where template_id = $1) group by version_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_item",
+            "name": "version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "n!: i64",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "073be60dbbbac3849c3a32116965a6aa19b073aa113ace50c35623f6cf2cc515"
+}

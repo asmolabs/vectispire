@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, checklist_id, project_id, content, size_bytes, sha256, workbook_sha256, workbook_signature,\n           statement_sha256, statement_signature, signing_key_id, product_version,\n           produced_at as \"produced_at: UtcInstant\" from t_checklist_document where checklist_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sha256",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "workbook_sha256",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "workbook_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "workbook_signature",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "workbook_signature"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "statement_sha256",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "statement_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "statement_signature",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "statement_signature"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "signing_key_id",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "signing_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "product_version",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "product_version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "produced_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_document",
+            "name": "produced_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "f923dfdcdb266316a8458ae5b711d5f4d752421c8b091db805e2d405e2f90615"
+}

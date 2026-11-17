@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(*) as \"n!: i64\" from t_checklist_template_version\n               where template_id = $1 and status = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!: i64",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "83bb6bcb0cf9181308f32aed2ffb11917d4996c9b964dc45ecba44c5a3524628"
+}

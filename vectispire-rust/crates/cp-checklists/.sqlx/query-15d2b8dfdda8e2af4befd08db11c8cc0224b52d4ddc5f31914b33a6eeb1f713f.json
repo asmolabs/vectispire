@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_template (slug, name, created_at, created_by) values (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "15d2b8dfdda8e2af4befd08db11c8cc0224b52d4ddc5f31914b33a6eeb1f713f"
+}

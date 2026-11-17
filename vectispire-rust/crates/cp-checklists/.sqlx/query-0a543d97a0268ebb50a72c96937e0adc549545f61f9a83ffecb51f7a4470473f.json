@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_checklist_contact (project_id, profile, account_id, linked_by, linked_at) values ($1, $2, $3, $4, $5) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_contact",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0a543d97a0268ebb50a72c96937e0adc549545f61f9a83ffecb51f7a4470473f"
+}

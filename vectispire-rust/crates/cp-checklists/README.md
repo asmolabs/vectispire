@@ -1,9 +1,8 @@
 # vectispire-cp-checklists
 
 The control plane's checklists module in Rust — `core.checklists` and the rules of `common.domain.checklists` (plan,
-Phase 5; ported in wave 1, decided 2026-10-28). Not shipped: the Java control plane is the product. Staged, one pull
-request per stage: **1a, the vocabulary** and **1b, the workbook** (here); 2 the services and persistence; 3 the 35
-routes; 4 the replay of their recorded traffic.
+Phase 5; ported in wave 1, decided 2026-10-28). Not shipped: the Java control plane is the product. Staged: **1a, the vocabulary**, **1b, the workbook**, **2, the services and persistence**, **3, the 35 routes** and
+**4, the replay of their recorded traffic** — all here.
 
 ## What it holds so far
 
@@ -58,6 +57,28 @@ pattern's leading `*` was spent on a name's own `*` (`*a` did not match `*xa`). 
 `spans` attribute was `:` threw `ArrayIndexOutOfBoundsException` out of `ChecklistRenderer.within` — a 500 at the
 sign-off of a template a person could open in Excel; it now reads as any other unreadable hint and is dropped.
 
+**The services, persistence and routes (stages 2 to 4)**, held to the Java suite's recorded traffic by the golden replay
+(`cp-agents/tests/golden.rs` composes the module as `cp-app/src/checklists.rs` does):
+
+| Rust | Java | |
+|---|---|---|
+| `templates` | `ChecklistTemplateService`, `TemplateVersionStatus`, `VersionTrials` (`trials`) | import, layout, pairs, evidence, rules, derive, publish (four-eyes, independence, the trial rendering), retire, preview |
+| `project_checklists` | `ProjectChecklistService`, `ChecklistStatus`, `LineProblem`, `MeasurementPurpose` | open, move, reopen, answer (resting on a measurement), as measured, Vectispire's own answers, confirm, proofs, submit, return, sign off, measurements |
+| `measurer` | `ChecklistMeasurer`, `ChangeReviews` | the facts asked of their owners through ports: `ScanEvidence` (scanning, issues, inventory, targets — `internal::owners`), `ImportEvidence` and `ReviewEvidence` |
+| `documents` | `ChecklistDocumentService` | the package signed inside the sign-off, served as stored; any other revision rendered unsigned |
+| `contact_service` | `ChecklistContactService`, `ChecklistReminderService` | profiles linked to accounts, the weekly reminder |
+| `carried` | `CarriedRepositories` | a frozen measurement read only by who sees every repository it carried |
+| `forms` | `StoredForms` | the layout, pairs and authors a version's row keeps, and a bound rule in the API's shape |
+| `persistence` | the ten repositories | checked statements on both engines (`.sqlx/`), the purge of a deleted project |
+| `internal::reactions` | `ChecklistPurge`, `AnswersFromEvidence`, `ChecklistAnswerDelivery`, `ChecklistReminderTask` | `ProjectDeleted` (`cp-targets`' `ProjectPurge`), `RepositoryScanned` (queues `checklist_answer`), its outbox handler, the hourly slot |
+| `web` | the three controllers | 35 routes, read in Spring's order |
+
+**Stand-ins until their modules are ported**, each answering "nothing known" — never a pass (decision 0007):
+`measurer::NoImports` for the plugins' imports and manifests (coverage, test reports, SARIF tools, a plugin's
+languages: wave 2), `measurer::NoReviews` for the forges' readings (wave 3), `ports::NoMail` for the mail channel, so
+the weekly reminder prepares and marks nothing until `notifications` is (wave 3). `ChangeReviewDemand` (what the forges
+read) and `statementsForExport` (the project export's part) come with `forges` and `exports`.
+
 ## Shaped for Rust
 
 - **A rule is read from a tree of its own** (`node::Node`), not `serde_json::Value`: Jackson's node kinds are
@@ -79,6 +100,14 @@ Decided 2026-10-28 by the stage 1a port; neither reaches a value a person has st
   `serde_json`, whose decimals are doubles: a ratio written with more than fifteen significant digits is read as its
   nearest double's shortest digits, where Java reads every digit (and refuses it, past four decimals). A canonical
   form has four at most; the route's reading keeps the request's digits.
+
+Decided 2026-11-17 by the stage 2 to 4 port:
+
+- **A ratio read back from a stored rule, or from a request, goes through a double**: `0.80` is read as `0.8`. Java's
+  `BigDecimal` keeps the scale, so a rule bound with trailing zeros gets another canonical form and digest here.
+  Neither side's suite binds one.
+- **A link proof's address is checked by this crate's reading of `java.net.URI`** (`links`): an `http` or `https`
+  scheme and a server-based host. A host `URI` reads as registry-based (an underscore in a label) is refused on both.
 
 Decided 2026-11-16 by the stage 1b port, for workbooks Office does not write:
 

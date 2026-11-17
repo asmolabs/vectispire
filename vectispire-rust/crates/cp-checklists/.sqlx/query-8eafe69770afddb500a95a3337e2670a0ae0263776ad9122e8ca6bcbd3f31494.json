@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist_evidence set withdrawn_at = ?, withdrawn_by = ?, withdrawn_by_id = ?, withdrawn_edition = ? where id = ? and withdrawn_at is null",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "8eafe69770afddb500a95a3337e2670a0ae0263776ad9122e8ca6bcbd3f31494"
+}

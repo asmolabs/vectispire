@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_checklist_contact where project_id = ? and profile = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9ee89845ac04716fa99a586bd3bb3a32fe7ef941408bcd2cd7473a4c12662e27"
+}

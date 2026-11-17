@@ -1,0 +1,43 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select version_id, count(*) as \"n!: i64\" from t_checklist_item where version_id in\n               (select id from t_checklist_template_version where template_id = ?) group by version_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_item",
+            "name": "version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "n!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "cf511ce30007e8ca62897338866f12e6cf1bb8aebed2c5d9f29f3aefcd50f136"
+}

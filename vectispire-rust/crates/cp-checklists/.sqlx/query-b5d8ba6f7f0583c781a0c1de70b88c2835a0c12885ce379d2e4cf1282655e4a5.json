@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id from t_checklist_template_version where template_id = ? and published_at is not null order by ordinal desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b5d8ba6f7f0583c781a0c1de70b88c2835a0c12885ce379d2e4cf1282655e4a5"
+}

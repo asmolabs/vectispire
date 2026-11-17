@@ -14,17 +14,29 @@
 
 pub mod allowed_component;
 pub mod answer;
+mod carried;
 pub mod cell;
+pub mod contact_service;
 pub mod contacts;
 pub mod coverage_scope;
+pub mod days;
 pub mod decimal;
 pub mod document_zip;
+pub mod documents;
+pub mod error;
 pub mod evaluation;
+pub mod forms;
+mod internal;
 pub mod item;
 pub mod layout;
+mod links;
 pub mod measurement;
+pub mod measurer;
 pub mod node;
 pub mod pairing;
+mod persistence;
+pub mod ports;
+pub mod project_checklists;
 pub mod reminder;
 pub mod renderer;
 pub mod rule;
@@ -32,15 +44,24 @@ mod safe_xml;
 pub mod source_languages;
 pub mod statement;
 pub mod suite_pattern;
+pub mod templates;
 pub mod text;
 pub mod tool_scope;
+pub mod trials;
+pub mod views;
+mod web;
 pub mod workbook;
 pub mod workbook_reader;
 mod xml_cursor;
 mod zip_input;
 
+pub use internal::owners::{AccessAccounts, OwnerCatalogs, PlatformSigner, TargetProjects};
+pub use internal::reactions::{
+    ANSWER_MESSAGE, AnswersFromEvidence, ChecklistAnswerDelivery, ChecklistPurge, ChecklistReminderTask,
+};
 pub use vectispire_domain::bounded_text::Refused;
 pub use vectispire_domain::checklists::Defect;
+pub use web::{ChecklistServices, routes};
 
 /// What a constructor of this vocabulary refuses with: the caller's input refused in words
 /// (`InvalidInputException`, a 400), or a defect (`IllegalArgumentException`, `IllegalStateException`) — a stored

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select content from t_checklist_file where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_file",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3d959fc3d804c04c3cffa750b83294fcc01e7ccbfa17ce449ccc09de4f762cf9"
+}
