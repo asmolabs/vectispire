@@ -1,0 +1,113 @@
+{
+  "scope" : [ {
+    "coverage" : {
+      "declaredAssets" : 0,
+      "inScope" : 0,
+      "scannedRecently" : 0,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 0,
+    "declared" : false
+  }, {
+    "coverage" : {
+      "declaredAssets" : 40,
+      "inScope" : 31,
+      "scannedRecently" : 20,
+      "stale" : 6,
+      "neverScanned" : 5
+    },
+    "unaccountedFor" : 9,
+    "declared" : true
+  }, {
+    "coverage" : {
+      "declaredAssets" : 10,
+      "inScope" : 12,
+      "scannedRecently" : 12,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 0,
+    "declared" : true
+  }, {
+    "coverage" : {
+      "declaredAssets" : -3,
+      "inScope" : 4,
+      "scannedRecently" : 1,
+      "stale" : 1,
+      "neverScanned" : 2
+    },
+    "unaccountedFor" : 0,
+    "declared" : false
+  }, {
+    "coverage" : {
+      "declaredAssets" : 5,
+      "inScope" : 5,
+      "scannedRecently" : 5,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 0,
+    "declared" : true
+  }, {
+    "coverage" : {
+      "declaredAssets" : 1,
+      "inScope" : 0,
+      "scannedRecently" : 0,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 1,
+    "declared" : true
+  }, {
+    "coverage" : {
+      "declaredAssets" : 0,
+      "inScope" : -2,
+      "scannedRecently" : 0,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 0,
+    "declared" : false
+  }, {
+    "coverage" : {
+      "declaredAssets" : 2147483647,
+      "inScope" : -2147483648,
+      "scannedRecently" : 0,
+      "stale" : 0,
+      "neverScanned" : 0
+    },
+    "unaccountedFor" : 0,
+    "declared" : true
+  } ],
+  "manifests" : [ {
+    "version" : "1.5",
+    "generatedAt" : "2026-08-22T10:00:00Z",
+    "generatedBy" : "ciso@corp.internal",
+    "auditChainStatus" : "VERIFIED_INTACT",
+    "totalAuditLogEntries" : 150,
+    "files" : [ {
+      "path" : "01_compliance_summary.json",
+      "description" : "Compliance summary",
+      "sizeBytes" : 1024,
+      "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }, {
+      "path" : "02_audit_log.jsonl",
+      "description" : "Audit trail",
+      "sizeBytes" : 0,
+      "sha256" : "00"
+    } ],
+    "withheld" : [ ]
+  }, {
+    "version" : "1.5",
+    "generatedAt" : "2026-08-22T10:00:00.000123Z",
+    "generatedBy" : "auditor",
+    "auditChainStatus" : "CHAIN_INTEGRITY_COMPROMISED",
+    "totalAuditLogEntries" : null,
+    "files" : [ ],
+    "withheld" : [ {
+      "path" : "02_audit_log.jsonl",
+      "reason" : "describes the whole estate"
+    } ]
+  } ]
+}

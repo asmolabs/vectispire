@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.common.domain.trends;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,9 @@ public final class MttrCalculator {
         });
 
         double overall = Math.round(((double) totalDays / validCount) * 10.0) / 10.0;
-        return new MttrResult(Map.copyOf(resultBySeverity), overall, validCount);
+        // **The EnumMap itself, not `Map.copyOf` of it.** The copy iterates in an order salted at each JVM start, so the
+        // compliance summary listed its severities in another order after a restart; the EnumMap lists them most
+        // severe first, which is the order every other severity breakdown on the wire uses.
+        return new MttrResult(Collections.unmodifiableMap(resultBySeverity), overall, validCount);
     }
 }

@@ -188,7 +188,9 @@ public class ComplianceService {
     private record TargetScores(Map<String, Integer> byFramework, int average, String status) {
 
         static TargetScores of(List<ComplianceEvaluation> evaluations) {
-            Map<String, Integer> scores = new java.util.HashMap<>();
+            // In the evaluations' order — the frameworks' declaration order — and not a HashMap's, whose order is the
+            // table's: the matrix's columns came out in an order no one chose.
+            Map<String, Integer> scores = new java.util.LinkedHashMap<>();
             evaluations.stream()
                     .filter(evaluation -> evaluation.overallStatus().measured())
                     .forEach(evaluation -> scores.put(evaluation.framework().name(), evaluation.scorePercentage()));

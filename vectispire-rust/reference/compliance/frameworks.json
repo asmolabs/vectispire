@@ -1,0 +1,302 @@
+{
+  "frameworks" : [ {
+    "name" : "NIS_2",
+    "title" : "NIS 2 Directive",
+    "description" : "EU 2022/2555 — Cybersecurity Risk-Management & Supply Chain Security",
+    "controls" : [ {
+      "id" : "NIS2-ART21-VULN",
+      "name" : "Vulnerability Handling & Remediation",
+      "requirement" : "All known vulnerabilities must be tracked with strict SLAs and zero unmitigated critical CVEs.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "NIS2-ART21-SUPPLY",
+      "name" : "Supply Chain Security & Software Bill of Materials",
+      "requirement" : "Every software component and container image must maintain an active SBOM (Software Bill of Materials).",
+      "category" : "SUPPLY_CHAIN"
+    }, {
+      "id" : "NIS2-ART21-CRYPTO",
+      "name" : "Cryptography & Secrets Management",
+      "requirement" : "No plaintext credentials or hardcoded cryptographic keys in source code repositories.",
+      "category" : "SECRETS_MANAGEMENT"
+    }, {
+      "id" : "NIS2-ART21-GOV",
+      "name" : "Security Governance & Gate Enforcement",
+      "requirement" : "Deployment gates must enforce blocking security policies across all release artifacts.",
+      "category" : "GOVERNANCE"
+    } ]
+  }, {
+    "name" : "ISO_27001",
+    "title" : "ISO/IEC 27001:2022",
+    "description" : "Information Security Management Systems — Annex A Controls",
+    "controls" : [ {
+      "id" : "ISO-A.8.8",
+      "name" : "Management of Technical Vulnerabilities",
+      "requirement" : "Information about technical vulnerabilities must be obtained in a timely manner and evaluated.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "ISO-A.8.28",
+      "name" : "Secure Coding Practices",
+      "requirement" : "Secure coding principles must be applied to software development through automated SAST analysis.",
+      "category" : "SECURE_CODING"
+    }, {
+      "id" : "ISO-A.8.9",
+      "name" : "Configuration & Infrastructure-as-Code Security",
+      "requirement" : "Security configurations in deployment manifests and infrastructure must be continuously validated.",
+      "category" : "INFRASTRUCTURE_AS_CODE"
+    }, {
+      "id" : "ISO-A.5.15",
+      "name" : "Access Control & Secrets Protection",
+      "requirement" : "Credentials, private keys, and API tokens must be strictly protected and never leaked in code.",
+      "category" : "SECRETS_MANAGEMENT"
+    } ]
+  }, {
+    "name" : "EU_CRA",
+    "title" : "Cyber Resilience Act (EU CRA)",
+    "description" : "EU Cyber Resilience Act — Mandatory Cybersecurity Requirements for Digital Products",
+    "controls" : [ {
+      "id" : "CRA-ART14-NOTIF",
+      "name" : "Actively Exploited Vulnerabilities — Art. 14(1) (CISA KEV)",
+      "requirement" : "Open critical, CISA KEV-listed and overdue vulnerabilities are counted: the starting point of an Article 14 notification, applicable since 11 September 2026. The notification itself is neither made nor tracked here.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "CRA-ANNEX1-SBOM",
+      "name" : "Machine-Readable SBOM — Annex I, Part II (1)",
+      "requirement" : "All distributed software and container images must provide an active, machine-readable SBOM.",
+      "category" : "SUPPLY_CHAIN"
+    }, {
+      "id" : "CRA-ART13-LIFECYCLE",
+      "name" : "Third-Party Components & Support Period — Art. 13(5), 13(8)",
+      "requirement" : "Third-party packages and base images must be monitored for active security support and end-of-life status.",
+      "category" : "SUPPLY_CHAIN"
+    }, {
+      "id" : "CRA-ANNEX1-VULN",
+      "name" : "Vulnerability Handling & Security Updates — Annex I, Part II (2); Art. 13(8)",
+      "requirement" : "Zero unmitigated critical vulnerabilities and automated security patch availability.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    } ]
+  }, {
+    "name" : "DORA",
+    "title" : "DORA",
+    "description" : "EU 2022/2554 — Digital Operational Resilience Act for Financial Entities",
+    "controls" : [ {
+      "id" : "DORA-ART09-ICT",
+      "name" : "ICT Risk Management & Continuous Testing",
+      "requirement" : "Continuous automated vulnerability assessment must be conducted on all digital assets.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "DORA-ART11-THIRD",
+      "name" : "Third-Party ICT Risk & Dependency Governance",
+      "requirement" : "External dependencies must be inventoried and monitored for critical vulnerabilities and end-of-life.",
+      "category" : "SUPPLY_CHAIN"
+    }, {
+      "id" : "DORA-ART13-SECRETS",
+      "name" : "Access Control & Secret Leakage Prevention",
+      "requirement" : "System authentication tokens and deployment keys must not be exposed in code or build pipelines.",
+      "category" : "SECRETS_MANAGEMENT"
+    }, {
+      "id" : "DORA-ART16-INCIDENT",
+      "name" : "Audit Trail & Evidence Retention",
+      "requirement" : "Security scans, findings, and triage decisions must maintain a tamper-evident audit trail.",
+      "category" : "AUDIT_AND_LOGGING"
+    } ]
+  }, {
+    "name" : "PCI_DSS",
+    "title" : "PCI-DSS v4.0",
+    "description" : "Payment Card Industry Data Security Standard",
+    "controls" : [ {
+      "id" : "PCI-REQ-6.3",
+      "name" : "Security in Software Development",
+      "requirement" : "Software development lifecycle must include automated scanning for vulnerabilities and common flaws.",
+      "category" : "SECURE_CODING"
+    }, {
+      "id" : "PCI-REQ-6.4",
+      "name" : "Public Vulnerability Remediation",
+      "requirement" : "High-risk and critical vulnerabilities must be resolved within established compliance windows.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "PCI-REQ-6.5",
+      "name" : "Protection against Software Flaws & Secrets",
+      "requirement" : "Custom software must be free of exposed secrets and injection flaws prior to production release.",
+      "category" : "SECRETS_MANAGEMENT"
+    }, {
+      "id" : "PCI-REQ-10.2",
+      "name" : "Audit Log Implementation",
+      "requirement" : "Automated audit trails must record security-relevant events and access modifications.",
+      "category" : "AUDIT_AND_LOGGING"
+    } ]
+  }, {
+    "name" : "SOC_2",
+    "title" : "SOC 2",
+    "description" : "AICPA Trust Services Criteria — Security, Availability & Confidentiality",
+    "controls" : [ {
+      "id" : "SOC2-CC6.8",
+      "name" : "Preventing Unauthorized Changes & Malicious Code",
+      "requirement" : "Software development lifecycle must enforce automated code quality, SAST analysis, and deployment gate policies.",
+      "category" : "SECURE_CODING"
+    }, {
+      "id" : "SOC2-CC7.1",
+      "name" : "Vulnerability Assessment & Threat Detection",
+      "requirement" : "Continuous vulnerability scanning and remediation must be enforced with zero unmitigated critical CVEs.",
+      "category" : "VULNERABILITY_MANAGEMENT"
+    }, {
+      "id" : "SOC2-CC6.6",
+      "name" : "Logical Access & Secrets Management",
+      "requirement" : "Credentials, encryption keys, and authentication tokens must not be exposed in source repositories.",
+      "category" : "SECRETS_MANAGEMENT"
+    }, {
+      "id" : "SOC2-CC7.2",
+      "name" : "Security Incident Monitoring & Audit Logging",
+      "requirement" : "A tamper-evident audit trail, verified by its hash chain, must record sign-ins, decisions and configuration changes.",
+      "category" : "AUDIT_AND_LOGGING"
+    } ]
+  } ],
+  "identifiers" : [ {
+    "input" : "NIS_2",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "nis_2",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "NIS2",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "nis-2",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "N-I-S-2",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : " nis2 ",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "\tdora\n",
+    "framework" : "DORA",
+    "refused" : null
+  }, {
+    "input" : "\u0000dora",
+    "framework" : "DORA",
+    "refused" : null
+  }, {
+    "input" : "DORA",
+    "framework" : "DORA",
+    "refused" : null
+  }, {
+    "input" : "Dora",
+    "framework" : "DORA",
+    "refused" : null
+  }, {
+    "input" : "pci_dss",
+    "framework" : "PCI_DSS",
+    "refused" : null
+  }, {
+    "input" : "PCI-DSS",
+    "framework" : "PCI_DSS",
+    "refused" : null
+  }, {
+    "input" : "pcidss",
+    "framework" : "PCI_DSS",
+    "refused" : null
+  }, {
+    "input" : "pcı_dss",
+    "framework" : "PCI_DSS",
+    "refused" : null
+  }, {
+    "input" : "ISO_27001",
+    "framework" : "ISO_27001",
+    "refused" : null
+  }, {
+    "input" : "iso-27001",
+    "framework" : "ISO_27001",
+    "refused" : null
+  }, {
+    "input" : "iso27001",
+    "framework" : "ISO_27001",
+    "refused" : null
+  }, {
+    "input" : "ISO 27001",
+    "framework" : null,
+    "refused" : "Unknown framework \"ISO 27001\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "eu_cra",
+    "framework" : "EU_CRA",
+    "refused" : null
+  }, {
+    "input" : "EU-CRA",
+    "framework" : "EU_CRA",
+    "refused" : null
+  }, {
+    "input" : "eucra",
+    "framework" : "EU_CRA",
+    "refused" : null
+  }, {
+    "input" : "soc_2",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "SOC2",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "soc-2",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "SOC__2",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "--soc2--",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "ſoc2",
+    "framework" : "SOC_2",
+    "refused" : null
+  }, {
+    "input" : "NIS_2_",
+    "framework" : "NIS_2",
+    "refused" : null
+  }, {
+    "input" : "nis2 ",
+    "framework" : null,
+    "refused" : "Unknown framework \"nis2 \". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "ＤＯＲＡ",
+    "framework" : null,
+    "refused" : "Unknown framework \"ＤＯＲＡ\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "hipaa",
+    "framework" : null,
+    "refused" : "Unknown framework \"hipaa\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "",
+    "framework" : null,
+    "refused" : "Unknown framework \"\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "   ",
+    "framework" : null,
+    "refused" : "Unknown framework \"   \". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "nis",
+    "framework" : null,
+    "refused" : "Unknown framework \"nis\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "nis_22",
+    "framework" : null,
+    "refused" : "Unknown framework \"nis_22\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "ISO_27001;",
+    "framework" : null,
+    "refused" : "Unknown framework \"ISO_27001;\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  }, {
+    "input" : "_",
+    "framework" : null,
+    "refused" : "Unknown framework \"_\". Expected one of: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2."
+  } ]
+}

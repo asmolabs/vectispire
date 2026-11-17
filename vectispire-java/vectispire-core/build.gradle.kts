@@ -582,6 +582,10 @@ tasks.named<Test>("test") {
     // posture analytics, the remediation distribution and coverage, the fix a version recommends and the weekly report's
     // text — `PostureReferenceSetTest`, written before the Rust port of the module.
     inputs.dir(rootProject.file("../vectispire-rust/reference/posture")).withPropertyName("postureReferenceSet")
+    // `vectispire-domain`'s compliance: the frameworks, the engine's verdicts, the declaration of applicability, the
+    // attributed history, the OWASP grid and its CWE lists, the coverage week, the MTTR and the spreadsheet cells —
+    // `ComplianceReferenceSetTest`, written before the Rust port of the module's pure domain.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/compliance")).withPropertyName("complianceReferenceSet")
 }
 
 /**
