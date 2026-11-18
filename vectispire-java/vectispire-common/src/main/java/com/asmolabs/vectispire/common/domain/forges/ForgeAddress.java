@@ -88,7 +88,9 @@ public record ForgeAddress(ForgeEdition edition, String baseUrl, String apiRoot)
             throw new InvalidInputException("Type the forge's web address — what the browser shows — not its API's: "
                     + "the API path is added here.");
         }
-        String origin = "https://" + (host.contains(":") ? "[" + host + "]" : host) + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
+        // URI.getHost hands an IPv6 literal back in its brackets already: bracketing it again wrote "[[::1]]", an
+        // address no client reads.
+        String origin = "https://" + host + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
 
         return switch (kind) {
             case GITHUB -> github(host, origin, path);
