@@ -320,6 +320,12 @@ pub mod java_uri {
         /// The port as `URI.getPort` reads it — any run of ASCII digits that fits an `int`, zero and past 65535
         /// included; `None` where Java answers -1: no port, an empty one, or a registry-based authority.
         pub port: Option<i32>,
+        /// `URI.getRawUserInfo`: what precedes `@` in a server-based authority; `None` otherwise.
+        pub raw_user_info: Option<String>,
+        /// `URI.getRawQuery`: after `?`, escapes kept; `None` without one.
+        pub raw_query: Option<String>,
+        /// `URI.getRawFragment`: after `#`, escapes kept; `None` without one.
+        pub raw_fragment: Option<String>,
     }
 
     /// The URI does not parse: the JDK would throw `URISyntaxException`.
@@ -372,13 +378,33 @@ pub mod java_uri {
         host: Option<String>,
         raw_path: Option<String>,
         port: Option<i32>,
+        raw_user_info: Option<String>,
+        raw_query: Option<String>,
+        raw_fragment: Option<String>,
     }
 
     /// Parses as `new URI(text)` does.
     pub fn parse(text: &str) -> Result<Parsed, Syntax> {
-        let mut parser = Parser { input: text.chars().collect(), scheme: None, host: None, raw_path: None, port: None };
+        let mut parser = Parser {
+            input: text.chars().collect(),
+            scheme: None,
+            host: None,
+            raw_path: None,
+            port: None,
+            raw_user_info: None,
+            raw_query: None,
+            raw_fragment: None,
+        };
         parser.parse()?;
-        Ok(Parsed { scheme: parser.scheme, host: parser.host, raw_path: parser.raw_path, port: parser.port })
+        Ok(Parsed {
+            scheme: parser.scheme,
+            host: parser.host,
+            raw_path: parser.raw_path,
+            port: parser.port,
+            raw_user_info: parser.raw_user_info,
+            raw_query: parser.raw_query,
+            raw_fragment: parser.raw_fragment,
+        })
     }
 
     impl Parser {
@@ -472,6 +498,7 @@ pub mod java_uri {
             }
             if self.at(p, n, '#') {
                 self.check(p + 1, n, URIC)?;
+                self.raw_fragment = Some(self.substring(p + 1, n));
                 p = n;
             }
             if p < n { Err(Syntax) } else { Ok(()) }
@@ -496,6 +523,7 @@ pub mod java_uri {
                 p += 1;
                 let q = self.scan_until(p, n, "", "#").unwrap_or(n);
                 self.check(p, q, URIC)?;
+                self.raw_query = Some(self.substring(p, q));
                 p = q;
             }
             Ok(p)
@@ -516,6 +544,7 @@ pub mod java_uri {
                     _ => {
                         self.host = None;
                         self.port = None;
+                        self.raw_user_info = None;
                     }
                 }
             }
@@ -525,6 +554,7 @@ pub mod java_uri {
                 }
                 self.host = None;
                 self.port = None;
+                self.raw_user_info = None;
             }
             Ok(n)
         }
@@ -535,6 +565,7 @@ pub mod java_uri {
                 && self.at(q, n, '@')
             {
                 self.check(p, q, USER_INFO)?;
+                self.raw_user_info = Some(self.substring(p, q));
                 p = q + 1;
             }
             if self.at(p, n, '[') {
