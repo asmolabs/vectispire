@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_issue set ticket_ref = $1, ticket_url = $2, ticket_attached_by = $3, revision = revision + 1 where id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b5672fd705f245f96d4925e974d9840fa6d6300dd3daf40206e0d6ea4aaa8571"
+}

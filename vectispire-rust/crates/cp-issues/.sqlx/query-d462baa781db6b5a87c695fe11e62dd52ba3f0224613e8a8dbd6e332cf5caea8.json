@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_issue set ticket_claimed_by = null, ticket_claim_until = null where id = ? and ticket_claimed_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d462baa781db6b5a87c695fe11e62dd52ba3f0224613e8a8dbd6e332cf5caea8"
+}

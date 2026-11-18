@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_issue set ticket_claimed_by = null, ticket_claim_until = null where id = $1 and ticket_claimed_by = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0cfae934a11ddf3a8b66bd2c2174dfe8c29951b7376c2b13df8332711d2c5e74"
+}

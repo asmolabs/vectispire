@@ -758,6 +758,62 @@ impl IssueRepository {
     pub async fn count_for_repository(tx: &mut Tx, repo_id: i64, not_a_decision: &str) -> Result<i64, StoreError> {
         super::checked::count_decisions_for_repository(tx, repo_id, not_a_decision).await
     }
+
+    // -------------------------------------------------------------------------
+    // tickets — Java's `IssueRepository` ticket section
+    // -------------------------------------------------------------------------
+
+    /// `findActionableWithoutTicket`: **most severe first**, then by key — a per-pass ceiling ordered by key alone
+    /// would spend its tickets on harmless findings inserted a year ago. The `case` is Java's, lower-case names and
+    /// all: on PostgreSQL a severity stored in another case ranks last, as it does there.
+    pub async fn find_actionable_without_ticket(
+        tx: &mut Tx,
+        state: &str,
+        excluded: &[String],
+        limit: u64,
+    ) -> Result<Vec<IssueRow>, StoreError> {
+        let select = issues()
+            .filter(IssueColumn::State.eq(state))
+            .filter(IssueColumn::TicketRef.is_null())
+            .filter(IssueColumn::TriageStatus.is_not_in(excluded.iter().cloned()))
+            .order_by(
+                Expr::cust(
+                    "case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 \
+                     when 'low' then 3 when 'negligible' then 4 else 5 end",
+                ),
+                Order::Asc,
+            )
+            .order_by_asc(IssueColumn::Id)
+            .limit(limit);
+        issue_rows(tx, select).await
+    }
+
+    /// `findResolvedWithOpenTicket`: resolved, carrying a reference Vectispire opened (`ticket_attached_by` null) and
+    /// has not marked closed. **Ordered by key**, where Java's statement names no order: a limit over an unordered
+    /// read answers whichever rows the engine reaches first, and the key is what both engines reach first anyway.
+    pub async fn find_resolved_with_open_ticket(tx: &mut Tx, limit: u64) -> Result<Vec<IssueRow>, StoreError> {
+        let select = issues()
+            .filter(IssueColumn::State.eq("resolved"))
+            .filter(IssueColumn::TicketRef.is_not_null())
+            .filter(Expr::col(IssueColumn::TicketRef).not_like("CLOSED:%"))
+            .filter(IssueColumn::TicketAttachedBy.is_null())
+            .order_by_asc(IssueColumn::Id)
+            .limit(limit);
+        issue_rows(tx, select).await
+    }
+
+    /// `findByTicketRefOrIid`: the reference as stored, or behind the `#` GitLab and GitHub references are kept with —
+    /// a list, since one ticket may stand for several issues. `concat('#', :ref)` is spelt before binding.
+    pub async fn find_by_ticket_ref_or_iid(tx: &mut Tx, reference: &str) -> Result<Vec<IssueRow>, StoreError> {
+        let select = issues()
+            .filter(
+                Condition::any()
+                    .add(IssueColumn::TicketRef.eq(reference))
+                    .add(IssueColumn::TicketRef.eq(format!("#{reference}"))),
+            )
+            .order_by_asc(IssueColumn::Id);
+        issue_rows(tx, select).await
+    }
 }
 
 pub struct TriageEventRepository;

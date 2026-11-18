@@ -223,6 +223,81 @@ impl IssueCatalog {
         Ok(installed.into_iter().min().and_then(|at| at.checked_add(time::Duration::days(1))))
     }
 
+    // ------------------------------------------------------------------ tickets
+    // `tickets`' reads and decisions, each one transaction committed on its own — Java's `@Transactional` per call:
+    // the sweep claims, calls the tracker for seconds, then attaches, and none of that may hold a transaction open.
+
+    /// See `IssueRepository::find_actionable_without_ticket`: worst first, at most `limit`.
+    pub async fn actionable_without_ticket(
+        &self,
+        state: &str,
+        excluded_triage_statuses: &[String],
+        limit: u64,
+    ) -> Result<Vec<IssueView>, IssueError> {
+        self.views(async |tx| {
+            IssueRepository::find_actionable_without_ticket(tx, state, excluded_triage_statuses, limit).await
+        })
+        .await
+    }
+
+    /// Resolved issues whose ticket Vectispire opened and has not closed, at most `limit`.
+    pub async fn resolved_with_open_ticket(&self, limit: u64) -> Result<Vec<IssueView>, IssueError> {
+        self.views(async |tx| IssueRepository::find_resolved_with_open_ticket(tx, limit).await).await
+    }
+
+    /// Every issue carrying this tracker reference, oldest first — one ticket may stand for several.
+    pub async fn with_ticket(&self, reference: &str) -> Result<Vec<IssueView>, IssueError> {
+        self.views(async |tx| IssueRepository::find_by_ticket_ref_or_iid(tx, reference).await).await
+    }
+
+    /// Records the ticket a sweep opened: 1, or 0 when the issue already carries a reference — one a person attached
+    /// while the sweep was asking the tracker, which is kept. Clears the sweep's claim.
+    pub async fn attach_ticket(&self, issue_id: i64, reference: &str, url: Option<&str>) -> Result<u64, IssueError> {
+        self.write(async |tx| checked::attach_ticket(tx, issue_id, reference, url).await).await
+    }
+
+    /// Claims the issue for `holder`'s sweep until `until`: true when the sweep may ask the tracker, false when the
+    /// issue has a reference or a claim still runs at `at` — another instance's, **or `holder`'s own**: two passes of
+    /// one process are two askers too (V95).
+    pub async fn claim_ticket(
+        &self,
+        issue_id: i64,
+        holder: &str,
+        at: time::OffsetDateTime,
+        until: time::OffsetDateTime,
+    ) -> Result<bool, IssueError> {
+        Ok(self.write(async |tx| checked::claim_ticket(tx, issue_id, holder, until, at).await).await? == 1)
+    }
+
+    /// Gives `holder`'s claim up — the tracker refused, or a person attached a reference meanwhile — so the next pass
+    /// of any instance may try again. Another holder's claim is left alone.
+    pub async fn release_ticket_claim(&self, issue_id: i64, holder: &str) -> Result<(), IssueError> {
+        self.write(async |tx| checked::release_ticket_claim(tx, issue_id, holder).await).await.map(|_| ())
+    }
+
+    /// Records that the sweep closed this ticket: 1, or 0 when the issue carries another reference now, whose ticket
+    /// this does not describe.
+    pub async fn mark_ticket_closed(&self, issue_id: i64, reference: &str) -> Result<u64, IssueError> {
+        self.write(async |tx| checked::mark_ticket_closed(tx, issue_id, reference).await).await
+    }
+
+    async fn views(
+        &self,
+        work: impl AsyncFnOnce(&mut vectispire_cp_db::Tx) -> Result<Vec<crate::persistence::IssueRow>, StoreError>,
+    ) -> Result<Vec<IssueView>, IssueError> {
+        Ok(self.read(work).await?.iter().map(crate::persistence::IssueRow::to_view).collect())
+    }
+
+    async fn write<T>(
+        &self,
+        work: impl AsyncFnOnce(&mut vectispire_cp_db::Tx) -> Result<T, StoreError>,
+    ) -> Result<T, IssueError> {
+        let mut tx = crate::persistence::write(&self.db).await?;
+        let value = work(&mut tx).await.map_err(IssueError::from)?;
+        crate::persistence::commit(tx).await?;
+        Ok(value)
+    }
+
     async fn read<T>(
         &self,
         work: impl AsyncFnOnce(&mut vectispire_cp_db::Tx) -> Result<T, crate::persistence::StoreError>,

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_issue set ticket_ref = ?, revision = revision + 1 where id = ? and ticket_ref = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "3b398aa05e173b51909383998289b12b80d576dd32f30e8315b2225b6eff61fd"
+}
