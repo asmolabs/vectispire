@@ -406,6 +406,7 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins()
             .with(vectispire_cp_scanning::purge::listeners())
+            .with(vec![Arc::new(vectispire_cp_tickets::TicketLinkPurge)])
             .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]),
         encryption: support::encryption(),
         allowed_hosts: allowed_hosts.clone(),
@@ -447,7 +448,13 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         (*audit).clone(),
         Arc::new(AuditClock),
     ));
-    let census = vectispire_cp_crypto::EncryptionCensus::new(vec![signing.clone(), targets.clone(), census_exporter]);
+    let census = vectispire_cp_crypto::EncryptionCensus::new(vec![
+        signing.clone(),
+        targets.clone(),
+        census_exporter,
+        notifications(db).1.service,
+        tickets(db, &audit).service.clone(),
+    ]);
     let actuator = Arc::new(vectispire_cp_runtime::actuator::Actuator::new(
         Arc::new(vectispire_cp_runtime::actuator::Health::default()),
         Arc::new(vectispire_cp_runtime::metrics::Metrics::new("vectispire")),
@@ -614,6 +621,43 @@ fn notifications(db: &Db) -> (vectispire_cp_notifications::NotificationsConfig, 
     (config, channels)
 }
 
+/// The tickets module as `cp-app/src/tickets.rs` composes it: its token's alerts told through the notifications on an
+/// enqueue-only outbox over the same table.
+fn tickets(db: &Db, audit: &Arc<AuditLog>) -> Arc<vectispire_cp_tickets::Tickets> {
+    let (notifications, channels) = notifications(db);
+    let outbox = Arc::new(Outbox::on_database(
+        db.clone(),
+        Registry::new(Vec::new(), Vec::new()),
+        Arc::new(vectispire_cp_maintenance::SystemClock),
+    ));
+    Arc::new(vectispire_cp_tickets::Tickets::new(vectispire_cp_tickets::TicketsConfig {
+        db: db.clone(),
+        settings: Settings::new(db.clone()),
+        encryption: support::encryption(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        integrations: integrations(db),
+        audit: audit.clone(),
+        alerts: Arc::new(vectispire_cp_notifications::TokenAlerts::new(
+            outbox,
+            channels.all(),
+            notifications.integrations.clone(),
+        )),
+        clock: Arc::new(AuditClock),
+    }))
+}
+
+/// `cp-app`'s `TrackerCa`: the settings save asks the tickets module's own CA pinning.
+struct TrackerCa(Arc<vectispire_cp_tickets::Tickets>);
+
+impl vectispire_cp_platform::Tracker for TrackerCa {
+    fn refuse_ca(&self, pem: &str) -> Option<String> {
+        self.0.service.ca_to_pin(Some(pem)).err().map(|refused| refused.to_string())
+    }
+}
+
 /// The issues and inventory modules as `cp-app` composes them — before scanning, whose ingestion writes into both.
 fn issues_and_inventory(
     db: &Db,
@@ -644,6 +688,7 @@ fn issues_and_inventory(
             audit: audit.clone(),
             events: siem.events.clone(),
         })
+        .with_ticket_references(tickets(db, audit).references())
         .with_scan_deltas(deltas),
     );
     let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
@@ -802,7 +847,7 @@ fn phase_three(
             db: db.clone(),
             audit: (*audit).clone(),
             approvers: Arc::new(AccessApprovers(vectispire_cp_access::TriageApprovers::new(db.clone()))),
-            tracker: Arc::new(vectispire_cp_platform::TrackerCaPinning::new(Arc::new(AuditClock))),
+            tracker: Arc::new(TrackerCa(tickets(db, &audit))),
             ai: Arc::new(vectispire_cp_platform::GuardedAiDestination::new(
                 Settings::new(db.clone()),
                 vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
@@ -843,7 +888,7 @@ fn phase_three(
             Arc::new(AuditClock),
             Vec::new(),
         )),
-        audit,
+        audit: audit.clone(),
         channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
         clock: Arc::new(SystemClock),
     });
@@ -887,6 +932,8 @@ fn phase_three(
     routes.extend(vectispire_cp_compliance::routes(compliance));
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
+    // The tickets (wave 2).
+    routes.extend(tickets(db, &audit).routes());
     // The notification centre (wave 2).
     let (notifications, channels) = notifications(db);
     routes.extend(vectispire_cp_notifications::routes(Arc::new(

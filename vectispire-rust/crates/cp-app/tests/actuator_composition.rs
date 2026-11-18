@@ -37,15 +37,7 @@ const JAVA_STORES: [&str; 12] = [
 
 /// The stores whose Java module has no Rust counterpart answering for them yet (`cp-app/src/actuator.rs`). A module
 /// ported later moves its stores out of this list and into the census in the same commit.
-const NOT_PORTED: [&str; 7] = [
-    "Forge connection tokens",
-    "Inbound tracker webhook secret",
-    "Notification webhook signing secret",
-    "OpenAI API key",
-    "TOTP backup codes",
-    "TOTP secrets",
-    "Tracker access token",
-];
+const NOT_PORTED: [&str; 4] = ["Forge connection tokens", "OpenAI API key", "TOTP backup codes", "TOTP secrets"];
 
 fn encryption() -> Arc<Encryption> {
     let config = EncryptionConfig {
@@ -88,9 +80,23 @@ fn census(db: &Db) -> vectispire_cp_crypto::EncryptionCensus {
         (*audit).clone(),
         Arc::new(SystemClock),
     );
+    let notifications = vectispire_cp_app::notifications::compose_plain(db, encryption.clone()).1.service;
+    let tickets = vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: db.clone(),
+        encryption: encryption.clone(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(TlsTrust::BuiltIn),
+        ),
+        audit: audit.clone(),
+        alerts: Arc::new(vectispire_cp_outbox::NotTold),
+        clock: Arc::new(SystemClock),
+    })
+    .service
+    .clone();
     let signing =
         Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db.clone()), encryption).unwrap());
-    vectispire_cp_app::actuator::encryption_census(signing, targets, exporter)
+    vectispire_cp_app::actuator::encryption_census(signing, targets, exporter, notifications, tickets)
 }
 
 async fn the_census_lists_java_s_stores_but_those_of_modules_not_ported(engine: Engine) {

@@ -4116,6 +4116,7 @@ dependencies = [
  "vectispire-cp-settings",
  "vectispire-cp-siem",
  "vectispire-cp-targets",
+ "vectispire-cp-tickets",
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-migrate",
@@ -4163,6 +4164,7 @@ dependencies = [
  "vectispire-cp-settings",
  "vectispire-cp-siem",
  "vectispire-cp-targets",
+ "vectispire-cp-tickets",
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-migrate",
@@ -4826,6 +4828,42 @@ dependencies = [
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+ "vectispire-tls",
+]
+
+[[package]]
+name = "vectispire-cp-tickets"
+version = "2.0.0-dev"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-gate",
+ "vectispire-cp-http",
+ "vectispire-cp-issues",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-outbox",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-domain",
  "vectispire-tls",
 ]
 

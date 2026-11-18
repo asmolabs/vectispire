@@ -183,6 +183,24 @@ impl NotificationService {
     }
 }
 
+/// The signing secret, for the encryption census: which key it is sealed under, never what it holds.
+impl vectispire_cp_crypto::SealedStore for NotificationService {
+    fn census(&self) -> vectispire_cp_crypto::CensusFuture<'_> {
+        Box::pin(async move {
+            let stored = self.config.settings.get(Setting::WebhookSigningSecret).await.map_err(|e| e.to_string())?;
+            let seal = self.config.encryption.seal_of(Some(&stored), SIGNING_SECRET_CONTEXT).await;
+            Ok(vec![
+                vectispire_cp_crypto::Counter::new(
+                    "Notification webhook signing secret",
+                    "set the secret again on the notification settings, and in the receiver",
+                )
+                .count(seal)
+                .done(),
+            ])
+        })
+    }
+}
+
 /// `NotificationChannelStatus`: a channel as the centre lists it — its destination masked.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

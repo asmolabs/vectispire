@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_issue_ticket (issue_id, provider, ticket_key, ticket_url, status, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "98a8cc75b73e4cbf429bd1d1a4a2598e7d3f1e6314aa31306c5ee53d070de80a"
+}

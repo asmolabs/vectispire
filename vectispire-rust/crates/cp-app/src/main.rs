@@ -367,6 +367,22 @@ async fn serve() -> ExitCode {
         ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
+    // The tickets (wave 2): its token's alerts are told through the notifications, in the outbox.
+    let tickets = vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: db.clone(),
+        encryption: encryption.clone(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            guard.clone(),
+            vectispire_cp_outbound::PinnedHttpSender::new(trust.clone()),
+        ),
+        audit: audit.clone(),
+        alerts: vectispire_cp_app::notifications::token_alerts(
+            &notifications_config,
+            &notification_channels,
+            outbox.clone(),
+        ),
+        clock: Arc::new(vectispire_cp_audit::SystemClock),
+    });
     let siem_service = vectispire_cp_app::siem::service(
         &siem,
         db.clone(),
@@ -382,6 +398,7 @@ async fn serve() -> ExitCode {
         .with(vectispire_cp_inventory::listeners())
         .with(vectispire_cp_gate::purge::listeners())
         .with(vectispire_cp_compliance::purge::listeners())
+        .with(vec![Arc::new(vectispire_cp_tickets::TicketLinkPurge)])
         .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]);
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
@@ -444,6 +461,8 @@ async fn serve() -> ExitCode {
             events: siem.security_events(),
         })
         // A scan's delta queued for the channels in the scan's transaction (`ScanDeltaNotifier`).
+        // A reference attached by hand is the configured tracker's to judge.
+        .with_ticket_references(tickets.references())
         .with_scan_deltas(vectispire_cp_app::notifications::scan_deltas(
             &notifications_config,
             &notification_channels,
@@ -656,6 +675,7 @@ async fn serve() -> ExitCode {
         clock.clone(),
         access.session_cleanup.clone(),
         checklists.reminders.clone(),
+        &tickets,
         &gauges,
     ) {
         Ok(turns) => turns,
@@ -690,7 +710,13 @@ async fn serve() -> ExitCode {
         time: None,
     };
     let app = App::new(settings.clone(), "vectispire", build);
-    let census = vectispire_cp_app::actuator::encryption_census(signing.clone(), targets.clone(), siem_service.clone());
+    let census = vectispire_cp_app::actuator::encryption_census(
+        signing.clone(),
+        targets.clone(),
+        siem_service.clone(),
+        notification_channels.service.clone(),
+        tickets.service.clone(),
+    );
     app.actuator.serve_encryption(Arc::new(vectispire_cp_app::actuator::Census(census.clone())));
 
     let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
@@ -732,6 +758,7 @@ async fn serve() -> ExitCode {
     ));
     access_routes.extend(checklists.routes);
     access_routes.extend(vectispire_cp_app::notifications::routes(&notifications_config, &notification_channels));
+    access_routes.extend(tickets.routes());
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
@@ -754,6 +781,7 @@ async fn serve() -> ExitCode {
                 &db,
                 (*audit).clone(),
                 guard.clone(),
+                Arc::new(vectispire_cp_app::tickets::TrackerCa(tickets.clone())),
                 Arc::new(vectispire_cp_audit::SystemClock),
             ),
         },

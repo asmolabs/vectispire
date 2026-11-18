@@ -3,9 +3,9 @@
 //!
 //! - **`access`' `TriageApprovers`** ([`AccessApprovers`]): whether four-eyes could be honoured, counted from the
 //!   accounts table at the save;
-//! - **`tickets`' CA pinning** and **`ai`'s destination guard**: the two narrow parts `cp-platform` holds itself
-//!   ([`TrackerCaPinning`], [`GuardedAiDestination`]), the latter over the guard this process built at start — the one
-//!   with the reserved endpoints, which every outbound call asks;
+//! - **`tickets`' CA pinning**: the tickets module's own `caToPin` (`crate::tickets::TrackerCa`), handed in;
+//! - **`ai`'s destination guard**: the narrow part `cp-platform` holds itself ([`GuardedAiDestination`]), over the
+//!   guard this process built at start — the one with the reserved endpoints, which every outbound call asks;
 //! - **`ai`'s endpoint**, which only `POST /api/v1/settings/ollama-test` asks and which is not served: a named stand-in
 //!   ([`EndpointNotPorted`]) that fails if anything ever asks it, until `ai` lands.
 //!
@@ -22,7 +22,6 @@ use vectispire_cp_db::Db;
 use vectispire_cp_outbound::OutboundUrlGuard;
 use vectispire_cp_platform::{
     AiEndpoint, Approvers, CollaboratorError, GuardedAiDestination, SettingsAdministration, SettingsParts,
-    TrackerCaPinning,
 };
 use vectispire_cp_settings::Settings;
 
@@ -87,13 +86,14 @@ pub fn compose(
     db: &Db,
     audit: AuditLog,
     guard: OutboundUrlGuard,
+    tracker: Arc<dyn vectispire_cp_platform::Tracker>,
     clock: Arc<dyn Clock>,
 ) -> Arc<SettingsAdministration> {
     Arc::new(SettingsAdministration::new(SettingsParts {
         db: db.clone(),
         audit,
         approvers: Arc::new(AccessApprovers(TriageApprovers::new(db.clone()))),
-        tracker: Arc::new(TrackerCaPinning::new(clock.clone())),
+        tracker,
         ai: Arc::new(GuardedAiDestination::new(Settings::new(db.clone()), guard)),
         endpoint: Arc::new(EndpointNotPorted),
         // The registry the integrations' switches write: a save refuses what the governor switched off.

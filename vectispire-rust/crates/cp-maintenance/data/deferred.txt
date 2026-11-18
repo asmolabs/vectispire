@@ -5,8 +5,6 @@
 # the list only shrinks, by one line in the commit that registers the task in the binary's composition
 # (crates/cp-app/src/maintenance.rs). Twenty-eight on the day cp-maintenance landed (task 2.1 of Phase 2).
 REPORT_RUN_SWEEP | reportplugins, a later phase
-TICKET_SWEEP | tickets, a later phase
-TICKET_TOKEN_CHECK | tickets, a later phase
 FORGE_TOKEN_WATCH | forges, a later phase
 REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
 KEV_CATALOGUE | threatintel, a later phase

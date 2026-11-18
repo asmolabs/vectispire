@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_webhook_delivery (body_hash, provider, received_at) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0881ecd3866633fb006af07b6fa5170df164fdaa9350e8d7a15ddeea1aee29f1"
+}

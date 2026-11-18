@@ -40,6 +40,14 @@ async fn on_postgresql() {
     run(Engine::PostgreSql).await;
 }
 
+fn encryption() -> Arc<vectispire_cp_crypto::Encryption> {
+    let door = vectispire_cp_crypto::VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    Arc::new(vectispire_cp_crypto::Encryption::new(&vectispire_cp_crypto::EncryptionConfig::default(), door).unwrap())
+}
+
 fn governor() -> Caller {
     Caller { username: "governor".to_owned(), administrative: true, governs_platform: true }
 }
@@ -71,7 +79,25 @@ async fn run(engine: Engine) {
     // The guard `main` builds holds the process' own endpoints; port 9090 stands for one here. Not Ollama's default
     // port: every save judges the AI destination it leaves, the default included, so reserving that refuses them all.
     let guard = OutboundUrlGuard::new(vec![ReservedEndpoint::on_every_host(9_090, "an endpoint of this deployment")]);
-    let service = settings_screen::compose(&db, audit, guard, Arc::new(SystemClock));
+    // `tickets` as `main` composes it: its own CA pinning answers the save.
+    let tickets = vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: db.clone(),
+        encryption: encryption(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        audit: Arc::new(audit.clone()),
+        alerts: Arc::new(vectispire_cp_outbox::NotTold),
+        clock: Arc::new(SystemClock),
+    });
+    let service = settings_screen::compose(
+        &db,
+        audit,
+        guard,
+        Arc::new(vectispire_cp_app::tickets::TrackerCa(tickets)),
+        Arc::new(SystemClock),
+    );
     let settings = Settings::new(db.clone());
 
     // `access`: no account can approve yet.

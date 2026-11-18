@@ -109,6 +109,35 @@ fn notifications() -> vectispire_cp_notifications::Channels {
     .1
 }
 
+/// The tickets module over a pool that never connects.
+fn tickets() -> Arc<vectispire_cp_tickets::Tickets> {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+        encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        audit: audit(),
+        alerts: Arc::new(vectispire_cp_outbox::NotTold),
+        clock: Arc::new(vectispire_cp_audit::SystemClock),
+    })
+}
+
 /// An audit log over a pool that never connects: the composition delivers nothing.
 fn audit() -> Arc<vectispire_cp_audit::AuditLog> {
     use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
@@ -552,6 +581,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
                 Arc::new(vectispire_cp_targets::SystemClock),
             )),
         }),
+        &tickets(),
         &gauges,
     )
     .unwrap();

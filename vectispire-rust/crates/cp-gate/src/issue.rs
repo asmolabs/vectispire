@@ -18,6 +18,22 @@ pub struct GateIssue {
 }
 
 impl GateIssue {
+    /// `IssueViews.forGate`: the one mapping, shared with `tickets`' sweep, so that a ticket is opened for exactly
+    /// what the gate would fail on.
+    pub fn of_view(v: &vectispire_cp_issues::IssueView) -> GateIssue {
+        GateIssue {
+            id: v.id,
+            open: v.state == "open",
+            type_: FindingType::from_wire_name(Some(&v.type_)),
+            severity: Severity::of(Some(&v.severity)),
+            identifier: v.identifier.clone(),
+            package_name: v.package_name.clone(),
+            fix_versions: v.fix_versions.clone(),
+            kev: v.is_kev,
+            triage: TriageStatus::from_wire_name(&v.triage_status),
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: i64,

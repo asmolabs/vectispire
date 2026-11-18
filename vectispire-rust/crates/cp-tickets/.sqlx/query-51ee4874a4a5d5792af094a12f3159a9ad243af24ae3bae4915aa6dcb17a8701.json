@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(*) as \"count!\" from t_webhook_delivery where body_hash = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "51ee4874a4a5d5792af094a12f3159a9ad243af24ae3bae4915aa6dcb17a8701"
+}

@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, issue_id, provider, ticket_key, ticket_url, status, created_at, updated_at from t_issue_ticket where issue_id = $1 order by created_at desc, id desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "issue_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "issue_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "provider",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "provider"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ticket_key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "ticket_key"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "ticket_url",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "ticket_url"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ad94f6eef9c754adc880e155bb48174b235bec4a008ca0814d70a0a76fda9c04"
+}

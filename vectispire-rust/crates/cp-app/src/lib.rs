@@ -20,4 +20,5 @@ pub mod registry;
 pub mod settings_screen;
 pub mod siem;
 pub mod startup;
+pub mod tickets;
 pub mod worker;
