@@ -8,6 +8,8 @@
 #![forbid(unsafe_code)]
 
 pub mod epss_file;
+pub mod feeds;
 pub mod kev_catalog;
+mod persistence;
 pub mod risk_matrix;
 pub mod status;

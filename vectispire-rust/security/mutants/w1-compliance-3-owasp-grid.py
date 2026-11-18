@@ -16,6 +16,9 @@ K = "crates/cp-compliance/src/weekly_capture.rs"
 H = "crates/cp-compliance/src/progress.rs"
 F = "crates/cp-compliance/src/owasp_words.rs"
 
+# `ISO_LOCAL_DATE` moved to the domain crate with threatintel stage 0a; the weekly window still reads through it.
+J = "crates/domain/src/java.rs"
+
 MUTANTS = [
     # The scope.
     ("both scopes accepted", C, "    if project_id.is_some() && solution_id.is_some() {", "    if false {", O),
@@ -37,9 +40,9 @@ MUTANTS = [
     ("from after to accepted", W, "        if from > to {", "        if false {", O),
     ("fifty-three weeks", W, "        if count > MAX_WEEKS {", "        if count > MAX_WEEKS + 1 {", O),
     ("the window before the scope", W, "        at_most_one(request.project_id, request.solution_id)?;\n", "", O),
-    ("a leap day refused", W, "        2 if leap => 29,\n", "", L),
-    ("a signed four-digit year", W, "(year.len() == 4 && signed && !negative) || ", "", L),
-    ("a five-digit year unsigned", W, " || (year.len() > 4 && !signed)", "", L),
+    ("a leap day refused", J, "        2 if leap => 29,\n", "", L),
+    ("a signed four-digit year", J, "(year.len() == 4 && signed && !negative) || ", "", L),
+    ("a five-digit year unsigned", J, " || (year.len() > 4 && !signed)", "", L),
     ("an unknown state counted", W, "                    state_of(&row.state).map(|state| Split {", "                    Some(state_of(&row.state).unwrap_or(State::Findings)).map(|state| Split {", L),
     ("reopenings always known", W, "            let reopened = reopenings_known.then_some(flow.reopened);", "            let reopened = Some(flow.reopened);", L),
     ("a reconstructed week settled", W, "        settled: (!reconstructed).then(|| sum(&|line| line.settled.unwrap_or(0))),", "        settled: Some(sum(&|line| line.settled.unwrap_or(0))),", L),

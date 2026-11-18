@@ -4798,10 +4798,17 @@ name = "vectispire-cp-threatintel"
 version = "2.0.0-dev"
 dependencies = [
  "flate2",
+ "sea-orm",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
  "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "vectispire-cp-db",
+ "vectispire-cp-targets",
  "vectispire-domain",
  "vectispire-testkit",
 ]

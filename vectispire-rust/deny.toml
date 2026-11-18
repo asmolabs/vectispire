@@ -108,6 +108,7 @@ deny = [
         "vectispire-cp-settings",
         "vectispire-cp-siem",
         "vectispire-cp-targets",
+        "vectispire-cp-threatintel",
         "vectispire-migrate",
     ], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
@@ -125,6 +126,7 @@ deny = [
         "vectispire-cp-inventory",
         "vectispire-cp-issues",
         "vectispire-cp-scanning",
+        "vectispire-cp-threatintel",
     ], reason = "decision 0003: the agent holds no database connection" },
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
     # crate allowed to depend on it directly; any other dependent — the agent above all — fails the check, and

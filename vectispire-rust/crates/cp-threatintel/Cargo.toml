@@ -11,13 +11,22 @@ publish.workspace = true
 # The EPSS file is gzip, framed here as Java's `GZIPInputStream` frames it over zlib: the same library inflates, so
 # a damaged archive fails at the same byte with the same sentence (`miniz_oxide` words its errors otherwise).
 flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
+sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-time", "sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
 serde.workspace = true
 serde_json.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
 thiserror.workspace = true
+time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
+tracing.workspace = true
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]
 sha2.workspace = true
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 vectispire-testkit = { path = "../testkit" }
 
 [lints]
