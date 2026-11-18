@@ -95,6 +95,7 @@ deny = [
         "vectispire-cp-agents",
         "vectispire-cp-audit",
         "vectispire-cp-checklists",
+        "vectispire-cp-compliance",
         "vectispire-cp-contract",
         "vectispire-cp-db",
         "vectispire-cp-gate",
@@ -118,6 +119,7 @@ deny = [
     # SeaORM describes the repositories' tables (the hybrid adopted after the cp-issues spike, 2026-10-26): cp-db
     # runs its statements, and a module crate is listed here when its repository is ported to it — never the agent.
     { crate = "sea-orm", wrappers = [
+        "vectispire-cp-compliance",
         "vectispire-cp-db",
         "vectispire-cp-gate",
         "vectispire-cp-inventory",
@@ -132,6 +134,7 @@ deny = [
         "vectispire-cp-agents",
         "vectispire-cp-app",
         "vectispire-cp-checklists",
+        "vectispire-cp-compliance",
         "vectispire-cp-contract",
         "vectispire-cp-gate",
         "vectispire-cp-http",
