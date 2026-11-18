@@ -4794,6 +4794,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-threatintel"
+version = "2.0.0-dev"
+dependencies = [
+ "flate2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+ "vectispire-domain",
+ "vectispire-testkit",
+]
+
+[[package]]
 name = "vectispire-crypto"
 version = "2.0.0-dev"
 dependencies = [

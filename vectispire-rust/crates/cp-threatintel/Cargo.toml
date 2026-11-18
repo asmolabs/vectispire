@@ -1,0 +1,24 @@
+[package]
+name = "vectispire-cp-threatintel"
+description = "The control plane's threat intelligence: the CISA KEV catalogue and FIRST's EPSS file, synchronised whole, the backlog re-evaluated against them, the exploitation ranking, enrichment and end of life."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# The EPSS file is gzip, framed here as Java's `GZIPInputStream` frames it over zlib: the same library inflates, so
+# a damaged archive fails at the same byte with the same sentence (`miniz_oxide` words its errors otherwise).
+flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+sha2.workspace = true
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

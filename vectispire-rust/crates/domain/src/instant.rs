@@ -157,6 +157,84 @@ impl Instant {
     }
 }
 
+impl Instant {
+    /// `Instant.parse` — `DateTimeFormatter.ISO_INSTANT` as it parses, which is wider than what it writes and than
+    /// [`parse_java`](Instant::parse_java): case-insensitive, `ISO_LOCAL_DATE` strictly (a sign only past four
+    /// digits of year), the seconds required, a fraction of zero to nine digits behind its point, and the zone `Z`
+    /// or an offset `±HH:MM` or `±HH:MM:SS` up to eighteen hours, which is applied. `24:00:00` is the next day's
+    /// midnight and `23:59:60` the last second of its day, as Java reads them; `None` wherever Java throws.
+    pub fn parse_iso(text: &str) -> Option<Instant> {
+        let t = text.find(['T', 't'])?;
+        let (date, rest) = (text.get(..t)?, text.get(t.checked_add(1)?..)?);
+        let (year, month, day) = crate::java::iso_local_date(date)?;
+        let at = rest.find(['Z', 'z', '+', '-'])?;
+        let (clock, offset) = (rest.get(..at)?, rest.get(at..)?);
+        let (hms, fraction) = clock.split_once('.').map_or((clock, None), |(hms, fraction)| (hms, Some(fraction)));
+        let mut fields = hms.split(':');
+        let hour = number(fields.next()?, 2)?;
+        let minute = number(fields.next()?, 2)?;
+        let second = number(fields.next()?, 2)?;
+        if fields.next().is_some() {
+            return None;
+        }
+        let nano: u32 = match fraction {
+            None => 0,
+            Some(digits) if digits.len() <= 9 && digits.bytes().all(|byte| byte.is_ascii_digit()) => {
+                if digits.is_empty() { 0 } else { format!("{digits:0<9}").parse().ok()? }
+            }
+            Some(_) => return None,
+        };
+        let offset_seconds = iso_offset(offset)?;
+        if hour > 24 || minute > 59 || second > 60 {
+            return None;
+        }
+        let (hour, extra_day) = match (hour, minute, second, nano) {
+            (24, 0, 0, 0) => (0, 1_i64),
+            (24, _, _, _) => return None,
+            (hour, _, _, _) => (hour, 0),
+        };
+        let second = match second {
+            60 if hour == 23 && minute == 59 => 59,
+            60 => return None,
+            second => second,
+        };
+        let whole = Instant::of_utc(year, u32::from(month), u32::from(day), hour, minute, second)?;
+        let epoch_second = whole
+            .epoch_second
+            .checked_add(extra_day.checked_mul(Instant::SECONDS_PER_DAY)?)?
+            .checked_sub(offset_seconds)?;
+        Some(Instant { epoch_second, nano })
+    }
+}
+
+/// `appendOffsetId()` as `ISO_INSTANT` reads it: `Z`, or a sign and `HH:MM` with optional `:SS`, at most eighteen
+/// hours either way — in seconds east of UTC.
+fn iso_offset(text: &str) -> Option<i64> {
+    if text.eq_ignore_ascii_case("z") {
+        return Some(0);
+    }
+    let (sign, body) = match text.as_bytes().first()? {
+        b'+' => (1, text.get(1..)?),
+        b'-' => (-1, text.get(1..)?),
+        _ => return None,
+    };
+    let mut parts = body.split(':');
+    let hours = i64::from(number(parts.next()?, 2)?);
+    let minutes = i64::from(number(parts.next()?, 2)?);
+    let seconds = match parts.next() {
+        Some(seconds) => i64::from(number(seconds, 2)?),
+        None => 0,
+    };
+    if parts.next().is_some() || hours > 18 || minutes > 59 || seconds > 59 {
+        return None;
+    }
+    let total = hours.checked_mul(3_600)?.checked_add(minutes.checked_mul(60)?)?.checked_add(seconds)?;
+    if total > 18 * 3_600 {
+        return None;
+    }
+    total.checked_mul(sign)
+}
+
 /// Exactly `width` ASCII digits.
 fn number(text: &str, width: usize) -> Option<u32> {
     if text.len() != width || !text.bytes().all(|byte| byte.is_ascii_digit()) {

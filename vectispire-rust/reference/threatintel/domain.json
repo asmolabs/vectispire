@@ -1,0 +1,713 @@
+{
+  "kev" : [ {
+    "document" : "{\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\",\"dateAdded\":\"2021-12-10\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2021-44228", "2021-12-10T00:00:00Z" ] ]
+    }
+  }, {
+    "document" : "{\"catalogVersion\":\"2026.11.18\",\"dateReleased\":\"2026-11-18T14:02:11.123Z\",\"count\":2,\"vulnerabilities\":[{\"cveID\":\" cve-2024-3094 \",\"dateAdded\":\"2024-03-29\"},{\"cveID\":\"CVE-2023-4966\",\"dateAdded\":\" 2023-10-18 \"}]}",
+    "catalog" : {
+      "version" : "2026.11.18",
+      "released" : "2026-11-18T14:02:11.123Z",
+      "added" : [ [ "CVE-2024-3094", "2024-03-29T00:00:00Z" ], [ "CVE-2023-4966", "2023-10-18T00:00:00Z" ] ]
+    }
+  }, {
+    "document" : "{\"vulnerabilities\":[]}",
+    "unreadable" : "the document lists no vulnerability"
+  }, {
+    "document" : "{\"vulnerabilities\":{}}",
+    "unreadable" : "the document has no \"vulnerabilities\" list: it is not the KEV catalogue"
+  }, {
+    "document" : "{\"data\":[]}",
+    "unreadable" : "the document has no \"vulnerabilities\" list: it is not the KEV catalogue"
+  }, {
+    "document" : "[]",
+    "unreadable" : "the document has no \"vulnerabilities\" list: it is not the KEV catalogue"
+  }, {
+    "document" : "{\"count\":3,\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\"},{\"cveID\":\"CVE-2021-45046\"}]}",
+    "unreadable" : "the document declares 3 entries and carries 2: it is incomplete"
+  }, {
+    "document" : "{\"count\":2.0,\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2021-44228", null ] ]
+    }
+  }, {
+    "document" : "{\"count\":\"9\",\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2021-44228", null ] ]
+    }
+  }, {
+    "document" : "{\"count\":1,\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\"},{\"cveID\":\"CVE-2021-44228\",\"dateAdded\":\"2022-01-01\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2021-44228", "2022-01-01T00:00:00Z" ] ]
+    }
+  }, {
+    "document" : "{\"vulnerabilities\":[{\"cveID\":\"CVE-2021-1\"},{\"cveID\":\"GHSA-xxxx\"},{\"cveID\":12},{\"cve\":\"CVE-2021-44228\"}]}",
+    "unreadable" : "the document lists no vulnerability"
+  }, {
+    "document" : "{\"vulnerabilities\":[{\"cveID\":\"CVE-2021-44228\",\"dateAdded\":\"2021-12-10\"},{\"cveID\":\"CVE-2021-1\"}],\"catalogVersion\":\"   \",\"dateReleased\":\"2026-11-18\"}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2021-44228", "2021-12-10T00:00:00Z" ] ]
+    }
+  }, {
+    "document" : "{\"catalogVersion\":\"0123456789012345678901234567890123456789\",\"dateReleased\":\"2026-11-18T14:02:11+01:00\",\"vulnerabilities\":[{\"cveID\":\"CVE-2024-0001\",\"dateAdded\":\"2024-02-29\"},{\"cveID\":\"CVE-2023-0001\",\"dateAdded\":\"2023-02-29\"},{\"cveID\":\"CVE-2023-0002\",\"dateAdded\":\"2023-2-01\"},{\"cveID\":\"CVE-2023-0003\",\"dateAdded\":20230101},{\"cveID\":\"CVE-2023-0004\",\"dateAdded\":\"+2023-01-01\"}]}",
+    "catalog" : {
+      "version" : "01234567890123456789012345678901",
+      "released" : "2026-11-18T13:02:11Z",
+      "added" : [ [ "CVE-2024-0001", "2024-02-29T00:00:00Z" ], [ "CVE-2023-0001", null ], [ "CVE-2023-0002", null ], [ "CVE-2023-0003", null ], [ "CVE-2023-0004", null ] ]
+    }
+  }, {
+    "document" : "{\"catalogVersion\":7,\"dateReleased\":\"2026-11-18t14:02:11z\",\"vulnerabilities\":[{\"cveID\":\"CVE-2024-0001\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : "2026-11-18T14:02:11Z",
+      "added" : [ [ "CVE-2024-0001", null ] ]
+    }
+  }, {
+    "document" : "{\"dateReleased\":\"2026-11-18T14:02:60Z\",\"vulnerabilities\":[{\"cveID\":\"CVE-2024-0001\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2024-0001", null ] ]
+    }
+  }, {
+    "document" : "{\"dateReleased\":\"2026-11-18T14:02Z\",\"vulnerabilities\":[{\"cveID\":\"CVE-2024-0001\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2024-0001", null ] ]
+    }
+  }, {
+    "document" : "{\"dateReleased\":\"not a date\",\"vulnerabilities\":[{\"cveID\":\"CVE-2024-123456789\"}]}",
+    "catalog" : {
+      "version" : null,
+      "released" : null,
+      "added" : [ [ "CVE-2024-123456789", null ] ]
+    }
+  } ],
+  "epss" : [ {
+    "spec" : {
+      "name" : "whole",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "ab049a85444de0e45ee96a89c73ac44df67beaae02bf59b842634b1850904d0a",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 100000,
+      "stopped" : false
+    },
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  }, {
+    "spec" : {
+      "name" : "whole, gzip",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100003,
+      "inject" : { },
+      "tail" : [ "" ],
+      "ending" : "\n",
+      "compression" : "gzip",
+      "batch" : 7777,
+      "stop" : false
+    },
+    "bytes" : "0ab52409198a5bd78cf7bfe4a1e7d34803261a61e3123f144828b977b83c0ca7",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 100003,
+      "stopped" : false
+    },
+    "batches" : [ 7777, 7777, 7777, 7777, 7777, 7777, 7777, 7777, 7777, 7777, 7777, 7777, 6679 ],
+    "digest" : "ca40d7fe7c7c75e1153cc99304a85c099dbec449782fad2b2f5997f9d30e099f"
+  }, {
+    "spec" : {
+      "name" : "whole, two gzip members",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "gzip-two-members",
+      "batch" : 50000,
+      "stop" : false
+    },
+    "bytes" : "35904f2761e0e96263d316dcf2af1746655525c496ecc95fbf7b057dd685dc8d",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 100000,
+      "stopped" : false
+    },
+    "batches" : [ 50000, 50000 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  }, {
+    "spec" : {
+      "name" : "crlf, blank lines",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "20" : "   ",
+        "10" : ""
+      },
+      "tail" : [ "" ],
+      "ending" : "\r\n",
+      "compression" : "none",
+      "batch" : 4096,
+      "stop" : false
+    },
+    "bytes" : "d2ad6509e1e2d6387bb7832b3c4511a8d139f08b01fd17d01ffaa86fb4669aa2",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 100000,
+      "stopped" : false
+    },
+    "batches" : [ 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 1696 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  }, {
+    "spec" : {
+      "name" : "one row short",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 99999,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "45cc9050a1bb0b1203fb8471eaa0a073e99e7e4fc743eff5a84ca8da284be1e1",
+    "unreadable" : "the file carries 99999 scores; a whole EPSS file carries more than 100000: it is incomplete",
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 4999 ],
+    "digest" : "61edc7b14562765773e263098201495f7cfdc7f008b92e22469214579f8efd78"
+  }, {
+    "spec" : {
+      "name" : "stopped at the header",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : true
+    },
+    "bytes" : "ab049a85444de0e45ee96a89c73ac44df67beaae02bf59b842634b1850904d0a",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 0,
+      "stopped" : true
+    },
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "empty",
+      "head" : [ ],
+      "rows" : 0,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unreadable" : "the file does not begin with its \"#model_version:…,score_date:…\" line: it is not the EPSS file, or is one too old to say which model scored it",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "no header line",
+      "head" : [ "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "cfdd909b4ab7bca788b9cdf5ba5f16cca4957393d303bf561d9e7509286f725b",
+    "unreadable" : "the file does not begin with its \"#model_version:…,score_date:…\" line: it is not the EPSS file, or is one too old to say which model scored it",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "no model version",
+      "head" : [ "#score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "070f26bba68c207a3039202a84189f027d4f6a6451c05c35c019f12083137d86",
+    "unreadable" : "the file's first line names no model_version",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "empty model version",
+      "head" : [ "#model_version:,score_date:2026-09-27", "cve,epss,percentile" ],
+      "rows" : 1,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "7508dc6da16c7101bae43135247b6143deccc62dd5b2b87b55749b38367794dc",
+    "unreadable" : "the file's first line names no model_version",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "long model version",
+      "head" : [ "#model_version:v0123456789012345678901234567890123,score_date:2026-09-27", "cve,epss,percentile" ],
+      "rows" : 1,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "cd2ae2b62add69a4900d3a3d49a538d244f23f560b5dd198bab4bdf66930190d",
+    "unreadable" : "the file's model_version is longer than 32 characters",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "a day for a date",
+      "head" : [ "#model_version:v1,score_date:2026-09-27", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "5711194964932f74cffc10eac20424ed61ebd0551aa79fde9ce447dc7abfca71",
+    "read" : {
+      "modelVersion" : "v1",
+      "scoreDate" : "2026-09-27T00:00:00Z",
+      "rows" : 100000,
+      "stopped" : false
+    },
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  }, {
+    "spec" : {
+      "name" : "an unreadable date",
+      "head" : [ "#model_version:v1,score_date:yesterday", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "6e9e49b0c7fc3b7b253a92fe13e2536fc7359b30228bae3c6d61d1f08e9104dc",
+    "unreadable" : "the file's first line carries no readable score_date",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "an offset date",
+      "head" : [ "#model_version:v1,score_date:2026-09-27T12:00:21+02:00", "cve,epss,percentile" ],
+      "rows" : 1,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : true
+    },
+    "bytes" : "922f94b7eabac6a62b679d43b4581a386daef4b4a29ecd81c3ac305a2ccd91b7",
+    "read" : {
+      "modelVersion" : "v1",
+      "scoreDate" : "2026-09-27T10:00:21Z",
+      "rows" : 0,
+      "stopped" : true
+    },
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "keys in another case, spaces, a field more",
+      "head" : [ "# MODEL_VERSION : v2 , Score_Date: 2026-09-27T00:00:00.5Z ,extra: x,orphan", "cve,epss,percentile" ],
+      "rows" : 1,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : true
+    },
+    "bytes" : "811f4c52496574cfb921c7b613117d8422ead7cb86bf58e188186f50a5d57288",
+    "read" : {
+      "modelVersion" : "v2",
+      "scoreDate" : "2026-09-27T00:00:00.500Z",
+      "rows" : 0,
+      "stopped" : true
+    },
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "columns in another case",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", " CVE,EPSS,Percentile " ],
+      "rows" : 1,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : true
+    },
+    "bytes" : "008675a962c0f25a7ae197dcb41053c24797225adec615c775c0f860728f1bfa",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 0,
+      "stopped" : true
+    },
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "not the columns",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,score,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "6b319cf5b1e404a58e7e73111535e2d7c18f87182efaf64945316946a439c39f",
+    "unreadable" : "the second line is not the header \"cve,epss,percentile\": it is not the EPSS file",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "no columns line",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z" ],
+      "rows" : 0,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "8ef896e8a19da334407466d9d1b5dae332b97f323cdaa839e7182c6a291325ad",
+    "unreadable" : "the second line is not the header \"cve,epss,percentile\": it is not the EPSS file",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "a short CVE",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "50" : "CVE-2020-1,0.1,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "7aaf552ed5d9453c705855c6c12ee200e204cdccf211c2a6cf494a2aacb06a59",
+    "unreadable" : "line 53 does not begin with a CVE identifier",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "not a CVE",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "7" : "GHSA-2020-12345,0.1,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "5c705776770ead9ba444ac2c4dc2c7e1eb12a4082aeb0e898eb667608601a7d3",
+    "unreadable" : "line 10 does not begin with a CVE identifier",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "above one",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "60000" : "CVE-2020-12345,1.5,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "a80fbc3e1416c07b4d76b1c35fb631add866fb5541aa55e7c9b8b003e023d88c",
+    "unreadable" : "line 60003: the epss 1.5 is not within [0, 1]",
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "acdba4e642118bd1f03f4c11031d2935077f94be9357725f25b143171c075481"
+  }, {
+    "spec" : {
+      "name" : "below zero",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,0.1,-0.0001"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "9111fa1053e9e0fe37ec5487fba7e230a3ddd1432e51ab9c30a186530b809f97",
+    "unreadable" : "line 6: the percentile -0.0001 is not within [0, 1]",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "not a number",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,abc,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "9871820930b8d0bc634252a6ddbb05cf28d19fbb11ba716d3e535ed835a183fe",
+    "unreadable" : "line 6: the epss is not a number",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "empty field",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "a03d634a5dab85fa631f28758f6750f0854016a752fb57cfae6da34646912ba3",
+    "unreadable" : "line 6: the epss is not a number",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "NaN",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,NaN,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "c3181b816cb232099016c12958fb187471cd27d63d75d1ba55f707470e212168",
+    "unreadable" : "line 6: the epss NaN is not within [0, 1]",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "two fields",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,0.1"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "9d1bdb705f6dba85e2444650b219674ba58901b40d14a4430b244da9752e0f73",
+    "unreadable" : "line 6 has 2 fields where a row has three",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "four fields",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "CVE-2020-12345,0.1,0.2,"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "2a5b3e69aafc0c93c6ef8ae3f36fea05a98ff35fae370a12d9b3eee1342995c8",
+    "unreadable" : "line 6 has 4 fields where a row has three",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "Java's number spellings",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "3" : "cve-2020-12345, 0.1 ,0.2",
+        "4" : "CVE-2020-12346,1e-3,0.2d",
+        "5" : "CVE-2020-12347,0x1p-3,1",
+        "6" : "CVE-2020-12348,.5,5.e-1",
+        "7" : "CVE-2020-12349,+0.25,0.75F",
+        "8" : "CVE-2020-12350,-0,0.0"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "72a7bdcdb2618e1fbeb5262dda4257a3e02afb454fed7a9403c0a77cede97f75",
+    "read" : {
+      "modelVersion" : "v2025.03.14",
+      "scoreDate" : "2026-09-27T12:00:21Z",
+      "rows" : 100006,
+      "stopped" : false
+    },
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 6 ],
+    "digest" : "b65bf4e7669752ea5d278d9cdbf0096ab6f9eb224f67f2b56ea17b490d512623"
+  }, {
+    "spec" : {
+      "name" : "a line too long",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "9" : "CVE-2020-12345,0.1,111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "2808a6a822d0f2041eb65bf6030c4b9254c5cc98b7d53e2566782352d1aa672c",
+    "unreadable" : "line 12 is longer than 256 characters: it is not a row of the EPSS file",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "not ASCII",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : {
+        "9" : "CVE-2020-12345,0.1,0.1é"
+      },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "none",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "8cd6f770c6901e79c731a6f7fa8707e18571914ffa7da15a9adfdca37f425dd3",
+    "unreadable" : "line 12: the percentile is not a number",
+    "batches" : [ ],
+    "digest" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }, {
+    "spec" : {
+      "name" : "gzip cut in its trailer",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "gzip-cut-4",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "9df758f426a71ab9184a75c88489781aecb0781edb97ab72d031f7622f2d024b",
+    "unreadable" : "the file is not a whole gzip archive (null): it was cut short or damaged",
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  }, {
+    "spec" : {
+      "name" : "gzip cut in its data",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "gzip-cut-2000",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "51c4a1cd27489e51d0ada1963e16d01f4fdc4c165e4470e721eb1ab50234e602",
+    "unreadable" : "the file is not a whole gzip archive (Unexpected end of ZLIB input stream): it was cut short or damaged",
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "5f014d79a84cf9f69363d829a459d483ab8e6d7b1d37d8a1b79c4a936c0ef145"
+  }, {
+    "spec" : {
+      "name" : "gzip with a wrong checksum",
+      "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
+      "rows" : 100000,
+      "inject" : { },
+      "tail" : [ ],
+      "ending" : "\n",
+      "compression" : "gzip-bad-crc",
+      "batch" : 5000,
+      "stop" : false
+    },
+    "bytes" : "94d74d5ebbb335c5e0d460b2b0e1dea9d25f7c021bf6974e5c03e9f4c0b46e39",
+    "unreadable" : "the file is not a whole gzip archive (Corrupt GZIP trailer): it was cut short or damaged",
+    "batches" : [ 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000 ],
+    "digest" : "aa5bdf7752f6e14111562074a8bd19f3dc7a48adac1a68621437cd9cd9dd7d09"
+  } ],
+  "comparable" : [ [ 0, 5, null ], [ 100, 90, null ], [ 100, 89, "the file carries 89 scores where the one in use carries 100: an export that lost a tenth of the population is incomplete; kept the one in use" ], [ 1000000, 900000, null ], [ 1000000, 899999, "the file carries 899999 scores where the one in use carries 1000000: an export that lost a tenth of the population is incomplete; kept the one in use" ], [ 10, 9, null ], [ 7, 6, "the file carries 6 scores where the one in use carries 7: an export that lost a tenth of the population is incomplete; kept the one in use" ], [ 3, 3, null ] ],
+  "matrix" : [ [ null, null, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, null, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.0, false, 15, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.0, true, 45, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.0099, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.0099, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.01, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.01, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.0125, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.0125, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.049, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.049, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.05, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.05, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.1999, false, 31, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, 0.1999, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.2, false, 31, "HIGH_PROBABLE", "P1_7D" ], [ null, 0.2, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.4999, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ null, 0.4999, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ null, 0.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 0.75, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ null, 0.75, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 1.0, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ null, 1.0, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, 1.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ null, 1.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, null, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, null, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.0, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.0, true, 30, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.0099, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.0099, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.01, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.01, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.0125, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.0125, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.049, false, 4, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.049, true, 34, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.05, false, 4, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.05, true, 34, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.1999, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 0.0, 0.1999, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.2, false, 16, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 0.2, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.4999, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 0.4999, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.5, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 0.5, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 0.75, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 0.75, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 1.0, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 1.0, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 0.0, 1.5, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 0.0, 1.5, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, null, false, 8, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, null, true, 38, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.0, false, 8, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.0, true, 38, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.0099, false, 8, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.0099, true, 38, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.01, false, 8, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.01, true, 38, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.0125, false, 9, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.0125, true, 39, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.049, false, 11, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.049, true, 41, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.05, false, 12, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.05, true, 42, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.1999, false, 23, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 2.5, 0.1999, true, 53, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.2, false, 24, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 0.2, true, 54, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.4999, false, 47, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 0.4999, true, 77, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.5, false, 48, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 0.5, true, 78, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 0.75, false, 48, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 0.75, true, 78, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 1.0, false, 48, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 1.0, true, 78, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 2.5, 1.5, false, 48, "HIGH_PROBABLE", "P1_7D" ], [ 2.5, 1.5, true, 78, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, null, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, null, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.0, false, 15, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.0, true, 45, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.0099, false, 15, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.0099, true, 45, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.01, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.01, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.0125, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.0125, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.049, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.049, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.05, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.05, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.1999, false, 31, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 4.9, 0.1999, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.2, false, 31, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 0.2, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.4999, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 0.4999, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 0.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 0.75, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 0.75, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 1.0, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 1.0, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 4.9, 1.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 4.9, 1.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, null, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, null, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.0, false, 15, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.0, true, 45, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.0099, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.0099, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.01, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.01, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.0125, false, 16, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.0125, true, 46, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.049, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.049, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.05, false, 19, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.05, true, 49, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.1999, false, 31, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 5.0, 0.1999, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.2, false, 31, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 0.2, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.4999, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 0.4999, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 0.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 0.75, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 0.75, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 1.0, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 1.0, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 5.0, 1.5, false, 55, "HIGH_PROBABLE", "P1_7D" ], [ 5.0, 1.5, true, 85, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, null, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, null, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.0, false, 21, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.0, true, 51, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.0099, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.0099, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.01, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.01, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.0125, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.0125, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.049, false, 25, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.049, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.05, false, 25, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.05, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.1999, false, 37, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.95, 0.1999, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.2, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 0.2, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.4999, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 0.4999, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.5, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 0.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 0.75, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 0.75, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 1.0, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 1.0, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.95, 1.5, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.95, 1.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, null, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, null, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.0, false, 21, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.0, true, 51, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.0099, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.0099, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.01, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.01, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.0125, false, 22, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.0125, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.049, false, 25, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.049, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.05, false, 25, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.05, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.1999, false, 37, "LOW_PROBABILITY", "P3_ROUTINE" ], [ 6.99, 0.1999, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.2, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 0.2, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.4999, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 0.4999, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.5, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 0.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 0.75, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 0.75, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 1.0, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 1.0, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 6.99, 1.5, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 6.99, 1.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, null, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, null, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.0, false, 21, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, 0.0, true, 51, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.0099, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, 0.0099, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.01, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, 0.01, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.0125, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, 0.0125, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.049, false, 25, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.0, 0.049, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.05, false, 25, "HIGH_PROBABLE", "P1_7D" ], [ 7.0, 0.05, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.1999, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 7.0, 0.1999, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.2, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 7.0, 0.2, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.4999, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 7.0, 0.4999, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.5, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.0, 0.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 0.75, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.0, 0.75, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 1.0, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.0, 1.0, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.0, 1.5, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.0, 1.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, null, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, null, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.0, false, 21, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, 0.0, true, 51, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.0099, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, 0.0099, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.01, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, 0.01, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.0125, false, 22, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, 0.0125, true, 52, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.049, false, 25, "MEDIUM_THEORETICAL", "P2_30D" ], [ 7.05, 0.049, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.05, false, 25, "HIGH_PROBABLE", "P1_7D" ], [ 7.05, 0.05, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.1999, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 7.05, 0.1999, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.2, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ 7.05, 0.2, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.4999, false, 61, "HIGH_PROBABLE", "P1_7D" ], [ 7.05, 0.4999, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.5, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.05, 0.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 0.75, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.05, 0.75, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 1.0, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.05, 1.0, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 7.05, 1.5, false, 61, "CRITICAL_ARMED", "P0_48H" ], [ 7.05, 1.5, true, 91, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, null, false, 26, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, null, true, 56, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.0, false, 25, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, 0.0, true, 55, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.0099, false, 26, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, 0.0099, true, 56, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.01, false, 26, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, 0.01, true, 56, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.0125, false, 26, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, 0.0125, true, 56, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.049, false, 29, "MEDIUM_THEORETICAL", "P2_30D" ], [ 8.3, 0.049, true, 59, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.05, false, 29, "HIGH_PROBABLE", "P1_7D" ], [ 8.3, 0.05, true, 59, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.1999, false, 41, "HIGH_PROBABLE", "P1_7D" ], [ 8.3, 0.1999, true, 71, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.2, false, 41, "HIGH_PROBABLE", "P1_7D" ], [ 8.3, 0.2, true, 71, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.4999, false, 65, "HIGH_PROBABLE", "P1_7D" ], [ 8.3, 0.4999, true, 95, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.5, false, 65, "CRITICAL_ARMED", "P0_48H" ], [ 8.3, 0.5, true, 95, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 0.75, false, 65, "CRITICAL_ARMED", "P0_48H" ], [ 8.3, 0.75, true, 95, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 1.0, false, 65, "CRITICAL_ARMED", "P0_48H" ], [ 8.3, 1.0, true, 95, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 8.3, 1.5, false, 65, "CRITICAL_ARMED", "P0_48H" ], [ 8.3, 1.5, true, 95, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, null, false, 30, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, null, true, 60, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.0, false, 29, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, 0.0, true, 59, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.0099, false, 30, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, 0.0099, true, 60, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.01, false, 30, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, 0.01, true, 60, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.0125, false, 30, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, 0.0125, true, 60, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.049, false, 33, "MEDIUM_THEORETICAL", "P2_30D" ], [ 9.8, 0.049, true, 63, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.05, false, 33, "HIGH_PROBABLE", "P1_7D" ], [ 9.8, 0.05, true, 63, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.1999, false, 45, "HIGH_PROBABLE", "P1_7D" ], [ 9.8, 0.1999, true, 75, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.2, false, 45, "HIGH_PROBABLE", "P1_7D" ], [ 9.8, 0.2, true, 75, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.4999, false, 69, "HIGH_PROBABLE", "P1_7D" ], [ 9.8, 0.4999, true, 99, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.5, false, 69, "CRITICAL_ARMED", "P0_48H" ], [ 9.8, 0.5, true, 99, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 0.75, false, 69, "CRITICAL_ARMED", "P0_48H" ], [ 9.8, 0.75, true, 99, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 1.0, false, 69, "CRITICAL_ARMED", "P0_48H" ], [ 9.8, 1.0, true, 99, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 9.8, 1.5, false, 69, "CRITICAL_ARMED", "P0_48H" ], [ 9.8, 1.5, true, 99, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, null, false, 31, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, null, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.0, false, 30, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, 0.0, true, 60, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.0099, false, 31, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, 0.0099, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.01, false, 31, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, 0.01, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.0125, false, 31, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, 0.0125, true, 61, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.049, false, 34, "MEDIUM_THEORETICAL", "P2_30D" ], [ 10.0, 0.049, true, 64, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.05, false, 34, "HIGH_PROBABLE", "P1_7D" ], [ 10.0, 0.05, true, 64, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.1999, false, 46, "HIGH_PROBABLE", "P1_7D" ], [ 10.0, 0.1999, true, 76, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.2, false, 46, "HIGH_PROBABLE", "P1_7D" ], [ 10.0, 0.2, true, 76, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.4999, false, 70, "HIGH_PROBABLE", "P1_7D" ], [ 10.0, 0.4999, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.5, false, 70, "CRITICAL_ARMED", "P0_48H" ], [ 10.0, 0.5, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 0.75, false, 70, "CRITICAL_ARMED", "P0_48H" ], [ 10.0, 0.75, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 1.0, false, 70, "CRITICAL_ARMED", "P0_48H" ], [ 10.0, 1.0, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 10.0, 1.5, false, 70, "CRITICAL_ARMED", "P0_48H" ], [ 10.0, 1.5, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, null, false, 37, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, null, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.0, false, 36, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, 0.0, true, 66, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.0099, false, 37, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, 0.0099, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.01, false, 37, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, 0.01, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.0125, false, 37, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, 0.0125, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.049, false, 40, "MEDIUM_THEORETICAL", "P2_30D" ], [ 12.0, 0.049, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.05, false, 40, "HIGH_PROBABLE", "P1_7D" ], [ 12.0, 0.05, true, 70, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.1999, false, 52, "HIGH_PROBABLE", "P1_7D" ], [ 12.0, 0.1999, true, 82, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.2, false, 52, "HIGH_PROBABLE", "P1_7D" ], [ 12.0, 0.2, true, 82, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.4999, false, 76, "HIGH_PROBABLE", "P1_7D" ], [ 12.0, 0.4999, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.5, false, 76, "CRITICAL_ARMED", "P0_48H" ], [ 12.0, 0.5, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 0.75, false, 76, "CRITICAL_ARMED", "P0_48H" ], [ 12.0, 0.75, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 1.0, false, 76, "CRITICAL_ARMED", "P0_48H" ], [ 12.0, 1.0, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ 12.0, 1.5, false, 76, "CRITICAL_ARMED", "P0_48H" ], [ 12.0, 1.5, true, 100, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, null, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, null, true, 28, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.0, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.0, true, 27, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.0099, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.0099, true, 28, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.01, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.01, true, 28, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.0125, false, 0, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.0125, true, 28, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.049, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.049, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.05, false, 1, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.05, true, 31, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.1999, false, 13, "LOW_PROBABILITY", "P3_ROUTINE" ], [ -1.0, 0.1999, true, 43, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.2, false, 13, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 0.2, true, 43, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.4999, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 0.4999, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.5, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 0.5, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 0.75, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 0.75, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 1.0, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 1.0, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ -1.0, 1.5, false, 37, "HIGH_PROBABLE", "P1_7D" ], [ -1.0, 1.5, true, 67, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, null, false, null, "CRITICAL_ARMED", "P0_48H" ], [ null, null, true, null, "CRITICAL_ARMED", "P0_KEV_24H" ], [ null, null, false, null, "HIGH_PROBABLE", "P1_7D" ], [ null, null, true, null, "HIGH_PROBABLE", "P1_7D" ], [ null, null, false, null, "MEDIUM_THEORETICAL", "P2_30D" ], [ null, null, true, null, "MEDIUM_THEORETICAL", "P2_30D" ], [ null, null, false, null, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, null, true, null, "LOW_PROBABILITY", "P3_ROUTINE" ], [ null, null, false, null, "OTHER", "P3_ROUTINE" ], [ null, null, true, null, "OTHER", "P3_ROUTINE" ] ],
+  "cves" : [ [ null, false ], [ "", false ], [ "CVE-2021-44228", true ], [ " cve-2021-44228 ", true ], [ "CVE-2021-1234", true ], [ "CVE-2021-123", false ], [ "CVE-21-44228", false ], [ "CVE-2021-44228a", false ], [ "GHSA-jfh8-c2jp-5v3q", false ], [ "CVE-２０２１-44228", false ], [ " CVE-2021-44228", false ] ],
+  "states" : [ [ null, "NEVER_SYNCED" ], [ "NEVER_SYNCED", "NEVER_SYNCED" ], [ "SYNCED", "SYNCED" ], [ "FAILED", "FAILED" ], [ "synced", "FAILED" ], [ "", "FAILED" ], [ "RUNNING", "FAILED" ] ]
+}

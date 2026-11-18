@@ -332,7 +332,7 @@ fn blank_or(value: Option<&str>) -> Option<&str> {
 /// `weekOf`: an ISO date as `LocalDate.parse` reads it, between 1970 and 9998, as the Monday of its week.
 fn week_of_day(name: &str, raw: &str) -> Result<OffsetDateTime, ComplianceError> {
     let trimmed = java::trim(raw);
-    let (year, month, day) = iso_date(trimmed)
+    let (year, month, day) = java::iso_local_date(trimmed)
         .ok_or_else(|| ComplianceError::Invalid(format!("{name} must be an ISO date, YYYY-MM-DD: \"{trimmed}\".")))?;
     if !(1970..=9998).contains(&year) {
         return Err(ComplianceError::Invalid(format!("{name} must be a date between 1970 and 9998.")));
@@ -342,41 +342,6 @@ fn week_of_day(name: &str, raw: &str) -> Result<OffsetDateTime, ComplianceError>
         .and_then(|year| Month::try_from(month).ok().and_then(|month| Date::from_calendar_date(year, month, day).ok()))
         .ok_or_else(|| ComplianceError::Invalid(format!("{name} must be an ISO date, YYYY-MM-DD: \"{trimmed}\".")))?;
     monday(date.midnight().assume_utc())
-}
-
-/// `DateTimeFormatter.ISO_LOCAL_DATE` under the strict resolver: a year of four digits — more only behind a sign, a
-/// `+` refused on four —, a two-digit month and day, and a day the month has. The year's range is checked by the
-/// caller, so a valid date outside it is refused in its own sentence.
-fn iso_date(text: &str) -> Option<(i64, u8, u8)> {
-    let (negative, unsigned, signed) = match text.as_bytes().first() {
-        Some(b'+') => (false, text.get(1..)?, true),
-        Some(b'-') => (true, text.get(1..)?, true),
-        _ => (false, text, false),
-    };
-    let mut parts = unsigned.rsplitn(3, '-');
-    let day = parts.next()?;
-    let month = parts.next()?;
-    let year = parts.next()?;
-    let digits = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit());
-    if !digits(year) || !digits(month) || !digits(day) || month.len() != 2 || day.len() != 2 {
-        return None;
-    }
-    if year.len() < 4 || year.len() > 10 || (year.len() == 4 && signed && !negative) || (year.len() > 4 && !signed) {
-        return None;
-    }
-    let magnitude: i64 = year.parse().ok()?;
-    let year = if negative { magnitude.checked_neg()? } else { magnitude };
-    let month: u8 = month.parse().ok()?;
-    let day: u8 = day.parse().ok()?;
-    let leap = year.rem_euclid(4) == 0 && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0);
-    let length = match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
-        2 => 28,
-        _ => return None,
-    };
-    (1..=length).contains(&day).then_some((year, month, day))
 }
 
 fn out_of_range() -> ComplianceError {
@@ -389,17 +354,17 @@ mod tests {
 
     #[test]
     fn a_date_is_read_as_local_date_parse_reads_it() {
-        assert_eq!(iso_date("2026-11-17"), Some((2026, 11, 17)));
-        assert_eq!(iso_date("2024-02-29"), Some((2024, 2, 29)));
-        assert_eq!(iso_date("2100-02-29"), None, "not a leap year");
-        assert_eq!(iso_date("2026-1-17"), None);
-        assert_eq!(iso_date("26-11-17"), None);
-        assert_eq!(iso_date("+2026-11-17"), None, "a sign on four digits");
-        assert_eq!(iso_date("+12026-11-17"), Some((12026, 11, 17)));
-        assert_eq!(iso_date("12026-11-17"), None, "five digits need their sign");
-        assert_eq!(iso_date("-0001-01-01"), Some((-1, 1, 1)));
-        assert_eq!(iso_date("2026-13-01"), None);
-        assert_eq!(iso_date("2026-11-17T00:00"), None);
+        assert_eq!(java::iso_local_date("2026-11-17"), Some((2026, 11, 17)));
+        assert_eq!(java::iso_local_date("2024-02-29"), Some((2024, 2, 29)));
+        assert_eq!(java::iso_local_date("2100-02-29"), None, "not a leap year");
+        assert_eq!(java::iso_local_date("2026-1-17"), None);
+        assert_eq!(java::iso_local_date("26-11-17"), None);
+        assert_eq!(java::iso_local_date("+2026-11-17"), None, "a sign on four digits");
+        assert_eq!(java::iso_local_date("+12026-11-17"), Some((12026, 11, 17)));
+        assert_eq!(java::iso_local_date("12026-11-17"), None, "five digits need their sign");
+        assert_eq!(java::iso_local_date("-0001-01-01"), Some((-1, 1, 1)));
+        assert_eq!(java::iso_local_date("2026-13-01"), None);
+        assert_eq!(java::iso_local_date("2026-11-17T00:00"), None);
     }
 
     #[test]

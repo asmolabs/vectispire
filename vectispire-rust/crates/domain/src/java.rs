@@ -437,6 +437,123 @@ fn simple_lower(c: char) -> char {
     }
 }
 
+/// `DateTimeFormatter.ISO_LOCAL_DATE` under the strict resolver: a year of four digits — more only behind a sign, a
+/// `+` refused on four —, a two-digit month and day, and a day the month has. The year's range is the caller's.
+pub fn iso_local_date(text: &str) -> Option<(i64, u8, u8)> {
+    let (negative, unsigned, signed) = match text.as_bytes().first() {
+        Some(b'+') => (false, text.get(1..)?, true),
+        Some(b'-') => (true, text.get(1..)?, true),
+        _ => (false, text, false),
+    };
+    let mut parts = unsigned.rsplitn(3, '-');
+    let day = parts.next()?;
+    let month = parts.next()?;
+    let year = parts.next()?;
+    let digits = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit());
+    if !digits(year) || !digits(month) || !digits(day) || month.len() != 2 || day.len() != 2 {
+        return None;
+    }
+    if year.len() < 4 || year.len() > 10 || (year.len() == 4 && signed && !negative) || (year.len() > 4 && !signed) {
+        return None;
+    }
+    let magnitude: i64 = year.parse().ok()?;
+    let year = if negative { magnitude.checked_neg()? } else { magnitude };
+    let month: u8 = month.parse().ok()?;
+    let day: u8 = day.parse().ok()?;
+    let leap = year.rem_euclid(4) == 0 && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0);
+    let length = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    (1..=length).contains(&day).then_some((year, month, day))
+}
+
+/// `Double.parseDouble`: `String.trim` first, then an optional sign and `NaN` or `Infinity` as spelled, or a decimal
+/// — digits with an optional point, at least one digit, an optional exponent — or a hexadecimal `0x…p…` whose binary
+/// exponent is required, either with an optional `f`/`F`/`d`/`D` suffix. `None` where Java throws
+/// `NumberFormatException`; Rust's own parser takes `inf` and `nan`, which Java refuses, and refuses hex and suffixes.
+pub fn parse_double(text: &str) -> Option<f64> {
+    let text = trim(text);
+    let (negative, unsigned) = match text.as_bytes().first()? {
+        b'-' => (true, text.get(1..)?),
+        b'+' => (false, text.get(1..)?),
+        _ => (false, text),
+    };
+    let magnitude = match unsigned {
+        "NaN" => f64::NAN,
+        "Infinity" => f64::INFINITY,
+        _ => {
+            let body = unsigned.strip_suffix(['d', 'D', 'f', 'F']).unwrap_or(unsigned);
+            match body.strip_prefix("0x").or_else(|| body.strip_prefix("0X")) {
+                Some(hex) => hexadecimal(hex)?,
+                None => decimal(body)?,
+            }
+        }
+    };
+    Some(if negative { -magnitude } else { magnitude })
+}
+
+fn decimal(body: &str) -> Option<f64> {
+    let (mantissa, exponent) = match body.split_once(['e', 'E']) {
+        Some((mantissa, exponent)) => (mantissa, Some(exponent)),
+        None => (body, None),
+    };
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
+    if (whole.is_empty() && fraction.is_empty()) || !digits(whole) || !digits(fraction) {
+        return None;
+    }
+    if let Some(exponent) = exponent {
+        let unsigned = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+        if unsigned.is_empty() || !digits(unsigned) {
+            return None;
+        }
+    }
+    body.parse::<f64>().ok()
+}
+
+/// `0x` already taken: hex digits with an optional point, then `p` and a signed decimal exponent, required.
+fn hexadecimal(body: &str) -> Option<f64> {
+    let (mantissa, exponent) = body.split_once(['p', 'P'])?;
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let hex = |part: &str| part.bytes().all(|byte| byte.is_ascii_hexdigit());
+    if (whole.is_empty() && fraction.is_empty()) || !hex(whole) || !hex(fraction) {
+        return None;
+    }
+    let unsigned = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+    if unsigned.is_empty() || !unsigned.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    // The exponent saturates: past any double's range the value is zero or infinite whatever its digits.
+    let mut binary: i64 =
+        exponent.parse().unwrap_or(if exponent.starts_with('-') { i64::MIN / 2 } else { i64::MAX / 2 });
+    let mut value = 0.0_f64;
+    for digit in whole.chars().chain(fraction.chars()) {
+        value = value * 16.0 + f64::from(digit.to_digit(16)?);
+    }
+    let fraction_bits = i64::try_from(fraction.len()).ok()?.checked_mul(4)?;
+    binary = binary.saturating_sub(fraction_bits);
+    Some(scale(value, binary))
+}
+
+/// `value × 2^exponent`, by steps that stay exact until the result itself under- or overflows.
+fn scale(mut value: f64, mut exponent: i64) -> f64 {
+    while exponent > 0 && value.is_finite() && value != 0.0 {
+        let step = exponent.min(1_000);
+        value *= 2.0_f64.powi(i32::try_from(step).unwrap_or(1_000));
+        exponent = exponent.saturating_sub(step);
+    }
+    while exponent < 0 && value != 0.0 {
+        let step = exponent.max(-1_000);
+        value *= 2.0_f64.powi(i32::try_from(step).unwrap_or(-1_000));
+        exponent = exponent.saturating_sub(step);
+    }
+    value
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
