@@ -50,7 +50,7 @@ class ForgeDiscoveryBoundsRoutesTest extends ApiTestBase {
 
     @BeforeEach
     void start() throws Exception {
-        gitlab = ForgeStub.start().gitlab("17.4.1-ee", "[\"read_api\"]", true);
+        gitlab = ForgeStub.fixture().gitlab("17.4.1-ee", "[\"read_api\"]", true);
         gitlab.route(GROUPS, Reply.json("[{\"id\":1,\"full_path\":\"acme\"}]"));
     }
 

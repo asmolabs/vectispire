@@ -103,7 +103,7 @@ class ChangeReviewRoutesTest extends ApiTestBase {
         settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
         settings.set(Setting.CHECKLIST_AUTO_ANSWER, "false");
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
-        gitlab = ForgeStub.start().gitlab("17.4.1", "[\"read_api\"]", true);
+        gitlab = ForgeStub.fixture().gitlab("17.4.1", "[\"read_api\"]", true);
         gitlab.route(GROUPS, Reply.json("[{\"id\":1,\"full_path\":\"acme\"}]"));
         gitlab.route(PROJECTS, Reply.json("[" + ForgeDiscoveriesRoutesTest.project(42, "acme/app", "group", "main", false, 10L, false, RECENT) + ","
                 + ForgeDiscoveriesRoutesTest.project(43, "acme/web", "group", "trunk", false, 10L, false, RECENT) + "]"));

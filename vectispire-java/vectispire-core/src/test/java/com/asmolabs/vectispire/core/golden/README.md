@@ -361,7 +361,23 @@ scans recordings (`vectispire-rust/security/recordings.gitleaks.toml`) allows th
   refusals it tests happen in the connector) and `access.web.security.chain.RequestBodyLimitFilterTest`
   (a unit test of the filter). Neither sends a request through the application's dispatcher.
 - Context tests without HTTP (services, repositories, the architecture suite) are not traffic.
-- Outbound calls the server makes, to stubs or to tests' collectors. Phase 4's goldens add stubs.
+- Outbound calls the server makes — what it *sent* a stub or a test's collector. What a stub **answered** is recorded
+  (below), not what it was asked.
+
+## Outbound answers
+
+A test's stub server (`ForgeStub`: a forge, a tracker) calls `TrafficRecorder.outbound` for every answer it gives, and
+the test's manifest entry carries them as `outbound`, in the order they were given: `during` (the sequence number of
+the request in flight, absent when none was — a discovery or a reading the test drove itself), `origin` (the stub's
+address, its port rendered `«port:N»` as in the requests), `rawOrigin` (the same, literal), `method`, `path` (with its
+query), `status`, `headers` (`Name: value`, by name) and `body`, **literal**: it is the test's fixture, and a date
+hidden as `«date»` would leave the replay nothing to answer with. The replay stands up a stub per origin and answers
+each path with these in order — the last again once they run out — replacing `rawOrigin` in a body by its own address.
+`rawOrigin` changes from run to run, as the ports do.
+
+A stub the replay can serve this way is started with `ForgeStub.fixture()`: its CA's key is a fixed scalar, so the
+replay issues its own server certificate under the CA the test pinned (as `CollectorPki.fixture` does for the SIEM's
+collector).
 
 ## Determinism
 

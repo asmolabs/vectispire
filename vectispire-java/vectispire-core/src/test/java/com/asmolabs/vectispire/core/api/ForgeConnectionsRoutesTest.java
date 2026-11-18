@@ -64,7 +64,7 @@ class ForgeConnectionsRoutesTest extends ApiTestBase {
 
     @BeforeEach
     void start() throws Exception {
-        gitlab = ForgeStub.start().gitlab("17.4.1-ee", "[\"read_api\"]", true);
+        gitlab = ForgeStub.fixture().gitlab("17.4.1-ee", "[\"read_api\"]", true);
         // The SIEM export on, so that the events are queued and can be read from the outbox.
         settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
         mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges;
 
+import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import java.io.ByteArrayInputStream;
@@ -80,7 +81,45 @@ public final class ForgeStub implements AutoCloseable {
 
     /** Started, with a CA valid from yesterday for a year, and a certificate for the address it listens on. */
     public static ForgeStub start() throws Exception {
-        return start(new GeneralName(GeneralName.iPAddress, "127.0.0.1"), new GeneralName(GeneralName.dNSName, "localhost"));
+        return start(keys(), new GeneralName(GeneralName.iPAddress, "127.0.0.1"),
+                new GeneralName(GeneralName.dNSName, "localhost"));
+    }
+
+    /**
+     * {@link #start()}, but the CA's key is {@link #FIXTURE_CA_SCALAR}: the one CA the Rust replay can issue a server
+     * certificate under. The certificate a test pins is recorded literally, being public; the stub's own key and
+     * certificate never cross HTTP, so the replay makes its own — with the same CA key, under the same name — and the
+     * pinned certificate vouches for it. For the routes' tests whose recordings are replayed: a test that pins one
+     * stub's CA against another stub must keep {@link #start()}, whose CAs differ.
+     */
+    public static ForgeStub fixture() throws Exception {
+        return start(fixtureCaKeys(), new GeneralName(GeneralName.iPAddress, "127.0.0.1"),
+                new GeneralName(GeneralName.dNSName, "localhost"));
+    }
+
+    /**
+     * The fixture CA's P-256 private scalar: the ASCII bytes of {@code "vectispire forge stub fixture ca"}, read as a
+     * big-endian number — below the curve's order, so a key as it is. Written in {@code golden.rs} the same way.
+     */
+    public static final byte[] FIXTURE_CA_SCALAR =
+            "vectispire forge stub fixture ca".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+
+    private static KeyPair fixtureCaKeys() throws Exception {
+        var curve = org.bouncycastle.asn1.x9.ECNamedCurveTable.getByName("secp256r1");
+        // Named, not explicit: the JDK's key factory decodes a named curve only.
+        var domain = new org.bouncycastle.crypto.params.ECNamedDomainParameters(
+                org.bouncycastle.asn1.sec.SECObjectIdentifiers.secp256r1, curve);
+        BigInteger scalar = new BigInteger(1, FIXTURE_CA_SCALAR);
+        var privateKey = new org.bouncycastle.crypto.params.ECPrivateKeyParameters(scalar, domain);
+        var publicKey = new org.bouncycastle.crypto.params.ECPublicKeyParameters(
+                curve.getG().multiply(scalar).normalize(), domain);
+        java.security.KeyFactory factory = java.security.KeyFactory.getInstance("EC");
+        return new KeyPair(
+                factory.generatePublic(new java.security.spec.X509EncodedKeySpec(
+                        org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(publicKey)
+                                .getEncoded())),
+                factory.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(
+                        org.bouncycastle.crypto.util.PrivateKeyInfoFactory.createPrivateKeyInfo(privateKey).getEncoded())));
     }
 
     /**
@@ -88,11 +127,10 @@ public final class ForgeStub implements AutoCloseable {
      * a server presenting another host's certificate — trusted, and for the wrong name.
      */
     public static ForgeStub startCertifiedFor(String otherAddress) throws Exception {
-        return start(new GeneralName(GeneralName.iPAddress, otherAddress));
+        return start(keys(), new GeneralName(GeneralName.iPAddress, otherAddress));
     }
 
-    private static ForgeStub start(GeneralName... names) throws Exception {
-        KeyPair caKeys = keys();
+    private static ForgeStub start(KeyPair caKeys, GeneralName... names) throws Exception {
         X500Name ca = new X500Name("CN=Forge Test CA");
         // Valid from long before today: a test that fixes its clock on a past date — the tracker token
         // check's starts on 2026-10-12 — reads the pinned CA as current only if its validity began earlier.
@@ -144,6 +182,9 @@ public final class ForgeStub implements AutoCloseable {
                 }
             }
             reply.headers().forEach(exchange.getResponseHeaders()::add);
+            // What the replay's stub answers in its place (core/golden/README.md, "Outbound answers").
+            TrafficRecorder.outbound(stub.baseUrl(), exchange.getRequestMethod(), path, reply.status(), reply.headers(),
+                    reply.body());
             byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(reply.status(), bytes.length == 0 ? -1 : bytes.length);
             try (OutputStream out = exchange.getResponseBody()) {
