@@ -8,6 +8,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum.workspace = true
+http.workspace = true
 # The EPSS file is gzip, framed here as Java's `GZIPInputStream` frames it over zlib: the same library inflates, so
 # a damaged archive fails at the same byte with the same sentence (`miniz_oxide` words its errors otherwise).
 flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
@@ -18,7 +20,10 @@ sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio",
 thiserror.workspace = true
 time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
 tracing.workspace = true
+vectispire-cp-access = { path = "../cp-access" }
 vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-http.workspace = true
+vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 
@@ -27,7 +32,11 @@ sha2.workspace = true
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-testkit = { path = "../testkit" }
+vectispire-tls = { path = "../tls" }
 
 [lints]
 workspace = true

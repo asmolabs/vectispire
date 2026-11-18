@@ -235,6 +235,24 @@ pub struct Identified {
     pub identifier: Option<String>,
 }
 
+/// `IssueRows.EpssRow`: what the exploitation ranking reads of an issue — twelve columns, not the row.
+#[derive(Debug, Clone, PartialEq, FromQueryResult)]
+pub struct EpssRow {
+    pub id: i64,
+    pub repo_id: Option<i64>,
+    pub container_id: Option<i64>,
+    pub state: String,
+    #[sea_orm(from_alias = "type")]
+    pub type_: String,
+    pub severity: Option<String>,
+    pub identifier: Option<String>,
+    pub description: Option<String>,
+    pub package_name: Option<String>,
+    pub cvss_score: Option<f64>,
+    pub epss_score: Option<f64>,
+    pub is_kev: bool,
+}
+
 /// `TargetBreakdown`: one group of open, unsettled issues of the whole estate.
 #[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
 pub struct TargetBreakdown {
@@ -515,6 +533,29 @@ impl IssueAggregates {
     pub async fn resolutions(tx: &mut Tx, filters: &IssueFilters) -> Result<Vec<Resolution>, StoreError> {
         let mut statement = over(filters, None);
         statement.column(IssueColumn::Severity).column(IssueColumn::FirstSeenAt).column(IssueColumn::ResolvedAt);
+        Ok(orm::fetch_all(tx, &statement).await?)
+    }
+
+    /// `rows(filters, EpssRow.class)`: by id — Java's statement names no order, and the engine's for it is the key's;
+    /// the ranking's sort is stable, so this is the order ties keep.
+    pub async fn epss_rows(tx: &mut Tx, filters: &IssueFilters) -> Result<Vec<EpssRow>, StoreError> {
+        let mut statement = over(filters, None);
+        statement
+            .columns([
+                IssueColumn::Id,
+                IssueColumn::RepoId,
+                IssueColumn::ContainerId,
+                IssueColumn::State,
+                IssueColumn::Type,
+                IssueColumn::Severity,
+                IssueColumn::Identifier,
+                IssueColumn::Description,
+                IssueColumn::PackageName,
+                IssueColumn::CvssScore,
+                IssueColumn::EpssScore,
+                IssueColumn::IsKev,
+            ])
+            .order_by(IssueColumn::Id, Order::Asc);
         Ok(orm::fetch_all(tx, &statement).await?)
     }
 

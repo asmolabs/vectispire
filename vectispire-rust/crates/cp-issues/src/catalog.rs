@@ -10,7 +10,7 @@ use crate::persistence::IssueFilters;
 use crate::persistence::IssueRepository;
 use crate::persistence::StoreError;
 use crate::persistence::aggregates::{
-    Axis, GraphNode, Identified, IssueAggregates, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail,
+    Axis, EpssRow, GraphNode, Identified, IssueAggregates, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail,
     PackageWeight, Resolution, ResolvedDuration, SeverityTypeCount, TargetBreakdown, TargetGradingCount,
     TargetResolutions, TypePackaging, WeeklyFlow,
 };
@@ -194,6 +194,11 @@ impl IssueCatalog {
 
     pub async fn resolutions(&self, filters: &IssueFilters) -> Result<Vec<Resolution>, IssueError> {
         self.read(async |tx| IssueAggregates::resolutions(tx, filters).await).await
+    }
+
+    /// `rows(filters, EpssRow.class)`: what the exploitation ranking weighs, every issue the criteria select.
+    pub async fn epss_rows(&self, filters: &IssueFilters) -> Result<Vec<EpssRow>, IssueError> {
+        self.read(async |tx| IssueAggregates::epss_rows(tx, filters).await).await
     }
 
     pub async fn identified(&self, filters: &IssueFilters) -> Result<Vec<Identified>, IssueError> {

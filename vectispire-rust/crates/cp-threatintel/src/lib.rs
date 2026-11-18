@@ -11,5 +11,28 @@ pub mod epss_file;
 pub mod feeds;
 pub mod kev_catalog;
 mod persistence;
+pub mod prioritization;
 pub mod risk_matrix;
 pub mod status;
+mod web;
+
+pub use web::{Services, routes};
+
+use std::sync::Arc;
+
+use feeds::ThreatIntel;
+use prioritization::EpssPrioritizationService;
+
+impl Services {
+    /// The read side as the binary composes it: the feeds over the module's tables, the ranking over the backlog and
+    /// the targets' names. Here, not in `web`: a route holds nothing of the pool.
+    pub fn new(
+        db: vectispire_cp_db::Db,
+        issues: Arc<vectispire_cp_issues::queries::IssueCatalog>,
+        targets: Arc<vectispire_cp_targets::Targets>,
+        clock: Arc<dyn vectispire_cp_targets::Clock>,
+    ) -> Services {
+        let feeds = ThreatIntel::new(db, clock);
+        Services { ranking: EpssPrioritizationService::new(issues, targets, feeds.clone()), feeds }
+    }
+}

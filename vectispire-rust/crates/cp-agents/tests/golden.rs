@@ -834,7 +834,15 @@ fn phase_three(
         governance_audit,
         Arc::new(SystemClock),
     ));
+    // As `cp-app` composes it: the reads, over the backlog and the targets' names.
+    let threatintel = Arc::new(vectispire_cp_threatintel::Services::new(
+        db.clone(),
+        issues.catalog().clone(),
+        targets.clone(),
+        Arc::new(SystemClock),
+    ));
     let mut routes = vectispire_cp_issues::routes(issues);
+    routes.extend(vectispire_cp_threatintel::routes(threatintel));
     routes.extend(gate.routes());
     routes.extend(posture.routes());
     routes.extend(vectispire_cp_compliance::routes(compliance));

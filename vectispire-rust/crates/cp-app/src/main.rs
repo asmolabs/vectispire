@@ -699,6 +699,13 @@ async fn serve() -> ExitCode {
         settings.oidc.link_privileged_accounts,
     ));
     access_routes.extend(checklists.routes);
+    // Threat intelligence's reads (the feeds' status, the ranking, a CVE's record); its syncs come with the fetches.
+    access_routes.extend(vectispire_cp_threatintel::routes(Arc::new(vectispire_cp_threatintel::Services::new(
+        db.clone(),
+        issues.catalog().clone(),
+        targets.clone(),
+        clock.clone(),
+    ))));
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),

@@ -1,6 +1,6 @@
 //! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues
 //! (10), gate (7), posture (18), compliance (17 so far), siem (3), platform (10 so far: the audit trail's, the signing
-//! key's, the integrations' and the settings catalog's and save), access (every route) and checklists (35).
+//! key's, the integrations' and the settings catalog's and save), access (every route), checklists (35) and threatintel (3 so far, its reads) — the last two composed in `main.rs`.
 
 use std::sync::Arc;
 

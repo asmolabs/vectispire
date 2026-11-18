@@ -3,7 +3,7 @@
 
 pub use crate::catalog::*;
 pub use crate::persistence::aggregates::{
-    Axis, GraphNode, Identified, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail, PackageWeight,
+    Axis, EpssRow, GraphNode, Identified, Observation, OpenBacklog, OwaspCategoryCount, PackageDetail, PackageWeight,
     Resolution, ResolvedDuration, SeverityTypeCount, TargetBreakdown, TargetGradingCount, TargetResolutions,
     TypePackaging, WeeklyFlow,
 };
