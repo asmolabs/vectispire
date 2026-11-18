@@ -214,6 +214,8 @@ async fn accounts_written_by_either_program_sign_in_on_the_other() {
             &actor,
         )
         .await
+        .unwrap()
+        .applied()
         .unwrap();
     let (status, answer) = login(&http, &base, "rusty", "Rusty-Invented-Passphrase-4").await;
     assert_eq!(status, 200, "{answer}");
@@ -260,11 +262,13 @@ async fn accounts_written_by_either_program_sign_in_on_the_other() {
             &actor,
         )
         .await
+        .unwrap()
+        .applied()
         .unwrap();
     assert!(reset.user.must_change_password);
     let mut bound = store.find_by_id(juno.id).await.unwrap().unwrap();
     bound.keycloak_id = Some("subject-juno".to_owned());
-    store.save(&bound, false).await.unwrap();
+    store.save(&bound, false, &vectispire_cp_access::accounts::Recorded::nothing()).await.unwrap();
     assert_eq!(login(&http, &base, "juno", "Juno-Reset-Invented-7").await.0, 200, "before the lift");
     accounts.clear_password_change_requirement(juno.id, Some(rotated.id), &actor).await.unwrap();
     assert_eq!(login(&http, &base, "juno", "Juno-Reset-Invented-7").await.0, 401, "after the lift");

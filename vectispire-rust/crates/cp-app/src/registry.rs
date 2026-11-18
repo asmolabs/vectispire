@@ -1,6 +1,6 @@
 //! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues
-//! (10), gate (7), posture (18), siem (3), platform (10 so far: the audit trail's, the signing key's, the integrations' and the
-//! settings catalog's and save).
+//! (10), gate (7), posture (18), compliance (17 so far), siem (3), platform (10 so far: the audit trail's, the signing
+//! key's, the integrations' and the settings catalog's and save), access (every route) and checklists (35).
 
 use std::sync::Arc;
 
@@ -57,6 +57,7 @@ pub fn entries(
     siem: Arc<SiemExporterService>,
     platform: Platform,
     compliance: Arc<vectispire_cp_compliance::Services>,
+    access: Vec<RouteEntry>,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
     list.extend(vectispire_cp_targets::routes(targets.clone()));
@@ -72,6 +73,7 @@ pub fn entries(
     list.extend(vectispire_cp_platform::routes(platform.trail, platform.signing));
     list.extend(vectispire_cp_platform::integration_routes(platform.integrations));
     list.extend(vectispire_cp_platform::settings_routes(platform.settings));
+    list.extend(access);
     list
 }
 
@@ -90,9 +92,11 @@ pub fn routes(
     siem: Arc<SiemExporterService>,
     platform: Platform,
     compliance: Arc<vectispire_cp_compliance::Services>,
+    access: Vec<RouteEntry>,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance)
+    for entry in
+        entries(targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access)
     {
         routes = routes.route(entry);
     }

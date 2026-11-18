@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_checklist_item (version_id, item_key, item_position, domain, objective, control, contact, kpi, content_digest, sheet_row, evidence_kind, evidence_validity_months, bound_rule) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_item",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b85badbdce622859b489a75eef1467456c785751af03838c89e463e7daa76149"
+}

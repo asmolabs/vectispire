@@ -91,6 +91,11 @@ impl<S: Send + Sync, T: DeserializeOwned> FromRequest<S> for JsonBody<T> {
     async fn from_request(request: Request, _state: &S) -> Result<JsonBody<T>, Problem> {
         let (parts, body) = request.into_parts();
         if !is_json(&parts) {
+            // Spring's order: **no content type and no body is a missing body** — the 400 a required `@RequestBody`
+            // answers, before any converter is asked — and only a content type it cannot read is the 415.
+            if parts.headers.get(CONTENT_TYPE).is_none() && read(body).await?.is_empty() {
+                return Err(Problem::handler(StatusCode::BAD_REQUEST, UNREADABLE));
+            }
             return Err(unsupported(&parts));
         }
         let bytes = read(body).await?;
@@ -166,6 +171,16 @@ mod tests {
         let read = body_of(Some("application/json"), r#"{"username":"a"}"#).await.expect("a login");
         assert_eq!(read.0.username, "a");
         assert!(body_of(Some("application/problem+json; charset=utf-8"), r#"{"username":"a"}"#).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn no_content_type_and_no_body_is_a_missing_body_and_a_body_of_another_type_a_415() {
+        let missing = body_of(None, "").await.expect_err("refused");
+        assert_eq!((missing.status(), missing.detail()), (StatusCode::BAD_REQUEST, UNREADABLE));
+        let unsupported = body_of(None, "{}").await.expect_err("refused");
+        assert_eq!(unsupported.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE, "a body without a type is not JSON");
+        let typed = body_of(Some("text/plain"), "").await.expect_err("refused");
+        assert_eq!(typed.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE, "a type named and not JSON, even empty");
     }
 
     #[tokio::test]

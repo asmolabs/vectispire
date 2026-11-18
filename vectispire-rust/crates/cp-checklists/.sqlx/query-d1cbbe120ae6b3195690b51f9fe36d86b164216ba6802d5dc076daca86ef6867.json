@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_document (checklist_id, project_id, content, size_bytes, sha256, workbook_sha256, workbook_signature, statement_sha256, statement_signature, signing_key_id, product_version, produced_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "d1cbbe120ae6b3195690b51f9fe36d86b164216ba6802d5dc076daca86ef6867"
+}

@@ -98,10 +98,14 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                     }
                 }
                 // Modulith: "a line nothing uses". Held only for a module whose port is finished — a pending one is
-                // held to the ceiling, as a module being moved was in step 4 of the Java migration.
+                // held to the ceiling, as a module being moved was in step 4 of the Java migration — and only towards a
+                // module that has a crate: an edge to one not ported yet is answered by the stand-in its port
+                // replaces (checklists' imports and mail, waves 2 and 3), and becomes owed the day its crate lands.
+                let crates: BTreeSet<&str> = workspace.members().map(|member| member.name.as_str()).collect();
                 if entry.status == Status::Ported && !entry.open {
                     for allowed in config.allowed_modules(module) {
-                        if !used.contains(&allowed) {
+                        let target = format!("{}{allowed}", config.settings.module_prefix);
+                        if !used.contains(&allowed) && crates.contains(target.as_str()) {
                             violations.push(format!(
                                 "{module} lists {allowed} in edges/ and its crate does not depend on it: a line nothing uses"
                             ));

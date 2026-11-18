@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_template_version (template_id, ordinal, label, status, revision, source_sha256, source_size, source_bytes, layout, offers_not_applicable, item_pairs, previous_version_id, derived_from_version_id, draft_authors, imported_at, imported_by) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 15
+    },
+    "nullable": []
+  },
+  "hash": "404948592fa5d4b7a931fbc509be56c1b2c7e6faf3dbd4473838d9713af77b41"
+}

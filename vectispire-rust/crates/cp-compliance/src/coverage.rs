@@ -204,13 +204,8 @@ impl OwaspCoverageService {
                 .and_then(|outline| outline.examined_types.as_ref())
                 .map(|types| types.iter().copied().collect::<BTreeSet<_>>());
             let recorded = languages.get(&row.scan_id);
-            let read = |names: Option<&Vec<&'static str>>| {
-                names.map(|names| {
-                    names.iter().filter_map(|name| Language::from_wire_name(name)).collect::<BTreeSet<_>>()
-                })
-            };
-            let detected = read(recorded.and_then(|one| one.detected.as_ref()));
-            let sast_rules = read(recorded.and_then(|one| one.sast_rules.as_ref()));
+            let detected = recorded.and_then(|one| one.detected.clone());
+            let sast_rules = recorded.and_then(|one| one.sast_rules.clone());
             evidence.insert(
                 target,
                 Evidence::of(

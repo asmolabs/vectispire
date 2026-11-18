@@ -334,6 +334,22 @@ final class Placeholders {
         registerSecret(space < 0 ? value : value.substring(space + 1).trim());
     }
 
+    /**
+     * The digests rendered as a bare {@code «sha256:K»} that a secret registered since accounts for: each placeholder,
+     * and the {@code «sha256(secret:N)»} it stands for. A session seeded by one request before the test presented its
+     * token in a later one showed its hash bare, and the replay had to guess which token opened which session.
+     */
+    Map<String, String> digestsNamedSince() {
+        Map<String, String> named = new LinkedHashMap<>();
+        digests.forEach((hex, number) -> {
+            Integer ordinal = secretHashes.get(hex);
+            if (ordinal != null) {
+                named.put("\u00absha256:" + number + "\u00bb", "\u00absha256(secret:" + ordinal + ")\u00bb");
+            }
+        });
+        return named;
+    }
+
     /** A cookie's value is a hand-off token or a session: random, whatever its name. */
     void collectCookie(String setCookieOrValue) {
         String pair = setCookieOrValue.split(";", 2)[0];

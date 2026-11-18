@@ -11,15 +11,15 @@ run and the run fails if they differ. A pattern that is not found exactly once i
 survived mutant. **An equivalent mutant — one no test can tell from the original, because the guard is
 redundant — is removed from the list with its reason in a comment, never counted as killed.**
 
-The mutant lists are data, one script per task (`p<phase>-<task>-<what>.py`); the shared logic is in `_runner.py`.
+The mutant lists are data, one script per task (`p<phase>-<task>-<what>.py`, or `w<wave>-<module>-<stage>.py` for a wave of the port); the shared logic is in `_runner.py`.
 **There is no table of the scripts here**: each says on its first line which task it checks and what it reads, and
 
 ```bash
-for script in security/mutants/p*.py; do sed -n 2p "$script"; done
+for script in security/mutants/[!_]*.py; do sed -n 2p "$script"; done
 ```
 
 lists them. A table every port appended a row to was a line two ports running at once both edited; `check.sh` runs
-every `p*.py --check`, so a new script needs no line anywhere to be checked.
+every script's `--check` (`[!_]*.py`), so a new script needs no line anywhere to be checked.
 
 ## Running
 

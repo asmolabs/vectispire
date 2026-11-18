@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select exists(select 1 from t_account_administration where gesture = $1\n               and held_role = any($2) and occurred_at >= $3 and account_id <> $4) as \"any!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "any!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8d1918c5df0c27a741e99d4f71e01697269228babf244d55e57929f185291f24"
+}

@@ -12,6 +12,7 @@
 pub(crate) mod accounts;
 pub(crate) mod administration;
 pub(crate) mod credentials;
+pub(crate) mod four_eyes;
 pub(crate) mod grants;
 pub(crate) mod model;
 pub(crate) mod scim;
@@ -19,7 +20,10 @@ pub(crate) mod sign_in;
 pub(crate) mod target_grants;
 pub(crate) mod users;
 
-pub use model::{AccountStore, NewUser, PasswordHash, RevokedKey, Sealed, SessionHash, User};
+pub use model::{
+    AccountRequest, AccountStore, Apply, Decided, Decision, Filing, Gesture, NewAccountRequest, NewUser, PasswordHash,
+    Recorded, RevokedKey, Sealed, SessionHash, User,
+};
 pub use users::{SessionsAndKeys, SqlAccountStore};
 
 /// A statement the database refused or could not answer. The driver's error stays inside, as the cause.

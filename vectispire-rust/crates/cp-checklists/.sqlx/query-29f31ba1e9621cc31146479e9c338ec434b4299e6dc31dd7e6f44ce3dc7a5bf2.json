@@ -1,0 +1,221 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, checklist_id, item_id, purpose, rule_kind, rule_digest, bound_rule, outcome, reason,\n           as_of as \"as_of: UtcInstant\", computed_at as \"computed_at: UtcInstant\", computed_by, answer_id, answer_value,\n           reconciliation, evidence_digest, evidence from t_checklist_measurement where checklist_id = $1 and purpose = $2 order by id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "purpose",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "purpose"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rule_kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "rule_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rule_digest",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "rule_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "bound_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "bound_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "outcome",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "reason",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "as_of: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "computed_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "computed_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "computed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "answer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "answer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "answer_value",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "answer_value"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "reconciliation",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "reconciliation"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "evidence_digest",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "evidence_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "evidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_measurement",
+            "name": "evidence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "29f31ba1e9621cc31146479e9c338ec434b4299e6dc31dd7e6f44ce3dc7a5bf2"
+}

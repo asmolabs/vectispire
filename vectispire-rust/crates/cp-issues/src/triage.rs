@@ -1,6 +1,7 @@
 //! Triage statuses, VEX justifications, rules, and service transitions.
 
 use time::{Duration, OffsetDateTime};
+use vectispire_cp_access::accounts::ApproverIndependence;
 use vectispire_cp_db::{Db, ScanTarget, Tx, Visibility};
 use vectispire_domain::bounded_text;
 
@@ -235,6 +236,7 @@ impl IssueTriageService {
         issue_id: i64,
         request: &TriageRequest,
         can_approve: bool,
+        independence: &ApproverIndependence,
     ) -> Result<IssueRow, IssueError> {
         let now = OffsetDateTime::now_utc();
         let decision = Triage::decide(request, now)?;
@@ -252,7 +254,7 @@ impl IssueTriageService {
         };
 
         if origin == TriageOrigin::Approval.wire_name() {
-            Self::require_a_second_pair_of_eyes(tx, issue.id, decision.triaged_by.as_deref()).await?;
+            Self::require_a_second_pair_of_eyes(tx, issue.id, decision.triaged_by.as_deref(), independence).await?;
             if let Some(req) = &issue.triage_requested_status
                 && req != decision.status.wire_name()
             {
@@ -306,6 +308,7 @@ impl IssueTriageService {
         request: &TriageRequest,
         can_approve: bool,
         visibility: &Visibility,
+        independence: &ApproverIndependence,
     ) -> Result<BulkTriageResult, IssueError> {
         let now = OffsetDateTime::now_utc();
         let decision = Triage::decide(request, now)?;
@@ -355,7 +358,7 @@ impl IssueTriageService {
             };
 
             if origin == TriageOrigin::Approval.wire_name() {
-                Self::require_a_second_pair_of_eyes(tx, row.id, decision.triaged_by.as_deref()).await?;
+                Self::require_a_second_pair_of_eyes(tx, row.id, decision.triaged_by.as_deref(), independence).await?;
                 if let Some(req) = &row.triage_requested_status
                     && req != decision.status.wire_name()
                 {
@@ -406,11 +409,14 @@ impl IssueTriageService {
         Ok(BulkTriageResult { previous: previous_statuses, triaged: triaged_rows })
     }
 
-    /// Checks that the person approving did not request the exemption.
+    /// Checks that the person approving did not request the exemption — and, under four-eyes, that the requester did
+    /// not make the approver's account recently: **two names are not two people** when the requester made the second
+    /// one (#126, option 1). With four-eyes off, nothing is refused here that was not before.
     async fn require_a_second_pair_of_eyes(
         tx: &mut Tx,
         issue_id: i64,
         approver: Option<&str>,
+        independence: &ApproverIndependence,
     ) -> Result<(), IssueError> {
         let events = IssueRepository::find_triage_events_by_issue_id(tx, issue_id).await?;
         let mut requester: Option<String> = None;
@@ -420,17 +426,19 @@ impl IssueTriageService {
             }
         }
 
-        if let Some(req) = requester {
-            let req_clean = req.trim();
-            if !req_clean.is_empty()
-                && let Some(app) = approver
-                && req_clean.eq_ignore_ascii_case(app.trim())
-            {
-                return Err(IssueError::InvalidTriage(format!(
-                    "Four-eyes approval: this exemption was requested by {req_clean}, so it has to be approved by somebody else."
-                )));
-            }
+        let Some(req) = requester else { return Ok(()) };
+        if vectispire_domain::java::is_blank(&req) {
+            return Ok(());
         }
+        let req_clean = req.trim();
+        if let Some(app) = approver
+            && req_clean.eq_ignore_ascii_case(app.trim())
+        {
+            return Err(IssueError::InvalidTriage(format!(
+                "Four-eyes approval: this exemption was requested by {req}, so it has to be approved by somebody else."
+            )));
+        }
+        independence.require(Some(&req), approver, OffsetDateTime::now_utc()).await?;
         Ok(())
     }
 

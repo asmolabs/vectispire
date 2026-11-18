@@ -18,8 +18,10 @@ use vectispire_cp_http::routes::VisibilityOf;
 use crate::rows::NotFound;
 
 mod actors;
+mod issuer;
 use crate::visibility::{AccessError, AccountRef, Allowance, VisibilityService};
 pub use actors::actor_name;
+pub use issuer::IssuerVisibility;
 
 /// The account behind a principal and the restriction its credential carries — the credentials module's to answer
 /// (sessions, API keys), a port here. A session carries no restriction of its own; an integration key carries its
@@ -137,6 +139,7 @@ mod tests {
             stored_role: role.map(str::to_owned),
             restriction,
             actor: None,
+            session_hash: None,
         })
     }
 

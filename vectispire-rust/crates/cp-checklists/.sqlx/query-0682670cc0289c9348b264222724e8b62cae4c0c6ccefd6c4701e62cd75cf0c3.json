@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_checklist_measurement where checklist_id in (select c.id from t_checklist c where c.project_id = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0682670cc0289c9348b264222724e8b62cae4c0c6ccefd6c4701e62cd75cf0c3"
+}

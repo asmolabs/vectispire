@@ -185,3 +185,23 @@ fn a_parameter_may_have_a_literal_before_it_as_well_as_after_it() {
     assert_eq!(path_parameters("/files/v{n}.json/{id}"), ["n", "id"]);
     assert_eq!(fill_parameters("/files/v{n}.json", "2"), "/files/v2.json");
 }
+
+#[test]
+fn an_overlapping_one_of_refuses_the_problem_the_java_application_sends() {
+    // Pinned, not excused: the submission's 409 is `oneOf` two problems whose members overlap, so the Java
+    // application's own `checklist-changed` problem is "valid under more than one" of them. A replay reads `oneOf`
+    // as `anyOf`; a body neither branch admits is still refused.
+    let document = Document::embedded();
+    let operation = document.find("POST", "/api/v1/projects/7/checklists/1/submission").unwrap();
+    let changed = json!({
+        "type": "urn:vectispire:problem:checklist-changed", "title": "Conflict", "status": 409,
+        "detail": "Revision 1 changed.", "instance": "/api/v1/projects/7/checklists/1/submission",
+        "code": "checklist-changed"
+    });
+    let strict = Schemas::of(&document);
+    assert_ne!(strict.check_response(operation, 409, Some("application/problem+json"), &changed), Check::Valid);
+    let lenient = Schemas::of(&document).reading_one_of_as_any_of(true);
+    assert_eq!(lenient.check_response(operation, 409, Some("application/problem+json"), &changed), Check::Valid);
+    let wrong = json!({ "status": "409" });
+    assert_ne!(lenient.check_response(operation, 409, Some("application/problem+json"), &wrong), Check::Valid);
+}

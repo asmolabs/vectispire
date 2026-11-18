@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist_template_version set status = ?, revision = revision + 1, retired_at = ?, retired_by = ? where id = ? and status = ? and revision = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "8ae15380327884ba26de3b63bcc797e0b5b214220fb1bdd117811a82b1dcce45"
+}

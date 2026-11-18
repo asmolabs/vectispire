@@ -1,0 +1,304 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, project_id, template_version_id, revision, status, edition, open_slot, author_id, author,\n           opened_at as \"opened_at: UtcInstant\", opened_by, supersedes_id, submitted_at as \"submitted_at: UtcInstant\",\n           submitted_by, submitted_by_id, returned_at as \"returned_at: UtcInstant\", returned_by, return_reason,\n           signed_off_at as \"signed_off_at: UtcInstant\", signed_off_by, signed_off_by_id,\n           sign_off_four_eyes as \"sign_off_four_eyes: bool\", superseded_at as \"superseded_at: UtcInstant\",\n           superseded_by from t_checklist where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "template_version_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "template_version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "edition",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "edition"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "open_slot",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "open_slot"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "author_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "author",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "author"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "opened_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "opened_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "opened_by"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "supersedes_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "supersedes_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "submitted_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "submitted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "submitted_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "submitted_by"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "submitted_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "submitted_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "returned_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "returned_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "returned_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "returned_by"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "return_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "return_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "signed_off_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "signed_off_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "signed_off_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "signed_off_by"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "signed_off_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "signed_off_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "sign_off_four_eyes: bool",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "sign_off_four_eyes"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "superseded_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "superseded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "superseded_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist",
+            "name": "superseded_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "4d8aed316f97469137b8b07854b85c16e434ccb3ba3261adef0d113906a7cbe4"
+}

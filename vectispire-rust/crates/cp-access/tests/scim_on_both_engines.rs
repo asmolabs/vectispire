@@ -86,14 +86,15 @@ fn directory() -> RequestActor {
     RequestActor { username: None, ip_address: Some("203.0.113.9".to_owned()), user_agent: Some("okta".to_owned()) }
 }
 
-/// The entry Java writes for a SCIM gesture: under `SCIM`, attributed to the account's or the team's name.
-fn entry(operation: AuditOperation, name: &str, description: impl Into<String>) -> AuditRecord {
+/// The entry Java 1.0 writes for a SCIM gesture: under the account's id or the team's name, attributed to the
+/// directory (`ScimProvisioningService.ACTOR`).
+fn entry(operation: AuditOperation, resource: &str, description: impl Into<String>) -> AuditRecord {
     let actor = directory();
     AuditRecord {
         operation,
-        resource: "SCIM".to_owned(),
+        resource: resource.to_owned(),
         description: description.into(),
-        username: Some(name.to_owned()),
+        username: Some(vectispire_cp_access::scim::ACTOR.to_owned()),
         ip_address: actor.ip_address,
         user_agent: actor.user_agent,
         signal: None,
@@ -302,7 +303,7 @@ async fn a_patch_deactivates_and_closes_the_sessions(fixture: &Fixture) {
         fixture.log.take(),
         vec![entry(
             AuditOperation::UserUpdated,
-            &name,
+            &id.to_string(),
             format!("SCIM deactivated account and revoked active sessions for {name}")
         )]
     );
@@ -579,7 +580,7 @@ async fn an_account_is_provisioned(fixture: &Fixture) {
     assert!(hash.starts_with("$argon2id$"), "a password nobody knows, hashed: {hash}");
     assert_eq!(
         fixture.log.take(),
-        vec![entry(AuditOperation::UserCreated, &name, format!("SCIM provisioned account: {name}"))]
+        vec![entry(AuditOperation::UserCreated, &view.id.to_string(), format!("SCIM provisioned account: {name}"))]
     );
 
     let inactive = UserAttributes { active: Some(false), ..attributes(&unique("scim-inactive")) };
@@ -605,7 +606,7 @@ async fn a_role_change_or_a_deactivation_closes_the_sessions(fixture: &Fixture) 
     assert_eq!(sessions(db, id).await, 1);
     assert_eq!(
         fixture.log.take(),
-        vec![entry(AuditOperation::UserUpdated, &name, format!("SCIM updated account: {name}"))]
+        vec![entry(AuditOperation::UserUpdated, &id.to_string(), format!("SCIM updated account: {name}"))]
     );
 
     let promote = UserAttributes { role: Some("SECURITY_CHAMPION".to_owned()), ..attributes(&name) };
@@ -616,7 +617,7 @@ async fn a_role_change_or_a_deactivation_closes_the_sessions(fixture: &Fixture) 
         fixture.log.take(),
         vec![entry(
             AuditOperation::UserUpdated,
-            &name,
+            &id.to_string(),
             format!("SCIM changed the role of {name} from USER to SECURITY_CHAMPION and revoked its sessions")
         )]
     );
@@ -630,7 +631,7 @@ async fn a_role_change_or_a_deactivation_closes_the_sessions(fixture: &Fixture) 
         fixture.log.take(),
         vec![entry(
             AuditOperation::UserUpdated,
-            &name,
+            &id.to_string(),
             format!("SCIM deactivated account and revoked all active sessions for {name}")
         )]
     );
@@ -796,7 +797,7 @@ async fn an_account_is_deleted_with_its_rows(fixture: &Fixture) {
     assert!(members(db, squad).await.is_empty());
     assert_eq!(
         fixture.log.take(),
-        vec![entry(AuditOperation::UserDeleted, &name, format!("SCIM deleted account: {name}"))]
+        vec![entry(AuditOperation::UserDeleted, &id.to_string(), format!("SCIM deleted account: {name}"))]
     );
 
     scim.delete_user(id, &directory()).await.unwrap();

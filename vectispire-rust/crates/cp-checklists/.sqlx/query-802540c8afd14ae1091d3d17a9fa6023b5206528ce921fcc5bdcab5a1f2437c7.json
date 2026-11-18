@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist set status = ?, edition = edition + 1, submitted_at = ?, submitted_by = ?, submitted_by_id = ? where id = ? and edition = ? and status = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "802540c8afd14ae1091d3d17a9fa6023b5206528ce921fcc5bdcab5a1f2437c7"
+}

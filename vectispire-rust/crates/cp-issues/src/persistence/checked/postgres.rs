@@ -78,3 +78,41 @@ impl IssueRepository {
         .await?)
     }
 }
+
+pub async fn count_unsettled_within(
+    conn: &mut PgConnection,
+    scope: super::UnsettledScope<'_>,
+    repositories: &[i64],
+    [first, second, third]: [&str; 3],
+) -> Result<Vec<(i64, Option<String>, String, i64)>, StoreError> {
+    let rows = match scope {
+        super::UnsettledScope::Type(kind) => sqlx::query!(
+            r#"/* postgres */ select i.repo_id as "repo_id!", i.severity, i.state, count(i.id) as "count!" from t_issue i where i.repo_id = any($1) and i.type = $2 and i.triage_status not in ($3, $4, $5) group by i.repo_id, i.severity, i.state"#,
+            repositories,
+            kind,
+            first,
+            second,
+            third
+        )
+        .fetch_all(conn)
+        .await?
+        .into_iter()
+        .map(|row| (row.repo_id, row.severity, row.state, row.count))
+        .collect(),
+        super::UnsettledScope::Tool(tool) => sqlx::query!(
+            r#"/* postgres */ select i.repo_id as "repo_id!", i.severity, i.state, count(i.id) as "count!" from t_issue i where i.repo_id = any($1) and i.tool = $2 and i.triage_status not in ($3, $4, $5) group by i.repo_id, i.severity, i.state"#,
+            repositories,
+            tool,
+            first,
+            second,
+            third
+        )
+        .fetch_all(conn)
+        .await?
+        .into_iter()
+        .map(|row| (row.repo_id, row.severity, row.state, row.count))
+        .collect(),
+    };
+    // `repo_id!`: the filter on it has already left out an image's issue, whose column is null.
+    Ok(rows)
+}

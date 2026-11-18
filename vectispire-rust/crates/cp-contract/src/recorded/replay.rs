@@ -236,7 +236,8 @@ impl Replayer<'_> {
             }
             return Ok(Outcome::Played);
         }
-        let request = build(&exchange.request, bindings).map_err(|why| format!("its request: {why}"))?;
+        let request =
+            build(&exchange.request, exchange.file.parent(), bindings).map_err(|why| format!("its request: {why}"))?;
         let before = rows::snapshot(self.db, self.schema).await.map_err(|error| error.to_string())?;
         let answer = send(router, request).await?;
         let after = rows::snapshot(self.db, self.schema).await.map_err(|error| error.to_string())?;
@@ -281,8 +282,8 @@ impl Replayer<'_> {
                     out.push(format!("body: {why}"));
                 }
             }
-            (Some(Body::Binary { .. }), _) => {
-                out.push("body: a binary answer, which this replay does not compare yet".into())
+            (Some(binary @ Body::Binary { .. }), _) => {
+                compare_binary(binary, exchange.file.parent(), &answer.body, bindings, out);
             }
             (recorded, actual) => out.push(format!("body: {actual:?}, recorded {recorded:?}")),
         }
@@ -406,7 +407,11 @@ fn concrete_json(json: &Json, field: &str, bindings: &mut Bindings<'_>) -> Resul
     })
 }
 
-fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgoing, Unseedable> {
+fn build(
+    request: &RecordedRequest,
+    directory: Option<&std::path::Path>,
+    bindings: &mut Bindings<'_>,
+) -> Result<Outgoing, Unseedable> {
     if request.scheme.as_deref().is_some_and(|scheme| scheme != "http") {
         return Err(Unseedable(format!("the test set the scheme {:?}", request.scheme)));
     }
@@ -417,6 +422,7 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         }
     };
     let path = bindings.concrete(&request.path, "path", Context::Wire)?;
+    bindings.requesting(&path);
     let query = match &request.query {
         Some(query) => Some(bindings.concrete(query, "query", Context::Wire)?),
         None => None,
@@ -463,10 +469,14 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         None => Vec::new(),
         Some(Body::Json { json, .. }) => concrete_json(json, "", bindings)?.to_text().into_bytes(),
         Some(Body::Text { text, .. }) => bindings.concrete(text, "", Context::Wire)?.into_bytes(),
-        // Padding, written as its runs: rebuilt here. Other bytes are in a gzip sidecar this replay does not read.
-        Some(binary @ Body::Binary { .. }) => binary.expanded().ok_or_else(|| {
-            Unseedable("a binary request body that is not padding, which this replay does not send yet".into())
-        })?,
+        // Padding, written as its runs, rebuilt here; any other bytes as recorded — inline in base64 up to the
+        // recorder's sidecar threshold, in its gzip sidecar past it — and checked against the recorded length.
+        Some(binary @ Body::Binary { .. }) => match binary.expanded() {
+            Some(bytes) => bytes,
+            None => recorded_bytes(binary, directory)?.ok_or_else(|| {
+                Unseedable("a binary request body with neither its bytes nor a sidecar recorded".into())
+            })?,
+        },
     };
     let mut target = path;
     let mut query_parts: Vec<String> = query.into_iter().collect();
@@ -696,5 +706,107 @@ pub fn compare_rows(
         if !recorded_tables.iter().any(|(other, _)| other == name) {
             out.push(format!("rows {name}: changed, the recording changed nothing — {}", changes.to_text()));
         }
+    }
+}
+
+/// The bytes a binary body was recorded with: its inline base64, or its gzip sidecar beside the golden. `None` when
+/// neither was written; an error when what was written does not read, or does not add up to the recorded length.
+pub(crate) fn recorded_bytes(body: &Body, directory: Option<&std::path::Path>) -> Result<Option<Vec<u8>>, Unseedable> {
+    use std::io::Read as _;
+    let Body::Binary { length, base64, file, .. } = body else { return Ok(None) };
+    let bytes = if let Some(text) = base64 {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD
+            .decode(text)
+            .map_err(|_| Unseedable("a binary body whose base64 does not decode".into()))?
+    } else if let (Some(name), Some(directory)) = (file, directory) {
+        let compressed = std::fs::read(directory.join(name))
+            .map_err(|error| Unseedable(format!("the sidecar {name} does not read: {error}")))?;
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(compressed.as_slice())
+            .read_to_end(&mut bytes)
+            .map_err(|error| Unseedable(format!("the sidecar {name} does not inflate: {error}")))?;
+        bytes
+    } else {
+        return Ok(None);
+    };
+    if length.and_then(|length| usize::try_from(length).ok()) != Some(bytes.len()) {
+        return Err(Unseedable(format!("a binary body of {} bytes, recorded as {length:?}", bytes.len())));
+    }
+    Ok(Some(bytes))
+}
+
+/// A binary answer against its recording: the same bytes, and the recorded digest's placeholder bound to theirs. An
+/// archive — a document package, which embeds when it was made and its signatures — is not compared byte for byte:
+/// what it says is phase 5's comparison, and its recordings are listed until then.
+fn compare_binary(
+    recorded: &Body,
+    directory: Option<&std::path::Path>,
+    actual: &[u8],
+    bindings: &mut Bindings<'_>,
+    out: &mut Vec<String>,
+) {
+    let Body::Binary { content_type, sha256, .. } = recorded else { return };
+    if content_type.as_deref().is_some_and(|kind| kind.starts_with("application/zip")) {
+        out.push("body: an archive, which this replay does not compare byte for byte".into());
+        return;
+    }
+    match recorded_bytes(recorded, directory) {
+        Err(why) => out.push(format!("body: {}", why.0)),
+        Ok(None) => out.push("body: a binary answer recorded with neither its bytes nor a sidecar".into()),
+        Ok(Some(bytes)) if bytes != actual => {
+            out.push(format!("body: {} bytes that differ from the {} recorded", actual.len(), bytes.len()));
+        }
+        Ok(Some(_)) => {
+            if let Some(template) = sha256 {
+                use sha2::Digest as _;
+                let digest: String = sha2::Sha256::digest(actual).iter().map(|byte| format!("{byte:02x}")).collect();
+                if let Err(why) = bindings.match_text(template, &digest, "sha256") {
+                    out.push(format!("body sha256: {why}"));
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod binary_bodies {
+    #![allow(clippy::unwrap_used)]
+
+    use std::io::Write as _;
+
+    use super::{Body, recorded_bytes};
+
+    fn binary(length: i64, base64: Option<&str>, file: Option<&str>) -> Body {
+        Body::Binary {
+            content_type: Some("application/octet-stream".into()),
+            length: Some(length),
+            sha256: None,
+            base64: base64.map(str::to_owned),
+            file: file.map(str::to_owned),
+            runs: None,
+        }
+    }
+
+    #[test]
+    fn inline_bytes_are_sent_as_recorded_and_a_wrong_length_is_refused() {
+        assert_eq!(recorded_bytes(&binary(3, Some("UEsD"), None), None).unwrap(), Some(b"PK\x03".to_vec()));
+        assert!(recorded_bytes(&binary(4, Some("UEsD"), None), None).is_err(), "a length that does not add up");
+        assert!(recorded_bytes(&binary(3, Some("not base64!"), None), None).is_err());
+        assert_eq!(recorded_bytes(&binary(3, None, None), None).unwrap(), None, "nothing recorded is nothing to send");
+    }
+
+    #[test]
+    fn a_sidecar_is_inflated_beside_its_golden() {
+        let directory = std::env::temp_dir().join(format!("vs-sidecar-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(b"workbook bytes").unwrap();
+        std::fs::write(directory.join("x.body.gz"), gzip.finish().unwrap()).unwrap();
+        let read = recorded_bytes(&binary(14, None, Some("x.body.gz")), Some(&directory)).unwrap();
+        assert_eq!(read, Some(b"workbook bytes".to_vec()));
+        assert!(recorded_bytes(&binary(15, None, Some("x.body.gz")), Some(&directory)).is_err());
+        assert!(recorded_bytes(&binary(14, None, Some("missing.gz")), Some(&directory)).is_err());
+        std::fs::remove_dir_all(&directory).unwrap();
     }
 }

@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_checklist_answer (checklist_id, item_id, answer_value, answer_comment, answered_by, answered_by_id, answered_by_kind, answered_at, measurement_id, carried_from_id, carried_by, carried_by_id, carried_at, needs_confirmation, withdrawn, edition) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Timestamptz",
+        "Bool",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "07ea1a39907c38733a1925e542fff4b8831367dd80d1bb91a560ecca300a1469"
+}

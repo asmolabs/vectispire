@@ -238,6 +238,10 @@ impl Resolved {
                 Resolved::Session { .. } | Resolved::Integration(_) => Some(self.actor()),
                 Resolved::Agent { .. } | Resolved::Scim => None,
             },
+            session_hash: match self {
+                Resolved::Session { session, .. } => Some(session.token_hash.clone()),
+                _ => None,
+            },
         }
     }
 
@@ -397,6 +401,12 @@ impl CredentialService {
     }
 
     /// `AuthService.revoke`: a real logout — the row disappears and the token is worth nothing.
+    /// `AuthService.revoke` by the session's stored hash — signing out, from the hash the principal carries.
+    pub async fn revoke_hash(&self, token_hash: &str) -> Result<(), StoreError> {
+        session_store::delete(&self.db, token_hash).await?;
+        Ok(())
+    }
+
     pub async fn revoke(&self, session: &SessionView) -> Result<(), StoreError> {
         session_store::delete(&self.db, &session.token_hash).await?;
         Ok(())

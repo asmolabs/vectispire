@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist set status = $1, edition = edition + 1, open_slot = null, superseded_at = $2, superseded_by = $3 where id = $4 and edition = $5 and status in ('draft', 'submitted')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Varchar",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "22ecb5bb59e7ab5b6ddee436f62c6d437c81439ea3497983f5a5222ba69efa3a"
+}

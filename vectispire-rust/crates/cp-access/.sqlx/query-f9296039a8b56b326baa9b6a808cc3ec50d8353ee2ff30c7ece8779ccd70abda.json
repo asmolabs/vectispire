@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_account_administration (account_id, administrator_id, gesture, held_role, occurred_at) values ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f9296039a8b56b326baa9b6a808cc3ec50d8353ee2ff30c7ece8779ccd70abda"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist_contact set account_id = ?, linked_by = ?, linked_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "dca061a6e0a9a15369cdbc1fc5c414a9d3fead1688c7f455b4bcfd9ebbc2163a"
+}

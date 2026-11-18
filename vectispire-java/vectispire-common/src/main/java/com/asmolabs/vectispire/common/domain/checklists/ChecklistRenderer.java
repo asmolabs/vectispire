@@ -798,6 +798,10 @@ public final class ChecklistRenderer {
         private static boolean within(String spans, int column) {
             for (String span : spans.strip().split("\\s+")) {
                 String[] bounds = span.split(":");
+                if (bounds.length == 0) {
+                    // ":" splits into nothing: unreadable like any other, where bounds[0] used to throw.
+                    return false;
+                }
                 try {
                     int from = Integer.parseInt(bounds[0]);
                     int to = Integer.parseInt(bounds[bounds.length - 1]);

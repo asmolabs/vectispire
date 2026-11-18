@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_account_request set status = ?, decided_by = ?, decided_at = ?, password_hash = null where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "1d23665f33c23ba29a4dc94e3e59c4cdc8e81c4a91e86fb000ee11f6de113fd2"
+}

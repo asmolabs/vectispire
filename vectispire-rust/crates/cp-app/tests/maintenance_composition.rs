@@ -47,7 +47,11 @@ impl OutboxStore for Unused {
 fn outbox() -> Arc<Outbox> {
     Arc::new(Outbox::new(
         Arc::new(Unused),
-        vectispire_cp_app::maintenance::outbox_registry(audit(), &siem()),
+        vectispire_cp_app::maintenance::outbox_registry(
+            audit(),
+            &siem(),
+            vectispire_cp_app::checklists::answer_delivery().0,
+        ),
         Arc::new(SystemClock),
     ))
 }
@@ -449,6 +453,29 @@ fn compliance(
     ))
 }
 
+/// The checklists' accounts, never asked: the composition runs no task.
+struct NoAccounts;
+
+impl vectispire_cp_checklists::ports::AccountDirectory for NoAccounts {
+    fn active<'a>(
+        &'a self,
+    ) -> vectispire_cp_checklists::measurer::Answer<'a, Vec<vectispire_cp_access::accounts::UserView>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
+    fn by_id<'a>(
+        &'a self,
+        _: i64,
+    ) -> vectispire_cp_checklists::measurer::Answer<'a, Option<vectispire_cp_access::accounts::UserView>> {
+        Box::pin(async { Ok(None) })
+    }
+    fn allowance_of<'a>(
+        &'a self,
+        _: &'a vectispire_cp_access::accounts::UserView,
+    ) -> vectispire_cp_checklists::measurer::Answer<'a, vectispire_cp_access::visibility::Allowance> {
+        Box::pin(async { Ok(vectispire_cp_access::visibility::Allowance::nothing()) })
+    }
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -469,7 +496,8 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         ca_pem: None,
     };
     let db = vectispire_cp_db::Db::connect_lazy(&db_settings).unwrap();
-    let settings = vectispire_cp_settings::Settings::new(db);
+    let settings = vectispire_cp_settings::Settings::new(db.clone());
+    let checklist_targets = targets.clone();
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = vectispire_cp_app::maintenance::turns(
         outbox,
@@ -484,6 +512,22 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
         session_cleanup(),
+        Arc::new(vectispire_cp_checklists::ChecklistReminderTask {
+            reminders: Arc::new(vectispire_cp_checklists::contact_service::ChecklistReminders::new(
+                db.clone(),
+                Arc::new(vectispire_cp_checklists::TargetProjects(checklist_targets.clone())),
+                Arc::new(NoAccounts),
+                Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+                Arc::new(vectispire_cp_checklists::ports::NoMail),
+                Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+                    (*audit()).clone(),
+                    Arc::new(vectispire_cp_audit::SystemClock),
+                    Vec::new(),
+                )),
+                audit(),
+                Arc::new(vectispire_cp_targets::SystemClock),
+            )),
+        }),
         &gauges,
     )
     .unwrap();
@@ -505,10 +549,14 @@ async fn the_binary_s_relay_is_held_until_its_registry_is_java_s() {
 /// second (task 4.2).
 #[tokio::test]
 async fn the_binary_registers_every_handler_it_has() {
-    let registry = vectispire_cp_app::maintenance::outbox_registry(audit(), &siem());
+    let registry = vectispire_cp_app::maintenance::outbox_registry(
+        audit(),
+        &siem(),
+        vectispire_cp_app::checklists::answer_delivery().0,
+    );
     assert_eq!(
         registry.handler_types().into_iter().collect::<Vec<_>>(),
-        vec!["agent_result_audit".to_owned(), "siem_event".to_owned()]
+        vec!["agent_result_audit".to_owned(), "checklist_answer".to_owned(), "siem_event".to_owned()]
     );
     assert!(registry.channel_types().is_empty());
 }

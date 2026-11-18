@@ -272,6 +272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "crypto-bigint"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -507,6 +516,16 @@ name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
+
+[[package]]
+name = "flate2"
+version = "1.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "626d4928326b646e70f65ed36fc7cf9f206bdb68a0019ee7c6b4709da4e084c4"
+dependencies = [
+ "crc32fast",
+ "libz-sys",
+]
 
 [[package]]
 name = "foldhash"
@@ -2172,10 +2191,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
+name = "unicode-general-category"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75cd3fb03d5288b3ba9a1ee103ac7e9cbb59f0b03d64f8ddfcc04dd42758a85d"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "universal-hash"
@@ -2230,7 +2264,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vectispire-container"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "bollard",
  "futures-util",
@@ -2240,8 +2274,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-checklists"
+version = "2.0.0-dev"
+dependencies = [
+ "flate2",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "unicode-general-category",
+ "unicode-normalization",
+ "vectispire-domain",
+]
+
+[[package]]
 name = "vectispire-crypto"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -2256,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "vectispire-domain"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "base64 0.22.1",
  "regex",
@@ -2275,6 +2322,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "vectispire-container",
+ "vectispire-cp-checklists",
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-git",
@@ -2284,7 +2332,7 @@ dependencies = [
 
 [[package]]
 name = "vectispire-git"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "base64 0.22.1",
  "git2",
@@ -2300,7 +2348,7 @@ dependencies = [
 
 [[package]]
 name = "vectispire-protocol"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "regex",
  "serde",
@@ -2313,7 +2361,7 @@ dependencies = [
 
 [[package]]
 name = "vectispire-scanners"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "rand_core 0.6.4",
  "regex",
@@ -2331,7 +2379,7 @@ dependencies = [
 
 [[package]]
 name = "vectispire-tls"
-version = "0.12.0-dev"
+version = "2.0.0-dev"
 dependencies = [
  "reqwest",
  "thiserror",

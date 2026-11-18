@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist set status = $1, edition = edition + 1, submitted_at = $2, submitted_by = $3, submitted_by_id = $4 where id = $5 and edition = $6 and status = $7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Varchar",
+        "Int8",
+        "Int8",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f0580a637255164ae2b33997bc9c6611d7bd4e442513e70de4ece33acad53fbd"
+}

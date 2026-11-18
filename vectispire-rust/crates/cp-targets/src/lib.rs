@@ -51,7 +51,7 @@ use vectispire_domain::schedules::{self, InForce};
 
 pub use audit::AuditSink;
 pub use clock::{Clock, SystemClock};
-pub use deletion::{ListenerName, Phase, PurgeListener, PurgeRegistry, TargetPurge};
+pub use deletion::{ListenerName, Phase, ProjectPurge, PurgeListener, PurgeRegistry, TargetPurge};
 pub use error::TargetError;
 pub use internal::{IssuerSeesTargets, OrphanedTargetRowsTask, RepositoryIdentityTask, TargetsForAccess};
 pub use ports::{IssuesStandIn, ScanningStandIn, TargetBacklog, TargetScans};

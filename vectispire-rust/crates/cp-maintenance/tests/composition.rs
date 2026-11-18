@@ -5,8 +5,8 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3), posture's one (wave 1).
-const FILLED: [Sequence; 16] = [
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3), and wave 1's seven — posture's one, checklists' one, compliance's five.
+const FILLED: [Sequence; 22] = [
     Sequence::NotificationRelay,
     Sequence::SentMessages,
     Sequence::RepositoryIdentities,
@@ -23,6 +23,12 @@ const FILLED: [Sequence; 16] = [
     Sequence::ScanMetrics,
     Sequence::AgentMetrics,
     Sequence::WeeklyDigest,
+    Sequence::ChecklistReminders,
+    Sequence::ComplianceHistory,
+    Sequence::OwaspWeeklyCoverage,
+    Sequence::ComplianceSnapshots,
+    Sequence::OwaspWeeklyRetention,
+    Sequence::AbandonedReviews,
 ];
 
 /// The filled slots and one more.
@@ -50,9 +56,9 @@ fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
     assert_eq!(
         entries.len(),
-        14,
-        "the outbox, the targets, scanning, agents, inventory, issues, gate, access, posture and the gauges fill \
-         sixteen of Java's thirty"
+        8,
+        "the outbox, the targets, scanning, agents, inventory, issues, gate, access, posture, checklists, compliance and \
+         the gauges fill twenty-two of Java's thirty"
     );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());
@@ -60,27 +66,24 @@ fn the_list_today_is_every_slot_with_its_reason() {
 
 #[test]
 fn a_slot_neither_filled_nor_deferred_fails() {
-    let problems = check(&FILLED, &without("CHECKLIST_REMINDERS"));
+    let problems = check(&FILLED, &without("EPSS_SCORES"));
     assert_eq!(problems.len(), 1, "{problems:#?}");
     assert!(
         mentions(
             &problems,
-            "CHECKLIST_REMINDERS: Java runs ChecklistReminderTask (checklists) on the maintenance turn; no Rust task fills the slot"
+            "EPSS_SCORES: Java runs EpssScoresSyncTask (threatintel) on the maintenance turn; no Rust task fills the slot"
         ),
         "{problems:#?}"
     );
     // Filled, it passes.
-    assert!(check(&and(Sequence::ChecklistReminders), &without("CHECKLIST_REMINDERS")).is_empty());
+    assert!(check(&and(Sequence::EpssScores), &without("EPSS_SCORES")).is_empty());
 }
 
 #[test]
 fn a_slot_filled_and_still_deferred_fails() {
-    let problems = check(&and(Sequence::ChecklistReminders), DEFERRED);
+    let problems = check(&and(Sequence::EpssScores), DEFERRED);
     assert_eq!(problems.len(), 1, "{problems:#?}");
-    assert!(
-        mentions(&problems, "CHECKLIST_REMINDERS: filled by a Rust task and still in deferred.txt"),
-        "{problems:#?}"
-    );
+    assert!(mentions(&problems, "EPSS_SCORES: filled by a Rust task and still in deferred.txt"), "{problems:#?}");
 }
 
 #[test]

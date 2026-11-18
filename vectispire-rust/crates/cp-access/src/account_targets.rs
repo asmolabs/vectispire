@@ -6,6 +6,7 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use vectispire_domain::list_window::ListWindow;
 
 use vectispire_cp_db::{Db, Visibility};
 
@@ -36,12 +37,20 @@ impl<A: Audit + Sync> AccountTargets<A> {
 
     /// `targets`: what the account may see, each named. Empty means it sees nothing, in restricted mode. A project
     /// grant is listed as the project, not its repositories: the grant is what an administrator made and can revoke.
-    pub async fn targets(&self, id: i64) -> Result<Vec<TargetGrant>, AdminError> {
+    pub async fn targets(
+        &self,
+        id: i64,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<TargetGrant>, AdminError> {
         let mut tx = store::read(&self.db).await?;
         require_account(&mut tx, id).await?;
+        // After the account's 404, as Java reads it.
+        let window = ListWindow::requested(limit, offset).map_err(AdminError::InvalidInput)?;
         let grants = store::user_targets(&mut tx, id).await?;
         store::commit(tx).await?;
-        Ok(self.targets.named(&grants).await?)
+        let page = window.map_or(grants.clone(), |page| page.of(&grants));
+        Ok(self.targets.named(&page).await?)
     }
 
     /// `replaceTargets`: wholesale, because the operation that matters is removing one. Read as the team path reads

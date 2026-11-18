@@ -1,0 +1,303 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, checklist_id, item_id, purpose, rule_kind, rule_digest, bound_rule, outcome, reason,\n           as_of as \"as_of: UtcInstant\", computed_at as \"computed_at: UtcInstant\", computed_by, answer_id, answer_value,\n           reconciliation, evidence_digest, evidence from t_checklist_measurement where checklist_id = ? and purpose = ? order by id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "purpose",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "purpose"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rule_kind",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 160
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "rule_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rule_digest",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "rule_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "bound_rule",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "bound_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "outcome",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 40
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "reason",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 160
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "as_of: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "computed_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "computed_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "computed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "answer_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "answer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "answer_value",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "answer_value"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "reconciliation",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 120
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "reconciliation"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "evidence_digest",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "evidence_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "evidence",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_measurement",
+            "name": "evidence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "e1ff629fe320d8259e5c8efd98ca6b5fe92d9d29caa4b1d767a886a189a884ee"
+}

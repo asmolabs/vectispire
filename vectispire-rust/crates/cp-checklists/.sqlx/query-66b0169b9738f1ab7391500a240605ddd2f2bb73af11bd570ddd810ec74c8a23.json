@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_file (project_id, sha256, size_bytes, content) values (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "66b0169b9738f1ab7391500a240605ddd2f2bb73af11bd570ddd810ec74c8a23"
+}

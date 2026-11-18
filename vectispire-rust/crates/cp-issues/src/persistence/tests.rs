@@ -103,6 +103,10 @@ fn run(engine: Engine) {
         a_passed_deadline_is_raised_with_its_mark_and_not_again(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("a_passed_deadline_is_raised_with_its_mark_and_not_again: {failure}"));
         });
+        // After it, committing its own rows of a type and tools nothing above writes.
+        the_unsettled_counts_leave_settled_triage_out(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_unsettled_counts_leave_settled_triage_out: {failure}"));
+        });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
     });
@@ -1310,5 +1314,81 @@ async fn the_aggregates_posture_reads_decode_and_count(tx: &mut Tx) -> Check {
     ensure_eq!(IssueAggregates::count_distinct(tx, &every, Axis::Rule).await.map_err(err)?, 3, "distinct rules");
     let top = IssueAggregates::count_grouped_repository(tx, &every, 8).await.map_err(err)?;
     ensure_eq!(top, vec![(REPO_A, 2)], "top repositories");
+    Ok(())
+}
+
+/// Java's `IssueCatalog.countUnsettledOfTypeWithin` and `countUnsettledOfToolWithin`: per repository, severity and
+/// state; the three settled statuses left out, a status this version does not know counted, the resolved counted, an
+/// image's issues and another type's or tool's never — read through `IssueCatalog`, on committed rows.
+async fn the_unsettled_counts_leave_settled_triage_out(db: &Db) -> Check {
+    let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
+    let rows = [
+        ("u1", Some(REPO_A), None, "sast", None, "HIGH", "open", "under_review"),
+        ("u2", Some(REPO_A), None, "sast", None, "HIGH", "open", "affected"),
+        ("u3", Some(REPO_A), None, "sast", None, "HIGH", "open", "not_affected"),
+        ("u4", Some(REPO_A), None, "sast", None, "HIGH", "resolved", "pending_approval"),
+        ("u5", Some(REPO_A), None, "sast", None, "LOW", "open", "will_not_fix"),
+        ("u6", Some(REPO_A), None, "sast", None, "LOW", "open", "fixed"),
+        ("u7", Some(REPO_A), None, "sast", None, "LOW", "open", "a_later_status"),
+        ("u8", Some(REPO_B), None, "sast", None, "CRITICAL", "open", "under_review"),
+        ("u9", None, Some(IMAGE_A), "sast", None, "HIGH", "open", "under_review"),
+        ("u10", Some(REPO_A), None, "iac", None, "HIGH", "open", "under_review"),
+        ("t1", Some(REPO_A), None, "plugin", Some("plugin:java"), "MEDIUM", "open", "under_review"),
+        ("t2", Some(REPO_A), None, "plugin", Some("plugin:java-arch"), "MEDIUM", "open", "under_review"),
+        ("t3", Some(REPO_B), None, "plugin", Some("plugin:java"), "MEDIUM", "open", "fixed"),
+    ];
+    for (fingerprint, repo, image, kind, tool, severity, state, triage) in rows {
+        let new = NewIssue {
+            type_: kind.to_owned(),
+            tool: tool.map(str::to_owned),
+            severity: severity.to_owned(),
+            state: state.to_owned(),
+            triage_status: triage.to_owned(),
+            ..issue(&format!("scope-{fingerprint}"), repo, image)
+        };
+        insert(&mut tx, new).await?;
+    }
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    let catalog = crate::IssueCatalog::new(db.clone());
+    let sorted = |mut counts: Vec<crate::catalog::ScopeCount>| {
+        counts.sort_by(|left, right| {
+            (left.repository_id, &left.severity, &left.state).cmp(&(right.repository_id, &right.severity, &right.state))
+        });
+        counts
+            .into_iter()
+            .map(|count| (count.repository_id, count.severity.unwrap_or_default(), count.state, count.count))
+            .collect::<Vec<_>>()
+    };
+    let owned = |repository: i64, severity: &str, state: &str, count: i64| {
+        (repository, severity.to_owned(), state.to_owned(), count)
+    };
+    let read = catalog
+        .count_unsettled_of_type_within("sast", &[REPO_A, REPO_B, REPO_A, IMAGE_A])
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(
+        sorted(read),
+        vec![
+            owned(REPO_A, "HIGH", "open", 2),
+            owned(REPO_A, "HIGH", "resolved", 1),
+            owned(REPO_A, "LOW", "open", 1),
+            owned(REPO_B, "CRITICAL", "open", 1),
+        ],
+        "a type's issues per repository, severity and state, settled triage left out and an unknown status counted"
+    );
+    // Past one batch, a repository named at both ends is still counted once: the list is made distinct first.
+    let wide: Vec<i64> = std::iter::once(REPO_B).chain(1_000_000..1_001_000).chain(std::iter::once(REPO_B)).collect();
+    let read = catalog.count_unsettled_of_type_within("sast", &wide).await.map_err(|e| e.to_string())?;
+    ensure_eq!(sorted(read), vec![owned(REPO_B, "CRITICAL", "open", 1)], "a repository in two batches, counted once");
+    let read = catalog.count_unsettled_of_type_within("sast", &[]).await.map_err(|e| e.to_string())?;
+    ensure_eq!(read.len(), 0, "no repository, nothing counted");
+    let read =
+        catalog.count_unsettled_of_tool_within("plugin:java", &[REPO_A, REPO_B]).await.map_err(|e| e.to_string())?;
+    ensure_eq!(
+        sorted(read),
+        vec![owned(REPO_A, "MEDIUM", "open", 1)],
+        "one tool's issues, never another's whose key it prefixes, its settled ones left out"
+    );
     Ok(())
 }

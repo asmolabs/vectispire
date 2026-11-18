@@ -13,6 +13,7 @@
 
 pub(crate) mod accounts;
 pub(crate) mod api_keys;
+pub(crate) mod in_transaction;
 pub(crate) mod sessions;
 
 /// A storage failure, kept opaque: what failed is logged where it is caught, and nothing about it reaches a response.

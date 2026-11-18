@@ -46,9 +46,9 @@ not serve at all yet is ported with that module, not stood up alone during the c
             while no access route is served). `cp-app --test access_composition`, on a real database.
       *Closed 2026-11-13: the address buckets (the last sub-item) were done in cp-http on 2026-11-12;
       `sign_in_reference_set` is green.*
-- [→] **Account requests** *(moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
+- [x] **Account requests** *(served 2026-11-16, wave 1, access administration stage; moved 2026-11-13 to access, wave 1 (task 1.7: Rust serves no access route yet): a route of a module Rust does not serve yet is ported with its module)*: `GET /account-requests`, `POST …/{id}/approve`, `POST …/{id}/reject`; audit operations
       `ACCOUNT_REQUEST_FILED / _APPROVED / _REJECTED` (SIEM maps them to `ACCOUNT_CHANGED`). Not-yet-ported list.
-- [→] **`DELETE /users/{id}/second-factor`** *(moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
+- [x] **`DELETE /users/{id}/second-factor`** *(served 2026-11-16, wave 1; moved 2026-11-13 to access, wave 1 (task 1.7): a route of a module Rust does not serve yet is ported with its module)*, and `UserView.scimManaged` (V102). Not-yet-ported list.
       - [x] `scim_managed` read on `User`, `UserView` and SCIM's rows, set by every provisioning write
             (`scim_on_both_engines`).
       - [x] The refusal it exists for — an e-mail change on such an account, 409 `managed-by-directory` — at the
@@ -281,6 +281,19 @@ causes rather than one by one. Counts are recordings.
       and nothing broken); "the reason is stored whole" is killed by "a long reason is kept within its column" and
       did not survive again in three runs; "another worker's report is applied" is equivalent — the release's
       statement repeats the owner — and is named as such in the script.
+
+- [x] **A request body that is not text could not be replayed** — the checklists' workbook and evidence uploads:
+      the replay sent only UTF-8 bodies. Fixed 2026-11-17 (`rust/w1-checklists`): `cp-contract` sends a recorded
+      binary body — base64 inline, or the `.body.gz` sidecar — and checks its length against the recording; a binary
+      answer is compared byte for byte, a zip archive named as one this replay does not compare.
+- [x] **A session's token named as another secret's digest** — about 240 of the checklists' 2,255 recordings, every test signing in a second
+      account: the recorder replaced the token's `sha256` with `«sha256:K»` when the digest was written before the
+      token was seen. Fixed 2026-11-17 in Java's `TrafficRecorder` (`nameDigestsOfLaterSecrets`, through
+      `Placeholders.digestsNamedSince`): at the end of a test, a value that is exactly a digest of a later secret is
+      rewritten `«sha256(secret:N)»` in the files already written.
+- [x] **A `oneOf` whose branches overlap** — the checklist rule's schema: Java's springdoc writes `oneOf` where two
+      branches accept the same object, and a strict reading refuses every answer. Read as `anyOf` by the replay's
+      schema checker (`reading_one_of_as_any_of`), pinned by `cp-contract --test embedded_contract`.
 
 Fixed in Phase 0, not owed: the seeder wrote `t_scan.has_sbom`, a generated column since V98, which MySQL refuses
 (986 recordings could not be replayed at all); a seed, a restore and an update now leave generated columns out.

@@ -835,15 +835,6 @@ pub struct OutlineRow {
     pub plugin_steps: Option<String>,
 }
 
-/// `findLanguagesOf`'s row: the languages the census found and those the Semgrep rules read, each null where the scan
-/// recorded none.
-#[derive(Debug, Clone, PartialEq, Eq, FromQueryResult)]
-pub struct LanguagesRow {
-    pub id: i64,
-    pub detected_languages: Option<String>,
-    pub sast_languages: Option<String>,
-}
-
 /// `idsAndTargetsNewestFirst`'s row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromQueryResult)]
 pub struct ScanOfTargetRow {
@@ -863,16 +854,6 @@ pub async fn outlines_of(tx: &mut Tx, ids: &[i64]) -> Result<Vec<OutlineRow>, St
             ScanColumn::Error,
             ScanColumn::PluginSteps,
         ])
-        .from(Scans)
-        .and_where(Expr::col(ScanColumn::Id).is_in(ids.iter().copied()))
-        .to_owned();
-    Ok(orm::fetch_all(tx, &select).await?)
-}
-
-/// `findLanguagesOf`: a scan that does not exist is absent. The caller hands at most a thousand identifiers.
-pub async fn languages_of(tx: &mut Tx, ids: &[i64]) -> Result<Vec<LanguagesRow>, StoreError> {
-    let select = Query::select()
-        .columns([ScanColumn::Id, ScanColumn::DetectedLanguages, ScanColumn::SastLanguages])
         .from(Scans)
         .and_where(Expr::col(ScanColumn::Id).is_in(ids.iter().copied()))
         .to_owned();

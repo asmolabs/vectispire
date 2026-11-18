@@ -20,6 +20,9 @@ pub enum IssueError {
     Forbidden(String),
     #[error("{0}")]
     Store(String),
+    /// Under four-eyes, the requester administered the approver's account recently (`ApproverIndependence`).
+    #[error(transparent)]
+    Independence(#[from] vectispire_cp_access::accounts::IndependenceError),
 }
 
 impl From<StoreError> for IssueError {
@@ -53,6 +56,24 @@ impl axum::response::IntoResponse for IssueError {
             }
             // Java's `AccessDeniedException`: audited and answered by the chain, not by the handler.
             IssueError::Forbidden(msg) => vectispire_cp_http::chain::denied(msg),
+            IssueError::Independence(refused) => {
+                use vectispire_cp_access::accounts::IndependenceError;
+                match refused {
+                    IndependenceError::NotIndependent { ref sentence, gesture, window_days }
+                    | IndependenceError::PasswordKnown { ref sentence, gesture, window_days } => {
+                        let cause = refused.cause().unwrap_or_default();
+                        vectispire_cp_http::Problem::handler(http::StatusCode::CONFLICT, sentence.clone())
+                            .caused_by(cause)
+                            .with("gesture", gesture.wire_name())
+                            .with("windowDays", window_days)
+                            .into_response()
+                    }
+                    IndependenceError::Failed(msg) => {
+                        vectispire_cp_http::Problem::handler(http::StatusCode::INTERNAL_SERVER_ERROR, msg)
+                            .into_response()
+                    }
+                }
+            }
             IssueError::Store(msg) => {
                 vectispire_cp_http::Problem::handler(http::StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }

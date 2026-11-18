@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_evidence (checklist_id, item_id, kind, link, file_id, file_name, media_type, file_size, file_sha256, performed_on, valid_until, added_by, added_by_id, added_at, carried_from_id, carried_by_id, edition) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 17
+    },
+    "nullable": []
+  },
+  "hash": "3d619a0c97d168e44213f0698723f129bc144db62c93a52711c1307c59f51b15"
+}

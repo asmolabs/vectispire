@@ -1,0 +1,354 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, template_id, ordinal, label, status, revision, source_sha256, source_size, layout,\n               offers_not_applicable as \"offers_not_applicable: bool\", item_pairs, previous_version_id,\n               derived_from_version_id, draft_authors, imported_at as \"imported_at: UtcInstant\", imported_by,\n               published_at as \"published_at: UtcInstant\", published_by, retired_at as \"retired_at: UtcInstant\",\n               retired_by from t_checklist_template_version where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "template_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ordinal",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "label",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 800
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "revision",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "source_sha256",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "source_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "source_size",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "source_size"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "layout",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "layout"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "offers_not_applicable: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "offers_not_applicable"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "item_pairs",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "item_pairs"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "previous_version_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "previous_version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "derived_from_version_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "derived_from_version_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "draft_authors",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "draft_authors"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "imported_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "imported_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "imported_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "imported_by"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "published_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "published_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "published_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "published_by"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "retired_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "retired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "retired_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_template_version",
+            "name": "retired_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "2b8a4a84b921419e404a35b0e06ef360f0d8116e7fa6bc38f561bb87f677d42b"
+}

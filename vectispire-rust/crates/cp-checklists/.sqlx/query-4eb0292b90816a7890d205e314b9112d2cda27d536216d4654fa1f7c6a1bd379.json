@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist_item set evidence_kind = ?, evidence_validity_months = ?, bound_rule = ?, content_digest = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "4eb0292b90816a7890d205e314b9112d2cda27d536216d4654fa1f7c6a1bd379"
+}

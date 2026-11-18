@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select source_bytes from t_checklist_template_version where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_bytes",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_template_version",
+            "name": "source_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "39550af1186fb4daebd07096f4d7c4b91e17b41bafc782784bef4ae91fae8344"
+}

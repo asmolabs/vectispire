@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select coalesce(max(ordinal), 0)::bigint as \"n!: i64\"\n               from t_checklist_template_version where template_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!: i64",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "90aebb8f6d3d05f78a87b044688cec0488d98b5b543e6d4a5cc8cb7c1c4024cf"
+}

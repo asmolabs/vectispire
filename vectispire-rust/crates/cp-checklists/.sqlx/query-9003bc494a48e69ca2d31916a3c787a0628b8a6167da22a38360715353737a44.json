@@ -1,0 +1,221 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, checklist_id, item_id, answer_value as value, answer_comment as comment, answered_by, answered_by_id,\n           answered_by_kind, answered_at as \"answered_at: UtcInstant\", measurement_id, carried_from_id, carried_by,\n           carried_by_id, carried_at as \"carried_at: UtcInstant\", needs_confirmation as \"needs_confirmation: bool\",\n           withdrawn as \"withdrawn: bool\", edition from t_checklist_answer where checklist_id = $1 and item_id = $2 order by id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "value",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answer_value"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "comment",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answer_comment"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "answered_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answered_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "answered_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answered_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "answered_by_kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answered_by_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "answered_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "answered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "measurement_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "measurement_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "carried_from_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "carried_from_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "carried_by",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "carried_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "carried_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "carried_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "carried_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "carried_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "needs_confirmation: bool",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "needs_confirmation"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "withdrawn: bool",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "withdrawn"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "edition",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_checklist_answer",
+            "name": "edition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9003bc494a48e69ca2d31916a3c787a0628b8a6167da22a38360715353737a44"
+}

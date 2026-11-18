@@ -120,7 +120,7 @@ without conflicting:
 | its contract test | `crates/cp-<module>/tests/contract.rs`, `check_module` + `probe` with `Allowlist::all_but` — no other module's route |
 | its checked queries | `crates/cp-<module>/.sqlx/`, written by `sqlx-prepare.sh prepare cp-<module>`; checked from then on because it exists |
 | its replay | found by `replay-goldens.sh` if the crate has its own `tests/golden.rs` reading `VECTISPIRE_GOLDEN_DIR` |
-| its mutants | `security/mutants/p<phase>-<task>-<module>.py`, its first line saying what it checks (`check.sh` globs them) |
+| its mutants | `security/mutants/p<phase>-<task>-<module>.py` (`w<wave>-<module>-<stage>.py` in a wave), its first line saying what it checks (`check.sh` globs them) |
 | its reference sets | `reference/<module>/` |
 | a dependency on another cp crate | `{ path = "../cp-<other>" }` in its own `Cargo.toml`, not a new line in `[workspace.dependencies]` |
 

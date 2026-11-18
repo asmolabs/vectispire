@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist_item set evidence_kind = $1, evidence_validity_months = $2, bound_rule = $3, content_digest = $4 where id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4",
+        "Text",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2bd8f1048231ec5a42bb13d91573a4047e435f219e51d5165d55fb0ddcbd67ba"
+}

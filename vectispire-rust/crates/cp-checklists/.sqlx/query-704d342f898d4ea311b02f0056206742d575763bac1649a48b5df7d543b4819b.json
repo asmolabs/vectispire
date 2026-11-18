@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist_evidence set withdrawn_at = $1, withdrawn_by = $2, withdrawn_by_id = $3, withdrawn_edition = $4 where id = $5 and withdrawn_at is null",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Varchar",
+        "Int8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "704d342f898d4ea311b02f0056206742d575763bac1649a48b5df7d543b4819b"
+}

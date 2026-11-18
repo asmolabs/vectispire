@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_checklist set status = ?, edition = edition + 1, open_slot = null, superseded_at = ?, superseded_by = ? where id = ? and edition = ? and status in ('draft', 'submitted')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "e61abe3759091f3a340c3921edd9473baa87d9707e3d7f2c50de0c90c8b0cf3f"
+}

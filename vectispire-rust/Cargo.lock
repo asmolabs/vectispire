@@ -1031,7 +1031,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1092,6 +1092,16 @@ name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
+
+[[package]]
+name = "flate2"
+version = "1.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "626d4928326b646e70f65ed36fc7cf9f206bdb68a0019ee7c6b4709da4e084c4"
+dependencies = [
+ "crc32fast",
+ "libz-sys",
+]
 
 [[package]]
 name = "fluent-uri"
@@ -2503,7 +2513,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2726,7 +2736,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3523,10 +3533,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4026,6 +4036,7 @@ dependencies = [
  "hmac 0.12.1",
  "http",
  "http-body-util",
+ "percent-encoding",
  "rand_core 0.6.4",
  "reqwest",
  "sea-query",
@@ -4044,6 +4055,7 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "vectispire-cp-arch-tests",
+ "vectispire-cp-contract",
  "vectispire-cp-crypto",
  "vectispire-cp-db",
  "vectispire-cp-http",
@@ -4083,6 +4095,7 @@ dependencies = [
  "uuid",
  "vectispire-cp-access",
  "vectispire-cp-audit",
+ "vectispire-cp-checklists",
  "vectispire-cp-compliance",
  "vectispire-cp-contract",
  "vectispire-cp-crypto",
@@ -4128,6 +4141,7 @@ dependencies = [
  "vectispire-cp-agents",
  "vectispire-cp-arch-tests",
  "vectispire-cp-audit",
+ "vectispire-cp-checklists",
  "vectispire-cp-compliance",
  "vectispire-cp-contract",
  "vectispire-cp-crypto",
@@ -4192,11 +4206,36 @@ dependencies = [
 name = "vectispire-cp-checklists"
 version = "2.0.0-dev"
 dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "flate2",
+ "http",
+ "http-body-util",
+ "percent-encoding",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
  "thiserror",
+ "time",
+ "tokio",
+ "tracing",
  "unicode-general-category",
  "unicode-normalization",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-inventory",
+ "vectispire-cp-issues",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbox",
+ "vectispire-cp-scanning",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
  "vectispire-domain",
  "vectispire-testkit",
 ]
@@ -4243,12 +4282,16 @@ name = "vectispire-cp-contract"
 version = "2.0.0-dev"
 dependencies = [
  "axum",
+ "base64 0.22.1",
+ "flate2",
+ "hmac 0.12.1",
  "http",
  "jsonschema",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
+ "sha1 0.10.7",
  "sha2 0.10.9",
  "sqlx",
  "thiserror",
@@ -5037,7 +5080,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

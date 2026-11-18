@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist_measurement (checklist_id, item_id, purpose, rule_kind, rule_digest, bound_rule, outcome, reason, as_of, computed_at, computed_by, answer_id, answer_value, reconciliation, evidence_digest, evidence) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": []
+  },
+  "hash": "2ac3a01236cc21ecbf9c6ddebfc959ef5d33fd0c98cdf2010cf941f6a4a52f32"
+}

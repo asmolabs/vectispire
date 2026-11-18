@@ -1,0 +1,303 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, checklist_id, item_id, answer_value as value, answer_comment as comment, answered_by, answered_by_id,\n           answered_by_kind, answered_at as \"answered_at: UtcInstant\", measurement_id, carried_from_id, carried_by,\n           carried_by_id, carried_at as \"carried_at: UtcInstant\", needs_confirmation as \"needs_confirmation: bool\",\n           withdrawn as \"withdrawn: bool\", edition from t_checklist_answer where checklist_id = ? order by id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "value",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answer_value"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "comment",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "collation": 255,
+          "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answer_comment"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "answered_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answered_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "answered_by_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answered_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "answered_by_kind",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "collation": 255,
+          "max_size": 40
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answered_by_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "answered_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "answered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "measurement_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "measurement_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "carried_from_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "carried_from_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "carried_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "carried_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "carried_by_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "carried_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "carried_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "carried_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "needs_confirmation: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "needs_confirmation"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "withdrawn: bool",
+        "type_info": {
+          "type": "Bit",
+          "flags": "NOT_NULL | UNSIGNED",
+          "collation": 63,
+          "max_size": 1
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "withdrawn"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "edition",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_answer",
+            "name": "edition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a049ab42de6cfe2599a74f016128f4777618cb66bd0b4bc335c25d9a09d9ad22"
+}

@@ -197,6 +197,11 @@ impl Fixture {
             outbound: guard(&self.lookups),
             policy: Arc::new(Private(private)),
             targets: Arc::new(TableTargets(self.db.clone())),
+            integrations: vectispire_cp_settings::Integrations::new(
+                self.db.clone(),
+                Vec::new(),
+                Arc::new(time::OffsetDateTime::now_utc),
+            ),
         })
     }
 
@@ -484,7 +489,7 @@ async fn an_account_s_grants_are_read_replaced_and_audited(fixture: &Fixture) {
             format!("Visible targets of {username}: 3 assigned")
         )]
     );
-    let listed = accounts.targets(account).await.unwrap();
+    let listed = accounts.targets(account, None, None).await.unwrap();
     assert_eq!(listed.len(), 3);
     assert_eq!(
         listed.iter().map(|grant| grant.kind.as_str()).collect::<Vec<_>>(),
@@ -522,7 +527,7 @@ async fn an_account_s_grants_are_read_replaced_and_audited(fixture: &Fixture) {
     );
     assert!(rows_of(db, "t_user_target", "user_id", account).await.is_empty());
 
-    assert_eq!(not_found(accounts.targets(ABSENT).await), "Account not found.");
+    assert_eq!(not_found(accounts.targets(ABSENT, None, None).await), "Account not found.");
     assert_eq!(
         not_found(accounts.replace_targets(ABSENT, None, &Visibility::everything(), &admin()).await),
         "Account not found."
@@ -632,9 +637,9 @@ async fn teams_are_created_renamed_listed_and_deleted(fixture: &Fixture) {
     let actor = admin();
     assert_eq!(not_found(teams.rename(a.id, Some("x"), None, &actor).await), "Team not found.");
     assert_eq!(not_found(teams.delete(a.id, &actor).await), "Team not found.");
-    assert_eq!(not_found(teams.members(a.id).await), "Team not found.");
+    assert_eq!(not_found(teams.members(a.id, None, None).await), "Team not found.");
     assert_eq!(not_found(teams.replace_members(a.id, &[], &actor).await), "Team not found.");
-    assert_eq!(not_found(teams.targets(a.id).await), "Team not found.");
+    assert_eq!(not_found(teams.targets(a.id, None, None).await), "Team not found.");
     assert_eq!(not_found(teams.replace_targets(a.id, &[], &Visibility::everything(), &actor).await), "Team not found.");
     assert_eq!(not_found(teams.set_webhook(a.id, Some(""), &actor).await), "Team not found.");
     assert!(fixture.log.take().is_empty());
@@ -654,7 +659,7 @@ async fn members_are_replaced_wholesale(fixture: &Fixture) {
 
     let stored = teams.replace_members(team, &[Some(two), None, Some(one), Some(two)], &admin()).await.unwrap();
     assert_eq!(stored, vec![two, one], "as sent, without its nulls and repeats");
-    assert_eq!(teams.members(team).await.unwrap(), vec![one.min(two), one.max(two)]);
+    assert_eq!(teams.members(team, None, None).await.unwrap(), vec![one.min(two), one.max(two)]);
     assert_eq!(
         strings(db, &format!("select origin from t_team_member where team_id = {team}")).await,
         vec!["manual", "manual"]
@@ -667,7 +672,7 @@ async fn members_are_replaced_wholesale(fixture: &Fixture) {
     // Refused rather than skipped, and nothing written.
     let refused = teams.replace_members(team, &[Some(one), Some(987_654), Some(987_655)], &admin()).await;
     assert_eq!(invalid(refused), "No such account(s): [987654, 987655]");
-    assert_eq!(teams.members(team).await.unwrap().len(), 2);
+    assert_eq!(teams.members(team, None, None).await.unwrap().len(), 2);
     assert!(fixture.log.take().is_empty());
 
     // An oidc row is rewritten as set by hand, as Java's `deleteByTeamId` then `save` does.
@@ -683,7 +688,7 @@ async fn members_are_replaced_wholesale(fixture: &Fixture) {
 
     // Removing the member removes the access: an empty list is a statement.
     assert!(teams.replace_members(team, &[], &admin()).await.unwrap().is_empty());
-    assert!(teams.members(team).await.unwrap().is_empty());
+    assert!(teams.members(team, None, None).await.unwrap().is_empty());
     fixture.log.take();
 }
 
@@ -720,7 +725,7 @@ async fn targets_are_replaced_wholesale(fixture: &Fixture) {
         vec![format!("project:{project}"), format!("repository:{repository}")],
         "one row per pair"
     );
-    assert_eq!(teams.targets(team).await.unwrap().len(), 2);
+    assert_eq!(teams.targets(team, None, None).await.unwrap().len(), 2);
 
     assert!(teams.replace_targets(team, &[], &Visibility::everything(), &admin()).await.unwrap().is_empty());
     assert!(rows_of(db, "t_team_target", "team_id", team).await.is_empty());

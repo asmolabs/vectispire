@@ -811,3 +811,105 @@ pub async fn insert_lease(
         postgres::insert_lease(t, name, holder, at, expires_at).await
     )?)
 }
+
+// ── t_scan: what a checklist measures (decision 0032 §6) ─────────────────────────────────────
+
+/// `findNewestExamining`: each of these repositories' newest scan (by identifier) with this status, created at or after
+/// `since`, whose `examined_types` the `like` pattern matches — `(repository, scan, created_at, sbom_stored)`. The
+/// column is wrapped in commas before the `like`, so `sast` matches `,iac,sast,` and never a name containing it; a
+/// `null` column concatenates to `null` on both engines (PostgreSQL's `||`, never its `concat`, which skips a `null`)
+/// and matches nothing, which is what keeps an unrecorded scan from counting as one that examined.
+pub async fn newest_examining(
+    tx: &mut Tx,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<(i64, i64, OffsetDateTime, bool)>, StoreError> {
+    let mut found = Vec::new();
+    for chunk in repositories.chunks(LOOKUP_BATCH) {
+        found.extend(on!(
+            &mut *tx,
+            Tx,
+            |t| mysql::newest_examining(t, &json_ids(chunk), status, since, pattern).await,
+            postgres::newest_examining(t, chunk, status, since, pattern).await
+        )?);
+    }
+    Ok(found)
+}
+
+/// `countScansWithin`: per repository, its scans with this status created at or after `since`, and how many of them
+/// hold no `examined_types` — `(repository, scans, unrecorded)`. A repository with none is absent.
+pub async fn count_within(
+    tx: &mut Tx,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+) -> Result<Vec<(i64, i64, i64)>, StoreError> {
+    let mut found = Vec::new();
+    for chunk in repositories.chunks(LOOKUP_BATCH) {
+        found.extend(on!(
+            &mut *tx,
+            Tx,
+            |t| mysql::count_within(t, &json_ids(chunk), status, since).await,
+            postgres::count_within(t, chunk, status, since).await
+        )?);
+    }
+    Ok(found)
+}
+
+/// `findNamingPluginWithin`: the scans with this status created at or after `since` whose `plugin_steps` the pattern
+/// matches, with the column — `(repository, scan, created_at, plugin_steps)`, newest first within a repository.
+pub async fn naming_plugin_within(
+    tx: &mut Tx,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<(i64, i64, OffsetDateTime, Option<String>)>, StoreError> {
+    let mut found = Vec::new();
+    for chunk in repositories.chunks(LOOKUP_BATCH) {
+        found.extend(on!(
+            &mut *tx,
+            Tx,
+            |t| mysql::naming_plugin_within(t, &json_ids(chunk), status, since, pattern).await,
+            postgres::naming_plugin_within(t, chunk, status, since, pattern).await
+        )?);
+    }
+    Ok(found)
+}
+
+/// `findNamingPluginBefore`: the repositories among these with a scan of this status created strictly before `before`
+/// whose `plugin_steps` the pattern matches.
+pub async fn naming_plugin_before(
+    tx: &mut Tx,
+    repositories: &[i64],
+    status: &str,
+    before: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<i64>, StoreError> {
+    let mut found = Vec::new();
+    for chunk in repositories.chunks(LOOKUP_BATCH) {
+        found.extend(on!(
+            &mut *tx,
+            Tx,
+            |t| mysql::naming_plugin_before(t, &json_ids(chunk), status, before, pattern).await,
+            postgres::naming_plugin_before(t, chunk, status, before, pattern).await
+        )?);
+    }
+    Ok(found)
+}
+
+/// `findLanguagesOf`: each existing scan's `(id, detected_languages, sast_languages)`, as stored.
+pub async fn languages_of(tx: &mut Tx, ids: &[i64]) -> Result<Vec<(i64, Option<String>, Option<String>)>, StoreError> {
+    let mut found = Vec::new();
+    for chunk in ids.chunks(LOOKUP_BATCH) {
+        found.extend(on!(
+            &mut *tx,
+            Tx,
+            |t| mysql::languages_of(t, &json_ids(chunk)).await,
+            postgres::languages_of(t, chunk).await
+        )?);
+    }
+    Ok(found)
+}

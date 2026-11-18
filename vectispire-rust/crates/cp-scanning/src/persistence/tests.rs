@@ -682,9 +682,7 @@ async fn the_reads_compliance_adds(tx: &mut Tx) -> Check {
         ],
         "the outlines, an absent scan absent"
     );
-    let languages = catalog::languages_of(tx, &[first, tie]).await.map_err(err)?;
-    let mut languages: Vec<_> =
-        languages.into_iter().map(|row| (row.id, row.detected_languages, row.sast_languages)).collect();
+    let mut languages = crate::persistence::languages_of(tx, &[first, tie]).await.map_err(err)?;
     languages.sort();
     ensure_eq!(
         languages,

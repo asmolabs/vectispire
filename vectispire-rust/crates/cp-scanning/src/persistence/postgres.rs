@@ -878,3 +878,89 @@ pub async fn insert_lease(
     .await?
     .rows_affected())
 }
+
+pub async fn newest_examining(
+    conn: &mut PgConnection,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<(i64, i64, OffsetDateTime, bool)>, DbError> {
+    let rows = sqlx::query!(
+        r#"/* postgres */ select s.repo_id as "repo_id!", s.id, s.created_at as "created_at: UtcInstant", (s.sbom is not null) as "sbom_stored!" from t_scan s where s.repo_id = any($1) and s.id = (select max(l.id) from t_scan l where l.repo_id = s.repo_id and l.status = $2 and l.created_at >= $3 and (',' || l.examined_types || ',') like $4)"#,
+        repositories,
+        status,
+        UtcInstant(since) as _,
+        pattern
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows.into_iter().map(|row| (row.repo_id, row.id, row.created_at.0, row.sbom_stored)).collect())
+}
+
+pub async fn count_within(
+    conn: &mut PgConnection,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+) -> Result<Vec<(i64, i64, i64)>, DbError> {
+    let rows = sqlx::query!(
+        r#"/* postgres */ select s.repo_id as "repo_id!", count(s.id) as "completed!", coalesce(sum(case when s.examined_types is null then 1 else 0 end), 0) as "unrecorded!" from t_scan s where s.repo_id = any($1) and s.status = $2 and s.created_at >= $3 group by s.repo_id"#,
+        repositories,
+        status,
+        UtcInstant(since) as _
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows.into_iter().map(|row| (row.repo_id, row.completed, row.unrecorded)).collect())
+}
+
+pub async fn naming_plugin_within(
+    conn: &mut PgConnection,
+    repositories: &[i64],
+    status: &str,
+    since: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<(i64, i64, OffsetDateTime, Option<String>)>, DbError> {
+    let rows = sqlx::query!(
+        r#"/* postgres */ select s.repo_id as "repo_id!", s.id, s.created_at as "created_at: UtcInstant", s.plugin_steps from t_scan s where s.repo_id = any($1) and s.status = $2 and s.created_at >= $3 and s.plugin_steps like $4 order by s.repo_id asc, s.id desc"#,
+        repositories,
+        status,
+        UtcInstant(since) as _,
+        pattern
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows.into_iter().map(|row| (row.repo_id, row.id, row.created_at.0, row.plugin_steps)).collect())
+}
+
+pub async fn naming_plugin_before(
+    conn: &mut PgConnection,
+    repositories: &[i64],
+    status: &str,
+    before: OffsetDateTime,
+    pattern: &str,
+) -> Result<Vec<i64>, DbError> {
+    Ok(sqlx::query_scalar!(
+        r#"/* postgres */ select distinct s.repo_id as "repo_id!" from t_scan s where s.repo_id = any($1) and s.status = $2 and s.created_at < $3 and s.plugin_steps like $4"#,
+        repositories,
+        status,
+        UtcInstant(before) as _,
+        pattern
+    )
+    .fetch_all(conn)
+    .await?)
+}
+
+pub async fn languages_of(
+    conn: &mut PgConnection,
+    ids: &[i64],
+) -> Result<Vec<(i64, Option<String>, Option<String>)>, DbError> {
+    let rows = sqlx::query!(
+        r#"/* postgres */ select id, detected_languages, sast_languages from t_scan where id = any($1) order by id"#,
+        ids
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows.into_iter().map(|row| (row.id, row.detected_languages, row.sast_languages)).collect())
+}

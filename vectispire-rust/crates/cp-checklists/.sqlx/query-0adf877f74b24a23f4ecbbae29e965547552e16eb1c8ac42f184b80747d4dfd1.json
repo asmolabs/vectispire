@@ -1,0 +1,388 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id, checklist_id, item_id, kind, link, file_id, file_name, media_type, file_size, file_sha256,\n           performed_on as \"performed_on: UtcInstant\", valid_until as \"valid_until: UtcInstant\", added_by, added_by_id,\n           added_at as \"added_at: UtcInstant\", carried_from_id, carried_by_id, edition, withdrawn_by, withdrawn_by_id,\n           withdrawn_at as \"withdrawn_at: UtcInstant\", withdrawn_edition from t_checklist_evidence where checklist_id = ? order by id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "checklist_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "checklist_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 40
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "link",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 8000
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "file_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "file_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "file_name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "file_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "media_type",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "media_type"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "file_size",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "file_size"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "file_sha256",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 256
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "file_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "performed_on: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "performed_on"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "valid_until: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "valid_until"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "added_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "added_by"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "added_by_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "added_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "added_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "added_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "carried_from_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "carried_from_id"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "carried_by_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "carried_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "edition",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "edition"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "withdrawn_by",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "collation": 255,
+          "max_size": 1020
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "withdrawn_by"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "withdrawn_by_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "withdrawn_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "withdrawn_at: UtcInstant",
+        "type_info": {
+          "type": "Datetime",
+          "flags": "BINARY",
+          "collation": 63,
+          "max_size": 26
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "withdrawn_at"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "withdrawn_edition",
+        "type_info": {
+          "type": "Long",
+          "flags": "",
+          "collation": 63,
+          "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_checklist_evidence",
+            "name": "withdrawn_edition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0adf877f74b24a23f4ecbbae29e965547552e16eb1c8ac42f184b80747d4dfd1"
+}

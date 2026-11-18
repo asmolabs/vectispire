@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist_template_version set revision = revision + 1, layout = $1, offers_not_applicable = $2, item_pairs = $3, draft_authors = $4 where id = $5 and status = $6 and revision = $7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "03ccbeba3864a7a5fbcbd2ba2343a22212a5f34e9b0b22cacb78a4e3b1d1d4fb"
+}

@@ -75,7 +75,7 @@ MUTANTS = [
     ("any two values alike", PH, "    if from == to {\n        return true;\n    }\n    collapse(today, column, from) == collapse(today, column, to)", "    let _ = (today, column, from, to);\n    true", T),
     ("a sealed value not collapsed", PH, '    let sealed = SEALED.replace_all(text, "«sealed»");', "    let sealed = std::borrow::Cow::Borrowed(text);", T),
     ("a date outside the window collapsed", PH, "            if !in_range {\n                whole.to_owned()\n            } else if", "            if false {\n                whole.to_owned()\n            } else if", T),
-    ("a clock step not collapsed", PH, '    if column == "totp_last_step" || column == "totplaststep" {', '    if column == "never" {', T),
+    ("a clock step not collapsed", PH, '    if (column == "totp_last_step" || column == "totplaststep") && text != "null" {', '    if column == "never" && text != "null" {', T),
     ("the seconds printed when zero", RW, '    if seconds == "00" && grouped.is_empty() {', "    if false {", T),
     # ── the list ──
     ("a served recording that differs passes", DF, "                    Some(other) if !golden_line && route_line.is_none() => {", "                    Some(other) if false && !golden_line && route_line.is_none() => {", T),

@@ -53,6 +53,7 @@ pub enum Check {
 pub struct Schemas {
     components: Value,
     nullable_enums_admit_null: bool,
+    one_of_as_any_of: bool,
     compiled: Mutex<HashMap<String, Arc<Validator>>>,
 }
 
@@ -69,7 +70,12 @@ impl Schemas {
         // Once, here: the schemas under `components` are the ones most `$ref`s reach, and they are
         // as likely as an operation's own to say "or null" in the older way.
         normalise(&mut components);
-        Schemas { components, nullable_enums_admit_null: false, compiled: Mutex::new(HashMap::new()) }
+        Schemas {
+            components,
+            nullable_enums_admit_null: false,
+            one_of_as_any_of: false,
+            compiled: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Reads `{"type": ["string", "null"], "enum": ["a", "b"]}` as admitting `null`.
@@ -85,6 +91,24 @@ impl Schemas {
         self.nullable_enums_admit_null = yes;
         if yes {
             admit_null_in_enums(&mut self.components);
+        }
+        self.compiled = Mutex::new(HashMap::new());
+        self
+    }
+
+    /// Reads `oneOf` as `anyOf`: a body valid under several branches is still a body of the documented shape.
+    ///
+    /// **A defect of the 1.0 document, reproduced by Java.** The checklist routes' 409s are documented as `oneOf` the
+    /// incomplete and the measurement problem, whose members overlap — a problem without `lines` (`checklist-changed`)
+    /// or with them satisfies both, and `oneOf` then refuses the very body the Java application sends. Java's recorded
+    /// answer escapes the check only because its ids are placeholders, which match neither branch. A replay turns this
+    /// on; the body itself is still compared field by field with Java's, and the defect stays pinned by a test that runs
+    /// with it off.
+    #[must_use]
+    pub fn reading_one_of_as_any_of(mut self, yes: bool) -> Schemas {
+        self.one_of_as_any_of = yes;
+        if yes {
+            one_of_as_any_of(&mut self.components);
         }
         self.compiled = Mutex::new(HashMap::new());
         self
@@ -191,6 +215,9 @@ impl Schemas {
         if self.nullable_enums_admit_null {
             admit_null_in_enums(&mut subject);
         }
+        if self.one_of_as_any_of {
+            one_of_as_any_of(&mut subject);
+        }
         // The checked schema sits beside `components`, so a `$ref` of `#/components/schemas/X`
         // resolves against this one root and against nothing else.
         let root = json!({ "components": self.components, "allOf": [subject] });
@@ -251,6 +278,26 @@ fn best_media<'a>(declared: &'a [Media], actual: &str) -> Option<&'a Media> {
         .filter_map(|media| rank(media).map(|score| (score, media)))
         .max_by_key(|(score, _)| *score)
         .map(|(_, media)| media)
+}
+
+/// Renames every `oneOf` to `anyOf`.
+fn one_of_as_any_of(schema: &mut Value) {
+    match schema {
+        Value::Object(object) => {
+            if let Some(branches) = object.remove("oneOf") {
+                object.insert("anyOf".to_owned(), branches);
+            }
+            for value in object.values_mut() {
+                one_of_as_any_of(value);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                one_of_as_any_of(item);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Adds `null` to an `enum` whose `type` already admits it.

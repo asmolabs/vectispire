@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select gesture from t_account_administration where account_id = $1 and administrator_id = $2 and occurred_at >= $3 order by occurred_at desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gesture",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_account_administration",
+            "name": "gesture"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "98e411a8cac086a3f6e824b51cb8654c63eb680deb87b69feaabe2ca4d279540"
+}

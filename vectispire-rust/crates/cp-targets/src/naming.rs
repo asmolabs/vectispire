@@ -104,3 +104,16 @@ pub async fn all(db: &Db) -> Result<Names, StoreError> {
         containers: containers.iter().map(|row| (row.id, of_container(row))).collect(),
     })
 }
+
+impl crate::Targets {
+    /// `TargetNaming.repositoryNames`: the names of these repositories, those that exist, keyed by identifier — what a
+    /// project's checklist names every repository its measurements looked at by. [`for_ids`]' answer, without images:
+    /// the list is sized by an estate, and it batches a thousand identifiers per statement as Java does.
+    pub async fn repository_names(&self, repository_ids: &[i64]) -> Result<BTreeMap<i64, String>, crate::TargetError> {
+        if repository_ids.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+        let repositories: BTreeSet<i64> = repository_ids.iter().copied().collect();
+        Ok(for_ids(&self.db, &repositories, &BTreeSet::new()).await?.repositories)
+    }
+}

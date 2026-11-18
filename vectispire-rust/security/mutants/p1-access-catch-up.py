@@ -56,7 +56,7 @@ MUTANTS = [
     ("an address read as one", ACC, "        refuse_if(account_rules::validate_email(Some(email)))?;\n", "", SVC),
     ("a format character is no address", RULES, "            | G::Format\n", "", SVC),
     ("a domain with a dot", RULES, " && dotted\n", "\n", SVC),
-    ("a role set lifts the lowering", ACC, "        if change.role.is_some()\n            && let Some(lowered)", "        if false\n            && let Some(lowered)", SVC),
+    ("a role set lifts the lowering", ACC, "if role_set && let Some(lowered) = user.scim_lowered_from.take() {", "if false && let Some(lowered) = user.scim_lowered_from.take() {", SVC),
     ("the lowered role recorded", SCIM, "            user.scim_lowered_from = Some(previous_role.clone());\n", "", SCIMT),
     ("a lowered account not bound", SCIM, "            if let Some(lowered) = &user.scim_lowered_from\n                && !link_privileged", "            if let Some(lowered) = &user.scim_lowered_from\n                && false", SCIMT),
     # ── the settings save and the AI endpoint ──

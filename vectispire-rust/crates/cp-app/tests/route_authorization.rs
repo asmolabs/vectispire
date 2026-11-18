@@ -81,6 +81,7 @@ type StandIns = (
     Arc<vectispire_cp_siem::SiemExporterService>,
     registry::Platform,
     Arc<vectispire_cp_compliance::Services>,
+    Vec<vectispire_cp_http::routes::RouteEntry>,
 );
 
 fn stand_ins() -> StandIns {
@@ -160,6 +161,9 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
+    let (db_for_access, audit_for_access, creds_for_access) = (db.clone(), audit.clone(), creds.clone());
+    let (audit_for_sign_in, creds_for_sign_in, encryption_for_sign_in) =
+        (audit.clone(), creds.clone(), encryption.clone());
 
     let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
         db.clone(),
@@ -173,7 +177,11 @@ fn stand_ins() -> StandIns {
 
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem),
+        vectispire_cp_app::maintenance::outbox_registry(
+            audit.clone(),
+            &siem,
+            vectispire_cp_app::checklists::answer_delivery().0,
+        ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
 
@@ -244,6 +252,7 @@ fn stand_ins() -> StandIns {
         channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
         clock: Arc::new(vectispire_cp_targets::SystemClock),
     }));
+    let checklist_audit = audit.clone();
     let platform = registry::Platform {
         trail: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
             (*audit).clone(),
@@ -306,16 +315,84 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
     );
 
-    (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance)
+    let access = vectispire_cp_app::access::administration_routes(vectispire_cp_app::access::AdministrationParts {
+        db: db_for_access.clone(),
+        audit: audit_for_access,
+        credentials: creds_for_access,
+        clock: Arc::new(vectispire_cp_access::credentials::SystemClock),
+        guard: OutboundUrlGuard::new(Vec::new()),
+        visibility: vectispire_cp_access::VisibilityService::new(
+            db_for_access.clone(),
+            Arc::new(NoAccessSettings),
+            Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
+        ),
+        targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
+    });
+    let mut access = access;
+    access.extend(vectispire_cp_app::access::sign_in_routes(vectispire_cp_app::access::SignInRoutesParts {
+        db: db_for_access.clone(),
+        audit: audit_for_sign_in.clone(),
+        credentials: creds_for_sign_in,
+        clock: Arc::new(vectispire_cp_access::credentials::SystemClock),
+        encryption: encryption_for_sign_in,
+        provider: None,
+        password_login: true,
+        branding: vectispire_cp_access::Branding::of(None, None),
+        limits: vectispire_cp_access::login_throttle::SignInLimits::default(),
+    }));
+    access.extend(vectispire_cp_app::access::scim_routes(
+        db_for_access.clone(),
+        audit_for_sign_in,
+        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        false,
+    ));
+    // The checklists' routes, as `main.rs` composes them into the same registry.
+    access.extend(
+        vectispire_cp_app::checklists::compose(vectispire_cp_app::checklists::ChecklistParts {
+            db: db_for_access.clone(),
+            targets: targets.clone(),
+            scans: vectispire_cp_scanning::ScanCatalog::new(
+                db_for_access.clone(),
+                Arc::new(vectispire_cp_targets::SystemClock),
+            ),
+            issues: vectispire_cp_issues::IssueCatalog::new(db_for_access.clone()),
+            audit: checklist_audit.clone(),
+            trail: platform.trail.clone(),
+            signing: platform.signing.clone(),
+            visibility: vectispire_cp_access::VisibilityService::new(
+                db_for_access.clone(),
+                Arc::new(NoAccessSettings),
+                Arc::new(vectispire_cp_targets::TargetsForAccess(db_for_access.clone())),
+            ),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+            product_version: None,
+            max_workbook_bytes: 1,
+            max_file_bytes: 1,
+        })
+        .routes,
+    );
+    (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access)
+}
+
+/// The visibility's settings, never asked: the probe reads the routes' shape, not an allowance.
+struct NoAccessSettings;
+
+impl vectispire_cp_access::AccessSettings for NoAccessSettings {
+    fn target_visibility(
+        &self,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'_, Result<String, vectispire_cp_access::AccessError>> {
+        Box::pin(async { Ok(String::new()) })
+    }
 }
 
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
 #[tokio::test]
 async fn the_registry_holds_to_the_authorization_rules() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance) = stand_ins();
+    let (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access) =
+        stand_ins();
     let routes = descriptors(&registry::routes(
-        targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance,
+        targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access,
     ));
     let not_ported: BTreeSet<String> = Allowlist::committed().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
@@ -343,9 +420,10 @@ async fn the_registry_holds_to_the_authorization_rules() {
 /// ceiling. It replaces the count of routes per module this test used to pin, which every port had to edit.
 #[tokio::test]
 async fn the_registry_serves_exactly_what_has_left_the_list_of_routes_not_ported() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance) = stand_ins();
+    let (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access) =
+        stand_ins();
     let registry = registry::routes(
-        targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance,
+        targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access,
     );
     let served: BTreeSet<(String, String)> =
         registry.table().iter().map(|decl| (decl.method.clone(), decl.path.clone())).collect();

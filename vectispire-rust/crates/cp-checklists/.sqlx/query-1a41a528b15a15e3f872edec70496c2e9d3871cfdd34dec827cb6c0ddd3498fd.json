@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_checklist_contact set account_id = $1, linked_by = $2, linked_at = $3 where id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1a41a528b15a15e3f872edec70496c2e9d3871cfdd34dec827cb6c0ddd3498fd"
+}

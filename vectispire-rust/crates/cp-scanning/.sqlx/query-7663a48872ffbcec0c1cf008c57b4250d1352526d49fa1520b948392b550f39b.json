@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select distinct s.repo_id as \"repo_id!\" from t_scan s where s.repo_id = any($1) and s.status = $2 and s.created_at < $3 and s.plugin_steps like $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repo_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "repo_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7663a48872ffbcec0c1cf008c57b4250d1352526d49fa1520b948392b550f39b"
+}

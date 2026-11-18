@@ -340,9 +340,11 @@ async fn serve() -> ExitCode {
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
 
+    // The checklists' `checklist_answer` handler, registered now and handed its service once the module is composed.
+    let (checklist_delivery, checklist_slot) = vectispire_cp_app::checklists::answer_delivery();
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem),
+        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem, checklist_delivery),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
     let siem_service = vectispire_cp_app::siem::service(
@@ -359,7 +361,8 @@ async fn serve() -> ExitCode {
         .with(vectispire_cp_issues::purge::listeners())
         .with(vectispire_cp_inventory::listeners())
         .with(vectispire_cp_gate::purge::listeners())
-        .with(vectispire_cp_compliance::purge::listeners());
+        .with(vectispire_cp_compliance::purge::listeners())
+        .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]);
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
@@ -447,7 +450,11 @@ async fn serve() -> ExitCode {
         allowed_hosts: allowed_hosts.clone(),
         image_platform: settings.scanning.image_platform.clone(),
         runner,
-        scanned: Vec::new(),
+        // The checklists' `RepositoryScanned`: a `checklist_answer` message queued in the scan's transaction.
+        scanned: vec![Arc::new(vectispire_cp_checklists::AnswersFromEvidence {
+            outbox: outbox.clone(),
+            settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+        })],
     }));
 
     // The access module's clock: the credentials, the session cleanup and the shared rate windows read it.
@@ -572,6 +579,36 @@ async fn serve() -> ExitCode {
         clock.clone(),
     ));
 
+    // The checklists (wave 1): before the maintenance turns, which run their weekly reminder.
+    let checklists = vectispire_cp_app::checklists::compose(vectispire_cp_app::checklists::ChecklistParts {
+        db: db.clone(),
+        targets: targets.clone(),
+        scans: (*scan_catalog).clone(),
+        issues: (**issues.catalog()).clone(),
+        audit: audit.clone(),
+        trail: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(vectispire_cp_audit::SystemClock),
+            vectispire_cp_app::siem::chain_broken_listeners(&siem),
+        )),
+        signing: signing.clone(),
+        visibility: vectispire_cp_access::VisibilityService::new(
+            db.clone(),
+            Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone()))),
+            Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
+        ),
+        clock: clock.clone(),
+        product_version: vectispire_cp_settings::about::product_version(
+            settings.exports.tool_version.as_deref(),
+            Some(env!("CARGO_PKG_VERSION")),
+        ),
+        max_workbook_bytes: i64::try_from(settings.max_body.checklist_template_import).unwrap_or(i64::MAX),
+        max_file_bytes: i64::try_from(settings.max_body.checklist_evidence).unwrap_or(i64::MAX),
+    });
+    if checklist_slot.set(checklists.checklists.clone()).is_err() {
+        tracing::error!("The checklists' answer delivery was handed its service twice.");
+    }
+
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
@@ -586,6 +623,7 @@ async fn serve() -> ExitCode {
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
         access.session_cleanup.clone(),
+        checklists.reminders.clone(),
         &gauges,
     ) {
         Ok(turns) => turns,
@@ -629,6 +667,38 @@ async fn serve() -> ExitCode {
         access_settings,
         Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
     );
+    let access_routes =
+        vectispire_cp_app::access::administration_routes(vectispire_cp_app::access::AdministrationParts {
+            db: db.clone(),
+            audit: audit.clone(),
+            credentials: creds.clone(),
+            clock: access_clock.clone(),
+            guard: guard.clone(),
+            visibility: visibility.clone(),
+            targets: Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
+        });
+    let mut access_routes = access_routes;
+    access_routes.extend(vectispire_cp_app::access::sign_in_routes(vectispire_cp_app::access::SignInRoutesParts {
+        db: db.clone(),
+        audit: audit.clone(),
+        credentials: creds.clone(),
+        clock: access_clock.clone(),
+        encryption: encryption.clone(),
+        provider: settings.oidc.provider.as_ref().map(|provider| provider.name.clone()),
+        password_login: settings.oidc.password_login,
+        branding: vectispire_cp_access::Branding::of(
+            Some(&settings.branding.name),
+            Some(&settings.branding.gitlab_url),
+        ),
+        limits: access.limits,
+    }));
+    access_routes.extend(vectispire_cp_app::access::scim_routes(
+        db.clone(),
+        audit.clone(),
+        access_clock.clone(),
+        settings.oidc.link_privileged_accounts,
+    ));
+    access_routes.extend(checklists.routes);
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
@@ -655,6 +725,7 @@ async fn serve() -> ExitCode {
             ),
         },
         compliance.clone(),
+        access_routes,
     ) {
         routes = routes.route(entry);
     }

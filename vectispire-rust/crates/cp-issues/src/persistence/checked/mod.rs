@@ -72,3 +72,36 @@ pub async fn reopening_migration_installed_on(tx: &mut Tx) -> Result<Vec<time::O
         postgres::reopening_migration_installed_on(conn).await
     )
 }
+
+/// What a checklist's figures count issues by: a built-in finding type, or one tool's fingerprint key (`plugin:<id>`,
+/// `import:<source>/<tool>`) — never a type for a tool, which would count every plugin's issues as one's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnsettledScope<'a> {
+    Type(&'a str),
+    Tool(&'a str),
+}
+
+/// `countUnsettledOfTypeWithin` / `countUnsettledOfToolWithin`: these repositories' issues in the scope, counted per
+/// `(repository, severity, state)`, the settled triage left out **by `not in`** — so that a triage status this version
+/// does not know is counted, never silently settled (decision 0032 §6). The three settled names are bound one
+/// placeholder each: the list is fixed, and a statement whose length followed it could not be checked.
+pub async fn count_unsettled_within(
+    tx: &mut Tx,
+    scope: UnsettledScope<'_>,
+    repositories: &[i64],
+    settled: [&str; 3],
+) -> Result<Vec<(i64, Option<String>, String, i64)>, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::count_unsettled_within(conn, scope, &json_ids(repositories), settled).await,
+        postgres::count_unsettled_within(conn, scope, repositories, settled).await
+    )
+}
+
+/// A list of identifiers as MySQL's one parameter reads it — a JSON array under `json_table`, as `cp-scanning` and
+/// `cp-targets` bind theirs: MySQL has no array parameter, and integers compare under no collation.
+#[cfg_attr(not(feature = "mysql-queries"), allow(dead_code))]
+fn json_ids(ids: &[i64]) -> String {
+    let joined: Vec<String> = ids.iter().map(i64::to_string).collect();
+    format!("[{}]", joined.join(","))
+}

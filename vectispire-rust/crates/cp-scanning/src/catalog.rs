@@ -14,10 +14,13 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_targets::Clock;
+use vectispire_domain::FindingType;
+use vectispire_domain::language::Language;
 
 use crate::persistence::{self, LOOKUP_BATCH, LatestRow, StoreError};
 use crate::views::{
-    FindingOnScan, NewestCompletedScanRow, PackageImpact, ScanFindingView, ScanSbom, ScanView, detected_languages,
+    BUILT_IN, FindingOnScan, NewestCompletedScanRow, PackageImpact, PluginOutcome, ScanFindingView, ScanSbom, ScanView,
+    detected_languages,
 };
 
 /// The catalogue, over the database and the clock that stamps a queued scan.
@@ -52,14 +55,6 @@ pub struct ScanOutline {
     pub plugins: Vec<crate::views::PluginOutcome>,
 }
 
-/// `ScanCatalog.ScanLanguages`: what the census found and what the Semgrep rules read, each `None` where the scan
-/// recorded none.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScanLanguages {
-    pub detected: Option<Vec<&'static str>>,
-    pub sast_rules: Option<Vec<&'static str>>,
-}
-
 /// `ScanCatalog.ScanOfTarget`: a scan as identifier and target columns only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScanOfTarget {
@@ -82,6 +77,53 @@ pub struct WaitingScans {
     pub repo_id: i64,
     pub scans: i64,
 }
+
+/// `ExaminingScanRow`: a repository's newest completed scan in which one built-in step produced — what a checklist's
+/// measurement cites as its evidence (decision 0032 §6). Only a scan that **recorded** the type as examined is one: a
+/// scan from before `examined_types` never is, whatever it found, because nothing says whether its step ran.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExaminingScanRow {
+    pub repository_id: i64,
+    pub scan_id: i64,
+    /// When the scan was queued, the instant every other screen dates a scan by.
+    pub created_at: OffsetDateTime,
+    /// Whether the scan still holds its SBOM — retention may have purged it, and a dependency rule asks.
+    pub sbom_stored: bool,
+}
+
+/// `ScansWithin`: a repository's completed scans within an age, and how many of them are from before `examined_types`
+/// — what tells "every step absent" from "nobody recorded it" when no scan within the age examined a type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScansWithin {
+    pub repository_id: i64,
+    pub completed: i64,
+    pub unrecorded: i64,
+}
+
+/// `PluginRun`: one plugin's outcome in one completed scan of a repository — `produced`, `not_applicable`, `absent` or
+/// `refused`, decision 0017's states kept apart, as [`PluginOutcome::read`] reads them back.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginRun {
+    pub repository_id: i64,
+    pub scan_id: i64,
+    pub created_at: OffsetDateTime,
+    pub outcome: PluginOutcome,
+}
+
+/// `ScanLanguages`: what one scan recorded of languages — those its census found in the tree, and those the Semgrep
+/// rules of its task read. **`None` is "the scan recorded none", never the empty set** (decision 0007): reading it as
+/// empty would tell a checklist that a Java tree holds no Java, or that its static analysis read nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordedLanguages {
+    pub detected: Option<BTreeSet<Language>>,
+    pub sast_rules: Option<BTreeSet<Language>>,
+}
+
+/// A request no caller should make — Java's `UnsupportedOperationException`: a type no built-in step examines, or a
+/// plugin id a `like` pattern would read as a wildcard. A defect of the code, never of a user's input.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct Unsupported(pub String);
 
 impl ScanCatalog {
     pub fn new(db: Db, clock: Arc<dyn Clock>) -> ScanCatalog {
@@ -177,25 +219,6 @@ impl ScanCatalog {
             }
         }
         Ok(outlines)
-    }
-
-    /// `languagesOf`: each of these scans' languages, by id — what tells a tree its static analysis read from one it
-    /// did not (decision 0032 §6). A scan that does not exist is absent; a thousand identifiers per statement.
-    pub async fn languages_of(&self, ids: &[i64]) -> Result<BTreeMap<i64, ScanLanguages>, StoreError> {
-        let mut languages = BTreeMap::new();
-        for batch in distinct(ids).chunks(LOOKUP_BATCH) {
-            let rows = self.read(async |tx| persistence::catalog_queries::languages_of(tx, batch).await).await?;
-            for row in rows {
-                languages.insert(
-                    row.id,
-                    ScanLanguages {
-                        detected: detected_languages::read(row.detected_languages.as_deref()),
-                        sast_rules: detected_languages::read(row.sast_languages.as_deref()),
-                    },
-                );
-            }
-        }
-        Ok(languages)
     }
 
     /// `withStatusNewestFirst`: scans with this status, newest first, as identifier and target only.
@@ -448,6 +471,143 @@ impl ScanCatalog {
             .map(FindingOnScan::from)
             .collect())
     }
+    // ── what a checklist measures (decision 0032 §6) ─────────────────────────────────────────
+
+    /// `newestExamining`: each of these repositories' newest **completed** scan created at or after `since` that
+    /// recorded `kind` as examined. **A repository missing from the answer has no such scan** — never scanned for it in
+    /// that time, every step absent, or only scans from before `examined_types` — and must not be read as "examined,
+    /// and clean"; [`ScanCatalog::completed_within`] tells those apart.
+    ///
+    /// **Built-in types only**: a plugin's states live in `plugin_steps` and an import is its own row, neither ever in
+    /// `examined_types`, so asking for one would answer "never examined" everywhere. Refused instead ([`Unsupported`]).
+    pub async fn newest_examining(
+        &self,
+        repository_ids: &[i64],
+        kind: FindingType,
+        since: OffsetDateTime,
+    ) -> Result<BTreeMap<i64, ExaminingScanRow>, StoreError> {
+        if !BUILT_IN.contains(&kind) {
+            return Err(StoreError(Box::new(Unsupported(format!(
+                "No built-in step examines {}; its outcomes are not in examined_types.",
+                kind.wire_name()
+            )))));
+        }
+        // `ExaminedTypes.pattern`: no built-in wire name holds `%` or `_`, so nothing needs escaping.
+        let pattern = format!("%,{},%", kind.wire_name());
+        let repositories = distinct(repository_ids);
+        let rows = self
+            .read(async |tx| persistence::newest_examining(tx, &repositories, "completed", since, &pattern).await)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(repository_id, scan_id, created_at, sbom_stored)| {
+                (repository_id, ExaminingScanRow { repository_id, scan_id, created_at, sbom_stored })
+            })
+            .collect())
+    }
+
+    /// `completedWithin`: each of these repositories' completed scans created at or after `since`, counted, the
+    /// unrecorded among them apart. A repository with none is absent.
+    pub async fn completed_within(
+        &self,
+        repository_ids: &[i64],
+        since: OffsetDateTime,
+    ) -> Result<BTreeMap<i64, ScansWithin>, StoreError> {
+        let repositories = distinct(repository_ids);
+        let rows = self.read(async |tx| persistence::count_within(tx, &repositories, "completed", since).await).await?;
+        Ok(rows
+            .into_iter()
+            .map(|(repository_id, completed, unrecorded)| {
+                (repository_id, ScansWithin { repository_id, completed, unrecorded })
+            })
+            .collect())
+    }
+
+    /// `pluginRunsWithin`: each of these repositories' completed scans created at or after `since` that name the
+    /// plugin, with its outcome in each, newest first. A repository whose scans within the age never name it is
+    /// absent: they ran without it, which the reader counts as absent (with [`ScanCatalog::completed_within`]), never
+    /// as clean.
+    ///
+    /// **Read from the scan's own record**, `plugin_steps`: the statement narrows by the id in the column's text, and
+    /// the outcome is then read back as the scan's page reads it, so a row the text matched by accident — the id inside
+    /// another field — names no outcome and is left out.
+    pub async fn plugin_runs_within(
+        &self,
+        repository_ids: &[i64],
+        plugin_id: &str,
+        since: OffsetDateTime,
+    ) -> Result<BTreeMap<i64, Vec<PluginRun>>, StoreError> {
+        let pattern = plugin_pattern(plugin_id)?;
+        let repositories = distinct(repository_ids);
+        let rows = self
+            .read(async |tx| persistence::naming_plugin_within(tx, &repositories, "completed", since, &pattern).await)
+            .await?;
+        let mut runs: BTreeMap<i64, Vec<PluginRun>> = BTreeMap::new();
+        for (repository_id, scan_id, created_at, column) in rows {
+            // A `null` element is Java's `NullPointerException` past the parser's catch: the measurement fails, as
+            // the scan's own page does, rather than reading the column as no outcome.
+            let outcomes = PluginOutcome::read(column.as_deref()).map_err(|null| StoreError(Box::new(null)))?;
+            if let Some(outcome) = outcomes.into_iter().find(|outcome| outcome.plugin_id.as_deref() == Some(plugin_id))
+            {
+                runs.entry(repository_id).or_default().push(PluginRun { repository_id, scan_id, created_at, outcome });
+            }
+        }
+        Ok(runs)
+    }
+
+    /// `namingPluginBefore`: those of these repositories with a completed scan created strictly before `before` that
+    /// names the plugin.
+    pub async fn naming_plugin_before(
+        &self,
+        repository_ids: &[i64],
+        plugin_id: &str,
+        before: OffsetDateTime,
+    ) -> Result<BTreeSet<i64>, StoreError> {
+        let pattern = plugin_pattern(plugin_id)?;
+        let repositories = distinct(repository_ids);
+        let rows = self
+            .read(async |tx| persistence::naming_plugin_before(tx, &repositories, "completed", before, &pattern).await)
+            .await?;
+        Ok(rows.into_iter().collect())
+    }
+
+    /// `languagesOf`: each of these scans' languages — what a checklist compares, on the very scan a measurement rests
+    /// on, to tell a tree its static analysis read from one it did not (decision 0032 §6). A scan that does not exist
+    /// is absent.
+    pub async fn languages_of(&self, scan_ids: &[i64]) -> Result<BTreeMap<i64, RecordedLanguages>, StoreError> {
+        let ids = distinct(scan_ids);
+        let rows = self.read(async |tx| persistence::languages_of(tx, &ids).await).await?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, detected, sast_rules)| {
+                (
+                    id,
+                    RecordedLanguages {
+                        detected: recorded_languages(detected.as_deref()),
+                        sast_rules: recorded_languages(sast_rules.as_deref()),
+                    },
+                )
+            })
+            .collect())
+    }
+}
+
+/// `pluginPattern`: `%"pluginId":"<id>"%`, the id closed by its quote so that `java` never matches `java-arch`.
+/// Refused for anything but an id's characters: a `%` or `_` would be a wildcard, and a quote would end the field.
+fn plugin_pattern(plugin_id: &str) -> Result<String, StoreError> {
+    let is_id = !plugin_id.is_empty()
+        && plugin_id.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+    if !is_id {
+        return Err(StoreError(Box::new(Unsupported(format!("Not a plugin id: {plugin_id}")))));
+    }
+    Ok(format!("%\"pluginId\":\"{plugin_id}\"%"))
+}
+
+/// `DetectedLanguages.read`: comma-separated wire names, **each trimmed and read as the column's own reader reads it**;
+/// a name this version does not know is left out, and a column that is `null` stays `None` — unknown, never the empty
+/// set. Compliance and checklists each ported this read, one trimming and one not; this is the one left.
+fn recorded_languages(column: Option<&str>) -> Option<BTreeSet<Language>> {
+    detected_languages::read(column).map(|names| names.into_iter().filter_map(Language::from_wire_name).collect())
 }
 
 /// The identifiers once each, in the order first given — Java's `batches` over a `LinkedHashSet`.

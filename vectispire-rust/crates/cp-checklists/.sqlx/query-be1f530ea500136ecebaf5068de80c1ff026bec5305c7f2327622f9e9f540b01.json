@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_checklist (project_id, template_version_id, revision, status, edition, open_slot, author_id, author, opened_at, opened_by, supersedes_id) values (?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "be1f530ea500136ecebaf5068de80c1ff026bec5305c7f2327622f9e9f540b01"
+}

@@ -63,7 +63,15 @@ use support::Migrated;
 /// The credentials, minted and checked with `cp-access`'s own code: what the chain will accept is what it wrote.
 struct AccessMinting;
 
+/// `vectispire.scim.token` in the Java suite's `application-apitest.yaml`: the replay's control plane takes it as Java's
+/// context does, so that the SCIM recordings' bearer opens `/scim` here too.
+const SCIM_TOKEN: &str = "apitest-scim-token-0123456789abcdef";
+
 impl Minting for AccessMinting {
+    fn scim_token(&self) -> Option<String> {
+        Some(SCIM_TOKEN.to_owned())
+    }
+
     fn session_token(&self) -> String {
         keys::issue_session_token().token.expose().to_owned()
     }
@@ -376,6 +384,8 @@ const TEST_PROPERTIES: &[(&str, &str, &str)] = &[
     ("api.GitHostAllowlistRoutesTest", "vectispire.git.allowed-hosts", "gitlab.corp.example,*.forge.example"),
     // MockMvc's peer declared a proxy, so `X-Forwarded-For` names the client the audit entry records.
     ("api.ClientAddressRoutesTest", "vectispire.security.trusted-proxies", "127.0.0.1"),
+    // The suite's SCIM token, switched off for the class that proves a disabled one is refused.
+    ("access.web.scim.ScimTokenDisabledTest", "vectispire.scim.enabled", "false"),
 ];
 
 fn property(class: &str, key: &str) -> Option<&'static str> {
@@ -394,7 +404,9 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         audit: audit.clone(),
         scans: vectispire_cp_scanning::target_scans(db.clone(), Arc::new(SystemClock)),
         backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
-        purge: PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
+        purge: PurgeRegistry::stand_ins()
+            .with(vectispire_cp_scanning::purge::listeners())
+            .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]),
         encryption: support::encryption(),
         allowed_hosts: allowed_hosts.clone(),
         clock: Arc::new(SystemClock),
@@ -416,7 +428,16 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         allowed_hosts,
         image_platform: None,
         runner: None,
-        scanned: Vec::new(),
+        // The checklists' `RepositoryScanned`: the `checklist_answer` message queued in the scan's transaction, on an
+        // enqueue-only outbox over the same table — what the replay compares is the row.
+        scanned: vec![Arc::new(vectispire_cp_checklists::AnswersFromEvidence {
+            outbox: Arc::new(Outbox::on_database(
+                db.clone(),
+                Registry::new(Vec::new(), Vec::new()),
+                Arc::new(vectispire_cp_maintenance::SystemClock),
+            )),
+            settings: Arc::new(Settings::new(db.clone())),
+        })],
     }));
     // The actuator as `cp-app/src/actuator.rs` composes it: the runtime's pages, the census of the stores the port has.
     let census_exporter = Arc::new(vectispire_cp_siem::SiemExporterService::new(
@@ -439,13 +460,18 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         },
     ));
     actuator.serve_encryption(Arc::new(CensusReport(census)));
-    let modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing, issues, inventory);
+    let checklist_routes = checklists(db, &targets, &audit, &signing);
+    let mut modules = phase_three(db, targets.clone(), audit.clone(), &siem, signing, issues, inventory);
+    modules.extend(checklist_routes);
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
         SessionPolicy::default(),
         Arc::new(AgentDirectoryImpl::new(db.clone())),
-        ScimToken::default(),
+        ScimToken {
+            enabled: property(class, "vectispire.scim.enabled") != Some("false"),
+            token: Some(vectispire_domain::secret::Secret::new(SCIM_TOKEN)),
+        },
     ));
     let outbox = Arc::new(Outbox::on_database(
         db.clone(),
@@ -599,6 +625,91 @@ fn ingestor(
     )
 }
 
+/// The version the recorded suite's `BuildProperties` carried — `gradle.properties`' — which `ProductVersion` stamps on
+/// a signed checklist document: the recording's rows name it.
+fn java_build_version() -> Option<String> {
+    let properties =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../vectispire-java/gradle.properties");
+    std::fs::read_to_string(properties)
+        .ok()?
+        .lines()
+        .find_map(|line| line.strip_prefix("version=").map(|version| version.trim().to_owned()))
+}
+
+/// The checklists module (wave 1) as `cp-app` composes it: its measurements over the owners' catalogues, the plugins'
+/// imports and the forges' readings as their stand-ins, documents signed with the suite's fixture key.
+fn checklists(
+    db: &Db,
+    targets: &Arc<Targets>,
+    audit: &Arc<AuditLog>,
+    signing: &Arc<vectispire_cp_crypto::SigningKeys>,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    use vectispire_cp_checklists as checklists;
+    let settings = Arc::new(Settings::new(db.clone()));
+    let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(SystemClock);
+    let measurer = checklists::measurer::Measurer::new(
+        Arc::new(checklists::OwnerCatalogs {
+            scans: vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)),
+            issues: vectispire_cp_issues::IssueCatalog::new(db.clone()),
+            components: vectispire_cp_inventory::component_catalog::ComponentCatalog::new(db.clone()),
+            targets: targets.clone(),
+        }),
+        Arc::new(checklists::measurer::NoImports),
+        Arc::new(checklists::measurer::NoReviews),
+    );
+    let projects: Arc<dyn checklists::ports::ProjectDirectory> = Arc::new(checklists::TargetProjects(targets.clone()));
+    let independence = vectispire_cp_access::independence::ApproverIndependence::new(db.clone(), settings.clone());
+    let documents = Arc::new(checklists::documents::Documents::new(
+        db.clone(),
+        projects.clone(),
+        measurer.clone(),
+        Arc::new(checklists::PlatformSigner(signing.clone())),
+        java_build_version(),
+        audit.clone(),
+        clock.clone(),
+    ));
+    let templates = Arc::new(checklists::templates::ChecklistTemplates::new(
+        db.clone(),
+        settings.clone(),
+        audit.clone(),
+        independence.clone(),
+        clock.clone(),
+        10 * 1024 * 1024,
+    ));
+    let project_checklists = Arc::new(checklists::project_checklists::ProjectChecklists::new(
+        checklists::project_checklists::ProjectChecklistsConfig {
+            db: db.clone(),
+            projects: projects.clone(),
+            measurer,
+            documents: documents.clone(),
+            trials: Arc::new(checklists::trials::VersionTrials::new()),
+            settings,
+            audit: audit.clone(),
+            independence,
+            clock: clock.clone(),
+            max_file_bytes: 25 * 1024 * 1024,
+        },
+    ));
+    let accounts = Arc::new(checklists::AccessAccounts {
+        directory: vectispire_cp_access::account_names::AccountDirectory::new(
+            vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        ),
+        visibility: VisibilityService::new(
+            db.clone(),
+            Arc::new(StoredSettings(Settings::new(db.clone()))),
+            Arc::new(TargetsForAccess(db.clone())),
+        ),
+    });
+    let contacts = Arc::new(checklists::contact_service::ChecklistContacts::new(
+        db.clone(),
+        projects,
+        accounts,
+        audit.clone(),
+        clock,
+    ));
+    checklists::routes(checklists::ChecklistServices { templates, checklists: project_checklists, documents, contacts })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn phase_three(
     db: &Db,
@@ -653,6 +764,8 @@ fn phase_three(
             integrations,
             clock: Arc::new(AuditClock),
         }));
+    let audit_for_access = audit.clone();
+    let targets_for_access: Arc<dyn vectispire_cp_access::GrantableTargets> = Arc::new(TargetsForAccess(db.clone()));
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -730,7 +843,129 @@ fn phase_three(
     routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
+    routes.extend(access_administration(db, audit_for_access.clone(), targets_for_access));
+    routes.extend(access_sign_in(db, audit_for_access.clone()));
+    // `cp-app`'s `access::scim_routes`, as the Java suite's context composes it: no privileged account linked.
+    routes.extend(vectispire_cp_access::scim_routes(Arc::new(vectispire_cp_access::scim::ScimProvisioning::new(
+        vectispire_cp_access::scim::ScimParts {
+            db: db.clone(),
+            audit: AccessAudit(audit_for_access),
+            clock: Arc::new(AccessClock) as vectispire_cp_access::throttle::SharedClock,
+            link_privileged: false,
+        },
+    ))));
     routes
+}
+
+/// `cp-app`'s `access::administration_routes`, composed here as the binary composes it (the replay cannot name
+/// `cp-app`, which names this crate): accounts under four-eyes read from the settings, their writes closing sessions
+/// and revoking keys in the account's transaction.
+fn access_administration(
+    db: &Db,
+    audit: Arc<AuditLog>,
+    targets: Arc<dyn vectispire_cp_access::GrantableTargets>,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    use vectispire_cp_access::accounts::{Accounts, ApproverIndependence};
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(AccessClock);
+    let credentials = CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        SessionPolicy::default(),
+        Arc::new(AgentDirectoryImpl::new(db.clone())),
+        ScimToken::default(),
+    );
+    let audit = AccessAudit(audit);
+    let settings = Arc::new(Settings::new(db.clone()));
+    let accounts = Accounts::new(
+        vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit.clone(),
+        clock.clone(),
+    )
+    .with_four_eyes(ApproverIndependence::new(db.clone(), settings.clone()));
+    let visibility = VisibilityService::new(
+        db.clone(),
+        Arc::new(StoredSettings(Settings::new(db.clone()))),
+        Arc::new(TargetsForAccess(db.clone())),
+    );
+    let teams = vectispire_cp_access::teams::TeamAdministration::new(vectispire_cp_access::teams::TeamParts {
+        db: db.clone(),
+        audit: audit.clone(),
+        clock: clock.clone(),
+        outbound: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+        policy: settings,
+        targets: targets.clone(),
+        integrations: vectispire_cp_settings::Integrations::new(
+            db.clone(),
+            vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)],
+            Arc::new(time::OffsetDateTime::now_utc),
+        ),
+    });
+    let keys = vectispire_cp_access::api_key_administration::ApiKeyAdministration::new(
+        vectispire_cp_access::api_key_administration::ApiKeyParts {
+            db: db.clone(),
+            credentials,
+            targets: targets.clone(),
+            issuer_sees: Arc::new(vectispire_cp_access::IssuerVisibility::new(db.clone(), visibility, targets.clone())),
+            audit: audit.clone(),
+            clock,
+        },
+    );
+    vectispire_cp_access::administration_routes(vectispire_cp_access::Administration {
+        accounts: Arc::new(accounts),
+        account_targets: Arc::new(vectispire_cp_access::account_targets::AccountTargets::new(
+            db.clone(),
+            audit,
+            targets,
+        )),
+        teams: Arc::new(teams),
+        keys: Arc::new(keys),
+    })
+}
+
+/// `cp-app`'s `access::sign_in_routes`, composed here as the binary composes it for the Java suite's context: no identity
+/// provider named, password sign-in on, the shipped branding and ceilings.
+fn access_sign_in(db: &Db, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(AccessClock);
+    let credentials = Arc::new(CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        SessionPolicy::default(),
+        Arc::new(AgentDirectoryImpl::new(db.clone())),
+        ScimToken::default(),
+    ));
+    let flow = vectispire_cp_access::sign_in::SignInFlow::new(vectispire_cp_access::sign_in::SignInParts {
+        users: vectispire_cp_access::SqlAccountStore::new(db.clone(), vectispire_cp_access::CredentialTables),
+        audit: AccessAudit(audit),
+        store: vectispire_cp_access::SqlSignInStore::new(db.clone()),
+        sessions: credentials.clone(),
+        seal: support::encryption(),
+        clock,
+        methods: vectispire_cp_access::sign_in::SignInMethodPolicy::new(false, true),
+        provider_label: None,
+    });
+    vectispire_cp_access::auth_routes(Arc::new(flow), credentials, vectispire_cp_access::Branding::of(None, None))
+}
+
+/// `cp-app`'s `access::AccessAudit`: the access services' audit port on the audit log.
+#[derive(Clone)]
+struct AccessAudit(Arc<AuditLog>);
+
+impl vectispire_cp_access::accounts::Audit for AccessAudit {
+    async fn record(&self, record: vectispire_cp_access::accounts::AuditRecord) {
+        let operation = vectispire_cp_audit::AuditOperation::from_wire(record.operation.name())
+            .expect("every access operation is the log's");
+        self.0
+            .record(vectispire_cp_audit::Record {
+                operation,
+                resource_id: Some(record.resource),
+                description: Some(record.description),
+                user_id: record.username,
+                ip_address: record.ip_address,
+                user_agent: record.user_agent,
+                signal: record.signal.map(vectispire_cp_audit::Signal),
+            })
+            .await;
+    }
 }
 
 type Answer<'a, T> = std::pin::Pin<
@@ -868,7 +1103,9 @@ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
             .unwrap(),
     );
     let (issues, inventory) = issues_and_inventory(&db, &composed.targets, &audit, &siem);
-    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem, signing, issues, inventory);
+    let checklist_routes = checklists(&db, &composed.targets, &audit, &signing);
+    let mut phase_three = phase_three(&db, composed.targets.clone(), audit, &siem, signing, issues, inventory);
+    phase_three.extend(checklist_routes);
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))
@@ -933,7 +1170,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
 
     let recording = Recording::open(&dir).unwrap();
     let document = Document::embedded();
-    let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
+    let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true).reading_one_of_as_any_of(true);
     let deferred = Deferred::committed();
     let served = served(&deferred);
     println!("{} routes owed a replay: every route composed, but those a `route` line still covers", served.len());
