@@ -227,6 +227,7 @@ mod tests {
             "https://oauth2@gitlab.example.org",
             "https://gitlab.example.org/api/v4",
             "https://gitlab.example.org/gitlab/api/v4/",
+            "https://gitlab.example.org/api/v4/projects",
             "https://gitlab.example.org/?private_token=x",
             "https://gitlab.example.org/#top",
             "gitlab.example.org",
