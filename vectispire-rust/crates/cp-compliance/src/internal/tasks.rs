@@ -16,13 +16,7 @@ use vectispire_domain::retention::evidence;
 use crate::persistence::repository::{ReviewRepository, SnapshotRepository, WeeklyRepository};
 use crate::persistence::{self, StoreError};
 
-/// `AiReviewStatus.ABANDONED`: what a report a stopped process left running says once settled.
-pub const ABANDONED: &str = "The control plane stopped before the model answered, and nothing is waiting for this \
-                             report any more. Ask for it again.";
-
-/// `AiReviewStatus` wire names.
-pub const RUNNING: &str = "running";
-pub const FAILED: &str = "failed";
+use crate::review::{ABANDONED, FAILED, RUNNING};
 
 /// `EvidenceRetention.cutoff` at the clock's instant: `None` when the dial keeps evidence indefinitely.
 fn evidence_cutoff(days: i32, now: OffsetDateTime) -> Option<OffsetDateTime> {

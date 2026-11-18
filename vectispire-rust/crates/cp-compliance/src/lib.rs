@@ -38,6 +38,7 @@ pub mod history;
 pub mod instant_text;
 mod internal;
 pub mod manifest;
+pub mod markdown;
 pub mod matrix;
 pub mod owasp_words;
 pub mod scope_coverage;
@@ -52,6 +53,7 @@ mod persistence;
 pub mod ports;
 pub mod progress;
 pub mod purge;
+pub mod review;
 pub mod scope;
 
 pub use web::{Services, routes};
@@ -86,6 +88,7 @@ impl Services {
         targets: Arc<vectispire_cp_targets::Targets>,
         scans: Arc<vectispire_cp_scanning::ScanCatalog>,
         issues: Arc<vectispire_cp_issues::queries::IssueCatalog>,
+        backlog: Arc<vectispire_cp_issues::IssueQueryService>,
         rules: Arc<vectispire_cp_rules::RuleCoverageService>,
         settings: vectispire_cp_settings::Settings,
         audit: Arc<vectispire_cp_audit::AuditLog>,
@@ -105,6 +108,13 @@ impl Services {
             settings.clone(),
         );
         Services {
+            report: review::OwaspReportService::new(
+                db.clone(),
+                targets.clone(),
+                backlog,
+                issues.clone(),
+                clock.clone(),
+            ),
             certified: certified::CertifiedScopeService::new(targets, scans, settings.clone(), clock.clone(), audit),
             history: progress::ComplianceHistoryService::capturing(
                 db.clone(),

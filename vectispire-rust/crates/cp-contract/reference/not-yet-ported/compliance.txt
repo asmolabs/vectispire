@@ -1,9 +1,8 @@
 # The routes of `compliance` the Rust control plane does not serve yet — README.md beside this file says the rules.
 # Raised once on 2026-11-12 (Phase 0 of the recovery plan): Java 1.0 added these operations while the port was
 # paused, and they start here like every route not yet served. The list only shrinks from this point again.
-ceiling 5
+ceiling 4
 GET /api/v1/compliance/evidence-bundle.zip
 GET /api/v1/compliance/export.pdf
-GET /api/v1/repositories/{id}/owasp-review
 GET /api/v1/repositories/{id}/owasp-review/export.pdf
 POST /api/v1/repositories/{id}/owasp-review

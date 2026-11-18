@@ -134,6 +134,7 @@ pub fn services_on(
         targets_for_scopes,
         compliance_scans,
         compliance_issues,
+        issues.queries().clone(),
         compliance_rules,
         vectispire_cp_settings::Settings::new(db),
         compliance_audit,

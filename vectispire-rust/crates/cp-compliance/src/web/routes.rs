@@ -76,6 +76,7 @@ pub struct Services {
     pub grid: crate::grid::OwaspGridService,
     pub weekly: crate::weekly::OwaspWeeklyHistoryService,
     pub weekly_capture: crate::weekly_capture::OwaspWeeklyCoverageService,
+    pub report: crate::review::OwaspReportService,
 }
 
 /// `DeclarationRequest`, members in the record's order; the three snake_case names are its `@JsonProperty`s.
@@ -176,7 +177,17 @@ pub fn routes(services: Arc<Services>) -> Vec<RouteEntry> {
     let mut entries = governance(s);
     entries.extend(matrix(s));
     entries.extend(owasp(s));
+    entries.push(report(s));
     entries
+}
+
+/// One repository's OWASP report, read. **Repositories only, and the path says so**: half the Top 10 describes code
+/// and the decisions behind it, which an image does not have. The request and the PDF wait for the `ai` module.
+fn report(s: &Arc<Services>) -> RouteEntry {
+    read_route_of("/api/v1/repositories/{id}/owasp-review", s, async |m, allowed, raw| {
+        let id = or_answer!(read::path_long("id", &raw).map_err(IntoResponse::into_response));
+        answer(m.report.latest(id, &allowed.visibility).await)
+    })
 }
 
 const DECLARE: &str = "/api/v1/compliance/soa/{framework}/{controlId}";

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.compliance;
 
+import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceControl;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEngine;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEngine.PasswordAccounts;
@@ -50,6 +52,7 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Random;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -976,5 +979,67 @@ class ComplianceReferenceSetTest {
             rows.addArray().add(value).add(SpreadsheetCells.neutralize(value));
         }
         RustReference.expect("compliance/cells.json", out, ComplianceReferenceSetTest.class);
+    }
+
+    /**
+     * The OWASP report's Markdown read into blocks ({@code OwaspMarkdown.parse}) — the route's {@code blocks}, and the PDF's
+     * body later — and the effective status of a stored review ({@code AiReviewStatus.effective}).
+     *
+     * <p><b>Hand-picked cases, then seeded mixtures of awkward lines.</b> The parser carries state across lines — an open
+     * paragraph, a quote, a table and whether its separator was seen, which only a blank line or a line outside the
+     * table resets — so the defects it can hide are in sequences, not in single lines. The emphasis rule is a regex with
+     * lookbehinds the Rust side cannot use and reproduces by hand; its cases are paragraphs, since {@code strip} is
+     * private to the parser.
+     */
+    @Test
+    void theReportMarkdown() {
+        ObjectNode out = RustReference.object();
+        ObjectMapper plain = new ObjectMapper();
+        List<String> pool = List.of(
+                "## A03 — Injection", "# A10:2021 – SSRF", "### a01 lower", "## A100 not a category", "## A011",
+                "#### A09", "##### five", "#nospace", "## **A05** bold", "## Not evidenced", "",
+                "  ", "prose line", "  indented prose  ", "- bullet", "* star bullet", "+ plus", "-nospace",
+                "**bold** and *it* and `code`", "***x***", "a*b*c", "**unclosed", "*a* *b*", "`` empty", "\t- tabbed",
+                "12. twelve", "3) three", "4.nospace", "> quote", ">tight", "  > indented quote", ">",
+                "| a | b |", "|---|---|", "| :-- | --: |", "|---|", "| x |", "||", "|a|", "---|---",
+                "| c | **d** |", "text\rwith cr", "\u00a0nbsp\u00a0", "A06 — no hash", "## A02\u2028x",
+                // A Unicode space after a marker: not Java's \\s, so a paragraph, not a bullet, a heading or an item.
+                "-\u00a0nbsp bullet", "##\u2003A01 em space", "1.\u3000ideographic");
+        Random random = new Random(20261118L);
+        List<String> inputs = new ArrayList<>(List.of(
+                "", "   ", "\n\n", "## A03 — Injection\n\nprose.\n\n## Not evidenced",
+                "first\nsecond\n\nthird", "> a\n> b\nafter", "| h1 | h2 |\n|----|----|\n| 1 | 2 |\n| 3 |",
+                "| h |\n| r |", "|---|---|\nprose\n| a | b |", "line  \n  next", "x\n", "\nx"));
+        for (String first : pool) {
+            for (String second : pool) {
+                inputs.add(first + "\n" + second);
+            }
+        }
+        for (int i = 0; i < 600; i++) {
+            StringBuilder text = new StringBuilder();
+            int lines = 2 + random.nextInt(6);
+            for (int line = 0; line < lines; line++) {
+                text.append(line == 0 ? "" : "\n").append(pool.get(random.nextInt(pool.size())));
+            }
+            inputs.add(text.toString());
+        }
+        ArrayNode cases = out.putArray("parse");
+        for (String input : inputs) {
+            cases.addArray().add(input).add(plain.valueToTree(OwaspMarkdown.parse(input)));
+        }
+        Instant now = Instant.parse("2026-11-18T10:00:00Z");
+        ArrayNode statuses = out.putArray("status");
+        for (String stored : List.of("running", "completed", "failed", "RUNNING", "")) {
+            for (Instant deadline : Arrays.asList(null, now.minusNanos(1000), now, now.plusNanos(1000))) {
+                statuses.addArray()
+                        .add(stored)
+                        .add(deadline == null ? null : deadline.toString())
+                        .add(AiReviewStatus.effective(stored, deadline, now))
+                        .add(AiReviewStatus.isAbandoned(stored, deadline, now));
+            }
+        }
+        out.put("now", now.toString());
+        out.put("abandoned", AiReviewStatus.ABANDONED);
+        RustReference.expect("compliance/markdown.json", out, ComplianceReferenceSetTest.class);
     }
 }

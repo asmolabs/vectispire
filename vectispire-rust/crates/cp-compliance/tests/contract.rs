@@ -47,6 +47,7 @@ const DECLARED: &[DeclaredRoute] = &[
         &[("from", false), ("to", false), ("project_id", false), ("solution_id", false)],
     ),
     ("PUT", "/api/v1/owasp/coverage/{category}/declaration", "declare", &[]),
+    ("GET", "/api/v1/repositories/{id}/owasp-review", "latest", &[]),
 ];
 
 #[tokio::test]

@@ -107,18 +107,21 @@ pub async fn probe(router: &Router, document: &Document, allowlist: &Allowlist) 
 }
 
 /// Whether the router has a handler for the method on the path: it answered, and not with the
-/// sentinel nor with `405`.
+/// sentinel nor with `405` — nor with an `Allow` that leaves the method out.
 async fn answers(router: &Router, method: &str, template: &str) -> bool {
     let concrete = fill_parameters(template, "1");
     let Ok(method) = Method::from_bytes(method.as_bytes()) else {
         return false;
     };
-    let Ok(request) = axum::http::Request::builder().method(method).uri(&concrete).body(AxumBody::empty()) else {
+    let Ok(request) = axum::http::Request::builder().method(method.clone()).uri(&concrete).body(AxumBody::empty())
+    else {
         return false;
     };
     match router.clone().oneshot(request).await {
         Ok(response) => {
-            !response.headers().contains_key(NO_ROUTE_HEADER) && response.status() != StatusCode::METHOD_NOT_ALLOWED
+            !response.headers().contains_key(NO_ROUTE_HEADER)
+                && response.status() != StatusCode::METHOD_NOT_ALLOWED
+                && !allows_another(&response, method.as_str())
         }
         Err(never) => match never {},
     }
@@ -310,4 +313,14 @@ fn into_response(status: u16, headers: Vec<(String, String)>, bytes: &[u8]) -> R
         Some(Body::Text(text))
     };
     Response { status, headers, body }
+}
+
+/// An answer naming the methods the path has, and not this one: the path's method fallback, answered before it by a
+/// layer of the chain — **without a credential the chain answers 401 to every request**, a method the path lacks
+/// included, and the `405`'s `Allow` header is all that is left of it. Without this a path serving `GET` read its
+/// documented `POST` as served too.
+fn allows_another(response: &axum::response::Response, method: &str) -> bool {
+    response.headers().get_all(axum::http::header::ALLOW).iter().any(|allow| {
+        allow.to_str().is_ok_and(|listed| !listed.split(',').any(|named| named.trim().eq_ignore_ascii_case(method)))
+    })
 }

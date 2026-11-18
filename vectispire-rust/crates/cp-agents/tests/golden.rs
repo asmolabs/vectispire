@@ -715,6 +715,7 @@ fn phase_three(
         targets.clone(),
         Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock))),
         issues.catalog().clone(),
+        issues.queries().clone(),
         compliance_rules,
         Settings::new(db.clone()),
         governance_audit,

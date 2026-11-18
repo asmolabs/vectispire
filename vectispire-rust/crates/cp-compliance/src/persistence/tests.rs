@@ -434,8 +434,9 @@ async fn a_reader_sums_only_the_weeks_of_its_own_targets(tx: &mut Tx) -> Check {
 /// The three purge listeners in a deletion's transaction, and what the two retention tasks run: the weekly record cut
 /// at the Monday of the cutoff's week, the abandoned reports settled. Committed, so last.
 async fn the_purges_and_the_tasks_take_their_rows(db: &Db) -> Check {
-    use crate::internal::tasks::{ABANDONED, purge_weeks_ended_before, settle_abandoned};
+    use crate::internal::tasks::{purge_weeks_ended_before, settle_abandoned};
     use crate::purge::{ReviewPurge, WeeklyCoveragePurge, WeeklyCoverageSweep};
+    use crate::review::ABANDONED;
     use vectispire_cp_targets::{PurgeListener, TargetPurge};
     let err = |e: crate::persistence::StoreError| e.to_string();
     const MONDAY: i64 = 1_767_571_200; // 2026-01-05, 00:00 UTC

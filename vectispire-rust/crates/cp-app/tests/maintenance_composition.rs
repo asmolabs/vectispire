@@ -441,6 +441,7 @@ fn compliance(
         targets,
         Arc::new(scanning.catalog().clone()),
         issues.catalog().clone(),
+        issues.queries().clone(),
         rules.coverage.clone(),
         vectispire_cp_settings::Settings::new(db),
         audit,

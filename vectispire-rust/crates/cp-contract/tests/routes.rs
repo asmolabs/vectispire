@@ -521,3 +521,27 @@ async fn a_handler_that_answers_404_is_a_route_and_not_a_missing_one() {
         |finding| matches!(finding, Finding::NotServed { path, .. } if path == "/api/v1/things/export")
     ));
 }
+
+/// The chain answers 401 to an anonymous request before routing — on a method the path lacks too, where all that is
+/// left of the router's 405 is its `Allow` header. Read as served, a path's unported `POST` beside its `GET` failed
+/// the list that names it; it is the method fallback, and the probe says so.
+#[tokio::test]
+async fn an_answer_whose_allow_leaves_the_method_out_is_not_a_handler() {
+    use axum::http::{StatusCode, header::ALLOW};
+    let guarded = axum::Router::new()
+        .route(
+            "/api/v1/things",
+            get(|| async {}).fallback(|| async { (StatusCode::METHOD_NOT_ALLOWED, [(ALLOW, "GET,HEAD,OPTIONS")]) }),
+        )
+        .layer(axum::middleware::map_response(|mut response: axum::response::Response| async move {
+            *response.status_mut() = StatusCode::UNAUTHORIZED;
+            response
+        }));
+    let not_ported = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling 4\nPOST /api/v1/things\nGET /api/v1/things/{id}\nDELETE /api/v1/things/{id}\nGET /api/v1/things/export\n",
+    )]);
+    let findings = probe(&guarded, &toy_document(), &not_ported).await;
+    assert!(findings.is_empty(), "{}", render(&findings));
+}

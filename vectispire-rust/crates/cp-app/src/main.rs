@@ -565,6 +565,7 @@ async fn serve() -> ExitCode {
         targets.clone(),
         scan_catalog.clone(),
         issues.catalog().clone(),
+        issues.queries().clone(),
         rules_module.coverage.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         audit.clone(),

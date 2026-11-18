@@ -498,3 +498,33 @@ fn the_spreadsheet_cells() {
         assert_eq!(spreadsheet_cells::neutralize(str_of(&pair[0])), str_of(&pair[1]), "{:?}", pair[0]);
     }
 }
+
+/// `OwaspMarkdown.parse` over hand-picked reports and seeded mixtures of awkward lines, compared whole — kinds,
+/// levels, markers, cells and nulls — and the effective status of a stored review either side of its deadline.
+#[test]
+fn the_report_markdown_and_the_review_status() {
+    let set = read("markdown.json");
+    let mut differ = 0usize;
+    for case in set["parse"].as_array().unwrap() {
+        let input = str_of(&case[0]);
+        let ours: Value = serde_json::to_value(vectispire_cp_compliance::markdown::parse(Some(input))).unwrap();
+        if ours != case[1] {
+            differ += 1;
+            if differ <= 5 {
+                eprintln!("{input:?}\n  java: {}\n  rust: {ours}", case[1]);
+            }
+        }
+    }
+    assert_eq!(differ, 0, "parses differing from Java's");
+
+    let now = time::OffsetDateTime::parse(str_of(&set["now"]), &time::format_description::well_known::Rfc3339).unwrap();
+    for row in set["status"].as_array().unwrap() {
+        let deadline = row[1]
+            .as_str()
+            .map(|at| time::OffsetDateTime::parse(at, &time::format_description::well_known::Rfc3339).unwrap());
+        let stored = str_of(&row[0]);
+        assert_eq!(vectispire_cp_compliance::review::effective(stored, deadline, now), str_of(&row[2]), "{row}");
+        assert_eq!(vectispire_cp_compliance::review::is_abandoned(stored, deadline, now), row[3].as_bool().unwrap());
+    }
+    assert_eq!(vectispire_cp_compliance::review::ABANDONED, str_of(&set["abandoned"]));
+}
