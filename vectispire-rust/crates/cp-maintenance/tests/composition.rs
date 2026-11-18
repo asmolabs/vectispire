@@ -5,8 +5,8 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3), and wave 1's seven — posture's one, checklists' one, compliance's five.
-const FILLED: [Sequence; 22] = [
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4), access's one (1.3), wave 1's seven — posture's one, checklists' one, compliance's five — and wave 2's forges' two.
+const FILLED: [Sequence; 24] = [
     Sequence::NotificationRelay,
     Sequence::SentMessages,
     Sequence::RepositoryIdentities,
@@ -29,6 +29,8 @@ const FILLED: [Sequence; 22] = [
     Sequence::ComplianceSnapshots,
     Sequence::OwaspWeeklyRetention,
     Sequence::AbandonedReviews,
+    Sequence::ForgeTokenWatch,
+    Sequence::ChangeReviews,
 ];
 
 /// The filled slots and one more.

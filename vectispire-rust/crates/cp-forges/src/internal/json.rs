@@ -43,16 +43,6 @@ pub(crate) fn as_boolean(node: Option<&Value>, default: bool) -> bool {
     }
 }
 
-/// A boolean member, `None` when it is absent, null or not a boolean — unknown is not `false`.
-pub(crate) fn boolean(node: Option<&Value>, name: &str) -> Option<bool> {
-    path(node, name).and_then(Value::as_bool)
-}
-
-/// A whole-number member, `None` when absent or not an integer.
-pub(crate) fn long(node: Option<&Value>, name: &str) -> Option<i64> {
-    path(node, name).and_then(Value::as_i64)
-}
-
 /// The elements of an array member; empty for anything else.
 pub(crate) fn elements<'a>(node: Option<&'a Value>, name: &str) -> &'a [Value] {
     path(node, name).and_then(Value::as_array).map_or(&[], Vec::as_slice)

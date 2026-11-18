@@ -136,3 +136,25 @@ fn where_(connection: &ConnectionRow) -> String {
         .map_or_else(|| connection.edition.clone(), |edition| edition.label().to_owned());
     format!("{label} at {}", connection.base_url)
 }
+
+/// The stand-in for `notifications`' listener until that module is ported: the alert's audit entry
+/// (`TokenAlertAudit`), and through the log's hook its SIEM event — not the channels' messages, which are that module's.
+/// Recorded by the log in a transaction of its own rather than queued in the caller's: there is no outbox handler for
+/// it yet, and a message queued for nobody would never be relayed.
+#[derive(Debug, Clone)]
+pub struct AuditedAlerts(pub vectispire_cp_audit::AuditLog);
+
+impl TokenAlerts for AuditedAlerts {
+    fn publish<'a>(
+        &'a self,
+        _: &'a mut Tx,
+        alert: &'a TokenAlert,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            let operation = vectispire_cp_audit::AuditOperation::from_wire(alert.operation())
+                .ok_or_else(|| format!("{} is no operation of the log", alert.operation()))?;
+            self.0.record(vectispire_cp_audit::Record::of(operation, &alert.reference, &alert.sentence(), None)).await;
+            Ok(())
+        })
+    }
+}

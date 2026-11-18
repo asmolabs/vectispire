@@ -2,8 +2,12 @@
 //! ([`ForgePath`](path)), the integrations' registry as forges ask it ([`integrations`]), the probes of a token
 //! ([`probes`]), and the discovery's queue, worker and listers.
 
+pub(crate) mod discovery;
 pub(crate) mod integrations;
 pub(crate) mod json;
+pub(crate) mod listers;
 pub(crate) mod path;
+pub(crate) mod planner;
 pub(crate) mod probes;
+pub(crate) mod readers;
 pub(crate) mod targets;

@@ -483,11 +483,17 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins()
             .with(vectispire_cp_scanning::purge::listeners())
+            .with(vectispire_cp_forges::purge::listeners())
             .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]),
         encryption: support::encryption(),
         allowed_hosts: allowed_hosts.clone(),
         clock: Arc::new(SystemClock),
-        visibility: None,
+        // As `cp-app` composes it: the forge import's preview reads the visibility mode through the targets.
+        visibility: Some(VisibilityService::new(
+            db.clone(),
+            Arc::new(StoredSettings(Settings::new(db.clone()))),
+            Arc::new(TargetsForAccess(db.clone())),
+        )),
     }));
     let (issues, inventory) = issues_and_inventory(db, &targets, &audit, &siem);
     let scanning = Arc::new(Scanning::new(ScanningConfig {
@@ -732,7 +738,8 @@ fn checklists(
             targets: targets.clone(),
         }),
         Arc::new(checklists::measurer::NoImports),
-        Arc::new(checklists::measurer::NoReviews),
+        // The forges' readings, as `cp-app` composes them (wave 2).
+        Arc::new(vectispire_cp_forges::change_reviews(db.clone(), Arc::new(integrations_for_forges(db)))),
     );
     let projects: Arc<dyn checklists::ports::ProjectDirectory> = Arc::new(checklists::TargetProjects(targets.clone()));
     let independence = vectispire_cp_access::independence::ApproverIndependence::new(db.clone(), settings.clone());
@@ -924,6 +931,12 @@ fn phase_three(
         settings: Settings::new(db.clone()),
         audit: audit_for_access.clone(),
         clock: Arc::new(SystemClock),
+        targets: targets.clone(),
+        bounds: vectispire_cp_forges::DiscoveryBounds::default(),
+        concurrency: 1,
+        host: "replay".to_owned(),
+        alerts: Arc::new(vectispire_cp_forges::token_watch::AuditedAlerts((*audit_for_access).clone())),
+        review_bounds: vectispire_cp_forges::reviews::ReviewBounds::default(),
     }));
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(vectispire_cp_forges::routes(forges));

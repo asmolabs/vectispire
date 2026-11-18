@@ -24,11 +24,18 @@ pub struct ForgeSetup {
     pub encryption: Arc<vectispire_cp_crypto::Encryption>,
     pub audit: Arc<vectispire_cp_audit::AuditLog>,
     pub clock: Arc<dyn vectispire_cp_targets::Clock>,
+    pub targets: Arc<vectispire_cp_targets::Targets>,
+}
+
+/// What a discovery's claim is written under, as the scan worker names its host.
+fn host_name() -> String {
+    std::env::var("HOSTNAME").or_else(|_| std::env::var("HOST")).unwrap_or_else(|_| "unknown-host".to_owned())
 }
 
 /// The module, composed.
 pub fn compose(setup: ForgeSetup) -> Composed {
-    let ForgeSetup { db, guard, trust, encryption, audit, clock } = setup;
+    let ForgeSetup { db, guard, trust, encryption, audit, clock, targets } = setup;
+    let audit_for_alerts = audit.clone();
     let services = Arc::new(vectispire_cp_forges::Services::new(vectispire_cp_forges::ForgeParts {
         db: db.clone(),
         outbound: vectispire_cp_outbound::json::OutboundJson::new(
@@ -40,6 +47,13 @@ pub fn compose(setup: ForgeSetup) -> Composed {
         settings: vectispire_cp_settings::Settings::new(db),
         audit,
         clock,
+        targets,
+        bounds: vectispire_cp_forges::DiscoveryBounds::default(),
+        concurrency: 2,
+        host: host_name(),
+        // `notifications` is not ported: the alert's audit entry, and through it the SIEM event, without the channels.
+        alerts: Arc::new(vectispire_cp_forges::token_watch::AuditedAlerts((*audit_for_alerts).clone())),
+        review_bounds: vectispire_cp_forges::reviews::ReviewBounds::default(),
     }));
     Composed { routes: vectispire_cp_forges::routes(services.clone()), services }
 }

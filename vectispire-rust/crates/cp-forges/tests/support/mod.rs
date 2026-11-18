@@ -52,10 +52,39 @@ pub fn services_on(db: vectispire_cp_db::Db) -> Arc<vectispire_cp_forges::Servic
             Arc::new(time::OffsetDateTime::now_utc),
         )),
         encryption: encryption(),
-        settings: vectispire_cp_settings::Settings::new(db),
-        audit,
+        settings: vectispire_cp_settings::Settings::new(db.clone()),
+        audit: audit.clone(),
         clock: Arc::new(vectispire_cp_targets::SystemClock),
+        targets: Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
+            db: db.clone(),
+            audit,
+            scans: Arc::new(vectispire_cp_targets::ScanningStandIn),
+            backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+            purge: vectispire_cp_targets::PurgeRegistry::stand_ins(),
+            encryption: encryption(),
+            allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+            visibility: None,
+        })),
+        bounds: vectispire_cp_forges::DiscoveryBounds::default(),
+        concurrency: 1,
+        host: "test".to_owned(),
+        alerts: Arc::new(NoAlerts),
+        review_bounds: vectispire_cp_forges::reviews::ReviewBounds::default(),
     }))
+}
+
+/// No listener: what a test of the routes never reaches.
+pub struct NoAlerts;
+
+impl vectispire_cp_forges::TokenAlerts for NoAlerts {
+    fn publish<'a>(
+        &'a self,
+        _: &'a mut vectispire_cp_db::Tx,
+        _: &'a vectispire_domain::token_alert::TokenAlert,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
 }
 
 pub fn services() -> Arc<vectispire_cp_forges::Services> {

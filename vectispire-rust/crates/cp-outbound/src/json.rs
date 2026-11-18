@@ -73,7 +73,21 @@ impl OutboundJson {
         headers: &[(&str, &str)],
         trust: Option<&PinnedCa>,
     ) -> Result<Option<Value>, JsonError> {
-        let response = self.send(url, policy, label, headers, trust, TIMEOUT).await?;
+        self.get_bounded(url, policy, label, headers, DEFAULT_MAX_BODY_BYTES, trust).await
+    }
+
+    /// [`OutboundJson::get`] for a document larger than an ordinary answer — a catalogue: at most `max_body_bytes` of
+    /// it is read, and an answer past that is the sender's failure, in its words.
+    pub async fn get_bounded(
+        &self,
+        url: &str,
+        policy: OutboundPolicy,
+        label: &str,
+        headers: &[(&str, &str)],
+        max_body_bytes: u64,
+        trust: Option<&PinnedCa>,
+    ) -> Result<Option<Value>, JsonError> {
+        let response = self.send(url, policy, label, headers, trust, TIMEOUT, max_body_bytes).await?;
         if response.status == 404 {
             return Ok(None);
         }
@@ -101,7 +115,7 @@ impl OutboundJson {
         trust: Option<&PinnedCa>,
         timeout: Duration,
     ) -> Result<Answer, JsonError> {
-        let response = self.send(url, policy, label, headers, trust, timeout).await?;
+        let response = self.send(url, policy, label, headers, trust, timeout, DEFAULT_MAX_BODY_BYTES).await?;
         if response.status / 100 != 2 {
             return Ok(Answer { status: response.status, body: None, headers: response.headers });
         }
@@ -111,6 +125,7 @@ impl OutboundJson {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn send(
         &self,
         url: &str,
@@ -119,6 +134,7 @@ impl OutboundJson {
         headers: &[(&str, &str)],
         trust: Option<&PinnedCa>,
         timeout: Duration,
+        max_body_bytes: u64,
     ) -> Result<Response, JsonError> {
         let destination = self.guard.validate_and_resolve(url, policy, label)?;
         // Accept last: a caller cannot quietly turn this into a request for something else.
@@ -127,7 +143,7 @@ impl OutboundJson {
         all.push(("Accept", "application/json"));
         Ok(self
             .sender
-            .send_bounded(Method::Get, &destination, &all, None, timeout, label, DEFAULT_MAX_BODY_BYTES, trust)
+            .send_bounded(Method::Get, &destination, &all, None, timeout, label, max_body_bytes, trust)
             .await?)
     }
 }

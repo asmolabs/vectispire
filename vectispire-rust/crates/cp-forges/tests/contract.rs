@@ -26,6 +26,46 @@ const DECLARED: &[DeclaredRoute] = &[
     ("PUT", "/api/v1/forge-connections/{id}/token", "replaceForgeConnectionToken", &[]),
     ("PATCH", "/api/v1/forge-connections/{id}", "updateForgeConnection", &[]),
     ("DELETE", "/api/v1/forge-connections/{id}", "deleteForgeConnection", &[]),
+    ("POST", "/api/v1/forge-connections/{connectionId}/discoveries", "requestForgeDiscovery", &[]),
+    (
+        "GET",
+        "/api/v1/forge-connections/{connectionId}/discoveries",
+        "listForgeDiscoveries",
+        &[("limit", false), ("offset", false)],
+    ),
+    ("GET", "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}", "getForgeDiscovery", &[]),
+    (
+        "GET",
+        "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/repositories",
+        "listDiscoveredRepositories",
+        &[("change", false), ("limit", false), ("offset", false)],
+    ),
+    (
+        "GET",
+        "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection",
+        "listForgeImportCandidates",
+        &[
+            ("archived", false),
+            ("forks", false),
+            ("inactiveDays", false),
+            ("language", false),
+            ("visibility", false),
+            ("namespace", false),
+            ("path", false),
+            ("personal", false),
+            ("present", false),
+            ("limit", false),
+            ("offset", false),
+        ],
+    ),
+    (
+        "POST",
+        "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection",
+        "changeForgeImportSelection",
+        &[],
+    ),
+    ("POST", "/api/v1/forge-connections/{connectionId}/imports/preview", "previewForgeImport", &[]),
+    ("POST", "/api/v1/forge-connections/{connectionId}/imports", "importForgeRepositories", &[]),
 ];
 
 #[tokio::test]

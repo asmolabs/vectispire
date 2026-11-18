@@ -3,6 +3,7 @@
 //! lists repositories no grant covers yet. None names a target. The services probe, decide and audit; these map the
 //! requests, and the token never comes back out.
 
+mod discoveries;
 pub(crate) mod read;
 
 use std::sync::Arc;
@@ -214,6 +215,8 @@ pub(crate) fn routes(services: Arc<Services>) -> Vec<RouteEntry> {
             }
         },
     ));
+
+    discoveries::routes(&services, &mut entries);
 
     let s = services;
     entries.push(Route::delete(CONNECTION).requires(Access::Administrator).names_no_target().handler(

@@ -1,5 +1,5 @@
 //! The checklists module (wave 1) as the binary composes it: its measurements over the owners' catalogues — the
-//! plugins' imports and the forges' readings as the stand-ins their modules replace (waves 2 and 3) — documents
+//! plugins' imports as the stand-in its module replaces (wave 3), the forges' readings their port — documents
 //! signed with the platform's key, the accounts and their visibility from `access`, the weekly reminder with no mail
 //! relay until `notifications` is ported.
 
@@ -69,7 +69,8 @@ pub fn compose(parts: ChecklistParts) -> Composed {
             targets: targets.clone(),
         }),
         Arc::new(checklists::measurer::NoImports),
-        Arc::new(checklists::measurer::NoReviews),
+        // The forges' readings (wave 2): their port over `t_forge_review_reading`, the registry asked at every read.
+        Arc::new(vectispire_cp_forges::change_reviews(db.clone(), Arc::new(crate::registry::integrations(&db)))),
     );
     let projects: Arc<dyn checklists::ports::ProjectDirectory> = Arc::new(checklists::TargetProjects(targets));
     let independence = vectispire_cp_access::independence::ApproverIndependence::new(db.clone(), settings.clone());

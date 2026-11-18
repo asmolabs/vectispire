@@ -83,27 +83,6 @@ fn decode(text: &str) -> String {
     percent_encoding::percent_decode_str(&text.replace('+', " ")).decode_utf8_lossy().into_owned()
 }
 
-/// An `int` path variable: `NumberUtils.parseNumber(text, Integer.class)`, refused in Spring's sentence.
-pub fn path_int(name: &str, value: &str) -> Result<i32, Problem> {
-    java_long(value).and_then(|read| i32::try_from(read).ok()).ok_or_else(|| mismatch(name, value))
-}
-
-/// The raw body of a route that `consumes` it, under the chain's ceiling: the 413 past it, Spring's 400 for a body
-/// that cannot be read.
-pub async fn raw_body(body: axum::body::Body) -> Result<Vec<u8>, Problem> {
-    use http_body_util::BodyExt as _;
-    match body.collect().await {
-        Ok(collected) => Ok(collected.to_bytes().to_vec()),
-        Err(error) => match vectispire_cp_http::limits::find_too_large(&error) {
-            Some(too_large) => Err(Problem::handler(
-                StatusCode::PAYLOAD_TOO_LARGE,
-                vectispire_cp_http::limits::too_large_detail(too_large.ceiling),
-            )),
-            None => Err(Problem::handler(StatusCode::BAD_REQUEST, UNREADABLE)),
-        },
-    }
-}
-
 /// `HttpMediaTypeNotSupportedException` for a route whose `consumes` lists `accepted`: Spring's sentence, the type
 /// quoted with the charset the container appends, and the types it reads in `Accept`.
 pub fn unsupported(content_type: Option<&str>, accepted: &str) -> Problem {
@@ -124,26 +103,7 @@ fn unreadable() -> Problem {
 /// lenient one of five hexadecimal groups of at most 8, 4, 4, 4 and 12 digits — answered in the canonical lower case
 /// the column stores.
 pub fn path_uuid(name: &str, value: &str) -> Result<String, Problem> {
-    java_uuid(java::trim(value)).ok_or_else(|| mismatch(name, value))
-}
-
-fn java_uuid(text: &str) -> Option<String> {
-    if text.is_empty() || text.len() > 36 {
-        return None;
-    }
-    let groups: Vec<&str> = text.split('-').collect();
-    let widths = [8usize, 4, 4, 4, 12];
-    if groups.len() != 5 {
-        return None;
-    }
-    let mut canonical = Vec::with_capacity(5);
-    for (group, width) in groups.iter().zip(widths) {
-        if group.is_empty() || group.len() > width || !group.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return None;
-        }
-        canonical.push(format!("{:0>width$}", group.to_ascii_lowercase()));
-    }
-    Some(canonical.join("-"))
+    crate::internal::path::java_uuid(java::trim(value)).ok_or_else(|| mismatch(name, value))
 }
 
 /// An optional `@RequestBody`: no body, an empty one or `null` is `None`; a body of another type than JSON is the 415
@@ -263,14 +223,6 @@ pub fn records(value: Option<&Value>) -> Result<Option<Vec<Option<Record<'_>>>>,
             .collect::<Result<Vec<_>, _>>()
             .map(Some),
         Some(_) => Err(unreadable()),
-    }
-}
-
-/// A record body: its fields, or the 400 for a body that is not a JSON object (`null` is a missing body).
-pub fn object(body: &Value) -> Result<&Map<String, Value>, Problem> {
-    match body {
-        Value::Object(fields) => Ok(fields),
-        _ => Err(unreadable()),
     }
 }
 

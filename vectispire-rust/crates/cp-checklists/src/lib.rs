@@ -21,6 +21,7 @@ pub mod contacts;
 pub mod coverage_scope;
 pub mod days;
 pub mod decimal;
+pub mod demand;
 pub mod document_zip;
 pub mod documents;
 pub mod error;

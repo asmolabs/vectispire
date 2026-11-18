@@ -355,6 +355,7 @@ fn stand_ins() -> StandIns {
             encryption: encryption.clone(),
             audit: checklist_audit.clone(),
             clock: Arc::new(vectispire_cp_targets::SystemClock),
+            targets: targets.clone(),
         })
         .routes,
     );

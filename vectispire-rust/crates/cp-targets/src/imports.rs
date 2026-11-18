@@ -65,6 +65,22 @@ impl Targets {
         Ok(reach)
     }
 
+    /// An imported target's first scan, claimed by no executor before `not_before` — **after the batch has committed**:
+    /// the scans' owner writes in a transaction of its own, which would wait on the batch's uncommitted rows (Java's
+    /// `TargetScans` joined the import's transaction; a scan refused here leaves the target to its schedule).
+    pub async fn first_scan(
+        &self,
+        repository: &RepositoryView,
+        not_before: OffsetDateTime,
+    ) -> Result<Queued, TargetError> {
+        self.scans.queue_repository(repository, Some(not_before)).await.map_err(|error| match error {
+            crate::ports::QueueError::AlreadyQueued(message) => {
+                TargetError::Conflict { message, cause: None, code: Some("already-queued"), members: Vec::new() }
+            }
+            crate::ports::QueueError::Failed(failure) => TargetError::Unexpected(failure),
+        })
+    }
+
     /// Whether every signed-in account sees every target, or only what it was granted.
     pub async fn visibility_mode(&self) -> Result<VisibilityMode, TargetError> {
         match &self.visibility {
@@ -146,12 +162,13 @@ impl ImportBatch<'_> {
         repository: &RepositoryView,
         not_before: OffsetDateTime,
     ) -> Result<Queued, TargetError> {
-        self.targets.scans.queue_repository(repository, Some(not_before)).await.map_err(|error| match error {
-            crate::ports::QueueError::AlreadyQueued(message) => {
-                TargetError::Conflict { message, cause: None, code: Some("already-queued"), members: Vec::new() }
-            }
-            crate::ports::QueueError::Failed(failure) => TargetError::Unexpected(failure),
-        })
+        self.targets.first_scan(repository, not_before).await
+    }
+
+    /// The batch's transaction, for the importer's own rows that commit with the targets — a forge import's provenance
+    /// links (`TargetImports.inOneTransaction` hands its work the same transaction).
+    pub fn transaction(&mut self) -> &mut Tx {
+        &mut self.tx
     }
 
     /// Commits, then records every entry the batch collected.

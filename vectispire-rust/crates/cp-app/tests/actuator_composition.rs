@@ -96,6 +96,7 @@ fn census(db: &Db) -> vectispire_cp_crypto::EncryptionCensus {
         encryption: encryption.clone(),
         audit,
         clock: Arc::new(vectispire_cp_targets::SystemClock),
+        targets: targets.clone(),
     });
     vectispire_cp_app::actuator::encryption_census(signing, targets, exporter, forges.services.connections.clone())
 }
