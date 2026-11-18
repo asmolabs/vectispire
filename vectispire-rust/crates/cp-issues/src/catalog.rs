@@ -15,6 +15,8 @@ use crate::persistence::aggregates::{
     TargetResolutions, TypePackaging, WeeklyFlow,
 };
 use crate::persistence::checked::{self, UnsettledScope};
+use crate::persistence::exploitation::ExploitationRows;
+pub use crate::persistence::exploitation::{EpssCandidate, KevCandidate};
 use crate::views::IssueView;
 
 /// How many repositories one count binds — Java's `FLAG_BATCH`: a project's repositories are sized by the data.
@@ -28,6 +30,13 @@ pub struct ScopeCount {
     pub severity: Option<String>,
     pub state: String,
     pub count: i64,
+}
+
+/// `IssueCatalog.Exploitation`: one issue's KEV flag, as the catalogue decided it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Exploitation {
+    pub issue_id: i64,
+    pub kev: bool,
 }
 
 #[derive(Clone)]
@@ -66,6 +75,76 @@ impl IssueCatalog {
         let rows = IssueRepository::find_by_ids(&mut tx, ids).await.map_err(IssueError::from)?;
         crate::persistence::commit(tx).await?;
         Ok(rows.into_iter().map(|r| r.to_view()).collect())
+    }
+
+    // ------------------------------------------------------------------ the threat feeds' walk and writes
+
+    /// `openIdentifiedAfter(…, EpssCandidate)`: a page of the open issues that name an identifier, in id order after
+    /// `after_id`, in a read of its own — the EPSS refresh walks the backlog with these, a bounded page at a time.
+    pub async fn epss_candidates_after(
+        &self,
+        after_id: i64,
+        closed: &[String],
+        limit: u64,
+    ) -> Result<Vec<EpssCandidate>, IssueError> {
+        let mut tx = crate::persistence::read(&self.db).await?;
+        let rows = ExploitationRows::epss_candidates_after(&mut tx, after_id, closed, limit).await?;
+        crate::persistence::commit(tx).await?;
+        Ok(rows)
+    }
+
+    /// `openIdentifiedAfter(…, KevCandidate)`, **in the caller's transaction**: the KEV re-evaluation reads a page under
+    /// the sync row's lock and writes its flags and its events in the same transaction.
+    pub async fn kev_candidates_after(
+        tx: &mut vectispire_cp_db::Tx,
+        after_id: i64,
+        closed: &[String],
+        limit: u64,
+    ) -> Result<Vec<KevCandidate>, IssueError> {
+        Ok(ExploitationRows::kev_candidates_after(tx, after_id, closed, limit).await?)
+    }
+
+    /// `recordExploitation`: the flags the catalogue decided, in the caller's transaction — one update per flag
+    /// value, in batches. The flag only: a row saved whole would put back the EPSS score it was read with.
+    pub async fn record_exploitation(
+        tx: &mut vectispire_cp_db::Tx,
+        updates: &[Exploitation],
+    ) -> Result<(), IssueError> {
+        // `LinkedHashMap<Boolean, …>`: the flag first met is written first.
+        let mut by_flag: Vec<(bool, Vec<i64>)> = Vec::new();
+        for update in updates {
+            match by_flag.iter_mut().find(|(kev, _)| *kev == update.kev) {
+                Some((_, ids)) => ids.push(update.issue_id),
+                None => by_flag.push((update.kev, vec![update.issue_id])),
+            }
+        }
+        for (kev, ids) in by_flag {
+            ExploitationRows::set_kev(tx, &ids, kev).await?;
+        }
+        Ok(())
+    }
+
+    /// `recordEpss`: the scores the feed decided, in a transaction of its own, one update per distinct score — the
+    /// issues of one CVE across the estate share one. Answers the rows updated.
+    pub async fn record_epss(&self, scores: &[(i64, f64)]) -> Result<u64, IssueError> {
+        if scores.is_empty() {
+            return Ok(0);
+        }
+        // `LinkedHashMap<Double, …>`, keyed as `Double.equals` keys: by the value's bits.
+        let mut by_score: Vec<(f64, Vec<i64>)> = Vec::new();
+        for &(id, score) in scores {
+            match by_score.iter_mut().find(|(known, _)| known.to_bits() == score.to_bits()) {
+                Some((_, ids)) => ids.push(id),
+                None => by_score.push((score, vec![id])),
+            }
+        }
+        let mut tx = crate::persistence::write(&self.db).await?;
+        let mut updated: u64 = 0;
+        for (score, ids) in by_score {
+            updated = updated.saturating_add(ExploitationRows::set_epss_score(&mut tx, &ids, score).await?);
+        }
+        crate::persistence::commit(tx).await?;
+        Ok(updated)
     }
 
     // ------------------------------------------------------------------ the aggregates posture reads

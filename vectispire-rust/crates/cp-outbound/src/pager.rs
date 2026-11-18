@@ -363,7 +363,7 @@ fn normalize(path: &str) -> String {
 }
 
 /// `new URI(base).resolve(new URI(target))` for what forges write: an absolute URL, a path, a query.
-fn resolve(base: &str, target: &str) -> String {
+pub(crate) fn resolve(base: &str, target: &str) -> String {
     let Ok(parsed) = java_uri::parse(target) else {
         // Handed on as written: `get` reads no origin in it and refuses it.
         return target.to_owned();

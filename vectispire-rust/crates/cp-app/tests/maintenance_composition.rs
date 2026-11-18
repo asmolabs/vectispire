@@ -536,7 +536,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
                 Arc::new(vectispire_cp_targets::SystemClock),
             )),
         }),
-        // The forges' two tasks, as `main.rs` composes them.
+        // The forges' two tasks and threatintel's two, as `main.rs` composes them.
         vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
             db: db.clone(),
             guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
@@ -547,7 +547,23 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
             targets: checklist_targets.clone(),
         })
         .services
-        .tasks(),
+        .tasks()
+        .into_iter()
+        .chain(
+            vectispire_cp_app::threatintel::compose(vectispire_cp_app::threatintel::ThreatIntelSetup {
+                db: db.clone(),
+                guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+                trust: vectispire_tls::TlsTrust::BuiltIn,
+                locations: vectispire_cp_threatintel::sources::FeedLocations::default(),
+                issues: Arc::new(vectispire_cp_issues::queries::IssueCatalog::new(db.clone())),
+                targets: checklist_targets.clone(),
+                clock: Arc::new(vectispire_cp_targets::SystemClock),
+                events: Arc::new(vectispire_cp_outbox::NotExported),
+                audit: audit(),
+            })
+            .tasks(),
+        )
+        .collect(),
         &gauges,
     )
     .unwrap();

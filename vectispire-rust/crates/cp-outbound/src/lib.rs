@@ -11,6 +11,7 @@
 #![forbid(unsafe_code)]
 
 pub mod address;
+pub mod download;
 pub mod failure;
 pub mod guard;
 pub mod json;

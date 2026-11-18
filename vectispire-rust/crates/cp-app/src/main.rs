@@ -646,6 +646,19 @@ async fn serve() -> ExitCode {
         targets: targets.clone(),
     });
 
+    // Threat intelligence (wave 2): its routes, and its two hourly synchronisations.
+    let threatintel = vectispire_cp_app::threatintel::compose(vectispire_cp_app::threatintel::ThreatIntelSetup {
+        db: db.clone(),
+        guard: guard.clone(),
+        trust: trust.clone(),
+        locations: vectispire_cp_app::threatintel::locations(&settings.threat_intel),
+        issues: issues.catalog().clone(),
+        targets: targets.clone(),
+        clock: clock.clone(),
+        events: siem.security_events(),
+        audit: audit.clone(),
+    });
+
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
@@ -661,7 +674,7 @@ async fn serve() -> ExitCode {
         clock.clone(),
         access.session_cleanup.clone(),
         checklists.reminders.clone(),
-        forges.services.tasks(),
+        forges.services.tasks().into_iter().chain(threatintel.tasks()).collect(),
         &gauges,
     ) {
         Ok(turns) => turns,
@@ -743,13 +756,8 @@ async fn serve() -> ExitCode {
     ));
     access_routes.extend(checklists.routes);
     access_routes.extend(forges.routes);
-    // Threat intelligence's reads (the feeds' status, the ranking, a CVE's record); its syncs come with the fetches.
-    access_routes.extend(vectispire_cp_threatintel::routes(Arc::new(vectispire_cp_threatintel::Services::new(
-        db.clone(),
-        issues.catalog().clone(),
-        targets.clone(),
-        clock.clone(),
-    ))));
+    // Threat intelligence (wave 2): the feeds' status, the ranking, a CVE's record and the two syncs.
+    access_routes.extend(vectispire_cp_threatintel::routes(threatintel.clone()));
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),

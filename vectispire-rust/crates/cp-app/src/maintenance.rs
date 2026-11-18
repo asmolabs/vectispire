@@ -93,7 +93,7 @@ pub fn tasks(
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
     checklist_reminders: Arc<dyn MaintenanceTask>,
-    forges: Vec<Arc<dyn MaintenanceTask>>,
+    composed: Vec<Arc<dyn MaintenanceTask>>,
     gauges: &crate::gauges::Gauges,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let issues_db = issues.db().clone();
@@ -110,7 +110,8 @@ pub fn tasks(
     ));
     tasks.push(session_cleanup);
     tasks.push(checklist_reminders);
-    tasks.extend(forges);
+    // The modules composed apart, each with its own setup: forges', threatintel's.
+    tasks.extend(composed);
     tasks.extend(vectispire_cp_compliance::tasks(issues_db, settings.clone(), clock.clone(), &compliance));
     tasks.extend(gate.tasks(settings, clock));
     tasks.extend(posture.tasks());
@@ -134,7 +135,7 @@ pub fn turns(
     clock: Arc<dyn Clock>,
     session_cleanup: Arc<dyn MaintenanceTask>,
     checklist_reminders: Arc<dyn MaintenanceTask>,
-    forges: Vec<Arc<dyn MaintenanceTask>>,
+    composed: Vec<Arc<dyn MaintenanceTask>>,
     gauges: &crate::gauges::Gauges,
 ) -> Result<Turns, MaintenanceError> {
     Ok(Turns::new(tasks(
@@ -151,7 +152,7 @@ pub fn turns(
         clock,
         session_cleanup,
         checklist_reminders,
-        forges,
+        composed,
         gauges,
     )?)?)
 }

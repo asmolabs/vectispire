@@ -2,10 +2,7 @@
 //! (the one row saying where both feeds stand) and `t_epss_score` (FIRST's file, one generation at a time).
 //!
 //! **Every statement Java's repositories hold is here, the writes included**, held to the Java answers by
-//! persistence/tests.rs; the synchronisations that write (stage 2) are what calls them outside the tests. The
-//! `expect` below says so, and fails the build the day it stops being true.
-
-#![cfg_attr(not(test), expect(dead_code, reason = "the KEV and EPSS synchronisations (stage 2) call the writes"))]
+//! persistence/tests.rs; the synchronisations that write are what calls them outside the tests.
 
 pub(crate) mod entities;
 pub mod repository;
@@ -43,6 +40,10 @@ impl StoreError {
 
 pub async fn read(db: &Db) -> Result<Tx, StoreError> {
     Ok(db.begin(vectispire_cp_db::Mode::ReadOnly).await?)
+}
+
+pub async fn write(db: &Db) -> Result<Tx, StoreError> {
+    Ok(db.begin(vectispire_cp_db::Mode::ReadWrite).await?)
 }
 
 pub async fn commit(tx: Tx) -> Result<(), StoreError> {

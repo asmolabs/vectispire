@@ -3,6 +3,7 @@
 pub mod aggregates;
 pub mod checked;
 pub mod entities;
+pub mod exploitation;
 pub mod filters;
 mod lived;
 pub mod repository;

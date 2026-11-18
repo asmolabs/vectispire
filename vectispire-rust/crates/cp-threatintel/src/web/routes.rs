@@ -5,30 +5,62 @@
 //! - `GET /api/v1/epss/cve/{cveId}` — any account's: what the two public feeds say about one CVE, which names no
 //!   target; a CVE neither recorded is a bare 404, as `ResponseEntity.notFound()` answers.
 //!
-//! None of them takes an API key: neither controller is marked `@AcceptsApiKey`. The two syncs wait for the outbound
-//! fetches (stage 2).
+//! - `POST /api/v1/threat-intel/sync` and `POST /api/v1/epss/sync` — a security lead's: outbound, repeatable at will
+//!   and rate-limited by whoever serves it; not destructive, which is why it is a lead's rather than an
+//!   administrator's, but not a reader's. **The same synchronisation** from either screen — the CISA KEV catalogue and
+//!   FIRST's EPSS file, one audit entry each — named by the screen it came from, the actor's fallback `system`.
+//!
+//! None of them takes an API key: neither controller is marked `@AcceptsApiKey`.
 
 use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Path;
 use axum::response::{IntoResponse, Response};
+use http::HeaderMap;
 use http::{HeaderValue, StatusCode, header};
 use serde::Serialize;
 use vectispire_cp_access::CallerScope;
+use vectispire_cp_audit::RequestActor;
 use vectispire_cp_http::access::Access;
 use vectispire_cp_http::routes::{Route, RouteEntry};
-use vectispire_cp_http::{Problem, Scoped};
+use vectispire_cp_http::{Caller, ClientAddress, Problem, Scoped};
 
 use super::json::{RecordJson, SyncStatusJson};
 use crate::feeds::{FeedError, ThreatIntel};
 use crate::prioritization::EpssPrioritizationService;
+use crate::sync::{Origin, ThreatIntelFeedService};
 
 /// The services a route reaches.
 #[derive(Debug, Clone)]
 pub struct Services {
     pub feeds: ThreatIntel,
     pub ranking: EpssPrioritizationService,
+    pub sync: Arc<ThreatIntelFeedService>,
+}
+
+/// `RequestActors.of(principal, request, "system")`.
+fn actor(caller: &Caller, address: &ClientAddress, headers: &HeaderMap) -> RequestActor {
+    RequestActor {
+        username: Some(vectispire_cp_access::security::actor_name(&caller.0, "system")),
+        ip_address: Some(address.0.clone()),
+        user_agent: headers.get(header::USER_AGENT).and_then(|value| value.to_str().ok()).map(str::to_owned),
+    }
+}
+
+/// The two sync routes: one synchronisation, named by the screen it was asked from.
+fn sync_route(path: &'static str, origin: Origin, services: Arc<Services>) -> RouteEntry {
+    Route::post(path).requires(Access::SecurityLead).names_no_target().handler(
+        move |caller: Caller, address: ClientAddress, headers: HeaderMap| {
+            let s = services.clone();
+            async move {
+                match s.sync.sync_threat_intel(&actor(&caller, &address, &headers), origin).await {
+                    Ok(status) => ok(&SyncStatusJson::from(status)),
+                    Err(error) => failed(&error),
+                }
+            }
+        },
+    )
 }
 
 fn ok<T: Serialize + ?Sized>(value: &T) -> Response {
@@ -45,8 +77,10 @@ fn failed(error: &FeedError) -> Response {
 
 /// Every read route of the module.
 pub fn routes(services: Arc<Services>) -> Vec<RouteEntry> {
-    let (status, priorities, lookup) = (services.clone(), services.clone(), services);
+    let (status, priorities, lookup) = (services.clone(), services.clone(), services.clone());
     vec![
+        sync_route("/api/v1/threat-intel/sync", Origin::ThreatIntelligenceScreen, services.clone()),
+        sync_route("/api/v1/epss/sync", Origin::EpssScreen, services),
         Route::get("/api/v1/threat-intel/status").requires(Access::GovernanceRead).names_no_target().handler(
             move || {
                 let s = status.clone();

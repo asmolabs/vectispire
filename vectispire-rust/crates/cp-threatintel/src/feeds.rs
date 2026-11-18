@@ -117,7 +117,7 @@ impl SyncStatus {
         }
     }
 
-    fn never() -> SyncStatus {
+    pub(crate) fn never() -> SyncStatus {
         SyncStatus {
             last_synced_at: None,
             total_cves: 0,

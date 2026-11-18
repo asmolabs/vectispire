@@ -20,10 +20,15 @@ sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio",
 thiserror.workspace = true
 time = { version = "0.3", features = ["std", "serde", "formatting", "parsing"] }
 tracing.workspace = true
+rand_core.workspace = true
 vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-http.workspace = true
 vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 
@@ -32,9 +37,7 @@ sha2.workspace = true
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
-vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
-vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-testkit = { path = "../testkit" }
 vectispire-tls = { path = "../tls" }
 

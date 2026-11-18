@@ -8,5 +8,3 @@ REPORT_RUN_SWEEP | reportplugins, a later phase
 TICKET_SWEEP | tickets, a later phase
 TICKET_TOKEN_CHECK | tickets, a later phase
 REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
-KEV_CATALOGUE | threatintel, a later phase
-EPSS_SCORES | threatintel, a later phase

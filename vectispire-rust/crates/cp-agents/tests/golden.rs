@@ -918,13 +918,33 @@ fn phase_three(
         governance_audit,
         Arc::new(SystemClock),
     ));
-    // As `cp-app` composes it: the reads, over the backlog and the targets' names.
-    let threatintel = Arc::new(vectispire_cp_threatintel::Services::new(
-        db.clone(),
-        issues.catalog().clone(),
-        targets.clone(),
-        Arc::new(SystemClock),
-    ));
+    // As `cp-app` composes it, at the addresses the Java suite configures (`application-apitest.yaml`): names that
+    // cannot resolve, so a sync fails at once and says so in the sender's words, as it did when recorded. The
+    // recordings of a sync Java's suite stood a Mockito source in for are listed in `_recording.txt`.
+    let locations = vectispire_cp_threatintel::sources::FeedLocations {
+        kev_url: Some("https://kev-catalogue.invalid/known_exploited_vulnerabilities.json".to_owned()),
+        kev_allow_private: false,
+        epss_url: Some("https://epss-file.invalid/epss_scores-current.csv.gz".to_owned()),
+        epss_allow_private: false,
+    };
+    let feed_sender = vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn);
+    let feed_guard = vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new());
+    let threatintel = Arc::new(vectispire_cp_threatintel::Services::new(vectispire_cp_threatintel::ThreatIntelParts {
+        db: db.clone(),
+        issues: issues.catalog().clone(),
+        targets: targets.clone(),
+        clock: Arc::new(SystemClock),
+        events: siem.events.clone(),
+        audit: audit_for_access.clone(),
+        catalogue: Arc::new(vectispire_cp_threatintel::sources::KevCatalogSource::new(
+            vectispire_cp_outbound::json::OutboundJson::new(feed_sender.clone(), feed_guard.clone()),
+            &locations,
+        )),
+        file: Arc::new(vectispire_cp_threatintel::sources::EpssFileSource::new(
+            vectispire_cp_outbound::download::OutboundDownload::new(feed_sender, feed_guard),
+            &locations,
+        )),
+    }));
     // Forges as `cp-app` composes them (wave 2): the guard reserves nothing, as the Java suite's context does, and the
     // runtime's trust is the built-in one — the stub forges are reached through the CA each test pins.
     let forges = Arc::new(vectispire_cp_forges::Services::new(vectispire_cp_forges::ForgeParts {
