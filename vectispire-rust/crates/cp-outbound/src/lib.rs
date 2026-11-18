@@ -15,6 +15,7 @@ pub mod failure;
 pub mod guard;
 pub mod pinned_ca;
 pub mod policy;
+pub mod post;
 pub mod reserved;
 pub mod sender;
 
@@ -22,4 +23,5 @@ pub use failure::OutboundFailure;
 pub use guard::{Destination, HostResolver, OutboundUrlGuard, ReservedEndpoint, SystemResolver, UnsafeUrl};
 pub use pinned_ca::PinnedCa;
 pub use policy::OutboundPolicy;
+pub use post::{Answer, OutboundPost, PostError};
 pub use sender::{Download, Method, PinnedHttpSender, Response};

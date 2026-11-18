@@ -56,9 +56,9 @@ pub enum MaintenanceError {
 }
 
 /// The outbox's handlers and channels this binary has: the agents' audit delivery (`agent_result_audit`, task 2.9) and
-/// the SIEM export's (`siem_event`, task 4.2) and the checklists' answers (`checklist_answer`, wave 1). Java relays
-/// eleven types (`reference/outbox/registry.json`); the notifications' channels and token alerts and compliance's
-/// deliveries come with their modules.
+/// the SIEM export's (`siem_event`, task 4.2), the checklists' answers (`checklist_answer`, wave 1), and the
+/// notifications' five channels and two token-alert handlers (wave 2). Java relays eleven types
+/// (`reference/outbox/registry.json`); compliance's `owasp_report_after_scan` comes with its delivery.
 /// Until all eleven are here the relay task is held — and each one that is here is registered, or the relay would open
 /// without it the day the others land: the agents' entries were enqueued by every accepted result and had no handler.
 #[must_use]
@@ -66,15 +66,16 @@ pub fn outbox_registry(
     audit: Arc<vectispire_cp_audit::AuditLog>,
     siem: &crate::siem::Siem,
     checklist_answers: Arc<vectispire_cp_checklists::ChecklistAnswerDelivery>,
+    notifications: &vectispire_cp_notifications::Channels,
 ) -> Registry {
-    Registry::new(
-        vec![
-            Arc::new(vectispire_cp_agents::AgentResultAuditDelivery::new(audit)),
-            siem.delivery.clone(),
-            checklist_answers,
-        ],
-        Vec::new(),
-    )
+    let mut handlers: Vec<Arc<dyn vectispire_cp_outbox::OutboxHandler>> = vec![
+        Arc::new(vectispire_cp_agents::AgentResultAuditDelivery::new(audit.clone())),
+        siem.delivery.clone(),
+        checklist_answers,
+    ];
+    // A token's change of state: its message to each channel, and its audit entry (wave 2).
+    handlers.extend(crate::notifications::handlers(notifications, audit));
+    Registry::new(handlers, notifications.outbox_channels())
 }
 
 /// Every module's maintenance task.

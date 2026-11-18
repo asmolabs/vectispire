@@ -8,6 +8,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# `notifications`: the weekly report leaves through its webhook and mail (`ChannelsDigest`).
+vectispire-cp-notifications = { path = "../cp-notifications" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
 axum.workspace = true
 base64.workspace = true
 http.workspace = true

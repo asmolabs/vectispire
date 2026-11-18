@@ -65,12 +65,12 @@ pub trait OutboxHandler: Send + Sync {
 /// payload before calling the channel. The payload's shape is the notifications module's (Phase 4), not the relay's;
 /// the channel reads it. What changes is only the wording of `last_error` for a payload that does not parse: Jackson's
 /// sentence in Java, the channel's here. Both retry and then abandon it.
+///
+/// **No `isConfigured` here**, unlike Java's interface: the relay never asks it — only the enqueuer does, and whether a
+/// channel has a destination is a read of the settings, which the notifications module answers asynchronously itself.
 pub trait NotificationChannel: Send + Sync {
     /// The `message_type` that routes to this channel. Stored, so it must not move.
     fn message_type(&self) -> &str;
-
-    /// Whether this deployment has somewhere to send. An unconfigured channel is queued nothing (by the enqueuer).
-    fn is_configured(&self) -> bool;
 
     /// `team_id` is whose channel this copy is for, `None` for the global destination. Only the generic webhook has
     /// per-team destinations; the others ignore it, as Java's default method does.

@@ -39,7 +39,15 @@ pub fn integration_administration(
 /// The integrations' registry, with every owner that answers "in use" — the governor's switches and the settings save
 /// read the same one.
 pub fn integrations(db: &vectispire_cp_db::Db) -> vectispire_cp_settings::Integrations {
-    let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)];
+    let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![
+        Arc::new(vectispire_cp_siem::SiemTransportInUse),
+        // A notification channel with a destination — a URL, recipients, a team's own webhook — is in use (lot I6).
+        Arc::new(vectispire_cp_notifications::NotificationChannelInUse::new(
+            vectispire_cp_notifications::NotificationDestinations::new(vectispire_cp_settings::Settings::new(
+                db.clone(),
+            )),
+        )),
+    ];
     vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc))
 }
 

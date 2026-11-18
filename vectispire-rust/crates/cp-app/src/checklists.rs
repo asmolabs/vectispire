@@ -35,6 +35,8 @@ pub struct ChecklistParts {
     /// `vectispire.http.max-body.checklist-template-import` and `…checklist-evidence`.
     pub max_workbook_bytes: i64,
     pub max_file_bytes: i64,
+    /// The notifications module's mail channel, which the weekly reminder sends through.
+    pub mail: Arc<dyn checklists::ports::MailChannel>,
 }
 
 /// The outbox handler of `checklist_answer`, registered before the services exist: the outbox is built with every
@@ -58,6 +60,7 @@ pub fn compose(parts: ChecklistParts) -> Composed {
         clock,
         product_version,
         max_workbook_bytes,
+        mail,
         max_file_bytes,
     } = parts;
     let settings = Arc::new(vectispire_cp_settings::Settings::new(db.clone()));
@@ -117,14 +120,7 @@ pub fn compose(parts: ChecklistParts) -> Composed {
         clock.clone(),
     ));
     let reminders = Arc::new(checklists::contact_service::ChecklistReminders::new(
-        db,
-        projects,
-        accounts,
-        settings,
-        Arc::new(checklists::ports::NoMail),
-        trail,
-        audit,
-        clock,
+        db, projects, accounts, settings, mail, trail, audit, clock,
     ));
     let routes = checklists::routes(checklists::ChecklistServices {
         templates,

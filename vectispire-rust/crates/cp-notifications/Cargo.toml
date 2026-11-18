@@ -1,0 +1,49 @@
+[package]
+name = "vectispire-cp-notifications"
+description = "The control plane's notifications module: what a scan's delta says and the five channels that say it (webhook, Teams, Slack, Discord, mail), an integration token's change of state on the same channels and in the audit log, the channels' in-use answer to the integrations' registry — core.notifications, ported."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# The two routes: the server stack is the control plane's (deny.toml lists this crate among axum's wrappers).
+axum.workspace = true
+futures-util.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+uuid = { version = "1", features = ["v4"] }
+# `access`: a delta is routed to the teams granted its target that have a channel (`TeamChannels`).
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-http.workspace = true
+# `issues`: the delta is the backlog's, announced through its `ScanDeltaSink`.
+vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
+vectispire-cp-settings = { path = "../cp-settings" }
+# `targets`: a message names its target, and a team owns a target through its project.
+vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+# The contract test: the routes against `openapi.json` and the list of routes not ported.
+vectispire-cp-contract = { path = "../cp-contract" }
+futures-util.workspace = true
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-tls.workspace = true
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

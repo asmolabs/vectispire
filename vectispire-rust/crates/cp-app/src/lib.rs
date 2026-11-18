@@ -15,6 +15,7 @@ pub mod compliance;
 pub mod gauges;
 pub mod ingestion;
 pub mod maintenance;
+pub mod notifications;
 pub mod registry;
 pub mod settings_screen;
 pub mod siem;

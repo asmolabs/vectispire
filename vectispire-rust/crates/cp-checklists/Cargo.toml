@@ -16,6 +16,8 @@ mysql-queries = []
 postgres-queries = []
 
 [dependencies]
+# `notifications`: the weekly reminder leaves through its mail channel.
+vectispire-cp-notifications = { path = "../cp-notifications" }
 axum.workspace = true
 http.workspace = true
 http-body-util.workspace = true

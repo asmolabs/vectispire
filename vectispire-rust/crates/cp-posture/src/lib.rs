@@ -57,7 +57,7 @@ use vectispire_cp_targets::{Clock, Targets};
 
 pub use error::PostureError;
 pub use internal::WeeklyDigestTask;
-pub use ports::{Destinations, DigestChannels, NotificationsStandIn};
+pub use ports::{ChannelsDigest, Destinations, DigestChannels, NotificationsStandIn};
 
 /// What the module reads, each through the module that owns it.
 pub struct PostureConfig {

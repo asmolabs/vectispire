@@ -581,6 +581,39 @@ fn signing_key_pem() -> String {
 
 /// The issues, gate, posture, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
 /// targets above.
+/// The integrations' registry as `cp-app/src/registry.rs` composes it: the SIEM's transport and a notification
+/// channel with a destination are the uses that refuse a switch-off.
+fn integrations(db: &Db) -> vectispire_cp_settings::Integrations {
+    let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![
+        Arc::new(vectispire_cp_siem::SiemTransportInUse),
+        Arc::new(vectispire_cp_notifications::NotificationChannelInUse::new(
+            vectispire_cp_notifications::NotificationDestinations::new(Settings::new(db.clone())),
+        )),
+    ];
+    vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc))
+}
+
+/// The notifications module as `cp-app/src/notifications.rs` composes it (`compose_plain`): no public address, no mail
+/// relay, a guard reserving nothing.
+fn notifications(db: &Db) -> (vectispire_cp_notifications::NotificationsConfig, vectispire_cp_notifications::Channels) {
+    let config = vectispire_cp_notifications::NotificationsConfig {
+        db: db.clone(),
+        settings: Settings::new(db.clone()),
+        integrations: integrations(db),
+        encryption: support::encryption(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        public_url: None,
+        mail: None,
+        mail_from: "vectispire@localhost".to_owned(),
+        clock: Arc::new(AuditClock),
+    };
+    let channels = vectispire_cp_notifications::channels(&config);
+    (config, channels)
+}
+
 /// The issues and inventory modules as `cp-app` composes them — before scanning, whose ingestion writes into both.
 fn issues_and_inventory(
     db: &Db,
@@ -589,14 +622,30 @@ fn issues_and_inventory(
     siem: &Siem,
 ) -> (Arc<vectispire_cp_issues::Issues>, Arc<vectispire_cp_inventory::Inventory>) {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
-    let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
-        db: db.clone(),
-        targets: targets.clone(),
-        scans: (*scans).clone(),
-        settings: Arc::new(Settings::new(db.clone())),
-        audit: audit.clone(),
-        events: siem.events.clone(),
-    }));
+    // A scan's delta routed to the channels in the scan's transaction, on an enqueue-only outbox over the same table.
+    let (notifications, channels) = notifications(db);
+    let deltas = Arc::new(vectispire_cp_notifications::ScanDeltaNotifier::new(
+        channels.service.clone(),
+        channels.all(),
+        Arc::new(Outbox::on_database(
+            db.clone(),
+            Registry::new(Vec::new(), Vec::new()),
+            Arc::new(vectispire_cp_maintenance::SystemClock),
+        )),
+        Arc::new(vectispire_cp_notifications::routing::TargetsDirectory::new(targets.clone(), db.clone())),
+        notifications.integrations.clone(),
+    ));
+    let issues = Arc::new(
+        vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+            db: db.clone(),
+            targets: targets.clone(),
+            scans: (*scans).clone(),
+            settings: Arc::new(Settings::new(db.clone())),
+            audit: audit.clone(),
+            events: siem.events.clone(),
+        })
+        .with_scan_deltas(deltas),
+    );
     let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
         db: db.clone(),
         scans,
@@ -742,9 +791,7 @@ fn phase_three(
     ));
     // The integrations' registry and its routes, as `cp-app`'s registry composes them: the SIEM's transport is the use
     // that refuses a switch-off.
-    let uses: Vec<Arc<dyn vectispire_cp_settings::InUse>> = vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)];
-    let integrations =
-        vectispire_cp_settings::Integrations::new(db.clone(), uses, Arc::new(time::OffsetDateTime::now_utc));
+    let integrations = integrations(db);
     let integration_administration =
         Arc::new(vectispire_cp_platform::IntegrationAdministration::new(integrations.clone(), (*audit).clone()));
     // The settings screen as `cp-app/src/settings_screen.rs` composes it: `access`' approvers, the two narrow parts of
@@ -840,6 +887,11 @@ fn phase_three(
     routes.extend(vectispire_cp_compliance::routes(compliance));
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
+    // The notification centre (wave 2).
+    let (notifications, channels) = notifications(db);
+    routes.extend(vectispire_cp_notifications::routes(Arc::new(
+        vectispire_cp_notifications::NotificationTestService::new(notifications, channels.all()),
+    )));
     routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes.extend(vectispire_cp_platform::integration_routes(integration_administration));
     routes.extend(vectispire_cp_platform::settings_routes(settings_screen));
@@ -894,11 +946,7 @@ fn access_administration(
         outbound: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
         policy: settings,
         targets: targets.clone(),
-        integrations: vectispire_cp_settings::Integrations::new(
-            db.clone(),
-            vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)],
-            Arc::new(time::OffsetDateTime::now_utc),
-        ),
+        integrations: integrations(db),
     });
     let keys = vectispire_cp_access::api_key_administration::ApiKeyAdministration::new(
         vectispire_cp_access::api_key_administration::ApiKeyParts {
