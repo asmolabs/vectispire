@@ -310,7 +310,7 @@ fn stand_ins() -> StandIns {
     let siem = vectispire_cp_app::siem::service(
         &siem,
         db,
-        encryption,
+        encryption.clone(),
         (*audit).clone(),
         Arc::new(vectispire_cp_audit::SystemClock),
     );
@@ -346,6 +346,18 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_access::credentials::SystemClock),
         false,
     ));
+    // The forges' routes, as `main.rs` composes them into the same registry.
+    access.extend(
+        vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
+            db: db_for_access.clone(),
+            guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            trust: vectispire_tls::TlsTrust::BuiltIn,
+            encryption: encryption.clone(),
+            audit: checklist_audit.clone(),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+        })
+        .routes,
+    );
     // The checklists' routes, as `main.rs` composes them into the same registry.
     access.extend(
         vectispire_cp_app::checklists::compose(vectispire_cp_app::checklists::ChecklistParts {

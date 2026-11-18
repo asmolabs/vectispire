@@ -117,9 +117,8 @@ pub(crate) async fn update_connection(tx: &mut Tx, row: &ConnectionRow) -> Resul
 }
 
 pub(crate) async fn delete_connection(tx: &mut Tx, id: &str) -> Result<(), StoreError> {
-    let statement = sea_orm::QueryTrait::into_query(
-        connection::Entity::delete_many().filter(connection::Column::Id.eq(id)),
-    );
+    let statement =
+        sea_orm::QueryTrait::into_query(connection::Entity::delete_many().filter(connection::Column::Id.eq(id)));
     orm::execute(tx, &statement).await?;
     Ok(())
 }
@@ -162,7 +161,11 @@ pub(crate) async fn discovery(tx: &mut Tx, id: i64) -> Result<Option<DiscoveryRo
 }
 
 /// `findByIdAndConnectionId`.
-pub(crate) async fn discovery_of(tx: &mut Tx, id: i64, connection_id: &str) -> Result<Option<DiscoveryRow>, StoreError> {
+pub(crate) async fn discovery_of(
+    tx: &mut Tx,
+    id: i64,
+    connection_id: &str,
+) -> Result<Option<DiscoveryRow>, StoreError> {
     let statement = discovery::Entity::find()
         .filter(discovery::Column::Id.eq(id))
         .filter(discovery::Column::ConnectionId.eq(connection_id))
@@ -259,12 +262,18 @@ fn update_discovery() -> sea_orm::UpdateMany<discovery::Entity> {
 }
 
 /// `giveBack`: a run its owner took back to waiting, its attempt not counted.
-pub(crate) async fn give_back(tx: &mut Tx, id: i64, running: &str, pending: &str, owner: &str) -> Result<u64, StoreError> {
+pub(crate) async fn give_back(
+    tx: &mut Tx,
+    id: i64,
+    running: &str,
+    pending: &str,
+    owner: &str,
+) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         update_discovery()
-            .col_expr(discovery::Column::State, Expr::val(pending).into())
-            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None).into())
+            .col_expr(discovery::Column::State, Expr::val(pending))
+            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None))
             .col_expr(discovery::Column::Attempts, Expr::col(discovery::Column::Attempts).sub(1))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(running))
@@ -285,16 +294,16 @@ pub(crate) async fn take(
 ) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         update_discovery()
-            .col_expr(discovery::Column::State, Expr::val(running).into())
-            .col_expr(discovery::Column::ClaimedBy, Expr::val(owner).into())
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(lease_expires_at).into())
-            .col_expr(discovery::Column::StartedAt, Expr::val(started_at).into())
+            .col_expr(discovery::Column::State, Expr::val(running))
+            .col_expr(discovery::Column::ClaimedBy, Expr::val(owner))
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(lease_expires_at))
+            .col_expr(discovery::Column::StartedAt, Expr::val(started_at))
             .col_expr(discovery::Column::Attempts, Expr::col(discovery::Column::Attempts).add(1))
-            .col_expr(discovery::Column::NamespacesSeen, Expr::val(0).into())
-            .col_expr(discovery::Column::RepositoriesSeen, Expr::val(0).into())
-            .col_expr(discovery::Column::RepositoriesSkipped, Expr::val(0).into())
-            .col_expr(discovery::Column::RequestsMade, Expr::val(0).into())
-            .col_expr(discovery::Column::RateLimitWaitSeconds, Expr::val(0i64).into())
+            .col_expr(discovery::Column::NamespacesSeen, Expr::val(0))
+            .col_expr(discovery::Column::RepositoriesSeen, Expr::val(0))
+            .col_expr(discovery::Column::RepositoriesSkipped, Expr::val(0))
+            .col_expr(discovery::Column::RequestsMade, Expr::val(0))
+            .col_expr(discovery::Column::RateLimitWaitSeconds, Expr::val(0i64))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(pending)),
     );
@@ -311,13 +320,16 @@ pub(crate) struct Progress {
     pub waited: i64,
 }
 
-fn with_progress(update: sea_orm::UpdateMany<discovery::Entity>, progress: Progress) -> sea_orm::UpdateMany<discovery::Entity> {
+fn with_progress(
+    update: sea_orm::UpdateMany<discovery::Entity>,
+    progress: Progress,
+) -> sea_orm::UpdateMany<discovery::Entity> {
     update
-        .col_expr(discovery::Column::NamespacesSeen, Expr::val(progress.namespaces).into())
-        .col_expr(discovery::Column::RepositoriesSeen, Expr::val(progress.repositories).into())
-        .col_expr(discovery::Column::RepositoriesSkipped, Expr::val(progress.skipped).into())
-        .col_expr(discovery::Column::RequestsMade, Expr::val(progress.requests).into())
-        .col_expr(discovery::Column::RateLimitWaitSeconds, Expr::val(progress.waited).into())
+        .col_expr(discovery::Column::NamespacesSeen, Expr::val(progress.namespaces))
+        .col_expr(discovery::Column::RepositoriesSeen, Expr::val(progress.repositories))
+        .col_expr(discovery::Column::RepositoriesSkipped, Expr::val(progress.skipped))
+        .col_expr(discovery::Column::RequestsMade, Expr::val(progress.requests))
+        .col_expr(discovery::Column::RateLimitWaitSeconds, Expr::val(progress.waited))
 }
 
 /// `renew`: the progress written and the lease extended, while the owner still holds the run.
@@ -331,7 +343,7 @@ pub(crate) async fn renew(
 ) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         with_progress(update_discovery(), progress)
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(lease_expires_at).into())
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(lease_expires_at))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(running))
             .filter(discovery::Column::ClaimedBy.eq(owner)),
@@ -355,21 +367,27 @@ pub(crate) struct Ending {
 }
 
 /// `finish`: a run its owner still holds ended, the active key going with the lease.
-pub(crate) async fn finish(tx: &mut Tx, id: i64, running: &str, owner: &str, ending: &Ending) -> Result<u64, StoreError> {
+pub(crate) async fn finish(
+    tx: &mut Tx,
+    id: i64,
+    running: &str,
+    owner: &str,
+    ending: &Ending,
+) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         with_progress(update_discovery(), ending.progress)
-            .col_expr(discovery::Column::State, Expr::val(ending.state.as_str()).into())
-            .col_expr(discovery::Column::Reason, Expr::val(ending.reason.clone()).into())
-            .col_expr(discovery::Column::Detail, Expr::val(ending.detail.clone()).into())
-            .col_expr(discovery::Column::FinishedAt, Expr::val(ending.finished_at).into())
-            .col_expr(discovery::Column::ActiveKey, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None).into())
-            .col_expr(discovery::Column::RateLimitResetAt, Expr::val(ending.reset_at).into())
-            .col_expr(discovery::Column::NewCount, Expr::val(ending.new_count).into())
-            .col_expr(discovery::Column::ChangedCount, Expr::val(ending.changed_count).into())
-            .col_expr(discovery::Column::GoneCount, Expr::val(ending.gone_count).into())
-            .col_expr(discovery::Column::UnreadableNamespaces, Expr::val(ending.unreadable.clone()).into())
+            .col_expr(discovery::Column::State, Expr::val(ending.state.as_str()))
+            .col_expr(discovery::Column::Reason, Expr::val(ending.reason.clone()))
+            .col_expr(discovery::Column::Detail, Expr::val(ending.detail.clone()))
+            .col_expr(discovery::Column::FinishedAt, Expr::val(ending.finished_at))
+            .col_expr(discovery::Column::ActiveKey, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None))
+            .col_expr(discovery::Column::RateLimitResetAt, Expr::val(ending.reset_at))
+            .col_expr(discovery::Column::NewCount, Expr::val(ending.new_count))
+            .col_expr(discovery::Column::ChangedCount, Expr::val(ending.changed_count))
+            .col_expr(discovery::Column::GoneCount, Expr::val(ending.gone_count))
+            .col_expr(discovery::Column::UnreadableNamespaces, Expr::val(ending.unreadable.clone()))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(running))
             .filter(discovery::Column::ClaimedBy.eq(owner)),
@@ -401,9 +419,9 @@ pub(crate) async fn requeue_lapsed(
 ) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         update_discovery()
-            .col_expr(discovery::Column::State, Expr::val(pending).into())
-            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None).into())
+            .col_expr(discovery::Column::State, Expr::val(pending))
+            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(running))
             .filter(discovery::Column::LeaseExpiresAt.lt(as_of))
@@ -426,13 +444,13 @@ pub(crate) async fn fail_lapsed(
 ) -> Result<u64, StoreError> {
     let statement = sea_orm::QueryTrait::into_query(
         update_discovery()
-            .col_expr(discovery::Column::State, Expr::val(failed).into())
-            .col_expr(discovery::Column::Reason, Expr::val(reason).into())
-            .col_expr(discovery::Column::Detail, Expr::val(detail).into())
-            .col_expr(discovery::Column::FinishedAt, Expr::val(as_of).into())
-            .col_expr(discovery::Column::ActiveKey, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None).into())
-            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None).into())
+            .col_expr(discovery::Column::State, Expr::val(failed))
+            .col_expr(discovery::Column::Reason, Expr::val(reason))
+            .col_expr(discovery::Column::Detail, Expr::val(detail))
+            .col_expr(discovery::Column::FinishedAt, Expr::val(as_of))
+            .col_expr(discovery::Column::ActiveKey, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::ClaimedBy, Expr::val(Option::<String>::None))
+            .col_expr(discovery::Column::LeaseExpiresAt, Expr::val(Option::<OffsetDateTime>::None))
             .filter(discovery::Column::Id.eq(id))
             .filter(discovery::Column::State.eq(running))
             .filter(discovery::Column::LeaseExpiresAt.lt(as_of))
@@ -488,7 +506,12 @@ impl SeenBy {
 }
 
 /// `countByConnectionIdAndFirstSeenBy`, `…AndChangedBy`, and the totals of the pages.
-pub(crate) async fn count_seen(tx: &mut Tx, connection_id: &str, by: SeenBy, discovery_id: i64) -> Result<i64, StoreError> {
+pub(crate) async fn count_seen(
+    tx: &mut Tx,
+    connection_id: &str,
+    by: SeenBy,
+    discovery_id: i64,
+) -> Result<i64, StoreError> {
     let statement = repository::Entity::find()
         .select_only()
         .column_as(Expr::col(repository::Column::Id).count(), "n")
@@ -519,7 +542,11 @@ pub(crate) async fn seen_page(
 }
 
 /// `listedBy`: every repository the discovery listed and no later completed run has marked gone.
-pub(crate) async fn listed_by(tx: &mut Tx, connection_id: &str, discovery_id: i64) -> Result<Vec<RepositoryRow>, StoreError> {
+pub(crate) async fn listed_by(
+    tx: &mut Tx,
+    connection_id: &str,
+    discovery_id: i64,
+) -> Result<Vec<RepositoryRow>, StoreError> {
     let statement = repository::Entity::find()
         .filter(repository::Column::ConnectionId.eq(connection_id))
         .filter(repository::Column::FirstSeenBy.lte(discovery_id))
@@ -588,9 +615,7 @@ pub(crate) async fn save_snapshot_rows(tx: &mut Tx, rows: &[RepositoryRow]) -> R
             orm::insert_returning_id::<repository::Entity>(tx, statement).await?;
         } else {
             let statement = sea_orm::QueryTrait::into_query(
-                repository::Entity::update_many()
-                    .set(repository_active(row))
-                    .filter(repository::Column::Id.eq(row.id)),
+                repository::Entity::update_many().set(repository_active(row)).filter(repository::Column::Id.eq(row.id)),
             );
             orm::execute(tx, &statement).await?;
         }
@@ -607,8 +632,8 @@ pub(crate) async fn mark_gone(
     within: Option<&[String]>,
 ) -> Result<u64, StoreError> {
     let mut update = repository::Entity::update_many()
-        .col_expr(repository::Column::GoneBy, Expr::val(discovery_id).into())
-        .col_expr(repository::Column::GoneAt, Expr::val(at).into())
+        .col_expr(repository::Column::GoneBy, Expr::val(discovery_id))
+        .col_expr(repository::Column::GoneAt, Expr::val(at))
         .filter(repository::Column::ConnectionId.eq(connection_id))
         .filter(repository::Column::LastSeenBy.ne(discovery_id))
         .filter(repository::Column::GoneBy.is_null());
@@ -629,8 +654,8 @@ pub(crate) async fn unmark_gone(
     namespaces: &[String],
 ) -> Result<u64, StoreError> {
     let update = repository::Entity::update_many()
-        .col_expr(repository::Column::GoneBy, Expr::val(Option::<i64>::None).into())
-        .col_expr(repository::Column::GoneAt, Expr::val(Option::<OffsetDateTime>::None).into())
+        .col_expr(repository::Column::GoneBy, Expr::val(Option::<i64>::None))
+        .col_expr(repository::Column::GoneAt, Expr::val(Option::<OffsetDateTime>::None))
         .filter(repository::Column::ConnectionId.eq(connection_id))
         .filter(repository::Column::GoneBy.eq(discovery_id))
         .filter(
@@ -648,7 +673,7 @@ pub(crate) async fn set_language(
     language: Option<&str>,
 ) -> Result<u64, StoreError> {
     let update = repository::Entity::update_many()
-        .col_expr(repository::Column::Language, Expr::val(language.map(str::to_owned)).into())
+        .col_expr(repository::Column::Language, Expr::val(language.map(str::to_owned)))
         .filter(repository::Column::ConnectionId.eq(connection_id))
         .filter(repository::Column::ForgeId.eq(forge_id));
     Ok(orm::execute(tx, &sea_orm::QueryTrait::into_query(update)).await?)
@@ -675,7 +700,8 @@ pub(crate) async fn links_of(
         Some(ids) => {
             let mut rows = Vec::new();
             for batch in ids.chunks(BATCH) {
-                let statement = base().filter(link::Column::ForgeId.is_in(batch.iter().map(String::as_str))).into_query();
+                let statement =
+                    base().filter(link::Column::ForgeId.is_in(batch.iter().map(String::as_str))).into_query();
                 rows.extend(orm::fetch_all::<LinkRow, _>(tx, &statement).await?);
             }
             Ok(rows)
@@ -719,8 +745,9 @@ pub(crate) async fn insert_link(tx: &mut Tx, row: &LinkRow) -> Result<i64, Store
 }
 
 pub(crate) async fn delete_links_of_repository(tx: &mut Tx, repository_id: i64) -> Result<u64, StoreError> {
-    let statement =
-        sea_orm::QueryTrait::into_query(link::Entity::delete_many().filter(link::Column::RepositoryId.eq(repository_id)));
+    let statement = sea_orm::QueryTrait::into_query(
+        link::Entity::delete_many().filter(link::Column::RepositoryId.eq(repository_id)),
+    );
     Ok(orm::execute(tx, &statement).await?)
 }
 
@@ -743,7 +770,11 @@ pub(crate) async fn reading(tx: &mut Tx, repository_id: i64, branch: &str) -> Re
 }
 
 /// `findByWantedBranchAndRepositoryIdIn`.
-pub(crate) async fn readings_of(tx: &mut Tx, branch: &str, repository_ids: &[i64]) -> Result<Vec<ReadingRow>, StoreError> {
+pub(crate) async fn readings_of(
+    tx: &mut Tx,
+    branch: &str,
+    repository_ids: &[i64],
+) -> Result<Vec<ReadingRow>, StoreError> {
     let mut rows = Vec::new();
     for batch in repository_ids.chunks(BATCH) {
         let statement = reading::Entity::find()
@@ -762,11 +793,7 @@ struct RepositoryIdRow {
 
 /// `repositoriesRead`.
 pub(crate) async fn repositories_read(tx: &mut Tx) -> Result<Vec<i64>, StoreError> {
-    let statement = reading::Entity::find()
-        .select_only()
-        .column(reading::Column::RepositoryId)
-        .distinct()
-        .into_query();
+    let statement = reading::Entity::find().select_only().column(reading::Column::RepositoryId).distinct().into_query();
     let rows: Vec<RepositoryIdRow> = orm::fetch_all(tx, &statement).await?;
     Ok(rows.into_iter().map(|row| row.repository_id).collect())
 }
@@ -781,7 +808,7 @@ pub(crate) async fn claim_reading(
     window_days: i32,
 ) -> Result<u64, StoreError> {
     let update = reading::Entity::update_many()
-        .col_expr(reading::Column::ClaimedUntil, Expr::val(until).into())
+        .col_expr(reading::Column::ClaimedUntil, Expr::val(until))
         .filter(reading::Column::Id.eq(id))
         .filter(
             sea_orm::Condition::any()
@@ -800,7 +827,7 @@ pub(crate) async fn claim_reading(
 /// `release`.
 pub(crate) async fn release_reading(tx: &mut Tx, id: i64) -> Result<u64, StoreError> {
     let update = reading::Entity::update_many()
-        .col_expr(reading::Column::ClaimedUntil, Expr::val(Option::<OffsetDateTime>::None).into())
+        .col_expr(reading::Column::ClaimedUntil, Expr::val(Option::<OffsetDateTime>::None))
         .filter(reading::Column::Id.eq(id));
     Ok(orm::execute(tx, &sea_orm::QueryTrait::into_query(update)).await?)
 }

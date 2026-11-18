@@ -37,8 +37,7 @@ const JAVA_STORES: [&str; 12] = [
 
 /// The stores whose Java module has no Rust counterpart answering for them yet (`cp-app/src/actuator.rs`). A module
 /// ported later moves its stores out of this list and into the census in the same commit.
-const NOT_PORTED: [&str; 7] = [
-    "Forge connection tokens",
+const NOT_PORTED: [&str; 6] = [
     "Inbound tracker webhook secret",
     "Notification webhook signing secret",
     "OpenAI API key",
@@ -89,8 +88,16 @@ fn census(db: &Db) -> vectispire_cp_crypto::EncryptionCensus {
         Arc::new(SystemClock),
     );
     let signing =
-        Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db.clone()), encryption).unwrap());
-    vectispire_cp_app::actuator::encryption_census(signing, targets, exporter)
+        Arc::new(SigningKeys::new("", vectispire_cp_settings::Settings::new(db.clone()), encryption.clone()).unwrap());
+    let forges = vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
+        db: db.clone(),
+        guard: OutboundUrlGuard::new(Vec::new()),
+        trust: TlsTrust::BuiltIn,
+        encryption: encryption.clone(),
+        audit,
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+    });
+    vectispire_cp_app::actuator::encryption_census(signing, targets, exporter, forges.services.connections.clone())
 }
 
 async fn the_census_lists_java_s_stores_but_those_of_modules_not_ported(engine: Engine) {

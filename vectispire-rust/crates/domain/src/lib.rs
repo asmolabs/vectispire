@@ -50,6 +50,7 @@ pub mod siem;
 pub mod spreadsheet_cells;
 pub mod sub_path;
 pub mod team_rules;
+pub mod token_alert;
 pub mod tool_keys;
 pub mod triage_status;
 pub mod wire;

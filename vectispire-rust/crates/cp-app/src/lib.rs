@@ -12,6 +12,7 @@ pub mod chain_entries;
 pub mod checklists;
 pub mod clone_hosts;
 pub mod compliance;
+pub mod forges;
 pub mod gauges;
 pub mod ingestion;
 pub mod maintenance;

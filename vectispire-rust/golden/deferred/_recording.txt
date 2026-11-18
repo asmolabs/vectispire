@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 152
+ceiling 153
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
@@ -179,3 +179,6 @@ golden api.ProjectExportRoutesTest.TheDemonstrationPlugin/rendersTheExport--022-
 # ── Moved from checklists.txt on 2026-11-17 (ceiling raised by as many): checklists is served, these are the recording's ──
 golden api.ProjectChecklistsRoutesTest.TheDocument/theStoredBytes--027-DELETE-api_v1_projects_t_project_1_ | the deleted row's content is a signed checklist package: its ECDSA signatures (the JVM's random nonce) and the instants it embeds differ from one rendering to the next, so its bytes and size never match
 golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--021-POST-api_v1_agent_jobs_t_scan_2_result | the issue's `resolution_seconds` counts wall-clock time between the recorded requests: Java resolved it within the second the test ran, the replay a second later
+
+# ── Moved from forges.txt on 2026-11-18 (wave 2, stage 2; ceiling raised by one, forges.txt lowered by six): forges is served, this is the TLS stack's ──
+golden api.ForgeConnectionsRoutesTest/renameAndTrustChanges--004-PATCH-api_v1_forge-connections_uuid_3_ | the probe's refusal quotes the TLS stack's own words for a certificate no trust anchor vouches for — the JDK's "(certificate_unknown) PKIX path building failed: …", rustls' "invalid peer certificate: UnknownIssuer" — which cp-outbound's sender writes as its client reports it; the refusal itself (400, unreachable, unrecorded) is held by cp-forges' tests/probes.rs

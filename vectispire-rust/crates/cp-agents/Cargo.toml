@@ -42,6 +42,7 @@ vectispire-protocol.workspace = true
 
 [dev-dependencies]
 vectispire-cp-compliance = { path = "../cp-compliance" }
+vectispire-cp-forges = { path = "../cp-forges" }
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 vectispire-cp-issues = { path = "../cp-issues" }

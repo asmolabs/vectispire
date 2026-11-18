@@ -658,7 +658,20 @@ async fn serve() -> ExitCode {
         time: None,
     };
     let app = App::new(settings.clone(), "vectispire", build);
-    let census = vectispire_cp_app::actuator::encryption_census(signing.clone(), targets.clone(), siem_service.clone());
+    let forges = vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
+        db: db.clone(),
+        guard: guard.clone(),
+        trust: trust.clone(),
+        encryption: encryption.clone(),
+        audit: audit.clone(),
+        clock: clock.clone(),
+    });
+    let census = vectispire_cp_app::actuator::encryption_census(
+        signing.clone(),
+        targets.clone(),
+        siem_service.clone(),
+        forges.services.connections.clone(),
+    );
     app.actuator.serve_encryption(Arc::new(vectispire_cp_app::actuator::Census(census.clone())));
 
     let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
@@ -699,6 +712,7 @@ async fn serve() -> ExitCode {
         settings.oidc.link_privileged_accounts,
     ));
     access_routes.extend(checklists.routes);
+    access_routes.extend(forges.routes);
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),

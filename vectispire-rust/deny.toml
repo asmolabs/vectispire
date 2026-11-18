@@ -98,6 +98,7 @@ deny = [
         "vectispire-cp-compliance",
         "vectispire-cp-contract",
         "vectispire-cp-db",
+        "vectispire-cp-forges",
         "vectispire-cp-gate",
         "vectispire-cp-inventory",
         "vectispire-cp-issues",
@@ -121,6 +122,7 @@ deny = [
     { crate = "sea-orm", wrappers = [
         "vectispire-cp-compliance",
         "vectispire-cp-db",
+        "vectispire-cp-forges",
         "vectispire-cp-gate",
         "vectispire-cp-inventory",
         "vectispire-cp-issues",
@@ -136,6 +138,7 @@ deny = [
         "vectispire-cp-checklists",
         "vectispire-cp-compliance",
         "vectispire-cp-contract",
+        "vectispire-cp-forges",
         "vectispire-cp-gate",
         "vectispire-cp-http",
         "vectispire-cp-inventory",

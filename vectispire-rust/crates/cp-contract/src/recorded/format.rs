@@ -34,6 +34,54 @@ pub struct Test {
     pub baseline: Option<Json>,
     pub files: Vec<String>,
     pub notes: Vec<String>,
+    /// What the test's stub servers answered the application, in order (`TrafficRecorder.outbound`).
+    pub outbound: Vec<Outbound>,
+}
+
+/// One answer a test's stub server gave (`core/golden/README.md`, "Outbound answers").
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Outbound {
+    /// The sequence number of the request in flight; `None` when the test drove the call itself.
+    pub during: Option<u32>,
+    /// The stub's address with its port rendered, `https://127.0.0.1:«port:N»`.
+    pub origin: String,
+    /// The same, literal: the text of a body the replay's own address replaces.
+    pub raw_origin: String,
+    pub method: String,
+    /// With its query, as the stub received it.
+    pub path: String,
+    pub status: u16,
+    /// `(name, value)`, by name.
+    pub headers: Vec<(String, String)>,
+    /// Literal.
+    pub body: String,
+}
+
+impl Outbound {
+    /// The `N` of the origin's `«port:N»`, if it names one.
+    #[must_use]
+    pub fn port_ordinal(&self) -> Option<u32> {
+        let start = self.origin.find("«port:")? + "«port:".len();
+        let rest = &self.origin[start..];
+        rest[..rest.find('»')?].parse().ok()
+    }
+
+    fn read(value: &Json) -> Option<Outbound> {
+        let text = |name: &str| value.get(name).and_then(Json::as_str).map(str::to_owned);
+        Some(Outbound {
+            during: value.get("during").and_then(integer).and_then(|n| u32::try_from(n).ok()),
+            origin: text("origin")?,
+            raw_origin: text("rawOrigin")?,
+            method: text("method")?,
+            path: text("path")?,
+            status: value.get("status").and_then(integer).and_then(|n| u16::try_from(n).ok())?,
+            headers: strings(value.get("headers"))
+                .into_iter()
+                .filter_map(|line| line.split_once(": ").map(|(name, value)| (name.to_owned(), value.to_owned())))
+                .collect(),
+            body: text("body").unwrap_or_default(),
+        })
+    }
 }
 
 impl Test {
@@ -104,6 +152,17 @@ impl Recording {
                     baseline: test.get("baseline").cloned().filter(|baseline| !matches!(baseline, Json::Null)),
                     files: strings(test.get("files")),
                     notes: strings(test.get("notes")),
+                    outbound: test
+                        .get("outbound")
+                        .and_then(Json::as_array)
+                        .unwrap_or(&[])
+                        .iter()
+                        .map(|exchange| {
+                            Outbound::read(exchange).ok_or_else(|| {
+                                unreadable(&path, format!("an outbound answer of {name} without its parts"))
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
                 });
             }
         }

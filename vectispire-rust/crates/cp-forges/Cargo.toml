@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 axum.workspace = true
 http.workspace = true
+http-body-util.workspace = true
+percent-encoding.workspace = true
 # Entities and statement builders only, run on the port's own transaction (`vectispire_cp_db::orm`): every statement
 # here is a builder's, so no `.sqlx/` cache — and the five entities are held to the schema by the parity suite.
 sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-time", "sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
@@ -42,6 +44,13 @@ vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["t
 vectispire-cp-contract = { path = "../cp-contract" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 vectispire-testkit = { path = "../testkit" }
+vectispire-tls = { path = "../tls" }
+# A forge on loopback behind a CA of its own, as `ForgeStub` is: the certificates by the `openssl` command, the server
+# by rustls — cp-outbound's tests' choice.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = "1"
+tempfile.workspace = true
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
 
 [lints]
 workspace = true

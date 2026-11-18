@@ -26,6 +26,7 @@ vectispire-cp-checklists = { path = "../cp-checklists" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-compliance = { path = "../cp-compliance" }
+vectispire-cp-forges = { path = "../cp-forges" }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-http = { path = "../cp-http" }
 vectispire-cp-inventory = { path = "../cp-inventory" }

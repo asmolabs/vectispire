@@ -5,10 +5,6 @@
 //! than doubled into `/api/v4/api/v4`. **`https` only**: a token over `http` on an internal network is still a token
 //! on the wire. A URL carrying credentials, a query or a fragment is refused.
 
-use std::sync::LazyLock;
-
-use regex::Regex;
-
 use super::{ForgeEdition, ForgeKind};
 use crate::bounded_text::Refused;
 use crate::java;
@@ -17,8 +13,22 @@ use crate::repository_url::{self, java_uri};
 /// The column's width; a forge's address is a host and a short prefix, far below it.
 pub const MAX_LENGTH: usize = 512;
 
-static DATA_RESIDENCY: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(?:api\.)?([a-z0-9][a-z0-9-]{0,62})\.ghe\.com$").expect("a valid pattern"));
+/// `^(?:api\.)?([a-z0-9][a-z0-9-]{0,62})\.ghe\.com$`: the subdomain of a data-residency host, written by hand.
+fn data_residency(host: &str) -> Option<&str> {
+    let label = |text: &str| {
+        let bytes = text.as_bytes();
+        !bytes.is_empty()
+            && bytes.len() <= 63
+            && (bytes[0].is_ascii_lowercase() || bytes[0].is_ascii_digit())
+            && bytes.iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
+    };
+    let rest = host.strip_suffix(".ghe.com")?;
+    match rest.strip_prefix("api.") {
+        Some(subdomain) if label(subdomain) => Some(subdomain),
+        _ if label(rest) => Some(rest),
+        _ => None,
+    }
+}
 
 const CREDENTIAL: &str =
     "The address carries a user name or a token: type the address alone, the token has a field of its own.";
@@ -113,8 +123,7 @@ fn github(host: &str, origin: &str, path: &str) -> ForgeAddress {
     if matches!(host, "github.com" | "www.github.com" | "api.github.com") {
         return ForgeAddress::new(ForgeEdition::GithubCom, "https://github.com", "https://api.github.com");
     }
-    if let Some(subdomain) = DATA_RESIDENCY.captures(host).and_then(|found| found.get(1)) {
-        let subdomain = subdomain.as_str();
+    if let Some(subdomain) = data_residency(host) {
         return ForgeAddress::new(
             ForgeEdition::GithubDataResidency,
             format!("https://{subdomain}.ghe.com"),
