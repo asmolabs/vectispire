@@ -278,7 +278,8 @@ impl ForgeImports {
         for row in &rows {
             let verdict = filter.judge(&candidate(row), now);
             for judged in verdict.unjudged {
-                *unjudged.entry(judged).or_insert(0) += 1;
+                let count = unjudged.entry(judged).or_insert(0);
+                *count = count.saturating_add(1);
             }
             if verdict.matches {
                 matching.push(ForgeCandidate {
@@ -464,7 +465,7 @@ impl ForgeImports {
                         "Forge import from connection {connection_id} lost a race (attempt {attempt}): planned again \
                          from what is committed: {failed}"
                     );
-                    attempt += 1;
+                    attempt = attempt.saturating_add(1);
                 }
             }
         }
@@ -564,7 +565,11 @@ impl ForgeImports {
         // batch's uncommitted rows. Java queued them inside; a scan refused now leaves the target to its schedule.
         for (index, repository, not_before) in scans {
             match self.targets.first_scan(&repository, not_before).await {
-                Ok(queued) => created[index].first_scan_id = Some(queued.id),
+                Ok(queued) => {
+                    if let Some(target) = created.get_mut(index) {
+                        target.first_scan_id = Some(queued.id);
+                    }
+                }
                 Err(failure) => {
                     tracing::warn!("The first scan of imported repository {} was not queued: {failure}", repository.id)
                 }
@@ -597,7 +602,8 @@ impl ForgeImports {
         let mut skipped: BTreeMap<usize, (&str, i64)> = BTreeMap::new();
         for repository in &plan.skipped {
             let order = SKIP_ORDER.iter().position(|reason| *reason == repository.reason).unwrap_or(SKIP_ORDER.len());
-            skipped.entry(order).or_insert((repository.reason, 0)).1 += 1;
+            let entry = skipped.entry(order).or_insert((repository.reason, 0));
+            entry.1 = entry.1.saturating_add(1);
         }
         let description = format!(
             "Forge import, connection {}, discovery {}: {} target(s) created, {} skipped{}, {} solution(s) and {} \

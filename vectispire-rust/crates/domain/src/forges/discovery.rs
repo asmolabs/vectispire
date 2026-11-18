@@ -173,7 +173,7 @@ impl UnreadableNamespace {
         }
         let mut kept: Vec<UnreadableNamespace> = namespaces.to_vec();
         if kept.len() > Self::MAX_RECORDED {
-            let dropped = kept.len() - Self::MAX_RECORDED + 1;
+            let dropped = kept.len().saturating_sub(Self::MAX_RECORDED).saturating_add(1);
             kept.truncate(Self::MAX_RECORDED - 1);
             kept.push(UnreadableNamespace::new(
                 None,
@@ -211,7 +211,7 @@ fn java_split(text: &str, separator: char) -> Vec<&str> {
     while parts.len() > 1 && parts.last().is_some_and(|last| last.is_empty()) {
         parts.pop();
     }
-    if parts.len() == 1 && parts[0].is_empty() && !text.is_empty() {
+    if parts.len() == 1 && parts.first().is_some_and(|only| only.is_empty()) && !text.is_empty() {
         parts.clear();
     }
     parts

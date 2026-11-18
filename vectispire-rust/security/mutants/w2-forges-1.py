@@ -15,11 +15,11 @@ import _runner
 CREDENTIAL = "crates/domain/src/forges/credential.rs"
 ADDRESS = "crates/domain/src/forges/address.rs"
 MAPPING = "crates/domain/src/forges/mapping.rs"
+SELECTION = "crates/domain/src/forges/selection.rs"
 PATH = "crates/cp-forges/src/internal/path.rs"
 PAGER = "crates/cp-outbound/src/pager.rs"
 CONNECTIONS = "crates/cp-forges/src/connections.rs"
 PLANNER = "crates/cp-forges/src/internal/planner.rs"
-READERS = "crates/cp-forges/src/internal/readers.rs"
 STORE = "crates/cp-forges/src/persistence/mod.rs"
 
 DOMAIN = ["-p", "vectispire-domain", "--lib", "forges"]
@@ -45,13 +45,13 @@ MUTANTS = [
      "if value.is_empty() {", ["-p", "vectispire-cp-forges", "--lib", "internal::path"]),
     ("an encoded dot followed", PAGER, 'if path.to_ascii_lowercase().contains("%2e")\n',
      "if false\n", PAGER_TESTS),
-    ("a GitHub owner starting with a dash", CONNECTIONS, "&& bytes[0].is_ascii_alphanumeric()", "&& true", FORGES),
+    ("a GitHub owner starting with a dash", CONNECTIONS, "            first.is_ascii_alphanumeric()\n",
+     "            true\n", FORGES),
     ("a token with a space kept", CONNECTIONS, "if token.chars().any(java::is_whitespace) {", "if false {", FORGES),
     ("an empty forge id skipped", PLANNER,
      'return Err(ForgeError::InvalidInput("A forge id is empty.".into()));', "continue;", FORGES),
-    ("GitLab's wildcard read literally", READERS,
-     "} else if p < pattern.len() && pattern[p] == star_unit {", "} else if false {",
-     ["-p", "vectispire-cp-forges", "--lib", "internal::readers"]),
+    ("a glob's star read literally", SELECTION, "        } else if at == Some(star) {", "        } else if false {",
+     DOMAIN),
     ("a run taken twice", STORE,
      "            .filter(discovery::Column::Id.eq(id))\n            .filter(discovery::Column::State.eq(pending)),\n    );",
      "            .filter(discovery::Column::Id.eq(id)),\n    );", STORE_TESTS),

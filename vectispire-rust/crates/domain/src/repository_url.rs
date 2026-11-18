@@ -497,8 +497,9 @@ pub mod java_uri {
                 _ => p = self.parse_hierarchical(0, n)?,
             }
             if self.at(p, n, '#') {
-                self.check(p + 1, n, URIC)?;
-                self.raw_fragment = Some(self.substring(p + 1, n));
+                let fragment = p.saturating_add(1);
+                self.check(fragment, n, URIC)?;
+                self.raw_fragment = Some(self.substring(fragment, n));
                 p = n;
             }
             if p < n { Err(Syntax) } else { Ok(()) }

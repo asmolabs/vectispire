@@ -173,7 +173,8 @@ pub mod version {
         if count == 0 || count > 4 {
             return None;
         }
-        Some((text[..count].parse().ok()?, &text[count..]))
+        let (number, rest) = text.split_at_checked(count)?;
+        Some((number.parse().ok()?, rest))
     }
 
     #[cfg(test)]

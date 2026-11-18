@@ -58,9 +58,9 @@ fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
     assert_eq!(
         entries.len(),
-        8,
-        "the outbox, the targets, scanning, agents, inventory, issues, gate, access, posture, checklists, compliance and \
-         the gauges fill twenty-two of Java's thirty"
+        6,
+        "the outbox, the targets, scanning, agents, inventory, issues, gate, access, posture, checklists, compliance, forges and \
+         the gauges fill twenty-four of Java's thirty"
     );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());

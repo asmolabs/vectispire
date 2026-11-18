@@ -523,8 +523,10 @@ fn github_owner(owner: &str) -> bool {
     let bytes = owner.as_bytes();
     !bytes.is_empty()
         && bytes.len() <= 99
-        && bytes[0].is_ascii_alphanumeric()
-        && bytes[1..].iter().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        && bytes.split_first().is_some_and(|(first, rest)| {
+            first.is_ascii_alphanumeric()
+                && rest.iter().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        })
 }
 
 fn owner_of(kind: ForgeKind, raw: Option<&str>) -> Result<Option<String>, ForgeError> {

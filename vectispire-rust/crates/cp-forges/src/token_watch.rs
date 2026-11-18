@@ -64,10 +64,10 @@ impl ForgeTokenWatch {
         let mut tx = persistence::read(&self.db).await?;
         let connections = persistence::connections(&mut tx).await?;
         tx.commit().await.map_err(persistence::StoreError::from)?;
-        let mut announced = 0;
+        let mut announced: usize = 0;
         for connection in &connections {
             match self.watch_one(connection, now).await {
-                Ok(true) => announced += 1,
+                Ok(true) => announced = announced.saturating_add(1),
                 Ok(false) => {}
                 Err(failed) => tracing::warn!(
                     connection = %connection.id,

@@ -72,7 +72,7 @@ impl ChangeReviewDemand {
                         .collect();
                     vacant.insert(reviews);
                 }
-                for (branch, window) in &versions[&checklist.template_version_id] {
+                for (branch, window) in versions.get(&checklist.template_version_id).into_iter().flatten() {
                     let widest = by_project.entry(checklist.project_id).or_default().entry(branch.clone()).or_insert(0);
                     *widest = (*widest).max(*window);
                 }

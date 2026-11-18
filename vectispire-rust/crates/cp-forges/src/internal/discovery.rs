@@ -87,7 +87,7 @@ impl DiscoveryQueue {
         let mut tx = persistence::write(&self.db).await.map_err(|failure| failure.to_string())?;
         let waiting = persistence::waiting(&mut tx, PENDING, &kinds, CANDIDATES).await.map_err(|f| f.to_string())?;
         for id in waiting {
-            if persistence::take(&mut tx, id, PENDING, RUNNING, owner, now, now + LEASE)
+            if persistence::take(&mut tx, id, PENDING, RUNNING, owner, now, now.saturating_add(LEASE))
                 .await
                 .map_err(|f| f.to_string())?
                 == 1
@@ -116,16 +116,17 @@ impl DiscoveryQueue {
     pub(crate) async fn recover_lapsed(&self) -> Result<u64, String> {
         let now = self.clock.now();
         let mut tx = persistence::write(&self.db).await.map_err(|failure| failure.to_string())?;
-        let mut recovered = 0;
+        let mut recovered: u64 = 0;
         let detail = format!(
             "The instances that took this discovery stopped answering {MAX_ATTEMPTS} times before it ended. What it \
              listed is kept; request it again."
         );
         for id in persistence::lapsed(&mut tx, RUNNING, now).await.map_err(|failure| failure.to_string())? {
-            recovered += persistence::requeue_lapsed(&mut tx, id, RUNNING, PENDING, now, MAX_ATTEMPTS)
+            let requeued = persistence::requeue_lapsed(&mut tx, id, RUNNING, PENDING, now, MAX_ATTEMPTS)
                 .await
                 .map_err(|failure| failure.to_string())?;
-            recovered += persistence::fail_lapsed(
+            recovered = recovered.saturating_add(requeued);
+            let failed = persistence::fail_lapsed(
                 &mut tx,
                 id,
                 RUNNING,
@@ -137,6 +138,7 @@ impl DiscoveryQueue {
             )
             .await
             .map_err(|failure| failure.to_string())?;
+            recovered = recovered.saturating_add(failed);
         }
         tx.commit().await.map_err(|failure| failure.to_string())?;
         Ok(recovered)
@@ -362,7 +364,7 @@ impl Shared {
     /// The lease renewed and the progress written, in `tx`; `Err` when the run is no longer this instance's.
     async fn renew_in(&self, tx: &mut Tx) -> Result<(), ListError> {
         let now = self.clock.now();
-        let renewed = persistence::renew(tx, self.id, RUNNING, &self.owner, now + LEASE, self.progress())
+        let renewed = persistence::renew(tx, self.id, RUNNING, &self.owner, now.saturating_add(LEASE), self.progress())
             .await
             .map_err(|failure| ListError::Store(failure.to_string()))?;
         if renewed != 1 {
@@ -378,7 +380,7 @@ impl Heartbeat for Shared {
     fn beat(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + '_>> {
         Box::pin(async move {
             let last = *self.renewed.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            if self.clock.now() - last < RENEWAL {
+            if self.clock.now() < last.saturating_add(RENEWAL) {
                 return Ok(());
             }
             let mut tx = persistence::write(&self.db).await.map_err(|failure| failure.to_string())?;
@@ -498,9 +500,10 @@ impl Run<'_> {
                 .collect::<BTreeSet<_>>()
                 .into_iter()
                 .collect();
-            let mut gone = 0;
+            let mut gone: u64 = 0;
             for batch in read.chunks(NAMESPACE_BATCH) {
-                gone += persistence::mark_gone(tx, &self.connection_id, id, now, Some(batch)).await?;
+                gone =
+                    gone.saturating_add(persistence::mark_gone(tx, &self.connection_id, id, now, Some(batch)).await?);
             }
             return Ok(i64::try_from(gone).unwrap_or(i64::MAX));
         }
@@ -508,7 +511,9 @@ impl Run<'_> {
             i64::try_from(persistence::mark_gone(tx, &self.connection_id, id, now, None).await?).unwrap_or(0);
         let refused: Vec<String> = self.unreadable.iter().map(|(key, _)| key.clone()).collect();
         for batch in refused.chunks(NAMESPACE_BATCH) {
-            gone -= i64::try_from(persistence::unmark_gone(tx, &self.connection_id, id, batch).await?).unwrap_or(0);
+            gone = gone.saturating_sub(
+                i64::try_from(persistence::unmark_gone(tx, &self.connection_id, id, batch).await?).unwrap_or(0),
+            );
         }
         Ok(gone)
     }
@@ -577,7 +582,8 @@ impl Run<'_> {
         for repository in page {
             match repository.unstorable() {
                 Some(why) => {
-                    self.shared.counts.lock().unwrap_or_else(std::sync::PoisonError::into_inner).skipped += 1;
+                    let mut counts = self.shared.counts.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                    counts.skipped = counts.skipped.saturating_add(1);
                     tracing::warn!(
                         "Forge discovery {id}: repository {} not kept — {why}.",
                         bounded_text::clip(Some(&repository.forge_id), 64).unwrap_or_default()
@@ -831,7 +837,7 @@ impl DiscoveryWorker {
         let suffix = uuid::Uuid::new_v4().as_hyphenated().to_string();
         let host = bounded_text::clip(Some(host), 80).unwrap_or_default();
         DiscoveryWorker {
-            owner: format!("{host}/discovery-{}", &suffix[..8]),
+            owner: format!("{host}/discovery-{}", suffix.get(..8).unwrap_or(&suffix)),
             queue,
             execution,
             integrations,
@@ -879,10 +885,10 @@ impl DiscoveryWorker {
     pub async fn drain(&self) -> Result<usize, String> {
         self.queue.recover_lapsed().await?;
         self.report_held().await;
-        let mut carried = 0;
+        let mut carried: usize = 0;
         while let Some(id) = self.queue.claim(&self.owner).await? {
             self.execution.execute(id, &self.owner).await;
-            carried += 1;
+            carried = carried.saturating_add(1);
         }
         Ok(carried)
     }

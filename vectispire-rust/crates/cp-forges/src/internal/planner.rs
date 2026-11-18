@@ -329,7 +329,7 @@ impl ImportPlanner {
             let found: BTreeSet<&str> = listed.iter().map(|row| row.forge_id.as_str()).collect();
             let missing: Vec<&str> =
                 wanted.iter().map(String::as_str).filter(|id| !found.contains(id)).take(5).collect();
-            let absent = wanted.len() - listed.len();
+            let absent = wanted.len().saturating_sub(listed.len());
             return Err(ForgeError::InvalidInput(format!(
                 "{absent} of the selected repositories are not listed by discovery {}: {}{}.",
                 source.discovery.id,
@@ -392,7 +392,7 @@ impl ImportPlanner {
             }
             let credential = credential_view(&choice, &key_names, &tokens);
             match hosts.iter_mut().find(|(known, ..)| *known == host) {
-                Some((_, _, _, count)) => *count += 1,
+                Some((_, _, _, count)) => *count = count.saturating_add(1),
                 None => hosts.push((host.clone(), choice.clone(), credential.clone(), 1)),
             }
             let placed = mapping.place(
@@ -440,8 +440,9 @@ impl ImportPlanner {
         let (solutions, projects) = self.place(&planned).await?;
         // The k-th new target's first scan waits k spacings.
         for (k, target) in planned.iter_mut().enumerate() {
-            target.first_scan_not_before = spacing
-                .map(|gap| at + time::Duration::seconds(gap.saturating_mul(i64::try_from(k).unwrap_or(i64::MAX))));
+            target.first_scan_not_before = spacing.map(|gap| {
+                at.saturating_add(time::Duration::seconds(gap.saturating_mul(i64::try_from(k).unwrap_or(i64::MAX))))
+            });
         }
         let credentials = hosts
             .into_iter()
@@ -495,7 +496,8 @@ impl ImportPlanner {
             if !projects.iter().any(|(key, ..)| *key == project_key) {
                 projects.push((project_key.clone(), solution.clone(), project_name.clone()));
             }
-            *counts.entry(project_key).or_insert(0) += 1;
+            let count = counts.entry(project_key).or_insert(0);
+            *count = count.saturating_add(1);
         }
         let mut existing_projects: Vec<(String, Option<ProjectView>)> = Vec::new();
         for (key, _, name) in &projects {
@@ -578,7 +580,7 @@ fn grouped(n: usize) -> String {
     let digits = n.to_string();
     let mut out = String::new();
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+        if index > 0 && digits.len().saturating_sub(index).is_multiple_of(3) {
             out.push(',');
         }
         out.push(digit);

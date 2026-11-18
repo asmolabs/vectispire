@@ -107,7 +107,7 @@ impl ForgeReviewService {
     /// many readings were written.
     pub async fn read_due(&self) -> Result<usize, ForgeError> {
         let start = self.clock.now();
-        let turn_ends = start + span(self.bounds.turn_duration);
+        let turn_ends = start.saturating_add(span(self.bounds.turn_duration));
         let wanted = self.demand.wanted().await.map_err(ForgeError::Unexpected)?;
         self.sweep(&wanted).await?;
         if wanted.is_empty() {
@@ -115,7 +115,7 @@ impl ForgeReviewService {
         }
         let mut linked: Option<BTreeMap<i64, Link>> = None;
         let mut suspended = BTreeSet::new();
-        let (mut written, mut skipped) = (0usize, 0usize);
+        let (mut written, mut skipped): (usize, usize) = (0, 0);
         for want in &wanted {
             let now = self.clock.now();
             if written >= self.bounds.max_readings || now >= turn_ends {
@@ -134,8 +134,8 @@ impl ForgeReviewService {
             }
             let link = linked.as_ref().and_then(|linked| linked.get(&want.repository_id)).cloned();
             match self.read(claimed, want, link, &mut suspended, turn_ends).await? {
-                Outcome::Written => written += 1,
-                Outcome::Suspended => skipped += 1,
+                Outcome::Written => written = written.saturating_add(1),
+                Outcome::Suspended => skipped = skipped.saturating_add(1),
                 Outcome::LetGo => {}
             }
         }
@@ -261,8 +261,8 @@ impl ForgeReviewService {
             &mut tx,
             row.id,
             now,
-            now + span(self.bounds.claim),
-            now - span(self.bounds.refresh),
+            now.saturating_add(span(self.bounds.claim)),
+            now.saturating_sub(span(self.bounds.refresh)),
             want.window_days,
         )
         .await
@@ -324,7 +324,7 @@ impl ForgeReviewService {
             return Ok(Outcome::Written);
         }
         let target = targets::of(&connection, connection.internal_network, trust)?;
-        let deadline = (now + span(self.bounds.reading_duration)).min(turn_ends);
+        let deadline = now.saturating_add(span(self.bounds.reading_duration)).min(turn_ends);
         let credential = match kind {
             ForgeKind::Gitlab => vec![("PRIVATE-TOKEN".to_owned(), sealed.plain_text().to_owned())],
             ForgeKind::Github => vec![

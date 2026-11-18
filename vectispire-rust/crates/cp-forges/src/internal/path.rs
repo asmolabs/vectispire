@@ -10,14 +10,15 @@ pub(crate) fn segment(value: Option<&str>) -> Option<String> {
         return None;
     }
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
-    let mut encoded = String::with_capacity(value.len() + 8);
+    let mut encoded = String::with_capacity(value.len().saturating_add(8));
     for byte in value.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             encoded.push(char::from(byte));
         } else {
             encoded.push('%');
-            encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-            encoded.push(char::from(HEX[usize::from(byte & 0xF)]));
+            for nibble in [byte >> 4, byte & 0xF] {
+                encoded.push(HEX.get(usize::from(nibble)).map_or('0', |digit| char::from(*digit)));
+            }
         }
     }
     Some(encoded)

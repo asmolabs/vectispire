@@ -19,7 +19,7 @@ fn data_residency(host: &str) -> Option<&str> {
         let bytes = text.as_bytes();
         !bytes.is_empty()
             && bytes.len() <= 63
-            && (bytes[0].is_ascii_lowercase() || bytes[0].is_ascii_digit())
+            && bytes.first().is_some_and(|first| first.is_ascii_lowercase() || first.is_ascii_digit())
             && bytes.iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
     };
     let rest = host.strip_suffix(".ghe.com")?;

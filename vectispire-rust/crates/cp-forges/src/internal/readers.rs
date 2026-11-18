@@ -245,29 +245,7 @@ pub(crate) fn applies(rule: &Value, branch: &str, protected_branch: bool) -> boo
 pub(crate) fn wildcard(pattern: &str, branch: &str) -> bool {
     let pattern: Vec<u16> = pattern.encode_utf16().collect();
     let branch: Vec<u16> = branch.encode_utf16().collect();
-    let star_unit = u16::from(b'*');
-    let (mut b, mut p, mut resume) = (0usize, 0usize, 0usize);
-    let mut star: Option<usize> = None;
-    while b < branch.len() {
-        if p < pattern.len() && pattern[p] != star_unit && pattern[p] == branch[b] {
-            p += 1;
-            b += 1;
-        } else if p < pattern.len() && pattern[p] == star_unit {
-            star = Some(p);
-            p += 1;
-            resume = b;
-        } else if let Some(at) = star {
-            p = at + 1;
-            resume += 1;
-            b = resume;
-        } else {
-            return false;
-        }
-    }
-    while p < pattern.len() && pattern[p] == star_unit {
-        p += 1;
-    }
-    p == pattern.len()
+    vectispire_domain::forges::selection::glob_units(&pattern, &branch, None, false)
 }
 
 /// "No one" in every push level, and no user, group or deploy key let through by name.
@@ -568,7 +546,7 @@ async fn github_history(
             }
             reviews = pager.next(&page, &current, NextPage::Link);
         }
-        let mut peers = 0;
+        let mut peers: i32 = 0;
         let mut author_approved = false;
         for (reviewer, decision) in &decided {
             if decision != "APPROVED" {
@@ -577,7 +555,7 @@ async fn github_history(
             if *reviewer == author {
                 author_approved = true;
             } else {
-                peers += 1;
+                peers = peers.saturating_add(1);
             }
         }
         changes.push(MergedChange {

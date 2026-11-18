@@ -61,9 +61,9 @@ impl Outbound {
     /// The `N` of the origin's `«port:N»`, if it names one.
     #[must_use]
     pub fn port_ordinal(&self) -> Option<u32> {
-        let start = self.origin.find("«port:")? + "«port:".len();
-        let rest = &self.origin[start..];
-        rest[..rest.find('»')?].parse().ok()
+        let (_, rest) = self.origin.split_once("«port:")?;
+        let (ordinal, _) = rest.split_once('»')?;
+        ordinal.parse().ok()
     }
 
     fn read(value: &Json) -> Option<Outbound> {

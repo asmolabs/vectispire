@@ -863,12 +863,12 @@ pub(crate) async fn save_reading(tx: &mut Tx, row: &ReadingRow) -> Result<i64, S
 }
 
 pub(crate) async fn delete_readings_of_repositories(tx: &mut Tx, repository_ids: &[i64]) -> Result<u64, StoreError> {
-    let mut deleted = 0;
+    let mut deleted: u64 = 0;
     for batch in repository_ids.chunks(BATCH) {
         let statement = sea_orm::QueryTrait::into_query(
             reading::Entity::delete_many().filter(reading::Column::RepositoryId.is_in(batch.iter().copied())),
         );
-        deleted += orm::execute(tx, &statement).await?;
+        deleted = deleted.saturating_add(orm::execute(tx, &statement).await?);
     }
     Ok(deleted)
 }

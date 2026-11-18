@@ -228,7 +228,7 @@ pub(crate) fn gitlab_repository(project: &Value) -> DiscoveredRepository {
     let full_path = text(Some(project), "path_with_namespace").unwrap_or_default();
     let namespace = project.get("namespace");
     let namespace_path = text(namespace, "full_path")
-        .unwrap_or_else(|| full_path.rfind('/').map_or_else(String::new, |slash| full_path[..slash].to_owned()));
+        .unwrap_or_else(|| full_path.rsplit_once('/').map_or_else(String::new, |(namespace, _)| namespace.to_owned()));
     let size = project.get("statistics").and_then(|statistics| statistics.get("repository_size"));
     DiscoveredRepository {
         forge_id: id_of(project),
@@ -449,7 +449,7 @@ pub(crate) fn withheld_organisations(header: &str) -> Option<Vec<String>> {
     for part in value.split(';') {
         let pair = vectispire_domain::java::trim(part);
         if vectispire_domain::java::to_lower_root(pair).starts_with("organizations=") {
-            for id in pair["organizations=".len()..].split(',') {
+            for id in pair.get("organizations=".len()..).unwrap_or_default().split(',') {
                 let id = vectispire_domain::java::trim(id);
                 if (1..=20).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_digit()) {
                     ids.push(id.to_owned());
@@ -463,7 +463,7 @@ pub(crate) fn withheld_organisations(header: &str) -> Option<Vec<String>> {
 pub(crate) fn github_repository(repository: &Value, namespace: &str, personal: bool) -> DiscoveredRepository {
     let full_path = text(Some(repository), "full_name").unwrap_or_default();
     let owner = text(repository.get("owner"), "login").unwrap_or_else(|| {
-        full_path.find('/').map_or_else(|| namespace.to_owned(), |slash| full_path[..slash].to_owned())
+        full_path.split_once('/').map_or_else(|| namespace.to_owned(), |(owner, _)| owner.to_owned())
     });
     let visibility = text(Some(repository), "visibility").or_else(|| {
         repository

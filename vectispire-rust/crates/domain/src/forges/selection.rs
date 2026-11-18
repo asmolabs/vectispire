@@ -275,29 +275,39 @@ pub fn path_matches(pattern: &str, full_path: &str) -> bool {
     }
     let path: Vec<u16> = path_text.encode_utf16().collect();
     let wanted: Vec<u16> = wanted_text.encode_utf16().collect();
-    let (star_unit, any_unit) = (u16::from(b'*'), u16::from(b'?'));
-    let (mut p, mut w, mut resume) = (0usize, 0usize, 0usize);
-    let mut star: Option<usize> = None;
-    while p < path.len() {
-        if w < wanted.len() && (wanted[w] == any_unit || wanted[w] == path[p]) {
-            p += 1;
-            w += 1;
-        } else if w < wanted.len() && wanted[w] == star_unit {
-            star = Some(w);
-            w += 1;
-            resume = p;
-        } else if let Some(at) = star {
-            w = at + 1;
-            resume += 1;
-            p = resume;
+    glob_units(&wanted, &path, Some(u16::from(b'?')), true)
+}
+
+/// A glob over UTF-16 units: `*` any run, `any` (when given) one unit, every other unit itself — walked by hand,
+/// backtracking to the last star only, at most the pattern's length times the text's. `star_literal` lets a star in the
+/// pattern match a star in the text before it is read as a wildcard, as `SelectionFilter.pathMatches` does; GitLab's
+/// branch wildcard reads a star as a wildcard only.
+pub fn glob_units(pattern: &[u16], text: &[u16], any: Option<u16>, star_literal: bool) -> bool {
+    let star = u16::from(b'*');
+    let (mut t, mut p, mut resume) = (0usize, 0usize, 0usize);
+    let mut last: Option<usize> = None;
+    while let Some(&unit) = text.get(t) {
+        let at = pattern.get(p).copied();
+        let literal = at.is_some_and(|c| (Some(c) == any || c == unit) && (star_literal || c != star));
+        if literal {
+            t = t.saturating_add(1);
+            p = p.saturating_add(1);
+        } else if at == Some(star) {
+            last = Some(p);
+            p = p.saturating_add(1);
+            resume = t;
+        } else if let Some(from) = last {
+            p = from.saturating_add(1);
+            resume = resume.saturating_add(1);
+            t = resume;
         } else {
             return false;
         }
     }
-    while w < wanted.len() && wanted[w] == star_unit {
-        w += 1;
+    while pattern.get(p) == Some(&star) {
+        p = p.saturating_add(1);
     }
-    w == wanted.len()
+    p == pattern.len()
 }
 
 fn without_slashes(value: &str) -> &str {

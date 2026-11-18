@@ -246,10 +246,10 @@ impl OutboundPager {
         if failures >= RETRIES {
             return Err(PagerError::Failure(failure));
         }
-        let pause = FIRST_BACK_OFF * (1u32 << failures);
+        let pause = FIRST_BACK_OFF.saturating_mul(1u32.checked_shl(failures).unwrap_or(u32::MAX));
         self.require_before_deadline(pause)?;
         self.clock.sleep(pause).await;
-        Ok(failures + 1)
+        Ok(failures.saturating_add(1))
     }
 
     fn require_before_deadline(&self, ahead: Duration) -> Result<(), PagerError> {
@@ -386,14 +386,14 @@ fn resolve(base: &str, target: &str) -> String {
     if target.starts_with('?') {
         return format!("{scheme}://{authority}{base_path}{target}");
     }
-    let directory = base_path.rfind('/').map_or("/", |slash| &base_path[..=slash]);
+    let directory = base_path.rsplit_once('/').map_or_else(|| "/".to_owned(), |(before, _)| format!("{before}/"));
     format!("{scheme}://{authority}{}", normalize(&format!("{directory}{target}")))
 }
 
 fn authority_of(url: &str) -> &str {
     let after = url.split_once("://").map_or(url, |(_, rest)| rest);
     let end = after.find(['/', '?', '#']).unwrap_or(after.len());
-    &after[..end]
+    after.split_at_checked(end).map_or(after, |(authority, _)| authority)
 }
 
 /// `url` with `name` set to `value`, replacing it where the query has it already.

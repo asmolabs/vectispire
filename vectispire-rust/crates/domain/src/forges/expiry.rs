@@ -31,7 +31,7 @@ pub fn of_github_header(value: Option<&str>) -> Option<Instant> {
         return None;
     }
     let offset = zone_offset(zone)?;
-    Instant::of_utc(year, month, day, hour, minute, second)?.plus_seconds(-offset)
+    Instant::of_utc(year, month, day, hour, minute, second)?.plus_seconds(offset.checked_neg()?)
 }
 
 /// Where an expiry stands at `now`.
@@ -72,7 +72,7 @@ impl Standing {
 
 fn iso_date(text: &str) -> Option<(i64, u32, u32)> {
     let bytes = text.as_bytes();
-    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+    if bytes.len() != 10 || bytes.get(4) != Some(&b'-') || bytes.get(7) != Some(&b'-') {
         return None;
     }
     let year = text.get(0..4).filter(|year| year.bytes().all(|b| b.is_ascii_digit()))?.parse().ok()?;
@@ -99,23 +99,7 @@ fn two_digits(text: &str) -> Option<u32> {
 
 /// The offset in seconds a zone names: `UTC`, `GMT`, `UT`, `Z`, or `±HHMM` (the `Z` pattern letter's form).
 fn zone_offset(zone: &str) -> Option<i64> {
-    if matches!(zone, "UTC" | "GMT" | "UT" | "Z") {
-        return Some(0);
-    }
-    let (sign, digits) = match zone.as_bytes().first()? {
-        b'+' => (1, &zone[1..]),
-        b'-' => (-1, &zone[1..]),
-        _ => return None,
-    };
-    if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let hours: i64 = digits[..2].parse().ok()?;
-    let minutes: i64 = digits[2..].parse().ok()?;
-    if hours > 18 || minutes > 59 {
-        return None;
-    }
-    Some(sign * (hours * 3600 + minutes * 60))
+    crate::rate_limit::offset_seconds(zone, &["UTC", "GMT", "UT", "Z"])
 }
 
 #[cfg(test)]

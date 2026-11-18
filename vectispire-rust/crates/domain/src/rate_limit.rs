@@ -66,14 +66,9 @@ fn between(now: Instant, at: Instant) -> std::time::Duration {
     if at <= now {
         return std::time::Duration::ZERO;
     }
-    let mut secs = at.epoch_second - now.epoch_second;
-    let nanos = if at.nano >= now.nano {
-        at.nano - now.nano
-    } else {
-        secs -= 1;
-        at.nano + 1_000_000_000 - now.nano
-    };
-    std::time::Duration::new(u64::try_from(secs).unwrap_or(0), nanos)
+    let after = std::time::Duration::new(u64::try_from(at.epoch_second).unwrap_or(0), at.nano);
+    let before = std::time::Duration::new(u64::try_from(now.epoch_second).unwrap_or(0), now.nano);
+    after.saturating_sub(before)
 }
 
 /// `DateTimeFormatter.RFC_1123_DATE_TIME`: `[EEE, ]d MMM yyyy HH:mm[:ss] (GMT|±HHMM)`.
@@ -89,7 +84,7 @@ pub fn rfc_1123(value: &str) -> Option<Instant> {
     };
     let day: u32 = (1..=2).contains(&day.len()).then(|| day.parse().ok()).flatten()?;
     const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let month = u32::try_from(MONTHS.iter().position(|m| m == month)?).ok()? + 1;
+    let month = u32::try_from(MONTHS.iter().position(|m| m == month)?.checked_add(1)?).ok()?;
     let year: i64 =
         (year.len() == 4 && year.bytes().all(|b| b.is_ascii_digit())).then(|| year.parse().ok()).flatten()?;
     let fields: Vec<&str> = time.split(':').collect();
@@ -101,24 +96,29 @@ pub fn rfc_1123(value: &str) -> Option<Instant> {
         [h, m, s] => (two(h)?, two(m)?, two(s)?),
         _ => return None,
     };
-    let offset: i64 = if *zone == "GMT" {
-        0
-    } else {
-        let sign = match zone.as_bytes().first()? {
-            b'+' => 1,
-            b'-' => -1,
-            _ => return None,
-        };
-        let digits = &zone[1..];
-        if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
-            return None;
-        }
-        sign * (digits[..2].parse::<i64>().ok()? * 3600 + digits[2..].parse::<i64>().ok()? * 60)
-    };
+    let offset = offset_seconds(zone, &["GMT"])?;
     if hour > 23 || minute > 59 || second > 59 || day == 0 || day > 31 {
         return None;
     }
-    Instant::of_utc(year, month, day, hour, minute, second)?.plus_seconds(-offset)
+    Instant::of_utc(year, month, day, hour, minute, second)?.plus_seconds(offset.checked_neg()?)
+}
+
+/// The offset in seconds a zone names: one of `names` (UTC), or `±HHMM`.
+pub(crate) fn offset_seconds(zone: &str, names: &[&str]) -> Option<i64> {
+    if names.contains(&zone) {
+        return Some(0);
+    }
+    let (sign, digits) =
+        if let Some(digits) = zone.strip_prefix('+') { (1i64, digits) } else { (-1i64, zone.strip_prefix('-')?) };
+    if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let (hours, minutes) = digits.split_at_checked(2)?;
+    let (hours, minutes): (i64, i64) = (hours.parse().ok()?, minutes.parse().ok()?);
+    if hours > 18 || minutes > 59 {
+        return None;
+    }
+    hours.checked_mul(3600)?.checked_add(minutes.checked_mul(60)?)?.checked_mul(sign)
 }
 
 /// `LinkHeader.target`: the target of the first link whose `rel` names `relation`, as written (possibly relative),
@@ -126,30 +126,30 @@ pub fn rfc_1123(value: &str) -> Option<Instant> {
 pub fn link_target(header: Option<&str>, relation: &str) -> Option<String> {
     let header = header.filter(|header| !crate::java::is_blank(header))?;
     let wanted = crate::java::to_lower_root(relation);
-    let mut at = 0usize;
-    while at < header.len() {
-        let open = header[at..].find('<').map(|found| found + at)?;
-        let close = header[open + 1..].find('>').map(|found| found + open + 1)?;
-        let target = crate::java::trim(&header[open + 1..close]);
-        let end = parameters_end(header, close + 1);
-        if relations(&header[close + 1..end]).contains(&format!(" {wanted} ")) && !target.is_empty() {
+    let mut rest = header;
+    loop {
+        let (_, after_open) = rest.split_once('<')?;
+        let (target, after_close) = after_open.split_once('>')?;
+        let target = crate::java::trim(target);
+        let (parameters, next) = parameters_of(after_close);
+        if relations(parameters).contains(&format!(" {wanted} ")) && !target.is_empty() {
             return Some(target.to_owned());
         }
-        at = end;
+        rest = next;
     }
-    None
 }
 
-fn parameters_end(header: &str, from: usize) -> usize {
+/// The parameters up to the next link — a `<` outside quotes — and what follows them.
+fn parameters_of(text: &str) -> (&str, &str) {
     let mut quoted = false;
-    for (offset, c) in header[from..].char_indices() {
+    for (offset, c) in text.char_indices() {
         if c == '"' {
             quoted = !quoted;
         } else if c == '<' && !quoted {
-            return from + offset;
+            return text.split_at_checked(offset).unwrap_or((text, ""));
         }
     }
-    header.len()
+    (text, "")
 }
 
 /// The `rel` parameter's types, lower case, each surrounded by spaces: `" next last "`.
@@ -157,20 +157,20 @@ fn relations(parameters: &str) -> String {
     let mut types = String::from(" ");
     for parameter in parameters.split(';') {
         let trimmed = crate::java::trim(parameter);
-        let Some(equals) = trimmed.find('=') else {
+        let Some((name, value)) = trimmed.split_once('=') else {
             continue;
         };
-        if !crate::java::trim(&trimmed[..equals]).eq_ignore_ascii_case("rel") {
+        if !crate::java::trim(name).eq_ignore_ascii_case("rel") {
             continue;
         }
-        let mut value = crate::java::trim(&trimmed[equals + 1..]);
+        let mut value = crate::java::trim(value);
         if !value.starts_with('"')
-            && let Some(comma) = value.rfind(',')
+            && let Some((before, _)) = value.rsplit_once(',')
         {
-            value = &value[..comma];
+            value = before;
         }
         if let Some(inner) = value.strip_prefix('"') {
-            value = inner.find('"').map_or(inner, |closing| &inner[..closing]);
+            value = inner.split_once('"').map_or(inner, |(quoted, _)| quoted);
         }
         for kind in crate::java::trim(value).split(char::is_whitespace).filter(|kind| !kind.is_empty()) {
             types.push_str(&crate::java::to_lower_root(kind));
