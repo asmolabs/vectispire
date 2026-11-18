@@ -86,6 +86,14 @@ fn siem() -> vectispire_cp_app::siem::Siem {
 }
 
 /// An audit log over a pool that never connects: the composition delivers nothing.
+fn forge_encryption() -> Arc<vectispire_cp_crypto::Encryption> {
+    let door = vectispire_cp_crypto::VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+    };
+    Arc::new(vectispire_cp_crypto::Encryption::new(&vectispire_cp_crypto::EncryptionConfig::default(), door).unwrap())
+}
+
 fn audit() -> Arc<vectispire_cp_audit::AuditLog> {
     use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
     let settings = DbSettings {
@@ -528,6 +536,18 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
                 Arc::new(vectispire_cp_targets::SystemClock),
             )),
         }),
+        // The forges' two tasks, as `main.rs` composes them.
+        vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
+            db: db.clone(),
+            guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            trust: vectispire_tls::TlsTrust::BuiltIn,
+            encryption: forge_encryption(),
+            audit: audit(),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+            targets: checklist_targets.clone(),
+        })
+        .services
+        .tasks(),
         &gauges,
     )
     .unwrap();

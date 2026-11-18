@@ -24,6 +24,7 @@ class ForgeAddressTest {
         "GITLAB | https://gitlab.com                  | GITLAB_COM               | https://gitlab.com            | https://gitlab.com/api/v4",
         "GITLAB | https://example.org/gitlab/         | GITLAB_SELF_MANAGED      | https://example.org/gitlab    | https://example.org/gitlab/api/v4",
         "GITLAB | https://gitlab.internal:8443        | GITLAB_SELF_MANAGED      | https://gitlab.internal:8443  | https://gitlab.internal:8443/api/v4",
+        "GITLAB | https://[::1]:8443/                 | GITLAB_SELF_MANAGED      | https://[::1]:8443            | https://[::1]:8443/api/v4",
     })
     void derivesTheEditionAndTheApi(ForgeKind kind, String typed, ForgeEdition edition, String base, String api) {
         ForgeAddress address = ForgeAddress.of(kind, typed);

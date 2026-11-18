@@ -71,7 +71,7 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
 
     @BeforeEach
     void start() throws Exception {
-        github = ForgeStub.start();
+        github = ForgeStub.fixture();
     }
 
     @AfterEach

@@ -61,11 +61,13 @@ impl ScrapeToken for ScrapeTokenOf {
 }
 
 /// Every sealed store the port has a module for, as Java's census gathers them: the signing key and its record
-/// (crypto), the clone credentials (targets), the SIEM's authorization header (siem).
+/// (crypto), the clone credentials (targets), the SIEM's authorization header (siem), the forge connections' tokens
+/// (forges).
 pub fn encryption_census(
     signing: Arc<dyn SealedStore>,
     targets: Arc<dyn SealedStore>,
     siem: Arc<dyn SealedStore>,
+    forges: Arc<dyn SealedStore>,
 ) -> EncryptionCensus {
-    EncryptionCensus::new(vec![signing, targets, siem])
+    EncryptionCensus::new(vec![signing, targets, siem, forges])
 }

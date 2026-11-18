@@ -89,7 +89,7 @@ class ForgeSuspensionRoutesTest extends ApiTestBase {
     @BeforeEach
     void discovered() throws Exception {
         rows = IntegrationRows.remember(jdbc);
-        gitlab = ForgeStub.start().gitlab("17.4.1", "[\"read_api\"]", true);
+        gitlab = ForgeStub.fixture().gitlab("17.4.1", "[\"read_api\"]", true);
         gitlab.route(GROUPS, Reply.json("[{\"id\":1,\"full_path\":\"acme\"}]"));
         gitlab.route(PROJECTS, Reply.json("[" + project(42, "acme/app", "group", "main", false, 10L, false, RECENT) + "]"));
         connectionId = create("Internal GitLab").andExpect(status().isCreated()).andReturn().getResponse()

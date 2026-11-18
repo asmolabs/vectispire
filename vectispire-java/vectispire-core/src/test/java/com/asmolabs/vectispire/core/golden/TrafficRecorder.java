@@ -210,7 +210,29 @@ public final class TrafficRecorder {
     private record Pending(int sequence, String async, RowSnapshots.Snapshot before, JsonNode seed, boolean concurrent) {}
 
     /** What the manifest says about one test. */
-    private record TestEntry(String name, String outcome, List<String> files, JsonNode baseline, List<String> notes) {}
+    private record TestEntry(
+            String name, String outcome, List<String> files, JsonNode baseline, List<String> notes, JsonNode outbound) {}
+
+    /**
+     * An answer a test's stub server gave the application — a forge's, a tracker's — noted in the test being recorded,
+     * with the request it was given during ({@code during}, the request's sequence number; absent when no request was
+     * in flight: a discovery or a reading the test drove itself). The replay stands up its own stub and answers the
+     * same requests with these, since the recording otherwise holds what the application sent and nothing of what it
+     * was told. The stub's {@code origin} is rendered with the test's placeholders, its port a {@code «port:N»}; the
+     * answer itself stays literal — it is the test's own fixture, and a date in it hidden as {@code «date»} would leave
+     * the replay nothing to answer with — and {@code rawOrigin} says which text in it the replay's own address replaces.
+     *
+     * @param origin the stub's own address, {@code https://127.0.0.1:<port>}
+     * @param path the path with its query, as the stub received it
+     */
+    public static void outbound(String origin, String method, String path, int status, Map<String, String> headers,
+            String body) {
+        TestRecording test = current;
+        if (test == null || !enabled()) {
+            return;
+        }
+        test.outbound(origin, method, path, status, headers, body);
+    }
 
     /** One test's recording. */
     private static final class TestRecording {
@@ -222,6 +244,7 @@ public final class TrafficRecorder {
         private final Placeholders placeholders = new Placeholders();
         private final List<String> files = Collections.synchronizedList(new ArrayList<>());
         private final List<String> notes = Collections.synchronizedList(new ArrayList<>());
+        private final List<ObjectNode> outbound = Collections.synchronizedList(new ArrayList<>());
         private final AtomicInteger sequence = new AtomicInteger();
         private final AtomicInteger inFlight = new AtomicInteger();
         private RowSnapshots rows;
@@ -411,6 +434,22 @@ public final class TrafficRecorder {
             placeholders.collect(raw, null);
         }
 
+        void outbound(String origin, String method, String path, int status, Map<String, String> headers, String body) {
+            ObjectNode exchange = JsonNodeFactory.instance.objectNode();
+            if (inFlight.get() > 0) {
+                exchange.put("during", sequence.get());
+            }
+            exchange.put("origin", origin);
+            exchange.put("rawOrigin", origin);
+            exchange.put("method", method);
+            exchange.put("path", path);
+            exchange.put("status", status);
+            ArrayNode lines = exchange.putArray("headers");
+            new java.util.TreeMap<>(headers).forEach((name, value) -> lines.add(name + ": " + value));
+            exchange.put("body", body);
+            outbound.add(exchange);
+        }
+
         void finish(String outcome) {
             if (files.isEmpty() && notes.isEmpty()) {
                 return;
@@ -419,8 +458,23 @@ public final class TrafficRecorder {
             List<String> sorted = new ArrayList<>(files);
             sorted.sort(null);
             JsonNode shownBaseline = baseline == null || baseline.isEmpty() ? null : placeholders.render(baseline);
-            MANIFEST.computeIfAbsent(classKey, key -> new ConcurrentHashMap<>())
-                    .put(testKey, new TestEntry(testKey, outcome, List.copyOf(sorted), shownBaseline, List.copyOf(notes)));
+            JsonNode shownOutbound = null;
+            if (!outbound.isEmpty()) {
+                ArrayNode exchanges = JsonNodeFactory.instance.arrayNode();
+                synchronized (outbound) {
+                    outbound.forEach(exchanges::add);
+                }
+                synchronized (placeholders) {
+                    for (JsonNode exchange : exchanges) {
+                        ((ObjectNode) exchange).set("origin",
+                                placeholders.render(com.fasterxml.jackson.databind.node.TextNode.valueOf(
+                                        exchange.get("origin").asText())));
+                    }
+                }
+                shownOutbound = exchanges;
+            }
+            MANIFEST.computeIfAbsent(classKey, key -> new ConcurrentHashMap<>()).put(testKey,
+                    new TestEntry(testKey, outcome, List.copyOf(sorted), shownBaseline, List.copyOf(notes), shownOutbound));
         }
 
         /**
@@ -848,6 +902,9 @@ public final class TrafficRecorder {
                 if (!test.notes().isEmpty()) {
                     ArrayNode notes = testNode.putArray("notes");
                     test.notes().forEach(notes::add);
+                }
+                if (test.outbound() != null) {
+                    testNode.set("outbound", test.outbound());
                 }
                 testCount++;
                 fileCount += test.files().size();

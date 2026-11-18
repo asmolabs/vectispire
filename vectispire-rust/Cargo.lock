@@ -4100,6 +4100,7 @@ dependencies = [
  "vectispire-cp-contract",
  "vectispire-cp-crypto",
  "vectispire-cp-db",
+ "vectispire-cp-forges",
  "vectispire-cp-gate",
  "vectispire-cp-http",
  "vectispire-cp-inventory",
@@ -4147,6 +4148,7 @@ dependencies = [
  "vectispire-cp-contract",
  "vectispire-cp-crypto",
  "vectispire-cp-db",
+ "vectispire-cp-forges",
  "vectispire-cp-gate",
  "vectispire-cp-http",
  "vectispire-cp-inventory",
@@ -4356,6 +4358,44 @@ dependencies = [
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-forges"
+version = "2.0.0-dev"
+dependencies = [
+ "axum",
+ "http",
+ "http-body-util",
+ "percent-encoding",
+ "rustls",
+ "rustls-pki-types",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-checklists",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-domain",
+ "vectispire-testkit",
+ "vectispire-tls",
 ]
 
 [[package]]

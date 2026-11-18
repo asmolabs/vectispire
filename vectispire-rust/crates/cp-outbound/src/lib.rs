@@ -13,6 +13,8 @@
 pub mod address;
 pub mod failure;
 pub mod guard;
+pub mod json;
+pub mod pager;
 pub mod pinned_ca;
 pub mod policy;
 pub mod reserved;

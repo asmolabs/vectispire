@@ -90,6 +90,8 @@ struct ControlPlaneService {
     intervals: vectispire_cp_maintenance::Intervals,
     worker: Option<vectispire_cp_scanning::ScanWorker>,
     worker_interval: Duration,
+    /// The forges' discoveries: on every instance, whatever the built-in scan worker's switch (decision 0037 §3).
+    discoveries: vectispire_cp_forges::DiscoveryWorker,
     scanning: Arc<vectispire_cp_scanning::Scanning>,
 }
 
@@ -130,6 +132,23 @@ impl Service for ControlPlaneService {
             })
         });
 
+        // 2b. The forges' discoveries: twenty seconds after the start, then every five, as Java's schedule says.
+        let discovery_stop = shutdown.clone();
+        let discoveries = self.discoveries.clone();
+        let discovery_handle = tokio::spawn(async move {
+            let mut stop = discovery_stop;
+            let mut wait = Duration::from_secs(20);
+            loop {
+                tokio::select! {
+                    () = stop.triggered() => break,
+                    () = tokio::time::sleep(wait) => {
+                        discoveries.tick().await;
+                        wait = Duration::from_secs(5);
+                    }
+                }
+            }
+        });
+
         // 3. Axum HTTP server with graceful shutdown on signal
         let server_shutdown = shutdown.clone();
         let server = axum::serve(listener, self.router.into_make_service_with_connect_info::<std::net::SocketAddr>())
@@ -144,6 +163,7 @@ impl Service for ControlPlaneService {
 
         // Wait for background loops to stop cleanly
         let _ = turns_handle.await;
+        let _ = discovery_handle.await;
         if let Some(wh) = worker_handle {
             let _ = wh.await;
         }
@@ -362,6 +382,7 @@ async fn serve() -> ExitCode {
         .with(vectispire_cp_inventory::listeners())
         .with(vectispire_cp_gate::purge::listeners())
         .with(vectispire_cp_compliance::purge::listeners())
+        .with(vectispire_cp_forges::purge::listeners())
         .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]);
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
@@ -372,7 +393,12 @@ async fn serve() -> ExitCode {
         encryption: encryption.clone(),
         allowed_hosts: allowed_hosts.clone(),
         clock: clock.clone(),
-        visibility: None,
+        // The import's preview says who will see the new targets (decision 0037 §4): the visibility mode, read here.
+        visibility: Some(vectispire_cp_access::VisibilityService::new(
+            db.clone(),
+            Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone()))),
+            Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
+        )),
     }));
 
     let scan_catalog = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), clock.clone()));
@@ -609,6 +635,17 @@ async fn serve() -> ExitCode {
         tracing::error!("The checklists' answer delivery was handed its service twice.");
     }
 
+    // The forges (wave 2): their routes, their discoveries' worker, their two maintenance tasks.
+    let forges = vectispire_cp_app::forges::compose(vectispire_cp_app::forges::ForgeSetup {
+        db: db.clone(),
+        guard: guard.clone(),
+        trust: trust.clone(),
+        encryption: encryption.clone(),
+        audit: audit.clone(),
+        clock: clock.clone(),
+        targets: targets.clone(),
+    });
+
     let gauges = vectispire_cp_app::gauges::Gauges::new(scanning.queue().clone(), outbox.clone(), agents.admin.clone());
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
@@ -624,6 +661,7 @@ async fn serve() -> ExitCode {
         clock.clone(),
         access.session_cleanup.clone(),
         checklists.reminders.clone(),
+        forges.services.tasks(),
         &gauges,
     ) {
         Ok(turns) => turns,
@@ -658,7 +696,12 @@ async fn serve() -> ExitCode {
         time: None,
     };
     let app = App::new(settings.clone(), "vectispire", build);
-    let census = vectispire_cp_app::actuator::encryption_census(signing.clone(), targets.clone(), siem_service.clone());
+    let census = vectispire_cp_app::actuator::encryption_census(
+        signing.clone(),
+        targets.clone(),
+        siem_service.clone(),
+        forges.services.connections.clone(),
+    );
     app.actuator.serve_encryption(Arc::new(vectispire_cp_app::actuator::Census(census.clone())));
 
     let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
@@ -699,6 +742,7 @@ async fn serve() -> ExitCode {
         settings.oidc.link_privileged_accounts,
     ));
     access_routes.extend(checklists.routes);
+    access_routes.extend(forges.routes);
     // Threat intelligence's reads (the feeds' status, the ranking, a CVE's record); its syncs come with the fetches.
     access_routes.extend(vectispire_cp_threatintel::routes(Arc::new(vectispire_cp_threatintel::Services::new(
         db.clone(),
@@ -811,6 +855,7 @@ async fn serve() -> ExitCode {
         intervals,
         worker,
         worker_interval: settings.worker.interval,
+        discoveries: forges.services.worker.clone(),
         scanning: scanning.clone(),
     };
 

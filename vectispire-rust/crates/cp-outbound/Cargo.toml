@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 reqwest.workspace = true
+# What a forge, a tracker or a catalogue answers, read as a document (`OutboundJson`).
+serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 vectispire-domain.workspace = true

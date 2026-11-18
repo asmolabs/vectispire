@@ -299,15 +299,106 @@ fn openssl(directory: &std::path::Path, arguments: &[&str]) {
     assert!(output.status.success(), "openssl {arguments:?}: {}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// `ForgeStub.FIXTURE_CA_SCALAR`: the P-256 private scalar of the stub forges' CA, as ASCII.
+const FORGE_FIXTURE_CA_SCALAR: &[u8; 32] = b"vectispire forge stub fixture ca";
+
 /// A TLS collector on loopback under the fixture CA named `ca_name`, accepting until the runtime ends: its port.
 async fn collector(ca_name: &str) -> u16 {
+    use tokio::io::AsyncReadExt;
+
+    let acceptor = tls_acceptor(ca_name, FIXTURE_CA_SCALAR, "IP:127.0.0.1");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let acceptor = acceptor.clone();
+            tokio::spawn(async move {
+                if let Ok(mut tls) = acceptor.accept(stream).await {
+                    let mut bytes = Vec::new();
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), tls.read_to_end(&mut bytes)).await;
+                }
+            });
+        }
+    });
+    port
+}
+
+/// **A stub forge a test stood up, run again** (`ForgeStub.fixture()`): it answers each method and path with what
+/// Java's stub answered during the test's requests, in order — the last again once they run out — a body's
+/// `rawOrigin` replaced by this stub's address; anything else 404, as the stub answered an unrouted path. The answers
+/// given while no request was in flight (a discovery or a reading the test drove) are not served: their effects are
+/// the next request's seed. Its port.
+async fn forge_stub(exchanges: Vec<vectispire_cp_contract::recorded::format::Outbound>) -> u16 {
+    use std::collections::{BTreeMap, VecDeque};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let acceptor = tls_acceptor("Forge Test CA", FORGE_FIXTURE_CA_SCALAR, "IP:127.0.0.1,DNS:localhost");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let own = format!("https://127.0.0.1:{port}");
+    type Answer = (u16, Vec<(String, String)>, String);
+    let mut routes: BTreeMap<(String, String), VecDeque<Answer>> = BTreeMap::new();
+    for exchange in exchanges {
+        let body = exchange.body.replace(&exchange.raw_origin, &own);
+        routes.entry((exchange.method, exchange.path)).or_default().push_back((
+            exchange.status,
+            exchange.headers,
+            body,
+        ));
+    }
+    let routes = Arc::new(std::sync::Mutex::new(routes));
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let acceptor = acceptor.clone();
+            let routes = routes.clone();
+            tokio::spawn(async move {
+                let Ok(mut tls) = acceptor.accept(stream).await else { return };
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") {
+                    match tokio::time::timeout(std::time::Duration::from_secs(5), tls.read(&mut byte)).await {
+                        Ok(Ok(1)) => head.push(byte[0]),
+                        _ => return,
+                    }
+                }
+                let text = String::from_utf8_lossy(&head);
+                let mut words = text.lines().next().unwrap_or("").split(' ');
+                let (method, path) = (words.next().unwrap_or("").to_owned(), words.next().unwrap_or("").to_owned());
+                let answer = {
+                    let mut routes = routes.lock().unwrap();
+                    routes
+                        .get_mut(&(method, path))
+                        .and_then(|queue| if queue.len() > 1 { queue.pop_front() } else { queue.front().cloned() })
+                };
+                let (status, headers, body) = answer.unwrap_or_else(|| {
+                    (
+                        404,
+                        vec![("Content-Type".to_owned(), "application/json".to_owned())],
+                        r#"{"message":"404"}"#.to_owned(),
+                    )
+                });
+                let mut out = format!("HTTP/1.1 {status} Stub\r\n");
+                for (name, value) in &headers {
+                    out.push_str(&format!("{name}: {value}\r\n"));
+                }
+                out.push_str(&format!("Content-Length: {}\r\nConnection: close\r\n\r\n", body.len()));
+                out.push_str(&body);
+                let _ = tls.write_all(out.as_bytes()).await;
+                let _ = tls.shutdown().await;
+            });
+        }
+    });
+    port
+}
+
+/// A TLS acceptor for a server certificate issued for `names` by a CA named `ca_name` whose key is `scalar`.
+fn tls_acceptor(ca_name: &str, scalar: &[u8; 32], names: &str) -> tokio_rustls::TlsAcceptor {
     use p256::pkcs8::EncodePrivateKey;
     use rustls_pki_types::pem::PemObject;
-    use tokio::io::AsyncReadExt;
 
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path();
-    let ca_key = p256::SecretKey::from_slice(FIXTURE_CA_SCALAR).expect("the fixture scalar is below the order");
+    let ca_key = p256::SecretKey::from_slice(scalar).expect("the fixture scalar is below the order");
     std::fs::write(path.join("ca.key"), ca_key.to_pkcs8_pem(p256::pkcs8::LineEnding::LF).unwrap().as_bytes()).unwrap();
     // The issuer as Java named it; the certificate itself is never sent — the client holds Java's.
     openssl(
@@ -329,7 +420,7 @@ async fn collector(ca_name: &str) -> u16 {
     );
     openssl(path, &["ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", "server.key"]);
     openssl(path, &["req", "-new", "-key", "server.key", "-subj", "/CN=collector", "-out", "server.csr"]);
-    std::fs::write(path.join("server.ext"), "subjectAltName=IP:127.0.0.1\n").unwrap();
+    std::fs::write(path.join("server.ext"), format!("subjectAltName={names}\n")).unwrap();
     openssl(
         path,
         &[
@@ -362,21 +453,7 @@ async fn collector(ca_name: &str) -> u16 {
         .with_no_client_auth()
         .with_single_cert(chain, key)
         .unwrap();
-    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            let acceptor = acceptor.clone();
-            tokio::spawn(async move {
-                if let Ok(mut tls) = acceptor.accept(stream).await {
-                    let mut bytes = Vec::new();
-                    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), tls.read_to_end(&mut bytes)).await;
-                }
-            });
-        }
-    });
-    port
+    tokio_rustls::TlsAcceptor::from(Arc::new(config))
 }
 
 /// The properties a test class sets with `@TestPropertySource`, which its recordings were made under.
@@ -406,11 +483,17 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
         backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins()
             .with(vectispire_cp_scanning::purge::listeners())
+            .with(vectispire_cp_forges::purge::listeners())
             .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]),
         encryption: support::encryption(),
         allowed_hosts: allowed_hosts.clone(),
         clock: Arc::new(SystemClock),
-        visibility: None,
+        // As `cp-app` composes it: the forge import's preview reads the visibility mode through the targets.
+        visibility: Some(VisibilityService::new(
+            db.clone(),
+            Arc::new(StoredSettings(Settings::new(db.clone()))),
+            Arc::new(TargetsForAccess(db.clone())),
+        )),
     }));
     let (issues, inventory) = issues_and_inventory(db, &targets, &audit, &siem);
     let scanning = Arc::new(Scanning::new(ScanningConfig {
@@ -655,7 +738,8 @@ fn checklists(
             targets: targets.clone(),
         }),
         Arc::new(checklists::measurer::NoImports),
-        Arc::new(checklists::measurer::NoReviews),
+        // The forges' readings, as `cp-app` composes them (wave 2).
+        Arc::new(vectispire_cp_forges::change_reviews(db.clone(), Arc::new(integrations_for_forges(db)))),
     );
     let projects: Arc<dyn checklists::ports::ProjectDirectory> = Arc::new(checklists::TargetProjects(targets.clone()));
     let independence = vectispire_cp_access::independence::ApproverIndependence::new(db.clone(), settings.clone());
@@ -841,7 +925,28 @@ fn phase_three(
         targets.clone(),
         Arc::new(SystemClock),
     ));
+    // Forges as `cp-app` composes them (wave 2): the guard reserves nothing, as the Java suite's context does, and the
+    // runtime's trust is the built-in one — the stub forges are reached through the CA each test pins.
+    let forges = Arc::new(vectispire_cp_forges::Services::new(vectispire_cp_forges::ForgeParts {
+        db: db.clone(),
+        outbound: vectispire_cp_outbound::json::OutboundJson::new(
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+        ),
+        integrations: Arc::new(integrations_for_forges(db)),
+        encryption: support::encryption(),
+        settings: Settings::new(db.clone()),
+        audit: audit_for_access.clone(),
+        clock: Arc::new(SystemClock),
+        targets: targets.clone(),
+        bounds: vectispire_cp_forges::DiscoveryBounds::default(),
+        concurrency: 1,
+        host: "replay".to_owned(),
+        alerts: Arc::new(vectispire_cp_forges::token_watch::AuditedAlerts((*audit_for_access).clone())),
+        review_bounds: vectispire_cp_forges::reviews::ReviewBounds::default(),
+    }));
     let mut routes = vectispire_cp_issues::routes(issues);
+    routes.extend(vectispire_cp_forges::routes(forges));
     routes.extend(vectispire_cp_threatintel::routes(threatintel));
     routes.extend(gate.routes());
     routes.extend(posture.routes());
@@ -863,6 +968,15 @@ fn phase_three(
         },
     ))));
     routes
+}
+
+/// The integrations' registry as `cp-app` composes it: the SIEM's transport is the use that refuses a switch-off.
+fn integrations_for_forges(db: &Db) -> vectispire_cp_settings::Integrations {
+    vectispire_cp_settings::Integrations::new(
+        db.clone(),
+        vec![Arc::new(vectispire_cp_siem::SiemTransportInUse)],
+        Arc::new(time::OffsetDateTime::now_utc),
+    )
 }
 
 /// `cp-app`'s `access::administration_routes`, composed here as the binary composes it (the replay cannot name
@@ -1234,6 +1348,15 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
                 COLLECTORS.iter().filter(|(class, name, _, _)| *class == test.class && *name == test.name)
             {
                 ports.push((*ordinal, collector(ca).await));
+            }
+            let mut stubs: std::collections::BTreeMap<u32, Vec<_>> = std::collections::BTreeMap::new();
+            for exchange in test.outbound.iter().filter(|exchange| exchange.during.is_some()) {
+                if let Some(ordinal) = exchange.port_ordinal() {
+                    stubs.entry(ordinal).or_default().push(exchange.clone());
+                }
+            }
+            for (ordinal, exchanges) in stubs {
+                ports.push((ordinal, forge_stub(exchanges).await));
             }
             outcomes.extend(replayer.test_with_ports(test, router(&db, signing.clone(), &test.class), &ports).await);
         }
