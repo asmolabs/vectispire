@@ -1,0 +1,47 @@
+[package]
+name = "vectispire-cp-forges"
+description = "The control plane's forge connections: GitHub and GitLab tokens probed and kept sealed, the discoveries of their repositories, the selection and the import, and the change-review readings."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+http.workspace = true
+# Entities and statement builders only, run on the port's own transaction (`vectispire_cp_db::orm`): every statement
+# here is a builder's, so no `.sqlx/` cache — and the five entities are held to the schema by the parity suite.
+sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-time", "sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["time", "sync", "rt"] }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
+# The checklists' port this module implements (`ChangeReviews`) and the demand it reads (decision 0037, lot G3).
+vectispire-cp-checklists = { path = "../cp-checklists" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-http.workspace = true
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+# Every request to a forge goes through the outbound door: the guard, the pin, no redirect.
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-settings = { path = "../cp-settings" }
+# The import creates targets through their owner's gestures (decision 0037 §5).
+vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
+vectispire-cp-contract = { path = "../cp-contract" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

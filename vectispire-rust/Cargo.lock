@@ -4357,6 +4357,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-forges"
+version = "2.0.0-dev"
+dependencies = [
+ "axum",
+ "http",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-checklists",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-domain",
+ "vectispire-testkit",
+]
+
+[[package]]
 name = "vectispire-cp-gate"
 version = "2.0.0-dev"
 dependencies = [
