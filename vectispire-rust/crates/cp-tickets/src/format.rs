@@ -100,9 +100,10 @@ fn one_decimal(value: f64) -> String {
     let first: u32 = fraction.chars().next().and_then(|c| c.to_digit(10)).unwrap_or(0);
     let rest_up = fraction.chars().nth(1).and_then(|c| c.to_digit(10)).unwrap_or(0) >= 5;
     let negative = whole.starts_with('-');
-    let mut units: i64 = whole.trim_start_matches('-').parse::<i64>().unwrap_or(0) * 10 + i64::from(first);
+    let mut units: i64 =
+        whole.trim_start_matches('-').parse::<i64>().unwrap_or(0).saturating_mul(10).saturating_add(i64::from(first));
     if rest_up {
-        units += 1;
+        units = units.saturating_add(1);
     }
     format!("{}{}.{}", if negative { "-" } else { "" }, units / 10, units % 10)
 }

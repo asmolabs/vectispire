@@ -86,7 +86,7 @@ impl std::fmt::Debug for NotificationsConfig {
     }
 }
 
-/// The channels, in Java's bean order — which is the order a scan's delta is queued in and the centre lists them.
+/// The channels: [`Channels::all`] says their order.
 pub fn channels(config: &NotificationsConfig) -> Channels {
     let service = Arc::new(NotificationService::new(config.clone()));
     Channels {
@@ -117,14 +117,16 @@ impl std::fmt::Debug for Channels {
 }
 
 impl Channels {
-    /// As the scan's delta knows them: every [`channels::Channel`].
+    /// Every [`channels::Channel`], in the order Spring hands Java's `List<NotificationChannel>` — the beans as the
+    /// classpath scan finds them, `notifications` before `notifications.internal`, each by class name: what the centre
+    /// lists, and the order a delta's and an alert's rows are queued in.
     pub fn all(&self) -> Vec<Arc<dyn channels::Channel>> {
         vec![
-            self.webhook.clone() as Arc<dyn channels::Channel>,
-            self.teams.clone(),
-            self.slack.clone(),
+            self.mail.clone() as Arc<dyn channels::Channel>,
+            self.webhook.clone(),
             self.discord.clone(),
-            self.mail.clone(),
+            self.slack.clone(),
+            self.teams.clone(),
         ]
     }
 

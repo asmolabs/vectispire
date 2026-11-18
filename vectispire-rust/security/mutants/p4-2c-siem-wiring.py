@@ -27,7 +27,7 @@ GS = "crates/cp-gate/src/service.rs"
 
 MUTANTS = [
     # ---- the composition ----
-    ("handler not registered", MT, "AgentResultAuditDelivery::new(audit)),\n            siem.delivery.clone(),\n", "AgentResultAuditDelivery::new(audit)),\n", [MAINT, COMPOSED]),
+    ("handler not registered", MT, "AgentResultAuditDelivery::new(audit.clone())),\n        siem.delivery.clone(),\n", "AgentResultAuditDelivery::new(audit.clone())),\n", [MAINT, COMPOSED]),
     ("listener not in the audit log", CA, "pub fn audit_listeners(siem: &Siem) -> Vec<Arc<dyn vectispire_cp_audit::Listener>> {\n    vec![siem.events.clone()]", "pub fn audit_listeners(siem: &Siem) -> Vec<Arc<dyn vectispire_cp_audit::Listener>> {\n    let _ = siem;\n    Vec::new()", COMPOSED),
     ("chain alarm not heard", CA, "pub fn chain_broken_listeners(siem: &Siem) -> Vec<Arc<dyn vectispire_cp_audit::ChainBrokenListener>> {\n    vec![siem.events.clone()]", "pub fn chain_broken_listeners(siem: &Siem) -> Vec<Arc<dyn vectispire_cp_audit::ChainBrokenListener>> {\n    let _ = siem;\n    Vec::new()", COMPOSED),
     ("start's guard not the sender's", CA, "        setup.guard,\n        PinnedHttpSender", "        OutboundUrlGuard::new(Vec::new()),\n        PinnedHttpSender", COMPOSED),

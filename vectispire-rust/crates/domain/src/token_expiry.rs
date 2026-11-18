@@ -90,7 +90,7 @@ fn zone_offset_seconds(zone: &str) -> Option<i64> {
         "UTC" | "GMT" | "Z" | "UT" => return Some(0),
         _ => {}
     }
-    let (sign, digits_part) = match zone.as_bytes().first()? {
+    let (sign, digits_part): (i64, &str) = match zone.as_bytes().first()? {
         b'+' => (1, zone.get(1..)?),
         b'-' => (-1, zone.get(1..)?),
         _ => return None,
@@ -103,7 +103,7 @@ fn zone_offset_seconds(zone: &str) -> Option<i64> {
     if hours > 18 || minutes > 59 {
         return None;
     }
-    Some(sign * (hours * 3_600 + minutes * 60))
+    sign.checked_mul(hours.checked_mul(3_600)?.checked_add(minutes.checked_mul(60)?)?)
 }
 
 #[cfg(test)]

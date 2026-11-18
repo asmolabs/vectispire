@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 152
+ceiling 156
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
@@ -179,3 +179,7 @@ golden api.ProjectExportRoutesTest.TheDemonstrationPlugin/rendersTheExport--022-
 # ── Moved from checklists.txt on 2026-11-17 (ceiling raised by as many): checklists is served, these are the recording's ──
 golden api.ProjectChecklistsRoutesTest.TheDocument/theStoredBytes--027-DELETE-api_v1_projects_t_project_1_ | the deleted row's content is a signed checklist package: its ECDSA signatures (the JVM's random nonce) and the instants it embeds differ from one rendering to the next, so its bytes and size never match
 golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--021-POST-api_v1_agent_jobs_t_scan_2_result | the issue's `resolution_seconds` counts wall-clock time between the recorded requests: Java resolved it within the second the test ran, the replay a second later
+golden api.NotificationChannelSwitchRoutesTest/aDisabledChannelIsNeitherListedNorTested--001-POST-api_v1_notifications_test_slack | the test message goes to a receiver the Java test starts on loopback (`HttpServer`, its port in the stored URL), which the replay does not run: the send fails here and succeeds there. Ended by a replay that stands up the recorded test's receivers
+golden api.TicketWebhookInputTest/aFloodIsRefused--301-POST-api_v1_tickets_webhook_github | which limiter refuses the 301st delivery is a matter of time: Java's in-memory bucket was still empty (Retry-After 1); the replay answers slower, the bucket refills one token, and the shared minute window refuses it with the seconds left in its minute. Ended by a replay whose buckets see Java's elapsed time, not their own
+golden api.TicketWebhookAuthRoutesTest/acceptedWhenPresented--002-POST-api_v1_tickets_webhook_github | GitHub's `X-Hub-Signature-256` is an HMAC over the body the recorder hides («sha256:1»), so the replay sends a signature that cannot verify and is refused 401. Ended by the replay recomputing the signature from the seeded secret and the recorded body
+golden api.TrackerRefusalRoutesTest/notPlannedIsNotAFalsePositive--001-POST-api_v1_tickets_webhook_github | GitHub's `X-Hub-Signature-256` is an HMAC over the body the recorder hides («sha256:1»), so the replay sends a signature that cannot verify and is refused 401. Ended by the replay recomputing the signature from the seeded secret and the recorded body

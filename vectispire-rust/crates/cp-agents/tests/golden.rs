@@ -217,6 +217,12 @@ struct AnsweringClock {
     time: Arc<AnsweringTime>,
 }
 
+impl vectispire_cp_access::credentials::Clock for AnsweringClock {
+    fn now(&self) -> time::OffsetDateTime {
+        vectispire_cp_targets::Clock::now(self)
+    }
+}
+
 impl vectispire_cp_targets::Clock for AnsweringClock {
     fn now(&self) -> time::OffsetDateTime {
         let answered = i64::try_from(self.time.nanos()).unwrap_or(i64::MAX);
@@ -536,7 +542,15 @@ fn router(db: &Db, signing: Arc<vectispire_cp_crypto::SigningKeys>, class: &str)
             Arc::new(entries),
             time.clone(),
         )
-        .with_scrape_token(Arc::new(ReplayScrapeToken)),
+        .with_scrape_token(Arc::new(ReplayScrapeToken))
+        // The webhook's second budget, counted in `t_rate_window` as `main` composes it: the tracker webhook's
+        // recordings write that row (wave 2, tickets).
+        // On the clock that runs while the router answers, as the in-memory buckets do: a flood of three hundred
+        // deliveries, compared table by table between two of them, crossed a minute's window the suite's did not.
+        .with_shared_webhook_window(vectispire_cp_access::rate_windows::shared_webhook_window(
+            vectispire_cp_access::SqlSignInStore::new(db.clone()),
+            Arc::new(AnsweringClock { since: time::OffsetDateTime::now_utc(), time: time.clone() }),
+        )),
     );
     routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }

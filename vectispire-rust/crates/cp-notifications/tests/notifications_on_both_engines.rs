@@ -339,8 +339,10 @@ async fn nothing_notable_queues_nothing(world: &World) -> Check {
 async fn a_token_alert_is_queued_for_its_audit_and_each_channel(world: &World) -> Check {
     set(world, Setting::WebhookUrl, "https://hooks.example/a").await;
     set(world, Setting::SlackWebhookUrl, "https://slack.example/a").await;
+    // Teams configured — its switch and its URL — after the governor switched it off: queued nothing.
     switch(world, NotificationChannelKind::Teams, false).await;
     set(world, Setting::TeamsEnabled, "true").await;
+    set(world, Setting::TeamsWebhookUrl, "https://teams.example/a").await;
     let alerts = TokenAlerts::new(
         Arc::new(Outbox::on_database(
             world.db.clone(),
@@ -432,7 +434,7 @@ async fn the_test_button_refuses_in_java_s_order(world: &World) -> Check {
         service.channels_status().await.map_err(|e| e.to_string())?.into_iter().map(|status| status.kind).collect();
     ensure_eq!(
         listed,
-        vec!["scan_delta", "scan_delta_teams", "scan_delta_slack", "scan_delta_mail"],
+        vec!["scan_delta_mail", "scan_delta", "scan_delta_slack", "scan_delta_teams"],
         "a switched-off channel is not offered"
     );
     Ok(())
