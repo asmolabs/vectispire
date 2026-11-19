@@ -8,12 +8,13 @@
 //! goes on.
 
 use crate::container_paths;
+use crate::dependencies::RunContainers;
 use crate::jackson;
 use crate::output::{self, children, index, path, text_or_none};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::Path;
-use vectispire_container::{ContainerResult, ContainerRun, ContainerRunner, Mount};
+use vectispire_container::{ContainerResult, ContainerRun, Mount};
 
 /// What the containers are labelled, and what an error names.
 pub const LABEL: &str = "checkov (IaC analysis)";
@@ -50,6 +51,7 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
         LABEL,
     )
     .running_as_owner_of(workspace_root)
+    .with_entrypoint(crate::images::CHECKOV_ENTRYPOINT)
 }
 
 /// What the IaC step makes of the container's result: the findings, or `None` — absent.
@@ -119,7 +121,7 @@ fn is_bare_summary(payload: &Value) -> bool {
 
 /// The IaC findings of the workspace at `workspace_root`, `None` when the checker failed.
 pub async fn scan(
-    runner: &ContainerRunner,
+    runner: &impl RunContainers,
     workspace_root: &Path,
     sub_path: Option<&str>,
     image: &str,

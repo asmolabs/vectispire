@@ -253,6 +253,26 @@ impl PluginExecutor for ContainerRunner {
     }
 }
 
+/// Whichever executor the agent chose (decision 0045): Docker runs the plugin; one that does not run plugins yet
+/// refuses it, and the step is absent with that sentence.
+impl PluginExecutor for vectispire_container::Executor {
+    fn output_bytes(&self) -> u64 {
+        vectispire_container::Executor::output_bytes(self)
+    }
+
+    fn run_with(
+        &self,
+        run: &ContainerRun,
+        extras: &Extras,
+    ) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send {
+        vectispire_container::Executor::run_with(self, run, extras)
+    }
+
+    fn registry_access_for(&self, reference: &str) -> RegistryAccess {
+        vectispire_container::Executor::registry_access_for(self, reference)
+    }
+}
+
 /// A borrowed executor runs the same way — the runner the scan already holds, lent to its plugins.
 impl<E: PluginExecutor> PluginExecutor for &E {
     fn output_bytes(&self) -> u64 {

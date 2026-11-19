@@ -10,15 +10,25 @@ pub struct Mount {
     pub target: String,
     /// Explicit, and true wherever it can be.
     pub read_only: bool,
+    /// For a writable mount, how much the tool may write into it; 0 for the executor's own ceiling — `writableBytes`.
+    /// Docker binds the directory and reads nothing of it; the Kubernetes executor copies the mount back over its
+    /// exec stream and sizes the pod's volume by it (decision 0045), where the matcher's download (some 3 GB) would
+    /// otherwise be refused at the output ceiling.
+    pub writable_bytes: u64,
 }
 
 impl Mount {
     pub fn read_only(source: impl Into<String>, target: impl Into<String>) -> Mount {
-        Mount { source: source.into(), target: target.into(), read_only: true }
+        Mount { source: source.into(), target: target.into(), read_only: true, writable_bytes: 0 }
     }
 
     pub fn writable(source: impl Into<String>, target: impl Into<String>) -> Mount {
-        Mount { source: source.into(), target: target.into(), read_only: false }
+        Mount { source: source.into(), target: target.into(), read_only: false, writable_bytes: 0 }
+    }
+
+    /// A writable mount the tool may fill with up to `bytes`, past the executor's output ceiling.
+    pub fn writable_sized(source: impl Into<String>, target: impl Into<String>, bytes: u64) -> Mount {
+        Mount { source: source.into(), target: target.into(), read_only: false, writable_bytes: bytes }
     }
 
     /// As a bind: `:rw` written out, as docker-java writes it — the daemon reads both the same, and
@@ -45,6 +55,12 @@ pub struct ContainerRun {
     /// `uid:gid` to run as — set for a tool that writes into a mount, so that what it writes is the
     /// agent's to delete.
     pub user: Option<String>,
+    /// The program the image runs, **declared** beside its pinned digest (`ScannerImages.*_ENTRYPOINT`) — `None` for
+    /// a run that declares none. Docker ignores it and runs the image's own entrypoint. The Kubernetes executor needs
+    /// it: it wraps the tool in a shell that sends its standard output to a file (decision 0045 §4), and that wrapper
+    /// has to name the program Docker would have prepended. Undeclared, the image's entrypoint runs unwrapped, and
+    /// its standard output is not captured — read as absent, never as empty.
+    pub entrypoint: Option<Vec<String>>,
 }
 
 impl ContainerRun {
@@ -63,7 +79,14 @@ impl ContainerRun {
             as_root: false,
             timeout: None,
             user: None,
+            entrypoint: None,
         }
+    }
+
+    /// With the image's entrypoint declared: what the Kubernetes executor's wrapper runs before the command.
+    #[must_use]
+    pub fn with_entrypoint(self, entrypoint: &[&str]) -> ContainerRun {
+        ContainerRun { entrypoint: Some(entrypoint.iter().map(|part| (*part).to_owned()).collect()), ..self }
     }
 
     /// As the owner of `directory` — `runningAsOwnerOf`: the workspace is 0700 and owned by the

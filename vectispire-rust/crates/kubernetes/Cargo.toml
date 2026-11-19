@@ -1,0 +1,33 @@
+[package]
+name = "vectispire-kubernetes"
+description = "The agent's Kubernetes executor (decision 0045): each scanner run a pod in a namespace of its own, reached over the API server with no client library. Linked by the agent alone, never by the control plane."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64.workspace = true
+rand_core.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync", "time", "io-util", "rt"] }
+tracing.workspace = true
+vectispire-container.workspace = true
+vectispire-domain.workspace = true
+vectispire-tls.workspace = true
+
+[dev-dependencies]
+base64.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+vectispire-scanners.workspace = true
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

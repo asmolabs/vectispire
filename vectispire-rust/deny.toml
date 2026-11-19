@@ -157,6 +157,11 @@ deny = [
         "vectispire-cp-threatintel",
         "vectispire-cp-tickets",
     ], reason = "the agent opens no port; the control plane's crates may" },
+    # Decision 0045 §1: the Kubernetes executor starts pods in a customer's cluster, and the control plane holds
+    # ENCRYPTION_KEY — a credential that starts pods beside it would let a compromise of it run arbitrary images in the
+    # cluster with the key in hand. The agent alone links the executor; cp-arch-tests' edge list refuses it to every
+    # module besides.
+    { crate = "vectispire-kubernetes", wrappers = ["vectispire-agent"], reason = "decision 0045: the control plane never gets the Kubernetes executor" },
     { crate = "actix-web", reason = "the agent opens no port" },
     { crate = "warp", reason = "the agent opens no port" },
     { crate = "rocket", reason = "the agent opens no port" },

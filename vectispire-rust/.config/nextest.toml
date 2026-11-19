@@ -20,9 +20,10 @@ slow-timeout = { period = "120s", terminate-after = 15 }
 
 # **The longest first**: the suites that start the published Java control plane, or the Rust one's binary, take one
 # to three minutes each where the rest take seconds — started last, they would be the run's tail. (Holding them to
-# one at a time was tried: two minutes longer, since the waits they spend on a container start overlap well.)
+# one at a time was tried: two minutes longer, since the waits they spend on a container start overlap well.) The
+# Kubernetes executor's suite starts k3s three times and pulls the scanners' images into it: minutes too.
 [[profile.default.overrides]]
-filter = "binary(against_a_control_plane) | binary(against_java) | binary(across_the_switch) | binary(worker_runs_a_scan)"
+filter = "binary(against_a_control_plane) | binary(against_java) | binary(across_the_switch) | binary(worker_runs_a_scan) | binary(on_k3s)"
 priority = 100
 
 # Then the suites on both engines, each tens of seconds: whole binaries, and the tests named for an engine elsewhere.

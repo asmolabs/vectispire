@@ -11,14 +11,27 @@ pub const SCANNER_LABEL: &str = "dev.vectispire.scanner";
 
 /// Where a scanner may write: the root is read-only, so this is all of it — a tmpfs, counted against
 /// the memory limit, so one budget rather than two.
-const SCRATCH_MEGABYTES: u32 = 512;
+pub const SCRATCH_MEGABYTES: u32 = 512;
 
 /// A writable `HOME`: several scanner images set none, and a cache written under `/` against a
 /// read-only root fails the scan outright.
-const SCRATCH_HOME: &str = "/home/scanner";
+pub const SCRATCH_HOME: &str = "/home/scanner";
 
 /// Where the vulnerability database is mounted, for the one scanner that has one.
 pub const DATABASE_CACHE_MOUNT: &str = "/cache";
+
+/// The environment every scanner container starts with, whatever runs it — this create request, or the pod the
+/// Kubernetes executor builds (decision 0045): one list, so the two backends cannot drift. `SCANNER_ENVIRONMENT`.
+pub const SCANNER_ENVIRONMENT: [(&str, &str); 6] = [
+    ("HOME", SCRATCH_HOME),
+    ("TMPDIR", "/tmp"),
+    ("XDG_CACHE_HOME", "/home/scanner/.cache"),
+    // Set for every container although only the matcher reads them: the next image added will not announce what it
+    // caches where.
+    ("GRYPE_DB_CACHE_DIR", DATABASE_CACHE_MOUNT),
+    ("GRYPE_DB_AUTO_UPDATE", "false"),
+    ("GRYPE_CHECK_FOR_APP_UPDATE", "false"),
+];
 
 /// Every capability the Java runner drops, in its order: `ALL`, then docker-java's
 /// `Capability.values()` one by one. The daemon reads `ALL` alone the same way; the list is kept
@@ -100,19 +113,7 @@ pub fn create_body(run: &ContainerRun, limits: &ScannerLimits) -> ContainerCreat
         image: Some(run.image.clone()),
         cmd: Some(run.command.clone()),
         labels: Some(HashMap::from([(SCANNER_LABEL.to_owned(), run.label.clone())])),
-        env: Some(
-            [
-                format!("HOME={SCRATCH_HOME}"),
-                "TMPDIR=/tmp".to_owned(),
-                format!("XDG_CACHE_HOME={SCRATCH_HOME}/.cache"),
-                // Set for every container although only the matcher reads them: the next image added
-                // will not announce what it caches where.
-                format!("GRYPE_DB_CACHE_DIR={DATABASE_CACHE_MOUNT}"),
-                "GRYPE_DB_AUTO_UPDATE=false".to_owned(),
-                "GRYPE_CHECK_FOR_APP_UPDATE=false".to_owned(),
-            ]
-            .into(),
-        ),
+        env: Some(SCANNER_ENVIRONMENT.iter().map(|(name, value)| format!("{name}={value}")).collect()),
         // docker-java sends both as empty objects; the daemon reads them as absent.
         exposed_ports: Some(HashMap::new()),
         volumes: Some(HashMap::new()),

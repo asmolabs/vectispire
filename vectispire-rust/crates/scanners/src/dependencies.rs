@@ -22,7 +22,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use vectispire_container::{ContainerResult, ContainerRun, ContainerRunner, Mount, RunnerError};
+use vectispire_container::{ContainerResult, ContainerRun, ContainerRunner, Executor, Mount, RunnerError};
 
 /// Where the vulnerability database is mounted in the matcher's container — `ContainerPaths.DATABASE_CACHE`,
 /// which is the runner's `GRYPE_DB_CACHE_DIR` (a test reads the create request to keep the two equal).
@@ -228,6 +228,13 @@ impl RunContainers for ContainerRunner {
     }
 }
 
+/// The agent's executor, whichever backend it is (decision 0045).
+impl RunContainers for Executor {
+    fn run(&self, run: &ContainerRun) -> impl Future<Output = Result<ContainerResult, RunnerError>> + Send {
+        Executor::run(self, run)
+    }
+}
+
 /// Pulls an image for one platform and writes it to an archive — `ContainerRunner.exportImage`.
 ///
 /// **Vectispire pulls it, the container does not**: the cataloguer sees a file, and the socket is never
@@ -244,6 +251,14 @@ pub trait ExportImages: Send + Sync {
 impl ExportImages for ContainerRunner {
     async fn export_image(&self, reference: &str, platform: &str, destination: &Path) -> Result<(), ScannerError> {
         ContainerRunner::export_image(self, reference, platform, destination)
+            .await
+            .map_err(|error| ScannerError::of(&image_sbom_label(reference), error.to_string()))
+    }
+}
+
+impl ExportImages for Executor {
+    async fn export_image(&self, reference: &str, platform: &str, destination: &Path) -> Result<(), ScannerError> {
+        Executor::export_image(self, reference, platform, destination)
             .await
             .map_err(|error| ScannerError::of(&image_sbom_label(reference), error.to_string()))
     }
@@ -267,6 +282,7 @@ pub fn directory_sbom_request(workspace_root: &Path, sub_path: Option<&str>, ima
         DIRECTORY_SBOM_LABEL,
     )
     .running_as_owner_of(workspace_root)
+    .with_entrypoint(crate::images::SYFT_ENTRYPOINT)
 }
 
 /// What an image inventory's container is labelled.
@@ -288,6 +304,7 @@ pub fn image_sbom_request(workspace_root: &Path, reference: &str, image: &str) -
         image_sbom_label(reference),
     )
     .running_as_owner_of(workspace_root)
+    .with_entrypoint(crate::images::SYFT_ENTRYPOINT)
 }
 
 /// The match of the SBOM staged in `mounted` against the database `generation`.
@@ -307,6 +324,7 @@ pub fn match_request(mounted: &Path, generation: &Path, image: &str, label: &str
         label,
     )
     .running_as_owner_of(mounted)
+    .with_entrypoint(crate::images::GRYPE_ENTRYPOINT)
 }
 
 /// Takes the inventory of the workspace's tree — `sbomOfDirectory`. `Ok(None)` when the cataloguer

@@ -113,6 +113,14 @@ tasks.named("check") {
  */
 tasks.named<Test>("test") {
     useJUnitPlatform { excludeTags("kubernetes") }
+    // The Rust agent's Kubernetes executor is held to this side's answers — `vectispire-rust/reference/kubernetes/`,
+    // written and checked by `KubernetesReferenceSetTest` and `ExecutorChoiceReferenceSetTest` as `vectispire-common`'s
+    // sets are by its own: checked on every build, regenerated with `-Dvectispire.rust.reference.write=true`.
+    systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)
+    systemProperty(
+        "vectispire.rust.reference.write",
+        providers.systemProperty("vectispire.rust.reference.write").getOrElse("false"))
+    inputs.dir(rootProject.file("../vectispire-rust/reference/kubernetes")).withPropertyName("kubernetesReferenceSet")
 }
 
 val kubernetesTest = tasks.register<Test>("kubernetesTest") {

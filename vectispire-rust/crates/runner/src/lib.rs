@@ -27,6 +27,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+pub use vectispire_container::Executor;
 use vectispire_container::{ContainerRunner, ScannerLimits};
 pub use vectispire_domain::FailureKind;
 pub use vectispire_git::WithoutKey;
@@ -180,9 +181,9 @@ impl Default for Options {
 
 /// What every scan of this process shares — the runner used by both the agent and the built-in worker.
 pub struct Runner {
-    containers: Arc<ContainerRunner>,
+    containers: Arc<Executor>,
     images: Images,
-    database: VulnerabilityDatabase<ContainerRunner>,
+    database: VulnerabilityDatabase<Executor>,
     placement: RulePlacement,
     /// Kept for as long as the process runs: its drop removes the materialised tree. `None` when the operator named
     /// a directory of their own, which is theirs and is never removed.
@@ -230,21 +231,26 @@ impl Runner {
         options: Options,
     ) -> Result<Runner, String> {
         let limits = ScannerLimits::default_for_this_host();
-        // The pulls' credentials, read once as docker-java reads them for the Java runner: `DOCKER_CONFIG`, else
-        // `.docker` under the home. One that cannot be read stops the start, rather than every private pull — and
-        // every plugin signature kept in a private registry — failing as "anonymous" later.
-        let docker_config = std::env::var("DOCKER_CONFIG")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-            .map_or_else(|| places.home.join(".docker"), PathBuf::from);
-        let credentials = vectispire_container::pull_credentials::DockerConfig::load(&docker_config)
-            .map_err(|error| error.to_string())?;
-        let containers = Arc::new(
-            ContainerRunner::connect(None, limits).map_err(|error| error.to_string())?.with_docker_config(credentials),
-        );
-        let root = vulnerability_root.unwrap_or_else(|| places.work.join("vectispire-vulnerability-db"));
-        let database =
-            VulnerabilityDatabase::with_defaults(containers.clone(), images.grype.clone(), &root, limits.timeout);
+        let docker = ContainerRunner::for_scans(&places.home, limits)?;
+        Runner::with_executor(rule_provider, images, places, vulnerability_root, trust, options, Executor::new(docker))
+    }
+
+    /// The same, running its scanners on `executor` — the agent's choice of Docker or Kubernetes (decision 0045). The
+    /// control plane's built-in worker never comes here with anything but Docker: it holds the encryption key, and
+    /// the Kubernetes executor is not in its graph.
+    pub fn with_executor(
+        rule_provider: Option<Arc<dyn RuleProvider>>,
+        images: Images,
+        places: Places,
+        vulnerability_root: Option<PathBuf>,
+        trust: TlsTrust,
+        options: Options,
+        executor: Executor,
+    ) -> Result<Runner, String> {
+        let timeout = executor.scanner_timeout();
+        let containers = Arc::new(executor);
+        let root = database_root(&places, vulnerability_root);
+        let database = VulnerabilityDatabase::with_defaults(containers.clone(), images.grype.clone(), &root, timeout);
         // Unpacked from the binary, as Java unpacks them from its jar: no rules directory ships beside it, and one
         // read from the current directory would be whatever is there. An operator's directory is taken as named,
         // as `ScanningConfiguration.bundledRules` takes it — read at each scan, so a missing one fails the scans.
@@ -286,11 +292,12 @@ impl Runner {
         self.containers.why_unavailable().await
     }
 
-    /// Whether this runner scans container images — `ContainerExecutor.exportsImages`, true for the Docker backend.
-    /// What the worker's executor announces (`ScanDispatcher.probe`): the agents screen lists `container` among the
-    /// targets it serves only when this says so.
+    /// Whether this runner scans container images — `ContainerExecutor.exportsImages`: true for the Docker backend,
+    /// false for the Kubernetes one until its copy step is built (decision 0045 §8). What the worker's executor
+    /// announces (`ScanDispatcher.probe`): the agents screen lists `container` among the targets it serves only when
+    /// this says so, and the claim hands it no image otherwise.
     pub fn exports_images(&self) -> bool {
-        true
+        self.containers.exports_images()
     }
 
     pub async fn run(&self, task: ScanTask) -> Result<ScanArtifacts, ExecutionFailure> {
@@ -340,14 +347,14 @@ impl Runner {
             .map_err(|error| transient(format!("the bundled rules could not be placed: {error}")))?;
 
         if task.runs(Step::Secrets) {
-            match secrets::scan(&self.containers, &workspace.root, sub, &self.images.gitleaks).await {
+            match secrets::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.gitleaks).await {
                 Ok(Some(found)) => artifacts.secrets = findings(&found),
                 Ok(None) => artifacts.failed("secrets", SECRETS_ABSENT),
                 Err(error) => artifacts.failed("secrets", error.to_string()),
             }
         }
         if task.runs(Step::Iac) {
-            match iac::scan(&self.containers, &workspace.root, sub, &self.images.checkov).await {
+            match iac::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.checkov).await {
                 Some(found) => artifacts.iac = findings(&found),
                 None => artifacts.failed("IaC", IAC_ABSENT),
             }
@@ -475,10 +482,17 @@ impl Runner {
         self.placement
             .place_rule_set(&workspace.rules, hash, Some(&provider), RulePlacement::environment_directory().as_deref())
             .map_err(|error| error.to_string())?;
-        sast::scan(&self.containers, &workspace.root, sub, &self.images.semgrep)
+        sast::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.semgrep)
             .await
             .map_err(|error| error.to_string())
     }
+}
+
+/// Where the matcher's database is kept for every scan: `VECTISPIRE_VULNERABILITY_DB_DIR`, or a directory beside the
+/// workspaces. The Kubernetes executor serves this root's generations to scan pods from its cache volume, so the agent
+/// asks it here rather than computing it a second time.
+pub fn database_root(places: &Places, configured: Option<PathBuf>) -> PathBuf {
+    configured.unwrap_or_else(|| places.work.join("vectispire-vulnerability-db"))
 }
 
 /// A step's findings as the protocol carries them, each written as the Java agent's mapper writes it.

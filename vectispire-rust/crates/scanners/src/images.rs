@@ -19,3 +19,19 @@ pub const CHECKOV: &str = "bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da
 
 /// The source analyser.
 pub const SEMGREP: &str = "semgrep/semgrep@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8";
+
+// **What each image runs, declared beside its digest** — `ScannerImages.*_ENTRYPOINT`. Docker ignores these and runs
+// the image's own; the Kubernetes executor wraps the tool in a shell that sends its standard output to a file (decision
+// 0045 §4), and the wrapper has to name the program Docker would have prepended. Java's `ScannerEntrypointsTest` holds
+// each to the pinned image's configuration; a digest changed here without its entrypoint fails on a cluster only.
+
+/// syft's: its binary at the root.
+pub const SYFT_ENTRYPOINT: &[&str] = &["/syft"];
+/// grype's: its binary at the root.
+pub const GRYPE_ENTRYPOINT: &[&str] = &["/grype"];
+/// gitleaks': the binary on its `PATH`.
+pub const GITLEAKS_ENTRYPOINT: &[&str] = &["gitleaks"];
+/// checkov's: the image's script, which runs `checkov` with the arguments.
+pub const CHECKOV_ENTRYPOINT: &[&str] = &["/entrypoint.sh"];
+/// semgrep's: none — the image has no entrypoint, and the command starts with `semgrep`.
+pub const SEMGREP_ENTRYPOINT: &[&str] = &[];

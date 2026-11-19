@@ -15,17 +15,21 @@
 
 mod body;
 pub mod bounded_output;
+mod executor;
 mod limits;
 pub mod pull_credentials;
 mod run;
 mod run_with;
 mod runner;
 
-pub use body::{SCANNER_LABEL, create_body};
+pub use body::{
+    DATABASE_CACHE_MOUNT, SCANNER_ENVIRONMENT, SCANNER_LABEL, SCRATCH_HOME, SCRATCH_MEGABYTES, create_body,
+};
+pub use executor::{BoxFuture, ContainerExecutor, Executor};
 pub use limits::ScannerLimits;
 pub use pull_credentials::{RegistryAccess, registry_of};
 pub use run::{ContainerRun, Mount, owner_of};
 pub use run_with::{
     ExtendedError, ExtendedResult, Extras, REGISTRY_LOGIN_MOUNT, RegistryLogin, holder_body, tool_body,
 };
-pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError};
+pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError, STDERR_BYTES};

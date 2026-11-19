@@ -43,7 +43,8 @@ MUTANTS = [
     # The flag feeds the executor's announcement only (`dispatcher::probe`, as Java's `ScanDispatcher.probe`), not the
     # claim: the started image scan completes either way, so it is held by the runner's own test.
     ("the executor announces no image", RUNNER,
-     "    pub fn exports_images(&self) -> bool {\n        true", "    pub fn exports_images(&self) -> bool {\n        false",
+     "    pub fn exports_images(&self) -> bool {\n        self.containers.exports_images()",
+     "    pub fn exports_images(&self) -> bool {\n        false",
      UNIT),
     ("an image's SBOM is dropped", RUNNER,
      "        if let Some(sbom) = sbom {\n            artifacts.sbom = raw(&sbom);\n        }\n        match step {",

@@ -1,0 +1,200 @@
+{
+  "probeTargets" : [ {
+    "configured" : "",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "10.43.0.1:443",
+    "host" : "10.43.0.1",
+    "port" : 443
+  }, {
+    "configured" : "",
+    "cluster" : "https://[fd00::1]:6443",
+    "target" : "[fd00::1]:6443",
+    "host" : "fd00::1",
+    "port" : 6443
+  }, {
+    "configured" : "10.43.0.1:443",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "10.43.0.1:443",
+    "host" : "10.43.0.1",
+    "port" : 443
+  }, {
+    "configured" : "[fd00::1]:443",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "[fd00::1]:443",
+    "host" : "fd00::1",
+    "port" : 443
+  }, {
+    "configured" : "fd00::1:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"fd00::1:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "[fd00::1]",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"[fd00::1]\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "10.43.0.1",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"10.43.0.1\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "kubernetes.default.svc:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"kubernetes.default.svc:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "10.43.0.1:0",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"10.43.0.1:0\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "10.43.0.1:65535",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "10.43.0.1:65535",
+    "host" : "10.43.0.1",
+    "port" : 65535
+  }, {
+    "configured" : "10.43.0.1:65536",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"10.43.0.1:65536\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "10.43.0.1:+443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"10.43.0.1:+443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "10.43.0.1:0443",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "10.43.0.1:0443",
+    "host" : "10.43.0.1",
+    "port" : 443
+  }, {
+    "configured" : "1.2.3.4:123456",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"1.2.3.4:123456\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "1.2.3.4:٤٤٣",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"1.2.3.4:٤٤٣\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "1000.1.1.1:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"1000.1.1.1:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "1.2.3:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"1.2.3:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "[fd00::g]:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"[fd00::g]:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "[1.2.3.4]:443",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "[1.2.3.4]:443",
+    "host" : "1.2.3.4",
+    "port" : 443
+  }, {
+    "configured" : "[]:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"[]:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : ":443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \":443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "1.2.3.4:",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"1.2.3.4:\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "١.2.3.4:443",
+    "cluster" : "https://10.43.0.1:443",
+    "refused" : "vectispire.agent.executor.kubernetes.probe-target is \"١.2.3.4:443\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start."
+  }, {
+    "configured" : "[::ffff:1.2.3.4]:80",
+    "cluster" : "https://10.43.0.1:443",
+    "target" : "[::ffff:1.2.3.4]:80",
+    "host" : "::ffff:1.2.3.4",
+    "port" : 80
+  } ],
+  "placements" : [ {
+    "text" : "",
+    "placement" : { }
+  }, {
+    "text" : "{}",
+    "placement" : { }
+  }, {
+    "text" : "{\"nodeSelector\": {\"a\": \"b\"}}",
+    "placement" : {
+      "nodeSelector" : {
+        "a" : "b"
+      }
+    }
+  }, {
+    "text" : "[]",
+    "refused" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start."
+  }, {
+    "text" : "\"x\"",
+    "refused" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start."
+  }, {
+    "text" : "{",
+    "refused" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start."
+  }, {
+    "text" : "null",
+    "refused" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start."
+  }, {
+    "text" : "1",
+    "refused" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start."
+  }, {
+    "text" : "{\"hostPID\": true}",
+    "placement" : {
+      "hostPID" : true
+    }
+  }, {
+    "text" : "{} {}",
+    "placement" : { }
+  }, {
+    "text" : " {\"tolerations\": []} ",
+    "placement" : {
+      "tolerations" : [ ]
+    }
+  } ],
+  "kinds" : [ {
+    "configured" : "",
+    "kind" : "docker"
+  }, {
+    "configured" : "docker",
+    "kind" : "docker"
+  }, {
+    "configured" : " Docker ",
+    "kind" : "docker"
+  }, {
+    "configured" : "KUBERNETES",
+    "kind" : "kubernetes"
+  }, {
+    "configured" : "podman",
+    "kind" : "podman",
+    "refused" : "vectispire.agent.executor.kind (VECTISPIRE_AGENT_EXECUTOR) is \"podman\": docker or kubernetes. The agent does not start."
+  }, {
+    "configured" : "kubernetes ",
+    "kind" : "kubernetes"
+  } ],
+  "noNamespace" : "vectispire.agent.executor.kubernetes.namespace (VECTISPIRE_SCANS_NAMESPACE) is required with the Kubernetes executor: the namespace whose Role this agent holds. The agent does not start.",
+  "placementNotAnObject" : "vectispire.agent.executor.kubernetes.placement (VECTISPIRE_KUBERNETES_PLACEMENT) is a JSON object of nodeSelector, tolerations and affinity. The agent does not start.",
+  "resources" : [ {
+    "cpuMillis" : 2000,
+    "memoryMiB" : 2048,
+    "refused" : null
+  }, {
+    "cpuMillis" : 0,
+    "memoryMiB" : 2048,
+    "refused" : "vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are positive: a scan pod with no limit is not in the closed shape. The agent does not start."
+  }, {
+    "cpuMillis" : 2000,
+    "memoryMiB" : 0,
+    "refused" : "vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are positive: a scan pod with no limit is not in the closed shape. The agent does not start."
+  }, {
+    "cpuMillis" : -1,
+    "memoryMiB" : -1,
+    "refused" : "vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are positive: a scan pod with no limit is not in the closed shape. The agent does not start."
+  }, {
+    "cpuMillis" : 1,
+    "memoryMiB" : 1,
+    "refused" : null
+  } ]
+}

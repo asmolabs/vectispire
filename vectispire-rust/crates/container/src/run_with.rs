@@ -76,6 +76,18 @@ pub enum ExtendedError {
 }
 
 impl ContainerRunner {
+    /// The Docker runner a scan uses, its pulls' credentials read once as docker-java reads them for the Java runner:
+    /// `DOCKER_CONFIG`, else `.docker` under `home`. One that cannot be read stops the start, rather than every private
+    /// pull — and every plugin signature kept in a private registry — failing as "anonymous" later.
+    pub fn for_scans(home: &std::path::Path, limits: crate::ScannerLimits) -> Result<ContainerRunner, String> {
+        let docker_config = std::env::var("DOCKER_CONFIG")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .map_or_else(|| home.join(".docker"), std::path::PathBuf::from);
+        let credentials = pull_credentials::DockerConfig::load(&docker_config).map_err(|error| error.to_string())?;
+        Ok(ContainerRunner::connect(None, limits).map_err(|error| error.to_string())?.with_docker_config(credentials))
+    }
+
     /// This runner, its pulls and its registry logins sending what `config` holds — read once, as docker-java reads
     /// the Java runner's configuration when its client is built.
     pub fn with_docker_config(mut self, config: pull_credentials::DockerConfig) -> ContainerRunner {

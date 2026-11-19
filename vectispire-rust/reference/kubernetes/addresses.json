@@ -1,0 +1,276 @@
+[ {
+  "host" : "10.43.0.1",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://10.43.0.1:443"
+}, {
+  "host" : "10.43.0.1",
+  "port" : "6443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://10.43.0.1:6443"
+}, {
+  "host" : " 10.43.0.1 ",
+  "port" : " 443 ",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://10.43.0.1:443"
+}, {
+  "host" : null,
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "The Kubernetes executor runs in a pod: KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT are not set."
+}, {
+  "host" : "10.43.0.1",
+  "port" : null,
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "The Kubernetes executor runs in a pod: KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT are not set."
+}, {
+  "host" : "",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "The Kubernetes executor runs in a pod: KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT are not set."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "  ",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "The Kubernetes executor runs in a pod: KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT are not set."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "abc",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_PORT (abc) is not a port number. The agent does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "0",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_PORT (0) is not a port number. The agent does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "65536",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_PORT (65536) is not a port number. The agent does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "+443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://10.43.0.1:443"
+}, {
+  "host" : "10.43.0.1",
+  "port" : "٤٤٣",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://10.43.0.1:443"
+}, {
+  "host" : "10.43.0.1",
+  "port" : "-1",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_PORT (-1) is not a port number. The agent does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "10.0.0.9",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_HOST (10.0.0.9, resolving to 10.0.0.9) is not the address of the cluster's API server, kubernetes.default.svc (10.43.0.1). The agent does not send its service account's token there and does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "api.internal",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_HOST (api.internal, resolving to 10.43.0.1, 10.0.0.9) is not the address of the cluster's API server, kubernetes.default.svc (10.43.0.1). The agent does not send its service account's token there and does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "only-service.internal",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://only-service.internal:443"
+}, {
+  "host" : "kubernetes.default.svc",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "uri" : "https://kubernetes.default.svc:443"
+}, {
+  "host" : "unknown.internal",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_HOST (unknown.internal) does not resolve. The agent does not start."
+}, {
+  "host" : "empty.internal",
+  "port" : "443",
+  "dns" : {
+    "10.0.0.9" : [ "10.0.0.9" ],
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "api.internal" : [ "10.43.0.1", "10.0.0.9" ],
+    "empty.internal" : [ ],
+    "kubernetes.default.svc" : [ "10.43.0.1" ],
+    "only-service.internal" : [ "10.43.0.1" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_HOST (empty.internal) does not resolve. The agent does not start."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "443",
+  "dns" : {
+    "10.43.0.1" : [ "10.43.0.1" ]
+  },
+  "refused" : "the cluster's DNS does not answer for kubernetes.default.svc, which the agent checks the API server's address against. The agent does not start."
+}, {
+  "host" : "10.43.0.1",
+  "port" : "443",
+  "dns" : {
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "kubernetes.default.svc" : [ ]
+  },
+  "refused" : "the cluster's DNS does not answer for kubernetes.default.svc, which the agent checks the API server's address against. The agent does not start."
+}, {
+  "host" : "fd00::1",
+  "port" : "443",
+  "dns" : {
+    "fd00::1" : [ "fd00::1" ],
+    "kubernetes.default.svc" : [ "fd00::1" ]
+  },
+  "uri" : "https://[fd00::1]:443"
+}, {
+  "host" : "fd00::1",
+  "port" : "443",
+  "dns" : {
+    "fd00::1" : [ "fd00::1" ],
+    "kubernetes.default.svc" : [ "fd00:0:0:0:0:0:0:2" ]
+  },
+  "refused" : "KUBERNETES_SERVICE_HOST (fd00::1, resolving to fd00:0:0:0:0:0:0:1) is not the address of the cluster's API server, kubernetes.default.svc (fd00:0:0:0:0:0:0:2). The agent does not send its service account's token there and does not start: a variable of that name in the pod's spec replaces the kubelet's — remove it from agents.extraEnv."
+}, {
+  "host" : "[fd00::1]",
+  "port" : "443",
+  "dns" : {
+    "[fd00::1]" : [ "fd00::1" ],
+    "kubernetes.default.svc" : [ "fd00::1" ]
+  },
+  "uri" : "https://[fd00::1]:443"
+}, {
+  "host" : "10.43.0.1",
+  "port" : "443",
+  "dns" : {
+    "10.43.0.1" : [ "10.43.0.1" ],
+    "kubernetes.default.svc" : [ "10.43.0.1", "fd00::1" ]
+  },
+  "uri" : "https://10.43.0.1:443"
+} ]

@@ -52,9 +52,10 @@ pub fn read(content: &str) -> Option<Vec<SecretFinding>> {
 
 // -------------------------------------------------------------------------------------- the run
 
+use crate::dependencies::RunContainers;
 use crate::failure::ScannerError;
 use std::path::Path;
-use vectispire_container::{ContainerRun, ContainerRunner, Mount};
+use vectispire_container::{ContainerRun, Mount};
 
 /// The report's name, **at the workspace root and never inside the scanned tree**: it holds every
 /// detected secret in the clear, and leaving it in the tree would hand it to the next step.
@@ -86,6 +87,7 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
         LABEL,
     )
     .running_as_owner_of(workspace_root)
+    .with_entrypoint(crate::images::GITLEAKS_ENTRYPOINT)
 }
 
 /// What the step says when gitleaks exited 0 and its report is not one — `SecretsScanner.scan`'s words.
@@ -103,7 +105,7 @@ gitleaks that could not write the file exits 0 too.";
 /// one — after logging "leaks found: 1" (measured on v8.0.0, v8.8.0 and v8.12.0) — so a missing file
 /// fails the step. The pinned version writes `[]` on a clean tree.
 pub async fn scan(
-    runner: &ContainerRunner,
+    runner: &impl RunContainers,
     workspace_root: &Path,
     sub_path: Option<&str>,
     image: &str,
