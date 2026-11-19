@@ -1,7 +1,0 @@
-# The routes of `threatintel` the Rust control plane does not serve yet — README.md beside this file says the rules.
-ceiling 5
-GET /api/v1/epss/cve/{cveId}
-GET /api/v1/epss/priorities
-GET /api/v1/threat-intel/status
-POST /api/v1/epss/sync
-POST /api/v1/threat-intel/sync

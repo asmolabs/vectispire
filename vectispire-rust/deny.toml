@@ -136,6 +136,7 @@ deny = [
     # crates/agent/tests/isolation.rs forbids it in the agent's graph whatever this says.
     { crate = "axum", wrappers = [
         "vectispire-cp-access",
+        "vectispire-cp-ai",
         "vectispire-cp-agents",
         "vectispire-cp-app",
         "vectispire-cp-checklists",

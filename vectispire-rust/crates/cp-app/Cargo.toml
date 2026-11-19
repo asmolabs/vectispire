@@ -42,6 +42,7 @@ vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-siem = { path = "../cp-siem" }
+vectispire-cp-ai = { path = "../cp-ai" }
 vectispire-cp-threatintel = { path = "../cp-threatintel" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-cp-tickets = { path = "../cp-tickets" }

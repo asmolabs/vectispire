@@ -1,0 +1,37 @@
+[package]
+name = "vectispire-cp-ai"
+description = "The control plane's AI advisor: a vulnerability explained by the configured model, or by the product itself when none answers, within the caller's visibility."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-http.workspace = true
+vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-cp-threatintel = { path = "../cp-threatintel" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+vectispire-cp-contract = { path = "../cp-contract" }
+time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread"] }
+vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-tls = { path = "../tls" }
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
+
+[lints]
+workspace = true

@@ -817,6 +817,20 @@ async fn serve() -> ExitCode {
     access_routes.extend(forges.routes);
     // Threat intelligence (wave 2): the feeds' status, the ranking, a CVE's record and the two syncs.
     access_routes.extend(vectispire_cp_threatintel::routes(threatintel.clone()));
+    // The AI advisor (wave 2): the configured model, through the guard, or the product's own advice.
+    access_routes.extend(vectispire_cp_ai::routes(Arc::new(vectispire_cp_ai::Services::new(
+        vectispire_cp_ai::AiParts {
+            settings: vectispire_cp_settings::Settings::new(db.clone()),
+            integrations: Arc::new(vectispire_cp_app::registry::integrations(&db)),
+            post: vectispire_cp_outbound::OutboundPost::new(
+                guard.clone(),
+                vectispire_cp_outbound::PinnedHttpSender::new(trust.clone()),
+            ),
+            encryption: encryption.clone(),
+            issues: issues.catalog().clone(),
+            feeds: vectispire_cp_threatintel::feeds::ThreatIntel::new(db.clone(), clock.clone()),
+        },
+    ))));
     access_routes.extend(vectispire_cp_app::notifications::routes(&notifications_config, &notification_channels));
     access_routes.extend(tickets.routes());
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(

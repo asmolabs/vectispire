@@ -1087,9 +1087,22 @@ fn phase_three(
         alerts: Arc::new(vectispire_cp_forges::token_watch::AuditedAlerts((*audit_for_access).clone())),
         review_bounds: vectispire_cp_forges::reviews::ReviewBounds::default(),
     }));
+    let issues_catalog_for_ai = issues.catalog().clone();
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(vectispire_cp_forges::routes(forges));
     routes.extend(vectispire_cp_threatintel::routes(threatintel));
+    // The AI advisor as `cp-app` composes it: the settings the recording seeds say whether a model is asked.
+    routes.extend(vectispire_cp_ai::routes(Arc::new(vectispire_cp_ai::Services::new(vectispire_cp_ai::AiParts {
+        settings: Settings::new(db.clone()),
+        integrations: Arc::new(self::integrations(db)),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        encryption: support::encryption(),
+        issues: issues_catalog_for_ai.clone(),
+        feeds: vectispire_cp_threatintel::feeds::ThreatIntel::new(db.clone(), Arc::new(SystemClock)),
+    }))));
     routes.extend(gate.routes());
     routes.extend(posture.routes());
     routes.extend(vectispire_cp_compliance::routes(compliance));

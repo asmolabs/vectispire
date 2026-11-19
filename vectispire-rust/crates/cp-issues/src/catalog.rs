@@ -70,6 +70,14 @@ impl IssueCatalog {
         Ok(row.map(|r| r.to_view()))
     }
 
+    /// `withIdentifier`: every issue carrying this identifier, **whatever the reader may see** — the caller narrows.
+    pub async fn with_identifier(&self, identifier: &str) -> Result<Vec<IssueView>, IssueError> {
+        let mut tx = crate::persistence::read(&self.db).await?;
+        let rows = IssueRepository::find_by_identifier(&mut tx, identifier).await.map_err(IssueError::from)?;
+        crate::persistence::commit(tx).await?;
+        Ok(rows.into_iter().map(|r| r.to_view()).collect())
+    }
+
     pub async fn find_by_ids(&self, ids: &[i64]) -> Result<Vec<IssueView>, IssueError> {
         let mut tx = crate::persistence::read(&self.db).await?;
         let rows = IssueRepository::find_by_ids(&mut tx, ids).await.map_err(IssueError::from)?;

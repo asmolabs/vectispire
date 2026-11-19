@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 191
+ceiling 192
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
@@ -227,3 +227,6 @@ golden api.NotificationChannelSwitchRoutesTest/aDisabledChannelIsNeitherListedNo
 golden api.TicketWebhookInputTest/aFloodIsRefused--301-POST-api_v1_tickets_webhook_github | which limiter refuses the 301st delivery is a matter of time: Java's in-memory bucket was still empty (Retry-After 1); the replay answers slower, the bucket refills one token, and the shared minute window refuses it with the seconds left in its minute. Ended by a replay whose buckets see Java's elapsed time, not their own
 golden api.TicketWebhookAuthRoutesTest/acceptedWhenPresented--002-POST-api_v1_tickets_webhook_github | GitHub's `X-Hub-Signature-256` is an HMAC over the body the recorder hides («sha256:1»), so the replay sends a signature that cannot verify and is refused 401. Ended by the replay recomputing the signature from the seeded secret and the recorded body
 golden api.TrackerRefusalRoutesTest/notPlannedIsNotAFalsePositive--001-POST-api_v1_tickets_webhook_github | GitHub's `X-Hub-Signature-256` is an HMAC over the body the recorder hides («sha256:1»), so the replay sends a signature that cannot verify and is refused 401. Ended by the replay recomputing the signature from the seeded secret and the recorded body
+
+# ── Added on 2026-11-19 (ceiling raised by one): the advisor is served, and this status read a fake model server ──
+golden api.AiProviderSwitchRoutesTest/theProviderOnAnswers--003-GET-api_v1_ai-advisor_status | the model list comes from a fake Ollama the Java test starts on loopback (`HttpServer`), which answered one model; the recorder keeps the request, not that server, so the replay finds nothing at its address and lists the two suggestions, as Java does when the provider does not answer. The listing of a provider's own models is held by cp-ai's tests/advisor.rs, against a fake of its own

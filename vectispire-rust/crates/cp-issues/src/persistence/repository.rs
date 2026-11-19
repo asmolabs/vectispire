@@ -414,6 +414,12 @@ impl IssueRepository {
         Ok(results)
     }
 
+    /// `findByIdentifier`: the issues carrying this identifier, as the engine compares it — MySQL's collation without
+    /// regard to case — in key order.
+    pub async fn find_by_identifier(tx: &mut Tx, identifier: &str) -> Result<Vec<IssueRow>, StoreError> {
+        issue_rows(tx, issues().filter(IssueColumn::Identifier.eq(identifier)).order_by_asc(IssueColumn::Id)).await
+    }
+
     pub async fn find_by_fingerprints(tx: &mut Tx, fingerprints: &[String]) -> Result<Vec<IssueRow>, StoreError> {
         let mut results = Vec::new();
         for chunk in fingerprints.chunks(IN_LIST_BATCH) {

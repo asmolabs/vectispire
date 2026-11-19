@@ -209,14 +209,16 @@ fn the_files_of_the_lists_that_shrink_are_named_after_modules() {
     let config = config();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut problems = Vec::new();
-    let mut read = 0;
+    // Each directory is proved read by its README, which stays when the last list leaves: a floor on the number of
+    // lists read fails as the port succeeds, since the lists only shrink.
+    let mut readmes = 0;
     for (dir, underscore) in [("golden/deferred", true), ("crates/cp-contract/reference/not-yet-ported", false)] {
         for entry in std::fs::read_dir(root.join(dir)).unwrap() {
             let name = entry.unwrap().file_name().to_string_lossy().into_owned();
             if name == "README.md" {
+                readmes += 1;
                 continue;
             }
-            read += 1;
             let Some(stem) = name.strip_suffix(".txt") else {
                 problems.push(format!("{dir}/{name}: not a `.txt` list, nor its README.md"));
                 continue;
@@ -227,6 +229,6 @@ fn the_files_of_the_lists_that_shrink_are_named_after_modules() {
             }
         }
     }
-    assert!(read >= 20, "the lists were read ({read} files)");
+    assert_eq!(readmes, 2, "both directories were read");
     assert_none("the files of the lists that shrink", &problems);
 }

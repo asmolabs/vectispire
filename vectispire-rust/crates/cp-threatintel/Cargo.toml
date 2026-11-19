@@ -36,6 +36,7 @@ vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+vectispire-cp-contract = { path = "../cp-contract" }
 sha2.workspace = true
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }

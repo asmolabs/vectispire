@@ -135,6 +135,30 @@ impl OutboundPost {
         self.send(Method::Post, url, Some(body), policy, label, &headers, None).await.map(|_| ())
     }
 
+    /// `postForResponse(…, headers, timeout)`: a JSON body posted with the caller's headers and its own bound — a model
+    /// answering a chat takes minutes where a webhook's ten seconds would refuse it. The answer's body on a 2xx.
+    pub async fn post_for_response(
+        &self,
+        url: &str,
+        body: &str,
+        policy: OutboundPolicy,
+        label: &str,
+        headers: &[(String, String)],
+        timeout: Duration,
+    ) -> Result<String, PostError> {
+        let destination = self.destination(url, policy, label).await?;
+        let pairs: Vec<(&str, &str)> = headers.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
+        let response = self
+            .sender
+            .send_bounded(Method::Post, &destination, &pairs, Some(body), timeout, label, DEFAULT_MAX_BODY_BYTES, None)
+            .await
+            .map_err(PostError::Failed)?;
+        if response.status / 100 != 2 {
+            return Err(PostError::of_status(label, &response));
+        }
+        Ok(response.body)
+    }
+
     /// `send`: the verb named, the server verified against `trust` when one is pinned — for that request alone and in
     /// place of the runtime's store. The answer's body on a 2xx.
     #[allow(clippy::too_many_arguments)]

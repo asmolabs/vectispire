@@ -404,6 +404,34 @@ fn stand_ins() -> StandIns {
     access.extend(vectispire_cp_app::notifications::routes(&notifications_config, &notification_channels));
     // The tickets' routes, as `main.rs` composes them.
     access.extend(tickets.routes());
+    // Threat intelligence's routes and the advisor's, as `main.rs` composes them.
+    access.extend(vectispire_cp_threatintel::routes(vectispire_cp_app::threatintel::compose(
+        vectispire_cp_app::threatintel::ThreatIntelSetup {
+            db: db_for_access.clone(),
+            guard: OutboundUrlGuard::new(Vec::new()),
+            trust: vectispire_tls::TlsTrust::BuiltIn,
+            locations: vectispire_cp_threatintel::sources::FeedLocations::default(),
+            issues: Arc::new(vectispire_cp_issues::IssueCatalog::new(db_for_access.clone())),
+            targets: targets.clone(),
+            clock: Arc::new(vectispire_cp_targets::SystemClock),
+            events: Arc::new(vectispire_cp_outbox::NotExported),
+            audit: checklist_audit.clone(),
+        },
+    )));
+    access.extend(vectispire_cp_ai::routes(Arc::new(vectispire_cp_ai::Services::new(vectispire_cp_ai::AiParts {
+        settings: vectispire_cp_settings::Settings::new(db_for_access.clone()),
+        integrations: Arc::new(vectispire_cp_app::registry::integrations(&db_for_access)),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        encryption: encryption.clone(),
+        issues: Arc::new(vectispire_cp_issues::IssueCatalog::new(db_for_access.clone())),
+        feeds: vectispire_cp_threatintel::feeds::ThreatIntel::new(
+            db_for_access.clone(),
+            Arc::new(vectispire_cp_targets::SystemClock),
+        ),
+    }))));
     (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access)
 }
 
