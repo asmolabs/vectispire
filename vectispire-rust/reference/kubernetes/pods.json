@@ -1,0 +1,2051 @@
+[ {
+  "name" : "secrets, a writable workspace",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "vectispire-agent_1",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 300,
+    "limits" : {
+      "memory" : 268435456,
+      "nanoCpus" : 500000000,
+      "outputBytes" : 1048576,
+      "timeoutSeconds" : 120
+    },
+    "placement" : { },
+    "cache" : null
+  },
+  "request" : {
+    "image" : "zricethezav/gitleaks@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "label" : "gitleaks",
+    "network" : false,
+    "command" : [ "detect", "--source", "/scan/source" ],
+    "entrypoint" : [ "gitleaks" ],
+    "mounts" : [ {
+      "source" : "/w/scan",
+      "target" : "/scan",
+      "readOnly" : false,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : false,
+    "name" : ""
+  } ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 12345,
+  "timeoutSeconds" : 900,
+  "transfersSeconds" : 0,
+  "podName" : "vs-gitleaks-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-gitleaks-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "vectispire-agent_1",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "gitleaks"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 1800,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "269496377"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "69206016"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "zricethezav/gitleaks@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "gitleaks", "detect", "--source", "/scan/source" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          },
+          "requests" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/scan",
+          "readOnly" : false,
+          "subPath" : "m0"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "1800" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "the matcher, its generation from the cache, on the agent's node",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 180,
+    "limits" : {
+      "memory" : 2147483648,
+      "nanoCpus" : 2000000000,
+      "outputBytes" : 268435456,
+      "timeoutSeconds" : 900
+    },
+    "placement" : {
+      "affinity" : {
+        "nodeAffinity" : {
+          "requiredDuringSchedulingIgnoredDuringExecution" : {
+            "nodeSelectorTerms" : [ {
+              "matchExpressions" : [ {
+                "key" : "pool",
+                "operator" : "In",
+                "values" : [ "scans" ]
+              } ]
+            }, {
+              "matchFields" : [ {
+                "key" : "metadata.name",
+                "operator" : "In",
+                "values" : [ "spare" ]
+              } ]
+            } ]
+          }
+        },
+        "podAntiAffinity" : {
+          "preferredDuringSchedulingIgnoredDuringExecution" : [ ]
+        }
+      }
+    },
+    "cache" : {
+      "claim" : "matcher-cache",
+      "node" : "node-a"
+    }
+  },
+  "request" : {
+    "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "label" : "grype",
+    "network" : false,
+    "command" : [ "sbom:/scan/sbom.json", "-o", "json" ],
+    "entrypoint" : [ "/grype" ],
+    "mounts" : [ {
+      "source" : "/w/scan",
+      "target" : "/scan",
+      "readOnly" : true,
+      "writableBytes" : 0
+    }, {
+      "source" : "/db/generations/1761400000000-aaaaaaaa",
+      "target" : "/cache",
+      "readOnly" : true,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : false,
+    "name" : ""
+  }, {
+    "cached" : true,
+    "name" : "1761400000000-aaaaaaaa"
+  } ],
+  "uid" : 1001,
+  "gid" : 1002,
+  "workBytes" : 7000000,
+  "timeoutSeconds" : 900,
+  "transfersSeconds" : 9,
+  "podName" : "vs-grype-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-grype-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "grype"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 1689,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1001,
+        "runAsGroup" : 1002,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        },
+        "fsGroup" : 1002,
+        "fsGroupChangePolicy" : "OnRootMismatch"
+      },
+      "affinity" : {
+        "nodeAffinity" : {
+          "requiredDuringSchedulingIgnoredDuringExecution" : {
+            "nodeSelectorTerms" : [ {
+              "matchExpressions" : [ {
+                "key" : "pool",
+                "operator" : "In",
+                "values" : [ "scans" ]
+              } ],
+              "matchFields" : [ {
+                "key" : "metadata.name",
+                "operator" : "In",
+                "values" : [ "node-a" ]
+              } ]
+            }, {
+              "matchFields" : [ {
+                "key" : "metadata.name",
+                "operator" : "In",
+                "values" : [ "spare" ]
+              }, {
+                "key" : "metadata.name",
+                "operator" : "In",
+                "values" : [ "node-a" ]
+              } ]
+            } ]
+          }
+        },
+        "podAntiAffinity" : {
+          "preferredDuringSchedulingIgnoredDuringExecution" : [ ]
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "543870912"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "336592896"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "matcher-cache",
+        "persistentVolumeClaim" : {
+          "claimName" : "matcher-cache"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1001,
+          "runAsGroup" : 1002,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "matcher-cache",
+          "mountPath" : "/matcher-cache",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "/grype", "sbom:/scan/sbom.json", "-o", "json" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          },
+          "requests" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1001,
+          "runAsGroup" : 1002,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/scan",
+          "readOnly" : true,
+          "subPath" : "m0"
+        }, {
+          "name" : "matcher-cache",
+          "mountPath" : "/cache",
+          "readOnly" : true,
+          "subPath" : "generations/1761400000000-aaaaaaaa"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1001,
+          "runAsGroup" : 1002,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "1689" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "the cache with no node named, and a placement with no term",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 60,
+    "limits" : {
+      "memory" : 268435456,
+      "nanoCpus" : 500000000,
+      "outputBytes" : 1048576,
+      "timeoutSeconds" : 120
+    },
+    "placement" : {
+      "affinity" : {
+        "nodeAffinity" : {
+          "requiredDuringSchedulingIgnoredDuringExecution" : {
+            "nodeSelectorTerms" : [ ]
+          }
+        }
+      }
+    },
+    "cache" : {
+      "claim" : "cache",
+      "node" : ""
+    }
+  },
+  "request" : {
+    "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "label" : "grype",
+    "network" : false,
+    "command" : [ "db", "status" ],
+    "entrypoint" : [ "/grype" ],
+    "mounts" : [ {
+      "source" : "/db/generations/g1",
+      "target" : "/cache",
+      "readOnly" : true,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : true,
+    "name" : "g1"
+  } ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 0,
+  "timeoutSeconds" : 120,
+  "transfersSeconds" : 0,
+  "podName" : "vs-grype-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-grype-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "grype"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 780,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        },
+        "fsGroup" : 1000,
+        "fsGroupChangePolicy" : "OnRootMismatch"
+      },
+      "affinity" : {
+        "nodeAffinity" : {
+          "requiredDuringSchedulingIgnoredDuringExecution" : {
+            "nodeSelectorTerms" : [ ]
+          }
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "269484032"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "69206016"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "matcher-cache",
+        "persistentVolumeClaim" : {
+          "claimName" : "cache"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "matcher-cache",
+          "mountPath" : "/matcher-cache",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "/grype", "db", "status" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          },
+          "requests" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "matcher-cache",
+          "mountPath" : "/cache",
+          "readOnly" : true,
+          "subPath" : "generations/g1"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "780" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "the cache with a node and no placement at all",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 60,
+    "limits" : {
+      "memory" : 268435456,
+      "nanoCpus" : 500000000,
+      "outputBytes" : 1048576,
+      "timeoutSeconds" : 120
+    },
+    "placement" : { },
+    "cache" : {
+      "claim" : "cache",
+      "node" : "node-b"
+    }
+  },
+  "request" : {
+    "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "label" : "grype",
+    "network" : false,
+    "command" : [ "db", "status" ],
+    "entrypoint" : [ "/grype" ],
+    "mounts" : [ {
+      "source" : "/db/generations/g1",
+      "target" : "/cache",
+      "readOnly" : true,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : true,
+    "name" : "g1"
+  } ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 0,
+  "timeoutSeconds" : 120,
+  "transfersSeconds" : 0,
+  "podName" : "vs-grype-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-grype-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "grype"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 780,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        },
+        "fsGroup" : 1000,
+        "fsGroupChangePolicy" : "OnRootMismatch"
+      },
+      "affinity" : {
+        "nodeAffinity" : {
+          "requiredDuringSchedulingIgnoredDuringExecution" : {
+            "nodeSelectorTerms" : [ {
+              "matchFields" : [ {
+                "key" : "metadata.name",
+                "operator" : "In",
+                "values" : [ "node-b" ]
+              } ]
+            } ]
+          }
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "269484032"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "69206016"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "matcher-cache",
+        "persistentVolumeClaim" : {
+          "claimName" : "cache"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "matcher-cache",
+          "mountPath" : "/matcher-cache",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "/grype", "db", "status" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          },
+          "requests" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "matcher-cache",
+          "mountPath" : "/cache",
+          "readOnly" : true,
+          "subPath" : "generations/g1"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "780" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "a plugin: no entrypoint declared, online, a file mount, its pool",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 300,
+    "limits" : {
+      "memory" : 268435456,
+      "nanoCpus" : 500000000,
+      "outputBytes" : 1048576,
+      "timeoutSeconds" : 120
+    },
+    "placement" : {
+      "nodeSelector" : {
+        "vectispire.dev/agents" : "true"
+      },
+      "tolerations" : [ {
+        "key" : "vectispire.dev/scans",
+        "operator" : "Exists",
+        "effect" : "NoSchedule"
+      } ]
+    },
+    "cache" : null
+  },
+  "request" : {
+    "image" : "registry.example/acme/Scanner:1.0@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "label" : "Plugin ACME/Scanner — v1.0 (beta)!",
+    "network" : true,
+    "command" : [ "--scan", "/in", "--out", "/out" ],
+    "entrypoint" : null,
+    "mounts" : [ {
+      "source" : "/w/rules/config.json",
+      "target" : "/in/config.json",
+      "readOnly" : true,
+      "writableBytes" : 0
+    }, {
+      "source" : "/w/out",
+      "target" : "/out",
+      "readOnly" : false,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : false,
+    "name" : "config.json"
+  }, {
+    "cached" : false,
+    "name" : ""
+  } ],
+  "uid" : 4242,
+  "gid" : 4243,
+  "workBytes" : 99,
+  "timeoutSeconds" : 90,
+  "transfersSeconds" : 1,
+  "podName" : "vs-plugin-acme-scanner-v1-0-beta-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-plugin-acme-scanner-v1-0-beta-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "egress",
+        "vectispire.dev/scanner" : "plugin-acme-scanner-v1.0-beta"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 991,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 4242,
+        "runAsGroup" : 4243,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        }
+      },
+      "nodeSelector" : {
+        "vectispire.dev/agents" : "true"
+      },
+      "tolerations" : [ {
+        "key" : "vectispire.dev/scans",
+        "operator" : "Exists",
+        "effect" : "NoSchedule"
+      } ],
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "269484131"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "69206016"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "256Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 4242,
+          "runAsGroup" : 4243,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "registry.example/acme/Scanner:1.0@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "imagePullPolicy" : "IfNotPresent",
+        "args" : [ "--scan", "/in", "--out", "/out" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          },
+          "requests" : {
+            "memory" : "268435456",
+            "cpu" : "500m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 4242,
+          "runAsGroup" : 4243,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/in/config.json",
+          "readOnly" : true,
+          "subPath" : "m0/config.json"
+        }, {
+          "name" : "work",
+          "mountPath" : "/out",
+          "readOnly" : false,
+          "subPath" : "m1"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 4242,
+          "runAsGroup" : 4243,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "991" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "semgrep: an empty entrypoint, the registry login's mount",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 300,
+    "limits" : {
+      "memory" : 2147483648,
+      "nanoCpus" : 2000000000,
+      "outputBytes" : 268435456,
+      "timeoutSeconds" : 900
+    },
+    "placement" : { },
+    "cache" : null
+  },
+  "request" : {
+    "image" : "semgrep/semgrep@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "label" : "semgrep",
+    "network" : false,
+    "command" : [ "semgrep", "scan", "--json" ],
+    "entrypoint" : [ ],
+    "mounts" : [ {
+      "source" : "/w/scan",
+      "target" : "/scan",
+      "readOnly" : true,
+      "writableBytes" : 0
+    }, {
+      "source" : "/w/login",
+      "target" : "/trust/registry",
+      "readOnly" : true,
+      "writableBytes" : 0
+    } ]
+  },
+  "sources" : [ {
+    "cached" : false,
+    "name" : ""
+  }, {
+    "cached" : false,
+    "name" : ""
+  } ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 1,
+  "timeoutSeconds" : 900,
+  "transfersSeconds" : 0,
+  "podName" : "vs-semgrep-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-semgrep-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "semgrep"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 1800,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "536870913"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "336592896"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "semgrep/semgrep@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "semgrep", "scan", "--json" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "DOCKER_CONFIG",
+          "value" : "/trust/registry"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          },
+          "requests" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/scan",
+          "readOnly" : true,
+          "subPath" : "m0"
+        }, {
+          "name" : "work",
+          "mountPath" : "/trust/registry",
+          "readOnly" : true,
+          "subPath" : "m1"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "1800" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "the database's download: a declared writable size, online",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 300,
+    "limits" : {
+      "memory" : 2147483648,
+      "nanoCpus" : 2000000000,
+      "outputBytes" : 268435456,
+      "timeoutSeconds" : 900
+    },
+    "placement" : { },
+    "cache" : null
+  },
+  "request" : {
+    "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "label" : "grype",
+    "network" : true,
+    "command" : [ "db", "update" ],
+    "entrypoint" : [ "/grype" ],
+    "mounts" : [ {
+      "source" : "/db/staging",
+      "target" : "/cache",
+      "readOnly" : false,
+      "writableBytes" : 12884901888
+    } ]
+  },
+  "sources" : [ {
+    "cached" : false,
+    "name" : ""
+  } ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 0,
+  "timeoutSeconds" : 900,
+  "transfersSeconds" : 1536,
+  "podName" : "vs-grype-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-grype-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "egress",
+        "vectispire.dev/scanner" : "grype"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 3336,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "13153337344"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "336592896"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "2048Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "anchore/grype@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "/grype", "db", "update" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          },
+          "requests" : {
+            "memory" : "2147483648",
+            "cpu" : "2000m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/cache",
+          "readOnly" : false,
+          "subPath" : "m0"
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "3336" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+}, {
+  "name" : "a CPU under one milli, a memory under 64 MiB",
+  "settings" : {
+    "namespace" : "vectispire-scans",
+    "agent" : "agent",
+    "helperImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "defaultUser" : "1000:1000",
+    "startTimeoutSeconds" : 1,
+    "limits" : {
+      "memory" : 50331648,
+      "nanoCpus" : 400000,
+      "outputBytes" : 4096,
+      "timeoutSeconds" : 900
+    },
+    "placement" : { },
+    "cache" : null
+  },
+  "request" : {
+    "image" : "busybox@sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "label" : "",
+    "network" : false,
+    "command" : [ "sh", "-c", "echo $HOME" ],
+    "entrypoint" : [ ],
+    "mounts" : [ ]
+  },
+  "sources" : [ ],
+  "uid" : 1000,
+  "gid" : 1000,
+  "workBytes" : 0,
+  "timeoutSeconds" : 1,
+  "transfersSeconds" : 0,
+  "podName" : "vs-scan-0102030405",
+  "pod" : {
+    "apiVersion" : "v1",
+    "kind" : "Pod",
+    "metadata" : {
+      "name" : "vs-scan-0102030405",
+      "labels" : {
+        "app.kubernetes.io/managed-by" : "vectispire-agent",
+        "vectispire.dev/agent" : "agent",
+        "vectispire.dev/network" : "none",
+        "vectispire.dev/scanner" : "scan"
+      }
+    },
+    "spec" : {
+      "restartPolicy" : "Never",
+      "automountServiceAccountToken" : false,
+      "enableServiceLinks" : false,
+      "activeDeadlineSeconds" : 602,
+      "terminationGracePeriodSeconds" : 0,
+      "securityContext" : {
+        "runAsNonRoot" : true,
+        "runAsUser" : 1000,
+        "runAsGroup" : 1000,
+        "seccompProfile" : {
+          "type" : "RuntimeDefault"
+        }
+      },
+      "volumes" : [ {
+        "name" : "work",
+        "emptyDir" : {
+          "sizeLimit" : "268439552"
+        }
+      }, {
+        "name" : "tools",
+        "emptyDir" : {
+          "sizeLimit" : "68161536"
+        }
+      }, {
+        "name" : "tmp",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      }, {
+        "name" : "home",
+        "emptyDir" : {
+          "medium" : "Memory",
+          "sizeLimit" : "512Mi"
+        }
+      } ],
+      "initContainers" : [ {
+        "name" : "receive",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "64Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "64Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sh", "-c", "mkdir -p /vectispire/out && cp /bin/busybox /vectispire/busybox && until [ -f /work/.received ]; do sleep 0.2; done" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : false
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        } ]
+      } ],
+      "containers" : [ {
+        "name" : "scanner",
+        "image" : "busybox@sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "imagePullPolicy" : "IfNotPresent",
+        "command" : [ "/vectispire/busybox", "sh", "-c", "exec \"$@\" >/vectispire/out/stdout 2>/vectispire/out/stderr", "scanner", "sh", "-c", "echo $HOME" ],
+        "env" : [ {
+          "name" : "HOME",
+          "value" : "/home/scanner"
+        }, {
+          "name" : "TMPDIR",
+          "value" : "/tmp"
+        }, {
+          "name" : "XDG_CACHE_HOME",
+          "value" : "/home/scanner/.cache"
+        }, {
+          "name" : "GRYPE_DB_CACHE_DIR",
+          "value" : "/cache"
+        }, {
+          "name" : "GRYPE_DB_AUTO_UPDATE",
+          "value" : "false"
+        }, {
+          "name" : "GRYPE_CHECK_FOR_APP_UPDATE",
+          "value" : "false"
+        } ],
+        "resources" : {
+          "limits" : {
+            "memory" : "50331648",
+            "cpu" : "1m"
+          },
+          "requests" : {
+            "memory" : "50331648",
+            "cpu" : "1m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "volumeMounts" : [ {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : false
+        }, {
+          "name" : "tmp",
+          "mountPath" : "/tmp",
+          "readOnly" : false
+        }, {
+          "name" : "home",
+          "mountPath" : "/home/scanner",
+          "readOnly" : false
+        } ]
+      }, {
+        "name" : "holder",
+        "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+        "imagePullPolicy" : "IfNotPresent",
+        "resources" : {
+          "limits" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          },
+          "requests" : {
+            "memory" : "32Mi",
+            "cpu" : "100m"
+          }
+        },
+        "securityContext" : {
+          "runAsNonRoot" : true,
+          "runAsUser" : 1000,
+          "runAsGroup" : 1000,
+          "allowPrivilegeEscalation" : false,
+          "readOnlyRootFilesystem" : true,
+          "privileged" : false,
+          "capabilities" : {
+            "drop" : [ "ALL" ]
+          },
+          "seccompProfile" : {
+            "type" : "RuntimeDefault"
+          }
+        },
+        "command" : [ "sleep", "602" ],
+        "volumeMounts" : [ {
+          "name" : "work",
+          "mountPath" : "/work",
+          "readOnly" : true
+        }, {
+          "name" : "tools",
+          "mountPath" : "/vectispire",
+          "readOnly" : true
+        } ]
+      } ]
+    }
+  }
+} ]

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use vectispire_protocol::AgentClient;
 #[cfg(test)]
 use vectispire_runner::scan_root;
-pub use vectispire_runner::{BoxFuture, ExecutionFailure, Images, Places, RuleProvider, Runner};
+pub use vectispire_runner::{BoxFuture, ExecutionFailure, Executor, Images, Places, RuleProvider, Runner};
 use vectispire_scanners::rules::StoredFile;
 use vectispire_tls::TlsTrust;
 
@@ -51,9 +51,18 @@ impl ScanRunner {
         places: Places,
         vulnerability_root: Option<PathBuf>,
         trust: TlsTrust,
+        executor: Executor,
     ) -> Result<ScanRunner, String> {
         let rule_provider = Arc::new(AgentRuleProvider { client });
-        let inner = Runner::new(Some(rule_provider), images, places, vulnerability_root, trust)?;
+        let inner = Runner::with_executor(
+            Some(rule_provider),
+            images,
+            places,
+            vulnerability_root,
+            trust,
+            vectispire_runner::Options::default(),
+            executor,
+        )?;
         Ok(ScanRunner { inner })
     }
 

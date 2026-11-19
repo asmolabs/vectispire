@@ -67,6 +67,8 @@ vectispire-domain = { path = "crates/domain" }
 vectispire-crypto = { path = "crates/crypto" }
 vectispire-git = { path = "crates/git" }
 vectispire-container = { path = "crates/container" }
+# The agent's alone (decision 0045 §1): never a dependency of the control plane's crates, which hold the encryption key.
+vectispire-kubernetes = { path = "crates/kubernetes" }
 vectispire-scanners = { path = "crates/scanners" }
 vectispire-protocol = { path = "crates/protocol" }
 vectispire-runner = { path = "crates/runner" }

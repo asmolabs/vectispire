@@ -14,11 +14,15 @@
 //! fails in production and passes against a bare daemon.
 
 mod body;
+mod executor;
 mod limits;
 mod run;
 mod runner;
 
-pub use body::{SCANNER_LABEL, create_body};
+pub use body::{
+    DATABASE_CACHE_MOUNT, SCANNER_ENVIRONMENT, SCANNER_LABEL, SCRATCH_HOME, SCRATCH_MEGABYTES, create_body,
+};
+pub use executor::{BoxFuture, ContainerExecutor, Executor};
 pub use limits::ScannerLimits;
-pub use run::{ContainerRun, Mount};
-pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError};
+pub use run::{ContainerRun, Mount, owner_of};
+pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError, STDERR_BYTES};

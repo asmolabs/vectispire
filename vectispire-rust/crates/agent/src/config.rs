@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 use vectispire_domain::secret::Secret;
+use vectispire_kubernetes::choice::{self, KubernetesConfig};
 
 /// What a variable holds, read once at start.
 #[derive(Debug)]
@@ -22,6 +23,11 @@ pub struct Config {
     /// `VECTISPIRE_VULNERABILITY_DB_DIR`: where the matcher's database is kept for every scan; none is a
     /// directory beside the workspaces.
     pub vulnerability_db_dir: Option<std::path::PathBuf>,
+    /// `VECTISPIRE_AGENT_EXECUTOR`: what runs the scanners — `docker`, or `kubernetes`, a pod per run in a namespace of
+    /// its own (decision 0045). Lower-cased; blank is `docker`; anything else stops the start, at the choice.
+    pub executor: String,
+    /// The Kubernetes executor's settings, read whatever the kind, used only when it is `kubernetes`.
+    pub kubernetes: KubernetesConfig,
 }
 
 /// A configuration the agent cannot start with — the Java agent's sentences, with the variable
@@ -34,6 +40,12 @@ pub enum ConfigError {
     MissingToken,
     #[error("{variable} is not a duration: {value:?}. Write it as 30s, 500ms, 2m or PT30S.")]
     Duration { variable: &'static str, value: String },
+    #[error("{variable} is not true or false: {value:?}.")]
+    Boolean { variable: &'static str, value: String },
+    #[error("{variable} is not a whole number: {value:?}.")]
+    Number { variable: &'static str, value: String },
+    #[error("{0}")]
+    Executor(String),
 }
 
 impl Config {
@@ -69,8 +81,61 @@ impl Config {
             heartbeat: duration("VECTISPIRE_AGENT_HEARTBEAT", secs(60), secs(5), secs(600))?,
             signing_key: text("VECTISPIRE_AGENT_SIGNING_KEY").map(Secret::new),
             vulnerability_db_dir: text("VECTISPIRE_VULNERABILITY_DB_DIR").map(std::path::PathBuf::from),
+            executor: choice::kind(&lookup("VECTISPIRE_AGENT_EXECUTOR").unwrap_or_default()),
+            kubernetes: kubernetes(&lookup)?,
         })
     }
+}
+
+/// `vectispire.agent.executor.kubernetes.*`, from the variables the chart sets (`agents/deployment.yaml`) — and the
+/// probe's target from the one Spring binds it from, which the chart does not set. Strings trimmed, as the Java
+/// properties trim them; a resource that is not positive refused here, as Java's binding refuses it.
+fn kubernetes(lookup: &impl Fn(&str) -> Option<String>) -> Result<KubernetesConfig, ConfigError> {
+    let defaults = KubernetesConfig::default();
+    let text =
+        |name: &str| lookup(name).map(|value| vectispire_domain::java::trim(&value).to_owned()).unwrap_or_default();
+    let or = |name: &str, default: &str| {
+        Some(text(name)).filter(|value| !value.is_empty()).unwrap_or_else(|| default.to_owned())
+    };
+    let number = |variable: &'static str, default: i64| -> Result<i64, ConfigError> {
+        match text(variable) {
+            value if value.is_empty() => Ok(default),
+            value => value.parse().map_err(|_| ConfigError::Number { variable, value }),
+        }
+    };
+    let start_timeout = match text("VECTISPIRE_KUBERNETES_START_TIMEOUT") {
+        value if value.is_empty() => defaults.start_timeout,
+        value => spring_duration(&value)
+            .ok_or(ConfigError::Duration { variable: "VECTISPIRE_KUBERNETES_START_TIMEOUT", value })?,
+    };
+    // Spring's boolean conversion: true, on, yes, 1 and their opposites, in any case.
+    let require_isolation = match text("VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION").to_lowercase().as_str() {
+        "" | "true" | "on" | "yes" | "1" => true,
+        "false" | "off" | "no" | "0" => false,
+        _ => {
+            return Err(ConfigError::Boolean {
+                variable: "VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION",
+                value: text("VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION"),
+            });
+        }
+    };
+    let config = KubernetesConfig {
+        namespace: text("VECTISPIRE_SCANS_NAMESPACE"),
+        name: or("VECTISPIRE_AGENT_NAME", &defaults.name),
+        helper_image: text("VECTISPIRE_KUBERNETES_HELPER_IMAGE"),
+        user: text("VECTISPIRE_KUBERNETES_SCAN_USER"),
+        start_timeout,
+        placement: text("VECTISPIRE_KUBERNETES_PLACEMENT"),
+        require_isolation,
+        probe_target: text("VECTISPIRE_AGENT_EXECUTOR_KUBERNETES_PROBETARGET"),
+        cpu_millis: number("VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS", defaults.cpu_millis)?,
+        memory_mib: number("VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", defaults.memory_mib)?,
+        matcher_cache_claim: text("VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM"),
+        node_name: text("VECTISPIRE_KUBERNETES_NODE_NAME"),
+        registry_credentials: text("VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS"),
+    };
+    choice::check_resources(config.cpu_millis, config.memory_mib).map_err(ConfigError::Executor)?;
+    Ok(config)
 }
 
 /// The directories of `spring.config.import`'s `configtree:` entries (`optional:` or not), in order.
@@ -167,6 +232,60 @@ mod tests {
         assert_eq!(config.token.expose(), "invented");
         assert_eq!((config.claim_wait, config.retry_delay, config.heartbeat), (secs(300), secs(10), secs(5)));
         assert!(format!("{config:?}").contains("Secret(***)"), "the API key is not in a debug dump");
+    }
+
+    /// The chart's variables, under the names it renders them (`agents/deployment.yaml`), and Java's defaults.
+    #[test]
+    fn the_kubernetes_executor_is_configured_by_the_chart_s_variables() {
+        let base = |name: &str| match name {
+            "VECTISPIRE_URL" => Some("https://cp".to_owned()),
+            "VECTISPIRE_AGENT_TOKEN" => Some("vsk".to_owned()),
+            _ => None,
+        };
+        let docker = Config::from_lookup(base).unwrap();
+        assert_eq!(docker.executor, "docker");
+        assert_eq!(docker.kubernetes, KubernetesConfig::default());
+        assert!(docker.kubernetes.require_isolation, "isolation is required unless said otherwise");
+
+        let configured = Config::from_lookup(|name| {
+            base(name).or(match name {
+                "VECTISPIRE_AGENT_EXECUTOR" => Some(" Kubernetes ".into()),
+                "VECTISPIRE_SCANS_NAMESPACE" => Some(" release-scans ".into()),
+                "VECTISPIRE_AGENT_NAME" => Some("release".into()),
+                "VECTISPIRE_KUBERNETES_START_TIMEOUT" => Some("3m".into()),
+                "VECTISPIRE_KUBERNETES_PLACEMENT" => Some("{\"nodeSelector\":{}}".into()),
+                "VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION" => Some("FALSE".into()),
+                "VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS" => Some("250".into()),
+                "VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB" => Some("128".into()),
+                "VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM" => Some("release-matcher-cache".into()),
+                "VECTISPIRE_KUBERNETES_NODE_NAME" => Some("node-a".into()),
+                "VECTISPIRE_AGENT_EXECUTOR_KUBERNETES_PROBETARGET" => Some("10.43.0.1:443".into()),
+                _ => None,
+            })
+        })
+        .unwrap();
+        assert_eq!(configured.executor, "kubernetes");
+        let kubernetes = configured.kubernetes;
+        assert_eq!((kubernetes.namespace.as_str(), kubernetes.name.as_str()), ("release-scans", "release"));
+        assert_eq!(kubernetes.start_timeout, secs(180));
+        assert!(!kubernetes.require_isolation);
+        assert_eq!((kubernetes.cpu_millis, kubernetes.memory_mib), (250, 128));
+        assert_eq!(kubernetes.placement, "{\"nodeSelector\":{}}");
+        assert_eq!(kubernetes.probe_target, "10.43.0.1:443");
+        assert_eq!(
+            (kubernetes.matcher_cache_claim.as_str(), kubernetes.node_name.as_str()),
+            ("release-matcher-cache", "node-a")
+        );
+
+        for (variable, value, said) in [
+            ("VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS", "0", "cpu-millis and memory-mib are positive"),
+            ("VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", "lots", "is not a whole number"),
+            ("VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION", "maybe", "is not true or false"),
+            ("VECTISPIRE_KUBERNETES_START_TIMEOUT", "soon", "is not a duration"),
+        ] {
+            let refused = Config::from_lookup(|name| base(name).or((name == variable).then(|| value.to_owned())));
+            assert!(refused.unwrap_err().to_string().contains(said), "{variable}={value}");
+        }
     }
 
     #[test]

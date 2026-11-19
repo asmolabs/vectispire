@@ -193,7 +193,7 @@ final class ExecutorChoice {
         return number >= 1 && number <= 65535;
     }
 
-    private static ObjectNode placement(String text, ObjectMapper json) {
+    static ObjectNode placement(String text, ObjectMapper json) {
         if (text.isEmpty()) {
             return json.createObjectNode();
         }

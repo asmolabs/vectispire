@@ -1,0 +1,540 @@
+[ {
+  "pod" : { },
+  "failure" : null,
+  "pending" : "phase unknown",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : { }
+  },
+  "failure" : null,
+  "pending" : "phase unknown",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "running" : {
+            "startedAt" : "x"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : true,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "waiting" : {
+            "reason" : "PodInitializing"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "other",
+        "state" : {
+          "running" : { }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "waiting" : {
+            "reason" : "ErrImagePull",
+            "message" : "rpc error: not found"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : "its scanner container could not start (ErrImagePull): rpc error: not found",
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "containerStatuses" : [ {
+        "name" : "holder",
+        "state" : {
+          "waiting" : {
+            "reason" : "ImagePullBackOff"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : "its holder container could not start (ImagePullBackOff): no message",
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "waiting" : {
+            "reason" : "ContainerCreating"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "waiting" : {
+            "reason" : "CreateContainerConfigError",
+            "message" : null
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : "its receive container could not start (CreateContainerConfigError): no message",
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 1,
+            "reason" : "Error"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : "its receive container exited 1: Error",
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 0,
+            "reason" : "Completed"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "terminated" : { }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 2,
+            "reason" : "Error"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 2,
+    "reason" : "Error"
+  },
+  "killed" : false,
+  "exitCode" : 2,
+  "reason" : "Error"
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Failed",
+      "reason" : "Evicted",
+      "message" : "The node was low on resource: memory."
+    }
+  },
+  "failure" : "the pod failed (Evicted): The node was low on resource: memory.",
+  "pending" : "phase Failed",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Failed"
+    }
+  },
+  "failure" : "the pod failed (no reason): no message",
+  "pending" : "phase Failed",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Failed",
+      "reason" : "DeadlineExceeded",
+      "message" : "Pod was active on the node longer than the specified deadline"
+    }
+  },
+  "failure" : "the pod failed (DeadlineExceeded): Pod was active on the node longer than the specified deadline",
+  "pending" : "phase Failed",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "conditions" : [ {
+        "type" : "PodScheduled",
+        "status" : "False",
+        "reason" : "Unschedulable",
+        "message" : "0/1 nodes are available: 1 Insufficient cpu."
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "not scheduled: 0/1 nodes are available: 1 Insufficient cpu.",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "conditions" : [ {
+        "type" : "PodScheduled",
+        "status" : "False",
+        "reason" : "Unschedulable"
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "not scheduled: Unschedulable",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "conditions" : [ {
+        "type" : "PodScheduled",
+        "status" : "True"
+      }, {
+        "type" : "Ready",
+        "status" : "False",
+        "message" : "x"
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 137,
+            "reason" : "OOMKilled"
+          }
+        }
+      }, {
+        "name" : "holder",
+        "state" : {
+          "running" : { }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 137,
+    "reason" : "OOMKilled"
+  },
+  "killed" : true,
+  "exitCode" : 137,
+  "reason" : "OOMKilled"
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 137,
+            "reason" : "Error"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 137,
+    "reason" : "Error"
+  },
+  "killed" : true,
+  "exitCode" : 137,
+  "reason" : "Error"
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 0,
+            "reason" : "Completed"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 0,
+    "reason" : "Completed"
+  },
+  "killed" : false,
+  "exitCode" : 0,
+  "reason" : "Completed"
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "reason" : "OOMKilled"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "reason" : "OOMKilled"
+  },
+  "killed" : true,
+  "exitCode" : 0,
+  "reason" : "OOMKilled"
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : "137"
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : "137"
+  },
+  "killed" : true,
+  "exitCode" : 137,
+  "reason" : ""
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "scanner",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 137.9
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 137.9
+  },
+  "killed" : true,
+  "exitCode" : 137,
+  "reason" : ""
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : [ {
+        "name" : "holder",
+        "state" : {
+          "terminated" : {
+            "exitCode" : 137
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Running",
+      "containerStatuses" : {
+        "x" : {
+          "name" : "scanner",
+          "state" : {
+            "terminated" : {
+              "exitCode" : 3
+            }
+          }
+        }
+      }
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Running",
+  "receiving" : false,
+  "scannerTerminated" : {
+    "exitCode" : 3
+  },
+  "killed" : false,
+  "exitCode" : 3,
+  "reason" : ""
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : 7,
+      "reason" : 3,
+      "message" : true
+    }
+  },
+  "failure" : null,
+  "pending" : "phase 7",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Failed",
+      "reason" : {
+        "a" : 1
+      },
+      "message" : [ 1 ]
+    }
+  },
+  "failure" : "the pod failed (): ",
+  "pending" : "phase Failed",
+  "receiving" : false,
+  "scannerTerminated" : null
+}, {
+  "pod" : {
+    "status" : {
+      "phase" : "Pending",
+      "initContainerStatuses" : [ {
+        "name" : "receive",
+        "state" : {
+          "terminated" : {
+            "exitCode" : "x",
+            "reason" : 5
+          }
+        }
+      } ]
+    }
+  },
+  "failure" : null,
+  "pending" : "phase Pending",
+  "receiving" : false,
+  "scannerTerminated" : null
+} ]

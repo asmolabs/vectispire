@@ -471,6 +471,7 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 | Workspace, census, API discovery | `LanguageCensus`, `ProjectManifest`, `ApiDiscoveryScanner` ported, each held to its own reference set |
 | Plugins and bundled rules | plugin steps, bounded outputs, registry login, `ImageSignatureVerifier` through the pinned cosign image |
 | Image export | **done** 2026-11-15 (2.10): `ContainerRunner::export_image`, behind `ExportImages` |
+| Kubernetes executor (decision 0045) | **done** 2026-11-19 (branch `claude/rust-agent-kubernetes-1d5565`): `crates/kubernetes`, chosen by `VECTISPIRE_AGENT_EXECUTOR`, held to `reference/kubernetes/` and run on k3s (`tests/on_k3s.rs`). Left: registry logins and bounded outputs with the plugins stream; the agent's image in a cluster through the chart (`scripts/kubernetes-scan-check.sh`) |
 | Image and side-by-side conformance | reproducible image on both architectures; `scripts/composition-scan-check.sh MODE=agent` identical to the Java agent for two weeks in the nightly; only then does `release.yml` sign it |
 
 ---

@@ -13,6 +13,7 @@
 //!   limiter rather than being killed with 137.
 
 use crate::container_paths;
+use crate::dependencies::RunContainers;
 use crate::failure::ScannerError;
 use crate::jackson;
 use crate::output::{self, array_len, as_text_or_none, path, text_or_none};
@@ -21,7 +22,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::path::Path;
 use std::sync::LazyLock;
-use vectispire_container::{ContainerResult, ContainerRun, ContainerRunner, Mount};
+use vectispire_container::{ContainerResult, ContainerRun, Mount};
 
 /// What the containers are labelled, and what an error names.
 pub const LABEL: &str = "semgrep (source code analysis)";
@@ -83,6 +84,7 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
         LABEL,
     )
     .running_as_owner_of(workspace_root)
+    .with_entrypoint(crate::images::SEMGREP_ENTRYPOINT)
 }
 
 /// What the SAST step makes of the container's result: `Ok(Some)` the findings, `Ok(None)` absent —
@@ -237,7 +239,7 @@ pub fn severity_of(severity: Option<&str>) -> Severity {
 
 /// The SAST findings of the workspace at `workspace_root`.
 pub async fn scan(
-    runner: &ContainerRunner,
+    runner: &impl RunContainers,
     workspace_root: &Path,
     sub_path: Option<&str>,
     image: &str,

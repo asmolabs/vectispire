@@ -202,15 +202,8 @@ public final class KubernetesExecutor implements ContainerExecutor {
             return Optional.of("The Kubernetes API did not list pods in " + settings.namespace() + ": "
                     + unreachable.getMessage());
         }
-        com.fasterxml.jackson.databind.node.ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
-        pod.put("apiVersion", "v1").put("kind", "Pod");
-        pod.putObject("metadata").put("name", "vs-availability-probe");
-        com.fasterxml.jackson.databind.node.ObjectNode spec = pod.putObject("spec");
-        settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
-        spec.put("automountServiceAccountToken", false);
-        spec.putArray("containers").addObject().put("name", "probe").put("image", settings.helperImage());
         try {
-            api.createPodDryRun(settings.namespace(), pod);
+            api.createPodDryRun(settings.namespace(), availabilityProbe(settings));
         } catch (KubernetesException refused) {
             if (refused.status() == 0 || forbiddenByRole(refused)) {
                 return Optional.of("The Kubernetes API refused to create a pod in " + settings.namespace() + ": "
@@ -221,6 +214,18 @@ public final class KubernetesExecutor implements ContainerExecutor {
                     + unreachable.getMessage());
         }
         return Optional.empty();
+    }
+
+    /** The pod {@link #whyUnavailable} asks a dry run of: the placement, no token, the helper image. */
+    static ObjectNode availabilityProbe(Settings settings) {
+        ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        pod.put("apiVersion", "v1").put("kind", "Pod");
+        pod.putObject("metadata").put("name", "vs-availability-probe");
+        ObjectNode spec = pod.putObject("spec");
+        settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
+        spec.put("automountServiceAccountToken", false);
+        spec.putArray("containers").addObject().put("name", "probe").put("image", settings.helperImage());
+        return pod;
     }
 
     /**
@@ -254,10 +259,28 @@ public final class KubernetesExecutor implements ContainerExecutor {
      * @throws KubernetesException for any other answer: an unknown
      */
     public Isolation podSecurity() {
-        com.fasterxml.jackson.databind.node.ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        try {
+            api.createPodDryRun(settings.namespace(), podSecurityProbe(settings));
+            return Isolation.NOT_ENFORCED;
+        } catch (KubernetesException refused) {
+            if (podSecurityRefused(refused)) {
+                return Isolation.ENFORCED;
+            }
+            throw refused;
+        }
+    }
+
+    /** Pod Security's own refusal, and no other: a 403 naming it. */
+    static boolean podSecurityRefused(KubernetesException refused) {
+        return refused.status() == 403 && refused.getMessage().contains("PodSecurity");
+    }
+
+    /** The widest pod there is, with the scan pods' placement: what {@link #podSecurity} asks a dry run of. */
+    static ObjectNode podSecurityProbe(Settings settings) {
+        ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
         pod.put("apiVersion", "v1").put("kind", "Pod");
         pod.putObject("metadata").put("name", "vs-pod-security-probe");
-        com.fasterxml.jackson.databind.node.ObjectNode spec = pod.putObject("spec");
+        ObjectNode spec = pod.putObject("spec");
         // Everything else a scan pod carries — its pool's placement, no token — so that the chart's admission
         // policy, which refuses a pod without them, has nothing to refuse: only Pod Security may answer, or the
         // answer proves nothing about it. On k3s 1.34 Pod Security answers first whatever the pod (measured: the
@@ -266,19 +289,11 @@ public final class KubernetesExecutor implements ContainerExecutor {
         spec.put("automountServiceAccountToken", false);
         spec.put("hostNetwork", true).put("hostPID", true);
         spec.putArray("volumes").addObject().put("name", "host").putObject("hostPath").put("path", "/");
-        com.fasterxml.jackson.databind.node.ObjectNode container = spec.putArray("containers").addObject();
+        ObjectNode container = spec.putArray("containers").addObject();
         container.put("name", "probe").put("image", settings.helperImage());
         container.putObject("securityContext").put("privileged", true).put("runAsUser", 0);
         container.putArray("volumeMounts").addObject().put("name", "host").put("mountPath", "/host");
-        try {
-            api.createPodDryRun(settings.namespace(), pod);
-            return Isolation.NOT_ENFORCED;
-        } catch (KubernetesException refused) {
-            if (refused.status() == 403 && refused.getMessage().contains("PodSecurity")) {
-                return Isolation.ENFORCED;
-            }
-            throw refused;
-        }
+        return pod;
     }
 
     /** What a probe found: whether a scan pod is cut off from the address it tried. */
@@ -304,11 +319,8 @@ public final class KubernetesExecutor implements ContainerExecutor {
         // **A connection on the pod's own loopback first, which must succeed**: without it, an image whose `nc`
         // is missing or broken would fail every connection and read as "blocked" (review of 2026-10-26, L1).
         // Then the target, until refused: a policy in force reaches a new pod a moment late (ISOLATION_SETTLES).
-        ContainerRun probe = ContainerRun.of(settings.helperImage(), List.of("sh", "-c",
-                "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; "
-                        + "if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; "
-                        + untilRefused(host, port, 5)),
-                List.of(), "network probe").withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(2));
+        ContainerRun probe = ContainerRun.of(settings.helperImage(), probeCommand(host, port), List.of(), "network probe")
+                .withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(2));
         // Not gated as a scanner is: whether this pod is cut off is the question, not a precondition.
         String said = run(online ? probe.withNetwork() : probe, false).stdout().strip();
         return switch (said) {
@@ -317,6 +329,13 @@ public final class KubernetesExecutor implements ContainerExecutor {
             default -> throw ScannerFailureException.of("network probe", "The probe said \"" + said
                     + "\", which is neither: whether scan pods are cut off is unknown.");
         };
+    }
+
+    /** The probe pod's command: the loopback control, then the target until refused. */
+    static List<String> probeCommand(String host, int port) {
+        return List.of("sh", "-c", "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; "
+                + "if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; "
+                + untilRefused(host, port, 5));
     }
 
     /**
@@ -454,11 +473,9 @@ public final class KubernetesExecutor implements ContainerExecutor {
             moved += sizes[i] + (mount.readOnly() ? 0 : ScanPods.ceiling(mount, settings.limits()));
         }
 
-        String slug = ScanPods.labelValue(label).replaceAll("[^a-z0-9-]", "-");
-        slug = slug.substring(0, Math.min(40, slug.length())).replaceAll("^-+|-+$", "");
         byte[] suffix = new byte[5];
         RANDOM.nextBytes(suffix);
-        String pod = "vs-" + slug + "-" + HexFormat.of().formatHex(suffix);
+        String pod = podName(label, suffix);
         try {
             api.createPod(settings.namespace(),
                     ScanPods.pod(pod, request, settings, owner[0], owner[1], sources, copied, timeout, transferTime(moved)));
@@ -535,6 +552,13 @@ public final class KubernetesExecutor implements ContainerExecutor {
         }
     }
 
+    /** {@code vs-<the label, as a name>-<the suffix in hex>}: a DNS label whatever the scanner is called. */
+    static String podName(String label, byte[] suffix) {
+        String slug = ScanPods.labelValue(label).replaceAll("[^a-z0-9-]", "-");
+        slug = slug.substring(0, Math.min(40, slug.length())).replaceAll("^-+|-+$", "");
+        return "vs-" + slug + "-" + HexFormat.of().formatHex(suffix);
+    }
+
     /** What a mount holds, in bytes, links not followed: what its copy sends. */
     private static long bytes(Path source) {
         try (java.util.stream.Stream<Path> files = Files.walk(source)) {
@@ -607,8 +631,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 KubernetesApi.ExecResult received;
                 try (InputStream reading = in) {
                     received = api.exec(settings.namespace(), pod, ScanPods.RECEIVE, List.of("sh", "-c",
-                            "rm -rf " + root + "/" + name + " " + partial + " && mkdir -p " + partial + " && tar -x -C " + partial),
-                            reading, SMALL, transferTimeout(size));
+                            seedScript(root, name, partial)), reading, SMALL, transferTimeout(size));
                 } catch (IOException closing) {
                     throw ScannerFailureException.of(label, "The matcher's database could not be sent: " + closing.getMessage());
                 }
@@ -617,8 +640,8 @@ public final class KubernetesExecutor implements ContainerExecutor {
                     throw ScannerFailureException.of(label, "The matcher's database could not be put on its volume: "
                             + (unreadable.get() != null ? unreadable.get().getMessage() : excerpt(received.stderr())));
                 }
-                if (exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", "mv " + partial + " " + root + "/" + name
-                        + " && touch " + root + "/" + name + ".complete"), SMALL, label).exitCode() != 0) {
+                if (exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", completeScript(root, name, partial)), SMALL, label)
+                        .exitCode() != 0) {
                     throw ScannerFailureException.of(label, "The matcher's database could not be marked complete on its volume.");
                 }
             }
@@ -626,6 +649,16 @@ public final class KubernetesExecutor implements ContainerExecutor {
         } finally {
             seeding.unlock();
         }
+    }
+
+    /** Receives a generation into its partial directory, whatever an earlier attempt left. */
+    static String seedScript(String root, String name, String partial) {
+        return "rm -rf " + root + "/" + name + " " + partial + " && mkdir -p " + partial + " && tar -x -C " + partial;
+    }
+
+    /** Renames a received generation into place, then marks it complete: in that order, so a mark means a whole one. */
+    static String completeScript(String root, String name, String partial) {
+        return "mv " + partial + " " + root + "/" + name + " && touch " + root + "/" + name + ".complete";
     }
 
     /** Removes from the volume every generation the agent no longer holds: the volume follows the agent's cache. */
@@ -637,17 +670,22 @@ public final class KubernetesExecutor implements ContainerExecutor {
         } catch (IOException unreadable) {
             return; // Nothing removed: a generation kept too long costs space, one removed too early a scan.
         }
+        exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", pruneScript(held)), SMALL, label);
+    }
+
+    /** Keeps {@code held} and their marks, removes every other entry and every partial copy. */
+    static String pruneScript(java.util.Set<String> held) {
         String root = ScanPods.CACHE + "/" + ScanPods.GENERATIONS;
         StringBuilder script = new StringBuilder("cd " + root + " && for entry in * .*.partial; do case \"$entry\" in");
-        for (String generation : held) {
+        for (String generation : new java.util.TreeSet<>(held)) {
             script.append(" ").append(generation).append("|").append(generation).append(".complete) ;;");
         }
         script.append(" '*'|'.*.partial') ;; *) rm -rf \"$entry\" ;; esac; done");
-        exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", script.toString()), SMALL, label);
+        return script.toString();
     }
 
     /** {@code uid:gid}, numeric and not root: the namespace refuses root, and a name means nothing in a pod. */
-    private static long[] owner(String user, String label) {
+    static long[] owner(String user, String label) {
         String[] parts = user.split(":", 2);
         try {
             long uid = Long.parseLong(parts[0]);
@@ -755,13 +793,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
 
     /** What the scanner wrote into a writable mount, and nothing else: see {@link MountArchives}. */
     private void copyBack(String pod, int index, Path destination, long ceiling, String label) {
-        String directory = ScanPods.WORK + "/m" + index;
-        // tar refuses an empty list, so nothing written sends nothing. **A name with a line break is refused
-        // before the list is built**: the list is one name per line, and such a name would make the holder archive
-        // a path the scanner chose (review of 2026-10-26, L4).
-        String script = "cd " + directory + " && nl=$(printf '\\nx') && nl=${nl%x} && "
-                + "if [ -n \"$(find . -name \"*$nl*\")\" ]; then echo 'a name with a line break' >&2; exit 3; fi && "
-                + "if [ -n \"$(find . -type f -mtime -1)\" ]; then find . -type f -mtime -1 | tar -c -T -; fi";
+        String script = copyBackScript(ScanPods.WORK + "/m" + index);
         Path received = null;
         try {
             received = Files.createTempFile("vectispire-written", ".tar");
@@ -793,6 +825,17 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 }
             }
         }
+    }
+
+    /**
+     * What the holder runs to send back a writable mount's new files. tar refuses an empty list, so nothing written
+     * sends nothing. **A name with a line break is refused before the list is built**: the list is one name per
+     * line, and such a name would make the holder archive a path the scanner chose (review of 2026-10-26, L4).
+     */
+    static String copyBackScript(String directory) {
+        return "cd " + directory + " && nl=$(printf '\\nx') && nl=${nl%x} && "
+                + "if [ -n \"$(find . -name \"*$nl*\")\" ]; then echo 'a name with a line break' >&2; exit 3; fi && "
+                + "if [ -n \"$(find . -type f -mtime -1)\" ]; then find . -type f -mtime -1 | tar -c -T -; fi";
     }
 
     /**

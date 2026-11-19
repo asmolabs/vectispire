@@ -9,6 +9,7 @@
 
 mod check;
 mod config;
+mod executor;
 mod scan;
 mod serve;
 
@@ -73,11 +74,21 @@ enum Fatal {
     Protocol(#[from] ProtocolError),
     #[error("The scanner could not be prepared: {0}")]
     Runner(String),
+    #[error("{0}")]
+    Executor(String),
 }
 
 async fn run() -> Result<(), Fatal> {
     let config = Config::from_environment()?;
     let trust = TlsTrust::from_environment()?;
+    let places = scan::Places::from_lookup(|name| std::env::var(name).ok());
+    // Docker or a pod per run (decision 0045), chosen before the agent announces itself or claims anything:
+    // misconfigured, it stops the start here rather than failing the first scan. On Kubernetes the matcher's database
+    // generations are served to scan pods from the cache volume, so the choice is told where they are.
+    let matcher_database = vectispire_runner::database_root(&places, config.vulnerability_db_dir.clone());
+    let containers = executor::choose(&config.executor, &config.kubernetes, &places.work, matcher_database)
+        .await
+        .map_err(Fatal::Executor)?;
     if !config.url.starts_with("https://") {
         // Warned and not refused, as on the Java agent: a deployment behind a reverse proxy
         // legitimately sees HTTP, and a delegated credential only ever travels sealed.
@@ -111,19 +122,21 @@ async fn run() -> Result<(), Fatal> {
     let runner = scan::ScanRunner::new(
         client.clone(),
         scan::Images::from_lookup(|name| std::env::var(name).ok()),
-        scan::Places::from_lookup(|name| std::env::var(name).ok()),
+        places,
         config.vulnerability_db_dir.clone(),
         trust,
+        containers,
     )
     .map_err(Fatal::Runner)?;
-    let watch = ExecutorWatch::new("docker");
+    let watch = ExecutorWatch::new(&config.executor);
     let announced = watch.announced(&runner).await;
 
     let description = Description {
         contract_version: vectispire_domain::contract::VERSION,
         hostname: hostname(),
         platform: format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
-        scanner_engine: "docker".to_owned(),
+        // What the operator reads on the agents screen: the Kubernetes executor says so.
+        scanner_engine: if config.executor == "kubernetes" { "kubernetes" } else { "docker" }.to_owned(),
         sealing_public_key: client.sealing_public_key(),
         version: Some(env!("CARGO_PKG_VERSION").to_owned()),
         executors: Some(announced.executors),

@@ -9,7 +9,7 @@ use futures_util::StreamExt;
 use tokio::sync::OnceCell;
 
 /// What standard error keeps: enough for the tool's own explanation, not a second unbounded stream.
-const STDERR_BYTES: usize = 1024 * 1024;
+pub const STDERR_BYTES: usize = 1024 * 1024;
 
 /// How long one call to the daemon may take, the run's own wait aside.
 const DAEMON_CALL_TIMEOUT_SECONDS: u64 = 120;
@@ -30,6 +30,10 @@ pub enum RunnerError {
     Daemon { label: String, cause: String },
     #[error("No Docker daemon could be reached at {address}: {cause}")]
     Unreachable { address: String, cause: String },
+    /// Another executor's failure, in its own words — `ScannerFailureException.of(label, message)`: the Kubernetes
+    /// executor's pod that could not be created, scheduled, pulled, cut off or read back (decision 0045 §9).
+    #[error("{message}")]
+    Failed { label: String, message: String },
 }
 
 /// Why an image could not be exported for its inventory — the step's failure, which reaches the scan's page.
@@ -42,6 +46,9 @@ pub enum ExportError {
     Pull { reference: String, cause: String },
     #[error("could not export {reference}: {cause}")]
     Save { reference: String, cause: String },
+    /// An executor that does not export images, in its own words — the Kubernetes one (decision 0045 §8, not built).
+    #[error("{0}")]
+    Unsupported(String),
 }
 
 /// What a run printed, and how it ended.
@@ -101,6 +108,11 @@ impl ContainerRunner {
     /// announces as its executor's state (decision 0045), worded as the Java executor words it.
     pub async fn why_unavailable(&self) -> Option<String> {
         self.docker.ping().await.err().map(|error| format!("The Docker daemon did not answer a ping: {error}"))
+    }
+
+    /// How long a scanner may run before it is stopped — `ContainerExecutor.scannerTimeout`.
+    pub fn scanner_timeout(&self) -> std::time::Duration {
+        self.limits.timeout
     }
 
     async fn limits(&self) -> ScannerLimits {

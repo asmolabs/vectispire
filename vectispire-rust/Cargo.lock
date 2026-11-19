@@ -4005,6 +4005,7 @@ dependencies = [
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-git",
+ "vectispire-kubernetes",
  "vectispire-protocol",
  "vectispire-runner",
  "vectispire-scanners",
@@ -4990,6 +4991,27 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vectispire-domain",
+ "vectispire-testkit",
+ "vectispire-tls",
+]
+
+[[package]]
+name = "vectispire-kubernetes"
+version = "2.0.0-dev"
+dependencies = [
+ "base64 0.22.1",
+ "rand_core 0.6.4",
+ "regex",
+ "reqwest",
+ "serde_json",
+ "sha1 0.10.7",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "vectispire-container",
+ "vectispire-domain",
+ "vectispire-scanners",
  "vectispire-testkit",
  "vectispire-tls",
 ]

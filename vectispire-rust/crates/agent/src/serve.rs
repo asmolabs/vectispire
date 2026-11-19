@@ -65,7 +65,7 @@ impl ExecutorWatch {
     /// How stale the answer may be before a claim asks again: the claim's own wait is longer.
     pub const INTERVAL: Duration = Duration::from_secs(15);
 
-    /// `kind`: the executor's name, `docker` for this agent.
+    /// `kind`: the executor's name as configured, `docker` or `kubernetes` (decision 0045).
     pub fn new(kind: &str) -> ExecutorWatch {
         ExecutorWatch { kind: kind.to_owned(), state: Mutex::new(WatchState::default()) }
     }

@@ -1,0 +1,436 @@
+{
+  "labels" : [ {
+    "text" : "gitleaks",
+    "value" : "gitleaks",
+    "podName" : "vs-gitleaks-00ff107f80"
+  }, {
+    "text" : "syft (SBOM of image registry.example/app:1.0)",
+    "value" : "syft-sbom-of-image-registry.example-app-1.0",
+    "podName" : "vs-syft-sbom-of-image-registry-example-app-00ff107f80"
+  }, {
+    "text" : "Semgrep",
+    "value" : "semgrep",
+    "podName" : "vs-semgrep-00ff107f80"
+  }, {
+    "text" : "",
+    "value" : "scan",
+    "podName" : "vs-scan-00ff107f80"
+  }, {
+    "text" : "---",
+    "value" : "scan",
+    "podName" : "vs-scan-00ff107f80"
+  }, {
+    "text" : "-._",
+    "value" : "scan",
+    "podName" : "vs-scan-00ff107f80"
+  }, {
+    "text" : "é accented ünïcode",
+    "value" : "accented-n-code",
+    "podName" : "vs-accented-n-code-00ff107f80"
+  }, {
+    "text" : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "value" : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "podName" : "vs-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-00ff107f80"
+  }, {
+    "text" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa._-b",
+    "value" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "podName" : "vs-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-00ff107f80"
+  }, {
+    "text" : "a.b_c-d",
+    "value" : "a.b_c-d",
+    "podName" : "vs-a-b-c-d-00ff107f80"
+  }, {
+    "text" : "trailing-._",
+    "value" : "trailing",
+    "podName" : "vs-trailing-00ff107f80"
+  }, {
+    "text" : "UPPER lower",
+    "value" : "upper-lower",
+    "podName" : "vs-upper-lower-00ff107f80"
+  }, {
+    "text" : "plugin acme/scanner@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "value" : "plugin-acme-scanner-sha256-ffffffffffffffffffffffffffffffffffff",
+    "podName" : "vs-plugin-acme-scanner-sha256-fffffffffffff-00ff107f80"
+  }, {
+    "text" : "İstanbul",
+    "value" : "i-stanbul",
+    "podName" : "vs-i-stanbul-00ff107f80"
+  }, {
+    "text" : "Kelvin",
+    "value" : "kelvin",
+    "podName" : "vs-kelvin-00ff107f80"
+  }, {
+    "text" : "ΣΑΣ",
+    "value" : "scan",
+    "podName" : "vs-scan-00ff107f80"
+  }, {
+    "text" : "日本語のスキャナー",
+    "value" : "scan",
+    "podName" : "vs-scan-00ff107f80"
+  }, {
+    "text" : "network probe",
+    "value" : "network-probe",
+    "podName" : "vs-network-probe-00ff107f80"
+  }, {
+    "text" : "  spaced  out  ",
+    "value" : "spaced-out",
+    "podName" : "vs-spaced-out-00ff107f80"
+  }, {
+    "text" : "9lives",
+    "value" : "9lives",
+    "podName" : "vs-9lives-00ff107f80"
+  }, {
+    "text" : "_underscore_first",
+    "value" : "underscore_first",
+    "podName" : "vs-underscore-first-00ff107f80"
+  }, {
+    "text" : "a----------------------------------------------------------------------b",
+    "value" : "a",
+    "podName" : "vs-a-00ff107f80"
+  } ],
+  "untilRefused" : [ {
+    "host" : "10.43.0.1",
+    "port" : 443,
+    "connectSeconds" : 5,
+    "script" : "i=0; while nc -w 5 10.43.0.1 443 </dev/null >/dev/null 2>&1; do i=$((i+1)); if [ $i -ge 30 ]; then echo REACHED; exit 0; fi; sleep 1; done; echo BLOCKED"
+  }, {
+    "host" : "fd00::1",
+    "port" : 6443,
+    "connectSeconds" : 2,
+    "script" : "i=0; while nc -w 2 fd00::1 6443 </dev/null >/dev/null 2>&1; do i=$((i+1)); if [ $i -ge 30 ]; then echo REACHED; exit 0; fi; sleep 1; done; echo BLOCKED"
+  }, {
+    "host" : "192.168.1.1",
+    "port" : 1,
+    "connectSeconds" : 30,
+    "script" : "i=0; while nc -w 30 192.168.1.1 1 </dev/null >/dev/null 2>&1; do i=$((i+1)); if [ $i -ge 30 ]; then echo REACHED; exit 0; fi; sleep 1; done; echo BLOCKED"
+  } ],
+  "probeCommands" : [ {
+    "host" : "10.43.0.1",
+    "port" : 443,
+    "command" : [ "sh", "-c", "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; i=0; while nc -w 5 10.43.0.1 443 </dev/null >/dev/null 2>&1; do i=$((i+1)); if [ $i -ge 30 ]; then echo REACHED; exit 0; fi; sleep 1; done; echo BLOCKED" ]
+  }, {
+    "host" : "fd00::1",
+    "port" : 6443,
+    "command" : [ "sh", "-c", "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; i=0; while nc -w 5 fd00::1 6443 </dev/null >/dev/null 2>&1; do i=$((i+1)); if [ $i -ge 30 ]; then echo REACHED; exit 0; fi; sleep 1; done; echo BLOCKED" ]
+  } ],
+  "copyBack" : [ {
+    "directory" : "/work/m0",
+    "script" : "cd /work/m0 && nl=$(printf '\\nx') && nl=${nl%x} && if [ -n \"$(find . -name \"*$nl*\")\" ]; then echo 'a name with a line break' >&2; exit 3; fi && if [ -n \"$(find . -type f -mtime -1)\" ]; then find . -type f -mtime -1 | tar -c -T -; fi"
+  }, {
+    "directory" : "/work/m3",
+    "script" : "cd /work/m3 && nl=$(printf '\\nx') && nl=${nl%x} && if [ -n \"$(find . -name \"*$nl*\")\" ]; then echo 'a name with a line break' >&2; exit 3; fi && if [ -n \"$(find . -type f -mtime -1)\" ]; then find . -type f -mtime -1 | tar -c -T -; fi"
+  } ],
+  "prune" : [ {
+    "held" : [ "1761400000000-aaaaaaaa" ],
+    "script" : "cd /matcher-cache/generations && for entry in * .*.partial; do case \"$entry\" in 1761400000000-aaaaaaaa|1761400000000-aaaaaaaa.complete) ;; '*'|'.*.partial') ;; *) rm -rf \"$entry\" ;; esac; done"
+  }, {
+    "held" : [ "b", "a", "1-c" ],
+    "script" : "cd /matcher-cache/generations && for entry in * .*.partial; do case \"$entry\" in 1-c|1-c.complete) ;; a|a.complete) ;; b|b.complete) ;; '*'|'.*.partial') ;; *) rm -rf \"$entry\" ;; esac; done"
+  } ],
+  "seed" : {
+    "root" : "/matcher-cache/generations",
+    "name" : "g1",
+    "partial" : "/matcher-cache/generations/.g1.partial",
+    "receive" : "rm -rf /matcher-cache/generations/g1 /matcher-cache/generations/.g1.partial && mkdir -p /matcher-cache/generations/.g1.partial && tar -x -C /matcher-cache/generations/.g1.partial",
+    "complete" : "mv /matcher-cache/generations/.g1.partial /matcher-cache/generations/g1 && touch /matcher-cache/generations/g1.complete"
+  },
+  "transferSeconds" : [ {
+    "bytes" : 0,
+    "seconds" : 0
+  }, {
+    "bytes" : 8388607,
+    "seconds" : 0
+  }, {
+    "bytes" : 8388608,
+    "seconds" : 1
+  }, {
+    "bytes" : 3000000000,
+    "seconds" : 357
+  }, {
+    "bytes" : 12884901888,
+    "seconds" : 1536
+  } ],
+  "targets" : [ {
+    "target" : "10.43.0.1:443",
+    "host" : "10.43.0.1",
+    "port" : 443
+  }, {
+    "target" : "[fd00::1]:443",
+    "host" : "fd00::1",
+    "port" : 443
+  }, {
+    "target" : "fd00::1:443",
+    "host" : "fd00::1",
+    "port" : 443
+  }, {
+    "target" : "host:443",
+    "refused" : "The probe's target is an address and a port, not \"host:443\"."
+  }, {
+    "target" : "10.0.0.1",
+    "refused" : "The probe's target is an address and a port, not \"10.0.0.1\"."
+  }, {
+    "target" : "10.0.0.1:0",
+    "refused" : "The probe's target is an address and a port, not \"10.0.0.1:0\"."
+  }, {
+    "target" : ":443",
+    "refused" : "The probe's target is an address and a port, not \":443\"."
+  }, {
+    "target" : "10.0.0.1:65535",
+    "host" : "10.0.0.1",
+    "port" : 65535
+  }, {
+    "target" : "10.0.0.1:65536",
+    "refused" : "The probe's target is an address and a port, not \"10.0.0.1:65536\"."
+  }, {
+    "target" : "10.0.0.1:+443",
+    "host" : "10.0.0.1",
+    "port" : 443
+  }, {
+    "target" : "1.2.3.4:٤٤٣",
+    "host" : "1.2.3.4",
+    "port" : 443
+  }, {
+    "target" : "1.2.3.4:",
+    "refused" : "The probe's target is an address and a port, not \"1.2.3.4:\"."
+  }, {
+    "target" : "[]:443",
+    "refused" : "The probe's target is an address and a port, not \"[]:443\"."
+  }, {
+    "target" : "[10.0.0.1]:80",
+    "host" : "10.0.0.1",
+    "port" : 80
+  }, {
+    "target" : "1.2.3.4:-1",
+    "refused" : "The probe's target is an address and a port, not \"1.2.3.4:-1\"."
+  }, {
+    "target" : "ABCD::ef:1",
+    "host" : "ABCD::ef",
+    "port" : 1
+  }, {
+    "target" : "1.2.3.4:99999999999",
+    "refused" : "The probe's target is an address and a port, not \"1.2.3.4:99999999999\"."
+  } ],
+  "owners" : [ {
+    "user" : "1000:1000",
+    "uid" : 1000,
+    "gid" : 1000
+  }, {
+    "user" : "1000",
+    "uid" : 1000,
+    "gid" : 1000
+  }, {
+    "user" : "0:0",
+    "refused" : "It would run as root, which a scan pod never does."
+  }, {
+    "user" : "0",
+    "refused" : "It would run as root, which a scan pod never does."
+  }, {
+    "user" : "1000:0",
+    "uid" : 1000,
+    "gid" : 0
+  }, {
+    "user" : "-1:5",
+    "refused" : "It would run as root, which a scan pod never does."
+  }, {
+    "user" : "abc",
+    "refused" : "It runs as \"abc\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "1000:abc",
+    "refused" : "It runs as \"1000:abc\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "1000:1000:1",
+    "refused" : "It runs as \"1000:1000:1\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "",
+    "refused" : "It runs as \"\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "+5:+6",
+    "uid" : 5,
+    "gid" : 6
+  }, {
+    "user" : " 1000",
+    "refused" : "It runs as \" 1000\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "99999999999999999999",
+    "refused" : "It runs as \"99999999999999999999\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : "١٠٠٠:5",
+    "uid" : 1000,
+    "gid" : 5
+  }, {
+    "user" : "5:",
+    "refused" : "It runs as \"5:\", and a scan pod runs as a numeric uid:gid."
+  }, {
+    "user" : ":5",
+    "refused" : "It runs as \":5\", and a scan pod runs as a numeric uid:gid."
+  } ],
+  "placements" : [ {
+    "placement" : { },
+    "refused" : null
+  }, {
+    "placement" : {
+      "nodeSelector" : { }
+    },
+    "refused" : null
+  }, {
+    "placement" : {
+      "hostNetwork" : true
+    },
+    "refused" : "The scan pods' placement sets nodeSelector, tolerations and affinity, not \"hostNetwork\"."
+  }, {
+    "placement" : {
+      "affinity" : { },
+      "tolerations" : [ ],
+      "priorityClassName" : "x"
+    },
+    "refused" : "The scan pods' placement sets nodeSelector, tolerations and affinity, not \"priorityClassName\"."
+  } ],
+  "probePods" : [ {
+    "placement" : { },
+    "availability" : {
+      "apiVersion" : "v1",
+      "kind" : "Pod",
+      "metadata" : {
+        "name" : "vs-availability-probe"
+      },
+      "spec" : {
+        "automountServiceAccountToken" : false,
+        "containers" : [ {
+          "name" : "probe",
+          "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092"
+        } ]
+      }
+    },
+    "podSecurity" : {
+      "apiVersion" : "v1",
+      "kind" : "Pod",
+      "metadata" : {
+        "name" : "vs-pod-security-probe"
+      },
+      "spec" : {
+        "automountServiceAccountToken" : false,
+        "hostNetwork" : true,
+        "hostPID" : true,
+        "volumes" : [ {
+          "name" : "host",
+          "hostPath" : {
+            "path" : "/"
+          }
+        } ],
+        "containers" : [ {
+          "name" : "probe",
+          "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+          "securityContext" : {
+            "privileged" : true,
+            "runAsUser" : 0
+          },
+          "volumeMounts" : [ {
+            "name" : "host",
+            "mountPath" : "/host"
+          } ]
+        } ]
+      }
+    }
+  }, {
+    "placement" : {
+      "nodeSelector" : {
+        "vectispire.dev/agents" : "true"
+      },
+      "tolerations" : [ {
+        "operator" : "Exists"
+      } ]
+    },
+    "availability" : {
+      "apiVersion" : "v1",
+      "kind" : "Pod",
+      "metadata" : {
+        "name" : "vs-availability-probe"
+      },
+      "spec" : {
+        "nodeSelector" : {
+          "vectispire.dev/agents" : "true"
+        },
+        "tolerations" : [ {
+          "operator" : "Exists"
+        } ],
+        "automountServiceAccountToken" : false,
+        "containers" : [ {
+          "name" : "probe",
+          "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092"
+        } ]
+      }
+    },
+    "podSecurity" : {
+      "apiVersion" : "v1",
+      "kind" : "Pod",
+      "metadata" : {
+        "name" : "vs-pod-security-probe"
+      },
+      "spec" : {
+        "nodeSelector" : {
+          "vectispire.dev/agents" : "true"
+        },
+        "tolerations" : [ {
+          "operator" : "Exists"
+        } ],
+        "automountServiceAccountToken" : false,
+        "hostNetwork" : true,
+        "hostPID" : true,
+        "volumes" : [ {
+          "name" : "host",
+          "hostPath" : {
+            "path" : "/"
+          }
+        } ],
+        "containers" : [ {
+          "name" : "probe",
+          "image" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+          "securityContext" : {
+            "privileged" : true,
+            "runAsUser" : 0
+          },
+          "volumeMounts" : [ {
+            "name" : "host",
+            "mountPath" : "/host"
+          } ]
+        } ]
+      }
+    }
+  } ],
+  "refusals" : [ {
+    "status" : 403,
+    "message" : "pods \"vs-availability-probe\" is forbidden: User \"system:serviceaccount:a:b\" cannot create resource \"pods\" in API group \"\" in the namespace \"ns\"",
+    "forbiddenByRole" : true,
+    "podSecurityRefused" : false
+  }, {
+    "status" : 403,
+    "message" : "pods \"vs-pod-security-probe\" is forbidden: violates PodSecurity \"restricted:latest\": privileged",
+    "forbiddenByRole" : false,
+    "podSecurityRefused" : true
+  }, {
+    "status" : 403,
+    "message" : "admission webhook \"x\" denied the request: cannot create resource here",
+    "forbiddenByRole" : true,
+    "podSecurityRefused" : false
+  }, {
+    "status" : 401,
+    "message" : "Unauthorized: cannot create resource",
+    "forbiddenByRole" : false,
+    "podSecurityRefused" : false
+  }, {
+    "status" : 422,
+    "message" : "PodSecurity",
+    "forbiddenByRole" : false,
+    "podSecurityRefused" : false
+  }, {
+    "status" : 0,
+    "message" : "The API server is unreachable: connection refused",
+    "forbiddenByRole" : false,
+    "podSecurityRefused" : false
+  }, {
+    "status" : 500,
+    "message" : "cannot create resource",
+    "forbiddenByRole" : false,
+    "podSecurityRefused" : false
+  } ]
+}
