@@ -6,5 +6,5 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let Ok(report) = std::str::from_utf8(data) else { return };
-    let _ = vectispire_scanners::secrets::read_report(report);
+    let _ = vectispire_scanners::secrets::read(report);
 });

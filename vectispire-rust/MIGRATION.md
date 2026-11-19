@@ -470,8 +470,8 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 
 | Stream | Done when |
 |---|---|
-| Workspace, census, API discovery | `LanguageCensus`, `ProjectManifest`, `ApiDiscoveryScanner` ported, each held to its own reference set |
-| Plugins and bundled rules | plugin steps, bounded outputs, registry login, `ImageSignatureVerifier` through the pinned cosign image |
+| Workspace, census, API discovery | **done** 2026-11-19 (branch `claude/rust-agent-census-api-156251`): `LanguageCensus`, `ProjectManifest`, `ApiDiscoveryScanner` ported and wired in the runner, held to `reference/workspace/` (176 trees, `WorkspaceReferenceSetTest`); the census is handed on for the plugins stream |
+| Plugins and bundled rules | **done** 2026-11-19 (branch `claude/rust-agent-plugins-cosign-18a640`): plugin steps, the bounded output holder, registry login and pull credentials, `ImageSignatureVerifier` through the pinned cosign image — held to `reference/plugins/` (written by `PluginsReferenceSetTest` and `PluginRunsReferenceSetTest`), proved with a real keyless-signed plugin and real refusals, `security/mutants/agent-plugins.py`; applicability decided on the workspace stream's census |
 | Image export | **done** 2026-11-15 (2.10): `ContainerRunner::export_image`, behind `ExportImages` |
 | Image and side-by-side conformance | reproducible image on both architectures; `scripts/composition-scan-check.sh MODE=agent` identical to the Java agent for two weeks in the nightly; only then does `release.yml` sign it |
 

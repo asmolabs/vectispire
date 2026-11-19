@@ -110,6 +110,17 @@ class OutputArchiveTest {
     }
 
     @Test
+    @DisplayName("a PAX header naming only a path keeps the entry's own size, and reads the report")
+    void paxPathAlone() throws IOException {
+        String records = pax("path", "results.sarif");
+        byte[] archive = tar(header("PaxHeaders/x", records.getBytes(StandardCharsets.UTF_8).length, 'x'), records,
+                header("truncated-name", REPORT.length(), '0'), REPORT);
+
+        assertThat(read(archive, 1024)).isInstanceOfSatisfying(ContainerRunner.OutputFile.Read.class,
+                read -> assertThat(new String(read.bytes(), StandardCharsets.UTF_8)).isEqualTo(REPORT));
+    }
+
+    @Test
     @DisplayName("an empty archive is no report")
     void missing() throws IOException {
         assertThat(read(new byte[0], 1024)).isInstanceOf(ContainerRunner.OutputFile.Missing.class);

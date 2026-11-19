@@ -5,7 +5,8 @@ use std::sync::Arc;
 use vectispire_protocol::AgentClient;
 #[cfg(test)]
 use vectispire_runner::scan_root;
-pub use vectispire_runner::{BoxFuture, ExecutionFailure, Images, Places, RuleProvider, Runner};
+pub use vectispire_runner::{BoxFuture, ExecutionFailure, Images, Places, PluginSource, RuleProvider, Runner};
+pub use vectispire_scanners::plugins::Settings as PluginSettings;
 use vectispire_scanners::rules::StoredFile;
 use vectispire_tls::TlsTrust;
 
@@ -34,6 +35,24 @@ impl RuleProvider for AgentRuleProvider {
     }
 }
 
+/// The agent's plugin source: the manifest a task names, over the protocol, cached by id and digest only when it
+/// hashes to the digest asked for — the runner refuses one that does not, with its own reason.
+struct AgentPluginSource {
+    client: Arc<AgentClient>,
+}
+
+impl PluginSource for AgentPluginSource {
+    fn fetch_manifest<'a>(
+        &'a self,
+        reference: &'a vectispire_protocol::PluginRef,
+    ) -> BoxFuture<'a, Result<serde_json::Value, String>> {
+        let client = self.client.clone();
+        Box::pin(async move {
+            client.plugin(reference, vectispire_scanners::plugins::digest_of).await.map_err(|error| error.to_string())
+        })
+    }
+}
+
 pub struct ScanRunner {
     inner: Runner,
 }
@@ -51,9 +70,11 @@ impl ScanRunner {
         places: Places,
         vulnerability_root: Option<PathBuf>,
         trust: TlsTrust,
+        plugins: PluginSettings,
     ) -> Result<ScanRunner, String> {
-        let rule_provider = Arc::new(AgentRuleProvider { client });
-        let inner = Runner::new(Some(rule_provider), images, places, vulnerability_root, trust)?;
+        let rule_provider = Arc::new(AgentRuleProvider { client: client.clone() });
+        let inner = Runner::new(Some(rule_provider), images, places, vulnerability_root, trust)?
+            .with_plugins(Arc::new(AgentPluginSource { client }), plugins);
         Ok(ScanRunner { inner })
     }
 

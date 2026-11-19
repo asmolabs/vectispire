@@ -1,0 +1,11 @@
+{"name":"empty-tree","census":{"found":[],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"polyglot","census":{"found":["bash","dockerfile","elixir","html","java","json","kotlin","python","rust","solidity","terraform","typescript"],"complete":true},"project":{"type":"gradle","version":null},"api":{"endpoints":[],"contracts":[]}}
+{"name":"skipped-directories","census":{"found":["c"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"root-named-like-a-skipped-directory","census":{"found":["kotlin"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"links-are-not-followed","census":{"found":["ruby"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"stops-early-once-everything-wanted-is-seen","census":{"found":["java"],"complete":true},"censusWanted":{"found":["java"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"wanted-but-absent","census":{"found":["python"],"complete":true},"censusWanted":{"found":["python"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"no-tree","census":{"found":[],"complete":false},"project":null,"api":{"failure":"java.nio.file.NoSuchFileException: {root}: no source tree to discover APIs in"}}
+{"name":"root-is-a-file","census":{"found":[],"complete":false},"project":null,"api":{"failure":"java.nio.file.NoSuchFileException: {root}: no source tree to discover APIs in"}}
+{"name":"deep-tree","census":{"found":["csharp","rust"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}
+{"name":"adversarial-names","census":{"found":["dockerfile","java","kotlin","python"],"complete":true},"project":null,"api":{"endpoints":[],"contracts":[]}}

@@ -1,0 +1,3190 @@
+[
+ {
+  "name": "valid",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "minimal",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ]
+  }
+ },
+ {
+  "name": "padded-fields",
+  "manifest": {
+   "id": "  acme-lint ",
+   "name": " ACME lint\t",
+   "image": " registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd ",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "  ",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "blank-justification",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": "   ",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-codes-unsorted-duplicates",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    3,
+    1,
+    1,
+    0,
+    2
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-codes-empty",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-codes-too-many",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-code-negative",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    -1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-code-256",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    256
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "exit-code-255",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    255
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "languages-unsorted",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "yaml",
+    "bash",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "languages-empty",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "languages-absent",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "language-uppercase",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "Python"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "language-unknown",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "cobol"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-short",
+  "manifest": {
+   "id": "a",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-41",
+  "manifest": {
+   "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-40",
+  "manifest": {
+   "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-uppercase",
+  "manifest": {
+   "id": "Acme",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-trailing-hyphen",
+  "manifest": {
+   "id": "acme-",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-leading-hyphen",
+  "manifest": {
+   "id": "-acme",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-inner-underscore",
+  "manifest": {
+   "id": "ac_me",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "id-absent",
+  "manifest": {
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-absent",
+  "manifest": {
+   "id": "acme-lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-blank",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "  ",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-101",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-100",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-control",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "AC\u0007ME",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-del-char",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "AC\u007fME",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "name-c1-control",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "AC\u0085ME",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-absent",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-tag",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint:4.2",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-tag-and-digest",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint:4.2@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-port-and-digest",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "localhost:5000/acme/lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-two-ats",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme@lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-at-first",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-short-digest",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint@sha256:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-upper-hex",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint@sha256:DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-sha512",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint@sha512:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-uppercase-repo",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "Acme/lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-empty-segment",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme//lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-leading-slash",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "/acme/lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-trailing-slash",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "acme/lint/@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-256-repo",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-255-repo",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "image-hub-single",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "arguments-33",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "arguments-32",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-4097",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-newline-tab",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "sh",
+    "-c",
+    "echo a\n\techo b"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-unit-separator",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "a\u001fb"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-carriage-return",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "a\rb"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-null-element",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "a",
+    null
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "argument-placeholders-twice",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "{source}/{source}",
+    "{output}:{output}",
+    "{SOURCE}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "output-dot",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": ".hidden",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "output-slash",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "dir/results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "output-101",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "output-plus",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results+1.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "output-padded",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "  report.json  ",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "network-no-justification",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": true,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "network-short-justification",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": true,
+   "network_justification": "xxxxxxxxxxxxxxxxxxx",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "network-justified",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": true,
+   "network_justification": "Fetches the advisory feed from the vendor.",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "network-justification-501",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": true,
+   "network_justification": "jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "network-justification-control",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": true,
+   "network_justification": "Fetches the advisory\u0001feed from the vendor.",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "justification-without-network",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": "Fetches the advisory feed from the vendor.",
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "timeout-9",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 9
+  }
+ },
+ {
+  "name": "timeout-10",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 10
+  }
+ },
+ {
+  "name": "timeout-900",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 900
+  }
+ },
+ {
+  "name": "timeout-901",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 901
+  }
+ },
+ {
+  "name": "timeout-null",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": null
+  }
+ },
+ {
+  "name": "schema-1.0",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "1.0"
+  }
+ },
+ {
+  "name": "schema-1.7",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "1.7"
+  }
+ },
+ {
+  "name": "schema-2.0",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "2.0"
+  }
+ },
+ {
+  "name": "schema-blank",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": " "
+  }
+ },
+ {
+  "name": "schema-garbage",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "v1"
+  }
+ },
+ {
+  "name": "schema-leading-zero",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "01.0"
+  }
+ },
+ {
+  "name": "schema-padded",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": " 1.1 "
+  }
+ },
+ {
+  "name": "schema-0.9",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "0.9"
+  }
+ },
+ {
+  "name": "schema-10000",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "schema_version": "10000.0"
+  }
+ },
+ {
+  "name": "keyless",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "keyless-padded",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "  https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1 ",
+    "issuer": "https://token.actions.githubusercontent.com  "
+   }
+  }
+ },
+ {
+  "name": "keyless-identity-only",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1"
+   }
+  }
+ },
+ {
+  "name": "keyless-issuer-only",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "keyless-http-issuer",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+    "issuer": "http://issuer.example"
+   }
+  }
+ },
+ {
+  "name": "keyless-space-identity",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "a b",
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "keyless-nbsp-identity",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "a\u00a0b",
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "keyless-identity-501",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "keyless-identity-500",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+    "issuer": "https://token.actions.githubusercontent.com"
+   }
+  }
+ },
+ {
+  "name": "signature-empty",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {}
+  }
+ },
+ {
+  "name": "signature-blank-fields",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": " ",
+    "issuer": "",
+    "public_key": "  "
+   }
+  }
+ },
+ {
+  "name": "signature-both-forms",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-prime256v1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-secp384r1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEWhHQghl9P0UmMuuYybqTsYrvOeSdFCtP\njfn00dihKiBsWAtBlDlnWzu+Ynq1OnWwVXAb0thxuM1OD5flGSnE5CIN6BKkq4oa\nEnak3G7MkHUhs9W01IbNp3BarMW278PC\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-secp521r1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBM7cE5jjNzlJTRlZNOj4E99dZKS3D\nhkjRjf7OIVx9Vv3IpIeAynUFZg94uWlhM1wOFYlPTcO0sCXQgzjL5WOaJWwB7meb\nysnchUnEFGBwEGmraq7TQdDqCRcXZZpR+zD3Dgx5zOexs+COCHjoaMqJuaJYM2rl\nemo5nwOd/+ApPzPNCis=\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-secp256k1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE5pNSq1Q7SdQuVKxe+jzn4fLMnUXSBsXo\nRL0maaWI7kKq+AH4c7lHG/2L16UA5Ryz4kqK+5lXszI2Fewq4M0KDw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-prime192v1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMEkwEwYHKoZIzj0CAQYIKoZIzj0DAQEDMgAEQu49LUEA2zBsNY1XYHM69axXbtp5\ngChVemiqYfj32CNS84QYDbazDtHMPSQ9a1bd\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-ed25519",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAD02axcyC4i5EUTYTUYtptl1SrpwkiQ7pdyVK0pYpzkE=\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-ed448",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMEMwBQYDK2VxAzoAa2C6uqlp6okZqS6Phr6QWTrUizj7X0GoYG1AFVH9q0Bp5/ej\nXBjUN72YVFL4wlrSRfhm3yvRnVGA\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-rsa1024",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC6lvBwNsIOb5op7o9KuwW0hSUX\nLmS8nlZ3ypzEZ16V4ButKWeEuPbP94r/grepZA8jszh1Ti8pyicW3LKoilt51iYM\nnRC5RlDMXBZrRLMzUsXWhZt/1BR8C1VbxT4siLCR2qBkqMfDy4unuSk1lSshOpV3\npvrYnCVCeSQGEWE4gwIDAQAB\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-rsa2048",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5ImaCCisSXZVw6agEMnL\nrNnpre27Lu6xbct4YaRsayrhaiivGjFIuXUQ/PLe2E7zzeOCl6MHNBi81Y6VFNJ+\nvXatTwH7UVjZH+xF74PCVXFPW4WeKEqEzXcOCobp/OyfzkFjAZmtLv3BYFIpNVZq\no7zBFMj8yCezcbeHCgkxmM0vwW9f3VvgfUd32JCZ+en3FNNsSobeFW6NycwLAqCl\nPEy+74fzga2/vP196MBOXoChASluXfd3DpMuDuNqDFhhUQylW8lTo7Srk07FD/Qd\nsXxHcyXsJoYa/I8EufzHlFp5A9PcpyVwn56ThWcS6gDMBNIFplf1TWhZB1daLc+3\nGwIDAQAB\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-rsa2048-pkcs1",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA5ImaCCisSXZVw6agEMnLrNnpre27Lu6xbct4YaRsayrhaiivGjFI\nuXUQ/PLe2E7zzeOCl6MHNBi81Y6VFNJ+vXatTwH7UVjZH+xF74PCVXFPW4WeKEqE\nzXcOCobp/OyfzkFjAZmtLv3BYFIpNVZqo7zBFMj8yCezcbeHCgkxmM0vwW9f3Vvg\nfUd32JCZ+en3FNNsSobeFW6NycwLAqClPEy+74fzga2/vP196MBOXoChASluXfd3\nDpMuDuNqDFhhUQylW8lTo7Srk07FD/QdsXxHcyXsJoYa/I8EufzHlFp5A9PcpyVw\nn56ThWcS6gDMBNIFplf1TWhZB1daLc+3GwIDAQAB\n-----END RSA PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-crlf",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\r\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\r\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\r\n-----END PUBLIC KEY-----\r\n"
+   }
+  }
+ },
+ {
+  "name": "key-cr",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\rMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\rW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\r-----END PUBLIC KEY-----\r"
+   }
+  }
+ },
+ {
+  "name": "key-no-trailing-newline",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----"
+   }
+  }
+ },
+ {
+  "name": "key-leading-text",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "cosign.pub:\n-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-two-blocks",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-private",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIDwW6hY8p8ku6gNUj/s9XJctptkib5nE4S2QgAcddiIhoAoGCCqGSM49\nAwEHoUQDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPbW8EptEqUA0YSPZWFrSX1hPvO\n6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END EC PRIVATE KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-garbage-base64",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\n!!!!\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-not-der",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\naGVsbG8=\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-no-end",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\n"
+   }
+  }
+ },
+ {
+  "name": "key-not-pem",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA"
+   }
+  }
+ },
+ {
+  "name": "key-tab",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\n\tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-8193",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  }
+ },
+ {
+  "name": "key-header-line",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nComment: x\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-wrong-end-type",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END RSA KEY-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-type-lowercase",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN public key-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END public key-----\n"
+   }
+  }
+ },
+ {
+  "name": "key-spaces-in-body",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "signature": {
+    "public_key": "-----BEGIN PUBLIC KEY-----  \nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb  \nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==  \n-----END PUBLIC KEY-----  \n"
+   }
+  }
+ },
+ {
+  "name": "unknown-field",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120,
+   "extra": "ignored"
+  }
+ },
+ {
+  "name": "network-as-string",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": "true",
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ },
+ {
+  "name": "timeout-as-string",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": [
+    "python",
+    "java"
+   ],
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": "120"
+  }
+ },
+ {
+  "name": "languages-as-string",
+  "manifest": {
+   "id": "acme-lint",
+   "name": "ACME lint",
+   "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "languages": "python",
+   "arguments": [
+    "--out",
+    "{output}",
+    "{source}"
+   ],
+   "output": "results.sarif",
+   "exit_codes": [
+    0,
+    1
+   ],
+   "network": false,
+   "network_justification": null,
+   "timeout_seconds": 120
+  }
+ }
+]

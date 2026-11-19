@@ -1,0 +1,3905 @@
+[
+ {
+  "name": "produced-keyless",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "produced-key",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "produced-not-required",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "produced-empty-findings",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\"}}, \"results\": []}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "produced-waived",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": true,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "refused-unsigned",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "declared-signer-verified-when-not-required",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": true,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "waiver-does-not-cover-a-failed-signature",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": true,
+    "cosign": {
+     "exit": 1,
+     "stderr": "Error: no matching signatures",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "refused-signature-unverified",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "  Error: no signatures found\nmain.go:69: error during command execution  \n",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-0",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "Error: GET https://registry.acme.internal/v2/: UNAUTHORIZED: authentication required",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-1",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "unexpected status code 401 Unauthorized",
+     "credentialsHeld": true
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-2",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "unexpected status code 403 Forbidden",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-3",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "DENIED: requested access to the resource is denied",
+     "credentialsHeld": true
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-4",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "denied: lower case is not the registry's code",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-5",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "XUNAUTHORIZED is not a word boundary",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-6",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "UNAUTHORIZED_X neither",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-7",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "401 Unauthorizedly",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-stderr-8",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "status 401 unauthorized",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-long-stderr",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 2,
+     "stderr": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-long-unicode-stderr",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 2,
+     "stderr": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-empty-stderr",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 1,
+     "stderr": "",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "cosign-could-not-start",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "throws": "The scanner image ghcr.io/sigstore/cosign/cosign@sha256:x is not on this host and could not be fetched: boom"
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "not-applicable",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "go",
+      "rust"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "not-applicable-enum-order",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "yaml",
+      "bash",
+      "go"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "incomplete-census-runs",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python"
+   ],
+   "complete": false
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "go"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "root-absent",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": false,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "second",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "root-absent-after-fetch-failure",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": false,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "throws",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "second",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fetch-throws",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "throws",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fetch-throws-without-message",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "throwsBare",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fetch-null",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "null",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fetch-other-id",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "otherId",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fetch-other-digest",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "otherDigest",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "reference-digest-mismatch",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    },
+    "digest": "sha256:feed"
+   }
+  ]
+ },
+ {
+  "name": "invalid-manifest",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "invalid-schema-major",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "schema_version": "2.0"
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "invalid-signature",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "x"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "no-owner",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": null,
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "root-owner",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "0:0",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "root-owner-checked-after-refusal",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "0:0",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "output-full",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 2,
+     "stderr": "the plugin's own complaint",
+     "full": true,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "output-full-even-on-success",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": true,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fsize-undeclared",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 153,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "fsize-declared",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      153
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 153,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "exit-undeclared",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 2,
+     "stderr": "  boom\n",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "exit-undeclared-long-stderr",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 2,
+     "stderr": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "file-missing",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "missing"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "file-not-regular",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "notRegular"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "file-too-large",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "tooLarge",
+      "size": 999999999
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "output-not-read-back",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     },
+     "noOutput": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "report-refused",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{nope"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "report-refused-link",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/etc/passwd\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "report-larger-than-ceiling",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ],
+  "outputBytes": 100
+ },
+ {
+  "name": "report-no-runs",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": []}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "report-no-results",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\"}}}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "report-run-failed",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme\"}}, \"invocations\": [{\"executionSuccessful\": false}], \"results\": []}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "run-throws",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "throws": "Scanner \"plugin acme-lint\" exceeded 120s and was stopped."
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror",
+  "settings": {
+   "mirror": "Mirror.Internal:5000/team/",
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwRsjPEBKNXJluPgWeLDp7sX2TPb\nW8EptEqUA0YSPZWFrSX1hPvO6EjVcRr67G1zeK9jg3vKvXkEPOg68vDKiw==\n-----END PUBLIC KEY-----\n"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror-hub-image",
+  "settings": {
+   "mirror": "mirror.internal",
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "network-and-timeout",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": true,
+     "timeout_seconds": null,
+     "network_justification": "Fetches the advisory feed from the vendor."
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "custom-output-name",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "{source}",
+      "-o",
+      "{output}"
+     ],
+     "output": "report.json",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "each-on-its-own",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 9,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "second",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "third",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "throws",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "fourth",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "go"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "fifth",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "mixed-refusals",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": true
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "signed",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120,
+     "signature": {
+      "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1",
+      "issuer": "https://token.actions.githubusercontent.com"
+     }
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   },
+   {
+    "manifest": {
+     "id": "waived",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": true,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": false,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "small-capacity",
+  "settings": {
+   "mirror": null,
+   "signatureRequired": false
+  },
+  "owner": "1000:1000",
+  "root": true,
+  "census": {
+   "found": [
+    "python",
+    "java"
+   ],
+   "complete": true
+  },
+  "plugins": [
+   {
+    "manifest": {
+     "id": "acme-lint",
+     "name": "ACME lint",
+     "image": "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+     "languages": [
+      "python"
+     ],
+     "arguments": [
+      "--out",
+      "{output}",
+      "{source}"
+     ],
+     "output": "results.sarif",
+     "exit_codes": [
+      0,
+      1
+     ],
+     "network": false,
+     "timeout_seconds": 120
+    },
+    "fetch": "ok",
+    "runsUnsigned": false,
+    "cosign": {
+     "exit": 0,
+     "stderr": "Verification for registry.acme.internal/acme-lint -- The following checks were performed",
+     "credentialsHeld": false
+    },
+    "run": {
+     "exit": 0,
+     "stderr": "the plugin's own complaint",
+     "full": true,
+     "file": {
+      "kind": "read",
+      "content": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+     }
+    }
+   }
+  ],
+  "outputBytes": 4096
+ }
+]

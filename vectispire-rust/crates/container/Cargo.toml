@@ -8,11 +8,18 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# The registry login's `auth`, as a Docker configuration writes it.
+base64.workspace = true
 bollard.workspace = true
 futures-util.workspace = true
+# The Docker configuration's credentials, read and written; the login's directory, created 0700.
+serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+# Java's digits, white space and `String.lines`, for the holder's `df` and the archive's headers.
+vectispire-domain.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

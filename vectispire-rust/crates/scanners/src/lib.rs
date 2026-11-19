@@ -10,14 +10,24 @@
 //! [`jackson`] reproduces the leniencies of the Java parsers' JSON reading, which the findings
 //! depend on: what a number in a text field becomes, what a text in a number field becomes.
 
+pub mod api_discovery;
+pub mod census;
 pub mod container_paths;
 pub mod dependencies;
 pub mod failure;
 pub mod iac;
 pub mod images;
 pub mod jackson;
+pub mod jackson_tree;
+pub mod manifest;
 pub mod output;
+pub mod plugins;
+pub mod pom;
+pub mod properties;
 pub mod rules;
+pub mod sarif;
 pub mod sast;
 pub mod secrets;
+pub mod source_files;
 pub mod vulnerability_database;
+pub mod walk;

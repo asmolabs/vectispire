@@ -144,3 +144,17 @@ path = "fuzz_targets/checklist_workbook.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "project_manifest"
+path = "fuzz_targets/project_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "api_discovery"
+path = "fuzz_targets/api_discovery.rs"
+test = false
+doc = false
+bench = false

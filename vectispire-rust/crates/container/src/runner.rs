@@ -55,11 +55,14 @@ pub struct ContainerResult {
 /// The daemon — through the socket proxy in every shipped composition — and the limits runs get.
 #[derive(Debug)]
 pub struct ContainerRunner {
-    docker: Docker,
-    limits: ScannerLimits,
+    pub(crate) docker: Docker,
+    pub(crate) limits: ScannerLimits,
     /// The CPU quota the daemon accepts, asked once, on the first run: asking at start would turn "no
     /// Docker today" into "the agent does not start".
     clamped: OnceCell<ScannerLimits>,
+    /// What this executor's pulls send a registry — read once, from its Docker configuration
+    /// ([`ContainerRunner::with_docker_config`]); none until then, and every pull anonymous.
+    pub(crate) credentials: crate::pull_credentials::DockerConfig,
 }
 
 impl ContainerRunner {
@@ -88,7 +91,7 @@ impl ContainerRunner {
             )
         }
         .map_err(unreachable)?;
-        Ok(ContainerRunner { docker, limits, clamped: OnceCell::new() })
+        Ok(ContainerRunner { docker, limits, clamped: OnceCell::new(), credentials: Default::default() })
     }
 
     /// Whether the daemon answers — asked before claiming a scan, so that an agent without Docker
@@ -103,7 +106,7 @@ impl ContainerRunner {
         self.docker.ping().await.err().map(|error| format!("The Docker daemon did not answer a ping: {error}"))
     }
 
-    async fn limits(&self) -> ScannerLimits {
+    pub(crate) async fn limits(&self) -> ScannerLimits {
         *self
             .clamped
             .get_or_init(|| async {
@@ -134,7 +137,7 @@ impl ContainerRunner {
         outcome
     }
 
-    async fn run_created(
+    pub(crate) async fn run_created(
         &self,
         run: &ContainerRun,
         id: &str,
@@ -236,39 +239,54 @@ impl ContainerRunner {
     }
 
     /// Pulls the image if the host lacks it: the create call never pulls, and nothing else will.
+    ///
+    /// The pull sends what this executor's Docker configuration holds for the image's registry, as docker-java's
+    /// pull sends it for the Java runner — nothing when it holds nothing usable.
     async fn ensure_image_present(&self, run: &ContainerRun) -> Result<(), RunnerError> {
-        if self.docker.inspect_image(&run.image).await.is_ok() {
+        self.ensure_present(&run.image).await
+    }
+
+    pub(crate) async fn ensure_present(&self, image: &str) -> Result<(), RunnerError> {
+        if self.docker.inspect_image(image).await.is_ok() {
             return Ok(());
         }
-        let options = CreateImageOptionsBuilder::new().from_image(&run.image).build();
-        let mut pull = self.docker.create_image(Some(options), None, None);
+        let options = CreateImageOptionsBuilder::new().from_image(image).build();
+        let credentials = self.credentials.credentials_for(image).map(|auth| bollard::auth::DockerCredentials {
+            username: auth.username.clone(),
+            password: auth.password.clone(),
+            identitytoken: auth.identity_token.clone(),
+            registrytoken: auth.registry_token.clone(),
+            serveraddress: Some(crate::pull_credentials::registry_of(image)),
+            ..Default::default()
+        });
+        let mut pull = self.docker.create_image(Some(options), None, credentials);
         while let Some(progress) = pull.next().await {
             if let Err(error) = progress {
-                return Err(RunnerError::ImageUnavailable { image: run.image.clone(), cause: error.to_string() });
+                return Err(RunnerError::ImageUnavailable { image: image.to_owned(), cause: error.to_string() });
             }
         }
         Ok(())
     }
 }
 
-fn daemon(run: &ContainerRun, error: bollard::errors::Error) -> RunnerError {
+pub(crate) fn daemon(run: &ContainerRun, error: bollard::errors::Error) -> RunnerError {
     RunnerError::Daemon { label: run.label.clone(), cause: error.to_string() }
 }
 
 /// A created container, removed when its run is over — and, should the future be dropped half-way
 /// (an agent shutting down, a scan cancelled), removed by a task spawned on drop. A forgotten
 /// container holds its workspace, hence the whole clone, until the disk is full.
-struct Removal {
-    docker: Docker,
-    id: Option<String>,
+pub(crate) struct Removal {
+    pub(crate) docker: Docker,
+    pub(crate) id: Option<String>,
 }
 
 impl Removal {
-    fn id(&self) -> &str {
+    pub(crate) fn id(&self) -> &str {
         self.id.as_deref().unwrap_or_default()
     }
 
-    async fn now(mut self) {
+    pub(crate) async fn now(mut self) {
         if let Some(id) = self.id.take() {
             remove(&self.docker, &id).await;
         }

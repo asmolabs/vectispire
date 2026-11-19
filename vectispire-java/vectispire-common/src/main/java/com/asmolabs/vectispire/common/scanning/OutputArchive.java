@@ -52,7 +52,10 @@ final class OutputArchive {
                     String path = paxValue(meta, "path");
                     String paxSize = paxValue(meta, "size");
                     pendingName = path != null ? path : pendingName;
-                    pendingSize = paxSize != null ? parseLong(paxSize) : pendingSize;
+                    // `Long.valueOf`, not the bare `long`: a ternary mixing `long` and `Long` unboxes the
+                    // `Long`, and a PAX header naming a path but no size threw a NullPointerException —
+                    // a well-formed archive refused (found by the Rust port's reference set, 2026-11-19).
+                    pendingSize = paxSize != null ? Long.valueOf(parseLong(paxSize)) : pendingSize;
                 }
                 continue;
             }

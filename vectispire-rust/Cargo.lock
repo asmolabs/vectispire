@@ -4016,6 +4016,7 @@ dependencies = [
 name = "vectispire-container"
 version = "2.0.0-dev"
 dependencies = [
+ "base64 0.22.1",
  "bollard",
  "futures-util",
  "serde_json",
@@ -4023,6 +4024,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "vectispire-domain",
  "vectispire-testkit",
 ]
 
@@ -5083,6 +5085,7 @@ dependencies = [
 name = "vectispire-scanners"
 version = "2.0.0-dev"
 dependencies = [
+ "base64 0.22.1",
  "rand_core 0.6.4",
  "regex",
  "rustix",
@@ -5095,6 +5098,7 @@ dependencies = [
  "uuid",
  "vectispire-container",
  "vectispire-domain",
+ "vectispire-protocol",
  "vectispire-testkit",
 ]
 

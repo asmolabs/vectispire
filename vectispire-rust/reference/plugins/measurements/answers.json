@@ -1,0 +1,19 @@
+[
+{"printed":"Filesystem           1024-blocks    Used Available Capacity Mounted on\ntmpfs                    10240      12     10228   0% /repo/output\nFilesystem              Inodes    Used Available Capacity Mounted on\ntmpfs                     4096       3      4093   0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":10473472,"availableInodes":4093,"full":false}},
+{"printed":"tmpfs 10240 10240 0 100% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":0,"availableInodes":4093,"full":true}},
+{"printed":"tmpfs 10240 10237 3 99% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":3072,"availableInodes":4093,"full":true}},
+{"printed":"tmpfs 10240 10236 4 99% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":4096,"availableInodes":4093,"full":false}},
+{"printed":"tmpfs 10240 12 10228 0% /repo/output\ntmpfs 4096 4096 0 100% /repo/output\n","measured":{"capacity":10485760,"availableBytes":10473472,"availableInodes":0,"full":true}},
+{"printed":"tmpfs 10240 12 10228 0% /repo/output\n","measured":null},
+{"printed":"","measured":null},
+{"printed":"tmpfs 10240 12 10228 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"tmpfs 10240 12 10228 0% /repo/outputs\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"tmpfs 10240 12 -1 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"tmpfs 10240 12 1e3 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"tmpfs 10240 12 9999999999999999999 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"tmpfs 10240 12 999999999999999999 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":-9017668127734891520,"availableInodes":4093,"full":true}},
+{"printed":"  tmpfs\t10240   12  10228  0%  /repo/output  \r\ntmpfs 4096 3 4093 0% /repo/output","measured":{"capacity":10485760,"availableBytes":10473472,"availableInodes":4093,"full":false}},
+{"printed":"tmpfs 10240 12 10228 0% on /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":null},
+{"printed":"df: /repo/output: No such file or directory\n","measured":null},
+{"printed":"tmpfs 10240 12 ١٢ 0% /repo/output\ntmpfs 4096 3 4093 0% /repo/output\n","measured":{"capacity":10485760,"availableBytes":12288,"availableInodes":4093,"full":false}}
+]
