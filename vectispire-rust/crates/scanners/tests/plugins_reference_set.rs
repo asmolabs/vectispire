@@ -18,7 +18,12 @@ fn cases(relative: &str) -> Vec<Value> {
 }
 
 fn report(area: &str, differences: &[String]) {
-    assert!(differences.is_empty(), "{area}: {} difference(s) with Java:\n{}", differences.len(), differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "{area}: {} difference(s) with Java:\n{}",
+        differences.len(),
+        differences.join("\n")
+    );
 }
 
 /// A text with Jackson's own words after "not readable JSON: " cut — to the end of the text, or of the JSON string
@@ -337,7 +342,8 @@ mod steps {
         }
         let settings = &scenario["settings"];
         let settings =
-            plugins::Settings::new(settings["mirror"].as_str(), settings["signatureRequired"].as_bool().unwrap()).unwrap();
+            plugins::Settings::new(settings["mirror"].as_str(), settings["signatureRequired"].as_bool().unwrap())
+                .unwrap();
         let owner: fn(&Path) -> Option<String> = match scenario["owner"].as_str() {
             None => owner_none,
             Some("0:0") => owner_root,
@@ -371,10 +377,11 @@ mod steps {
             .collect();
         let complete = scenario["census"]["complete"].as_bool().unwrap();
         let source = root.join("source");
-        let steps = plugins::run_steps(&scanner, &Provider(scenario.clone()), &references, root, Some(&source), |declared| {
-            plugins::applies(&found, complete, declared)
-        })
-        .await;
+        let steps =
+            plugins::run_steps(&scanner, &Provider(scenario.clone()), &references, root, Some(&source), |declared| {
+                plugins::applies(&found, complete, declared)
+            })
+            .await;
         let root_text = root.display().to_string();
         let requests = executor.requests.lock().unwrap();
         json!({

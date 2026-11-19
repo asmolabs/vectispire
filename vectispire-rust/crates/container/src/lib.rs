@@ -23,7 +23,9 @@ mod runner;
 
 pub use body::{SCANNER_LABEL, create_body};
 pub use limits::ScannerLimits;
-pub use run::{ContainerRun, Mount, owner_of};
 pub use pull_credentials::{RegistryAccess, registry_of};
-pub use run_with::{ExtendedError, ExtendedResult, Extras, REGISTRY_LOGIN_MOUNT, RegistryLogin, holder_body, tool_body};
+pub use run::{ContainerRun, Mount, owner_of};
+pub use run_with::{
+    ExtendedError, ExtendedResult, Extras, REGISTRY_LOGIN_MOUNT, RegistryLogin, holder_body, tool_body,
+};
 pub use runner::{ContainerResult, ContainerRunner, ExportError, RunnerError};

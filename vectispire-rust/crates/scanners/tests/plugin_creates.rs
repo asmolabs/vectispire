@@ -71,15 +71,27 @@ fn assert_same(what: &str, java: &Value, rust: &Value) {
 
 fn creates(file: &str) -> Vec<Value> {
     let recorded: Vec<Value> = serde_json::from_str(&vectispire_testkit::read(file)).unwrap();
-    recorded.into_iter().filter(|request| request["path"] == "/containers/create").map(|request| request["body"].clone()).collect()
+    recorded
+        .into_iter()
+        .filter(|request| request["path"] == "/containers/create")
+        .map(|request| request["body"].clone())
+        .collect()
 }
 
 #[test]
 fn the_holder_and_the_plugin_are_created_as_java_creates_them() {
     let java = creates("plugins/creates/bounded-output.json");
     let limits = reference_limits();
-    let bounded = BoundedOutput::new("/repo/output", 256 * 1024 * 1024, plugins::OUTPUT_HOLDER, "results.sarif").unwrap();
-    let holder = holder_body(&bounded, "1000:1000", &("1000".into(), "1000".into()), "plugin acme-lint", Duration::from_secs(120), &limits);
+    let bounded =
+        BoundedOutput::new("/repo/output", 256 * 1024 * 1024, plugins::OUTPUT_HOLDER, "results.sarif").unwrap();
+    let holder = holder_body(
+        &bounded,
+        "1000:1000",
+        &("1000".into(), "1000".into()),
+        "plugin acme-lint",
+        Duration::from_secs(120),
+        &limits,
+    );
     assert_same("the holder", &java[0], &serde_json::to_value(holder).unwrap());
 
     let mut run = ContainerRun::new(
@@ -104,7 +116,10 @@ impl plugins::PluginExecutor for Recording {
 
     async fn run_with(&self, run: &ContainerRun, extras: &Extras) -> Result<ExtendedResult, ExtendedError> {
         self.0.lock().unwrap().push((run.clone(), extras.clone()));
-        Ok(ExtendedResult { result: ContainerResult { stdout: String::new(), stderr: String::new(), exit_code: 0 }, output: None })
+        Ok(ExtendedResult {
+            result: ContainerResult { stdout: String::new(), stderr: String::new(), exit_code: 0 },
+            output: None,
+        })
     }
 
     fn registry_access_for(&self, reference: &str) -> RegistryAccess {
@@ -120,9 +135,12 @@ async fn cosign_is_created_as_java_creates_it_with_the_key_and_the_login() {
     let key = vectispire_testkit::read("plugins/creates/cosign.pub");
     let signature = PluginSignature::new(None, None, Some(key.clone()));
     let recording = Recording(Mutex::new(Vec::new()));
-    let reference = "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    let reference =
+        "registry.acme.internal/acme-lint@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 
-    plugins::verify(&recording, reference, &signature, &keys, "1000:1000", "plugin acme-lint", plugins::COSIGN).await.unwrap();
+    plugins::verify(&recording, reference, &signature, &keys, "1000:1000", "plugin acme-lint", plugins::COSIGN)
+        .await
+        .unwrap();
 
     assert_eq!(std::fs::read_to_string(keys.join("cosign.pub")).unwrap(), key, "the key is handed over as declared");
     let (run, extras) = recording.0.lock().unwrap().pop().unwrap();

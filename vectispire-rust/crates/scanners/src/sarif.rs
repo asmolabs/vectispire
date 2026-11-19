@@ -178,7 +178,12 @@ fn run(run: &Value, roots: &[&str], budget: &mut usize) -> Result<Run, InvalidSa
 }
 
 /// A result as a finding, or `None` for one SARIF itself says is not a finding.
-fn finding(result: &Value, rules: &Rules<'_>, roots: &[&str], position: usize) -> Result<Option<SarifFinding>, InvalidSarif> {
+fn finding(
+    result: &Value,
+    rules: &Rules<'_>,
+    roots: &[&str],
+    position: usize,
+) -> Result<Option<SarifFinding>, InvalidSarif> {
     if !result.is_object() {
         return Err(invalid(format!("Result {position} is not a JSON object.")));
     }
@@ -335,7 +340,7 @@ fn parse(document: &[u8]) -> Result<Option<Value>, InvalidSarif> {
     };
     let (first, rest) = document.split_at_checked(end).ok_or_else(|| unreadable("truncated"))?;
     let mut deserializer = serde_json::Deserializer::from_slice(first);
-    let value = Limited { depth: 0 }.deserialize(&mut deserializer).map_err(|error| unreadable(&error.to_string()))?;
+    let value = Limited.deserialize(&mut deserializer).map_err(|error| unreadable(&error.to_string()))?;
     match next_token(rest) {
         Next::End => Ok(Some(value)),
         Next::Token => Err(invalid("The SARIF document carries content after its end.")),
@@ -370,12 +375,17 @@ fn next_token(rest: &[u8]) -> Next {
             let (number, after) = token.split_at(length.unwrap_or(token.len()));
             let well_formed = serde_json::from_slice::<serde::de::IgnoredAny>(number).is_ok();
             // A root-level value is followed by white space or nothing.
-            if well_formed && after.first().is_none_or(|byte| is_json_space(*byte)) { Next::Token } else { Next::Unreadable }
+            if well_formed && after.first().is_none_or(|byte| is_json_space(*byte)) {
+                Next::Token
+            } else {
+                Next::Unreadable
+            }
         }
         _ => {
             for literal in [&b"true"[..], b"false", b"null"] {
                 if let Some(after) = token.strip_prefix(literal) {
-                    let identifier = after.first().is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'));
+                    let identifier =
+                        after.first().is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'));
                     return if identifier { Next::Unreadable } else { Next::Token };
                 }
             }
@@ -434,18 +444,9 @@ fn refuse_long_numbers(document: &[u8]) -> Result<(), InvalidSarif> {
     Ok(())
 }
 
-/// Builds the tree while refusing what Jackson's constraints refuse: nesting past 64, a key twice in an object, a
-/// string past a million characters, a name past fifty thousand.
-struct Limited {
-    depth: usize,
-}
-
-impl Limited {
-    fn deeper<E: serde::de::Error>(&self) -> Result<Limited, E> {
-        let depth = self.depth.checked_add(1).filter(|depth| *depth <= MAX_DEPTH);
-        depth.map(|depth| Limited { depth }).ok_or_else(|| E::custom("Document nesting depth exceeds the maximum allowed"))
-    }
-}
+/// Builds the tree while refusing what Jackson's constraints refuse once the prescan let it through: a key twice in an
+/// object, a string past a million characters, a name past fifty thousand. (The nesting is the prescan's.)
+struct Limited;
 
 impl<'de> DeserializeSeed<'de> for Limited {
     type Value = Value;
@@ -490,16 +491,14 @@ impl<'de> Visitor<'de> for Limited {
     }
 
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Value, A::Error> {
-        let deeper = self.deeper()?;
         let mut items = Vec::new();
-        while let Some(item) = seq.next_element_seed(Limited { depth: deeper.depth })? {
+        while let Some(item) = seq.next_element_seed(Limited)? {
             items.push(item);
         }
         Ok(Value::Array(items))
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Value, A::Error> {
-        let deeper = self.deeper()?;
         let mut members = Map::new();
         while let Some(key) = map.next_key::<String>()? {
             if java::utf16_len(&key) > MAX_NAME {
@@ -508,7 +507,7 @@ impl<'de> Visitor<'de> for Limited {
             if members.contains_key(&key) {
                 return Err(serde::de::Error::custom(format!("Duplicate field '{key}'")));
             }
-            let value = map.next_value_seed(Limited { depth: deeper.depth })?;
+            let value = map.next_value_seed(Limited)?;
             members.insert(key, value);
         }
         Ok(Value::Object(members))
@@ -652,12 +651,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_million_brackets_are_refused_before_serde_recurses_into_them() {
+        // `serde_json` runs with `unbounded_depth` in this workspace: without the prescan this overflows the stack.
+        let deep = format!("{{\"version\":\"2.1.0\",\"runs\":[],\"x\":{}}}", "[".repeat(1_000_000));
+        assert!(read(deep.as_bytes(), u64::MAX, &[]).unwrap_err().0.starts_with(NOT_READABLE_JSON));
+        let quoted = format!("{{\"version\":\"2.1.0\",\"runs\":[],\"x\":\"{}\"}}", "[".repeat(100));
+        assert!(read(quoted.as_bytes(), u64::MAX, &[]).is_ok(), "brackets inside a string are text");
+    }
+
+    #[test]
     fn a_document_with_content_after_it_is_told_from_one_that_is_not_json() {
         let doc = br#"{"version":"2.1.0","runs":[]}"#;
         assert!(read(doc, 1000, &[]).unwrap().is_empty());
         let after = |tail: &str| [&doc[..], tail.as_bytes()].concat();
         for token in [" {}", " []", " \"x", " 1", "\n-2.5e3", " true", " null]"] {
-            assert_eq!(read(&after(token), 1000, &[]).unwrap_err().0, "The SARIF document carries content after its end.");
+            assert_eq!(
+                read(&after(token), 1000, &[]).unwrap_err().0,
+                "The SARIF document carries content after its end."
+            );
         }
         for garbage in [" x", " ]", " 1x", " truex", " ,"] {
             assert!(read(&after(garbage), 1000, &[]).unwrap_err().0.starts_with(NOT_READABLE_JSON), "{garbage}");

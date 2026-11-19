@@ -24,7 +24,12 @@ fn compare(area: &str, java: &[Value], rust: &[Value]) {
         .filter(|(java, rust)| java != rust)
         .map(|(java, rust)| format!("  java: {java}\n  rust: {rust}"))
         .collect();
-    assert!(differences.is_empty(), "{area}: {} difference(s) with Java:\n{}", differences.len(), differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "{area}: {} difference(s) with Java:\n{}",
+        differences.len(),
+        differences.join("\n")
+    );
 }
 
 #[test]
@@ -86,7 +91,8 @@ fn the_credentials_a_pull_sends_are_docker_javas() {
                 .iter()
                 .map(|reference| {
                     let reference = reference.as_str().unwrap();
-                    let mut each = json!({"reference": reference, "registry": pull_credentials::registry_of(reference)});
+                    let mut each =
+                        json!({"reference": reference, "registry": pull_credentials::registry_of(reference)});
                     let config = match &config {
                         Err(_) => {
                             each["unreadable"] = json!(true);

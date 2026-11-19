@@ -31,8 +31,9 @@ use std::future::Future;
 use std::path::Path;
 use std::time::Duration;
 use vectispire_container::bounded_output::{BoundedOutput, CollectedOutput, OUTPUT_INODES, OutputFile};
-use vectispire_container::{ContainerRun, ContainerRunner, ExtendedError, ExtendedResult, Extras, Mount, RegistryAccess,
-    RegistryLogin};
+use vectispire_container::{
+    ContainerRun, ContainerRunner, ExtendedError, ExtendedResult, Extras, Mount, RegistryAccess, RegistryLogin,
+};
 use vectispire_domain::bounded_text::Refused;
 use vectispire_domain::language::Language;
 use vectispire_domain::plugin_image;
@@ -46,8 +47,7 @@ pub const COSIGN: &str =
     "ghcr.io/sigstore/cosign/cosign@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8";
 
 /// The holder of a plugin's output directory: busybox 1.37 by the digest of its index — `PluginScanner.OUTPUT_HOLDER`.
-pub const OUTPUT_HOLDER: &str =
-    "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+pub const OUTPUT_HOLDER: &str = "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
 
 /// Where the declared public key is mounted, read-only, alone.
 pub const KEY_MOUNT: &str = "/trust/cosign.pub";
@@ -198,12 +198,15 @@ impl Settings {
     /// From the Java agent's variables: `VECTISPIRE_PLUGIN_REGISTRY` (blank for none) and
     /// `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` (`true` unless it says `false`, as Spring binds a boolean).
     pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Result<Settings, String> {
-        let required = match lookup("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED").map(|value| value.trim().to_ascii_lowercase()) {
-            None => true,
-            Some(value) if value.is_empty() || value == "true" => true,
-            Some(value) if value == "false" => false,
-            Some(value) => return Err(format!("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED is true or false, not \"{value}\".")),
-        };
+        let required =
+            match lookup("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED").map(|value| value.trim().to_ascii_lowercase()) {
+                None => true,
+                Some(value) if value.is_empty() || value == "true" => true,
+                Some(value) if value == "false" => false,
+                Some(value) => {
+                    return Err(format!("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED is true or false, not \"{value}\"."));
+                }
+            };
         Settings::new(lookup("VECTISPIRE_PLUGIN_REGISTRY").as_deref(), required).map_err(|refused| refused.0)
     }
 
@@ -222,7 +225,11 @@ pub trait PluginExecutor: Send + Sync {
     fn output_bytes(&self) -> u64;
 
     /// One run, with its bounded output and its registry login, in the closed shape.
-    fn run_with(&self, run: &ContainerRun, extras: &Extras) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send;
+    fn run_with(
+        &self,
+        run: &ContainerRun,
+        extras: &Extras,
+    ) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send;
 
     /// The registry as the pulls key it, and whether credentials are held for it — never them.
     fn registry_access_for(&self, reference: &str) -> RegistryAccess;
@@ -233,7 +240,11 @@ impl PluginExecutor for ContainerRunner {
         ContainerRunner::output_bytes(self)
     }
 
-    fn run_with(&self, run: &ContainerRun, extras: &Extras) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send {
+    fn run_with(
+        &self,
+        run: &ContainerRun,
+        extras: &Extras,
+    ) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send {
         ContainerRunner::run_with(self, run, extras)
     }
 
@@ -248,7 +259,11 @@ impl<E: PluginExecutor> PluginExecutor for &E {
         (**self).output_bytes()
     }
 
-    fn run_with(&self, run: &ContainerRun, extras: &Extras) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send {
+    fn run_with(
+        &self,
+        run: &ContainerRun,
+        extras: &Extras,
+    ) -> impl Future<Output = Result<ExtendedResult, ExtendedError>> + Send {
         (**self).run_with(run, extras)
     }
 
@@ -319,9 +334,8 @@ pub fn findings(runs: &[Run], label: &str) -> Result<Option<PluginReport>, Scann
 /// `signature_unverified` — refused all the same.
 fn registry_refused(said: &str) -> bool {
     use std::sync::LazyLock;
-    static PATTERN: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
-        regex::Regex::new(r"\b(?:UNAUTHORIZED|DENIED)\b|\b401 Unauthorized\b|\b403 Forbidden\b").ok()
-    });
+    static PATTERN: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"\b(?:UNAUTHORIZED|DENIED)\b|\b401 Unauthorized\b|\b403 Forbidden\b").ok());
     // A pattern that does not compile reads every refusal as "unverified": still refused, never run.
     PATTERN.as_ref().is_some_and(|pattern| pattern.is_match(said))
 }
@@ -455,11 +469,12 @@ impl<E: PluginExecutor> PluginScanner<E> {
         }
         Err(PluginFailure::Refused {
             refusal: Refusal::Unsigned,
-            message: "This executor runs only plugins whose image is signed (VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED), and \
+            message:
+                "This executor runs only plugins whose image is signed (VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED), and \
                       this plugin's manifest declares no signer nor has the platform governor waived the requirement \
                       for it; it was not run. Declare who signs its image, or record a waiver with its justification \
                       on the plugin."
-                .to_owned(),
+                    .to_owned(),
         })
     }
 
@@ -561,7 +576,9 @@ fn read_report(
                 manifest.output
             )));
         }
-        OutputFile::NotRegular => return Err(failed("Its report is not a regular file; a link or a device is not read.")),
+        OutputFile::NotRegular => {
+            return Err(failed("Its report is not a regular file; a link or a device is not read."));
+        }
         OutputFile::TooLarge(_) => {
             return Err(failed(format!("Its report is larger than the {capacity} bytes a scanner may hand back.")));
         }
@@ -578,7 +595,7 @@ fn read_report(
 /// reference by the steps, not by the provider: a provider that answers the wrong manifest fails the step.
 pub trait PluginProvider: Send + Sync {
     /// The manifest as the control plane wrote it — `Value::Null` for none — or why it could not be obtained.
-    fn manifest(&self, reference: &PluginRef) -> impl Future<Output = Result<Value, String>> + Send;
+    fn manifest<'a>(&'a self, reference: &'a PluginRef) -> impl Future<Output = Result<Value, String>> + Send + 'a;
 }
 
 /// The census's verdict on a plugin's languages — `LanguageCensus.Census.applies`: an incomplete census runs every
@@ -616,7 +633,10 @@ pub async fn run_steps<E: PluginExecutor, P: PluginProvider>(
     let root = analysed_root.filter(|root| std::fs::symlink_metadata(root).is_ok_and(|metadata| metadata.is_dir()));
     let Some(root) = root else {
         for (reference, _) in &resolved {
-            steps.push(absent(reference, "the directory this scan is limited to is absent from the checkout".to_owned()));
+            steps.push(absent(
+                reference,
+                "the directory this scan is limited to is absent from the checkout".to_owned(),
+            ));
         }
         return steps;
     };
@@ -641,7 +661,9 @@ pub async fn run_steps<E: PluginExecutor, P: PluginProvider>(
                 },
                 Err(error) => absent(reference, error.to_string()),
             },
-            Ok(None) => absent(reference, "the plugin's report says it computed no results, or carries no run".to_owned()),
+            Ok(None) => {
+                absent(reference, "the plugin's report says it computed no results, or carries no run".to_owned())
+            }
             Err(PluginFailure::Refused { refusal, message }) => PluginStep::Refused {
                 plugin_id: reference.id.clone(),
                 manifest_digest: reference.digest.clone(),
@@ -657,7 +679,8 @@ pub async fn run_steps<E: PluginExecutor, P: PluginProvider>(
 
 /// A manifest believed, or the reason it was not.
 async fn fetch<P: PluginProvider>(provider: &P, reference: &PluginRef) -> Result<PluginManifest, String> {
-    let answered = provider.manifest(reference).await.map_err(|why| format!("its definition could not be obtained: {why}"))?;
+    let answered =
+        provider.manifest(reference).await.map_err(|why| format!("its definition could not be obtained: {why}"))?;
     if answered.is_null() {
         return Err("no definition was returned for it".to_owned());
     }

@@ -14,11 +14,16 @@
 use crate::bounded_output::{BoundedOutput, CollectedOutput, OutputFile, archive_budget, read_archive};
 use crate::pull_credentials::{self, AuthConfig, RegistryAccess};
 use crate::runner::{Removal, daemon};
-use crate::{ContainerResult, ContainerRun, ContainerRunner, Mount, RunnerError, SCANNER_LABEL, ScannerLimits, create_body};
-use bollard::models::{ContainerCreateBody, Mount as DaemonMount, MountTypeEnum, MountVolumeOptions,
-    MountVolumeOptionsDriverConfig, ResourcesUlimits};
-use bollard::query_parameters::{DownloadFromContainerOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
-    StopContainerOptionsBuilder};
+use crate::{
+    ContainerResult, ContainerRun, ContainerRunner, Mount, RunnerError, SCANNER_LABEL, ScannerLimits, create_body,
+};
+use bollard::models::{
+    ContainerCreateBody, Mount as DaemonMount, MountTypeEnum, MountVolumeOptions, MountVolumeOptionsDriverConfig,
+    ResourcesUlimits,
+};
+use bollard::query_parameters::{
+    DownloadFromContainerOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
+};
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -112,28 +117,34 @@ impl ContainerRunner {
         let mut sent: Option<&AuthConfig> = None;
         let mut login_directory: Option<PathBuf> = None;
         if let Some(login) = &extras.login
-            && let Some(auth) = self.credentials.credentials_for(&login.reference) {
-                let registry = pull_credentials::registry_of(&login.reference);
-                let written = pull_credentials::write(auth, &registry, &login.directory).map_err(|error| {
-                    // The error names a path, never the credentials.
-                    failed(run, format!("The registry credentials could not be handed to it: {error}"))
-                })?;
-                cleanup.login = Some(written.clone());
-                login_directory = Some(written);
-                sent = Some(auth);
-            }
+            && let Some(auth) = self.credentials.credentials_for(&login.reference)
+        {
+            let registry = pull_credentials::registry_of(&login.reference);
+            let written = pull_credentials::write(auth, &registry, &login.directory).map_err(|error| {
+                // The error names a path, never the credentials.
+                failed(run, format!("The registry credentials could not be handed to it: {error}"))
+            })?;
+            cleanup.login = Some(written.clone());
+            login_directory = Some(written);
+            sent = Some(auth);
+        }
 
         let holder = match (&extras.output, owner) {
             (Some(bounded), Some(owner)) => {
                 self.ensure_present(&bounded.holder_image).await?;
-                let body = holder_body(bounded, run.user.as_deref().unwrap_or_default(), &owner, &run.label, timeout, &limits);
+                let body =
+                    holder_body(bounded, run.user.as_deref().unwrap_or_default(), &owner, &run.label, timeout, &limits);
                 let created = self
                     .docker
                     .create_container(None::<bollard::query_parameters::CreateContainerOptions>, body)
                     .await
                     .map_err(|error| failed(run, format!("Its output directory could not be created: {error}")))?;
                 cleanup.holder = Some(created.id.clone());
-                if let Err(error) = self.docker.start_container(&created.id, None::<bollard::query_parameters::StartContainerOptions>).await {
+                if let Err(error) = self
+                    .docker
+                    .start_container(&created.id, None::<bollard::query_parameters::StartContainerOptions>)
+                    .await
+                {
                     return Err(failed(run, format!("Its output directory could not be created: {error}")));
                 }
                 Some(created.id)
@@ -148,7 +159,9 @@ impl ContainerRunner {
             .await
             .map_err(|error| daemon(run, error))?;
         let container = Removal { docker: self.docker.clone(), id: Some(created.id) };
-        let outcome = self.run_and_collect(run, container.id(), timeout, &limits, extras.output.as_ref().zip(holder.as_deref())).await;
+        let outcome = self
+            .run_and_collect(run, container.id(), timeout, &limits, extras.output.as_ref().zip(holder.as_deref()))
+            .await;
         // The tool first, then its holder with its volume — the other order would leave the volume in use and its
         // removal refused — then the login, which the container held open.
         container.now().await;
@@ -233,7 +246,10 @@ impl ContainerRunner {
         let mut logs = self.docker.logs(holder, Some(options));
         let mut printed = Vec::new();
         while let Some(chunk) = logs.next().await {
-            if let Ok(bollard::container::LogOutput::StdOut { message } | bollard::container::LogOutput::Console { message }) = chunk {
+            if let Ok(
+                bollard::container::LogOutput::StdOut { message } | bollard::container::LogOutput::Console { message },
+            ) = chunk
+            {
                 let room = MEASURE_BYTES.saturating_sub(printed.len());
                 printed.extend(message.iter().take(room));
             }
@@ -252,7 +268,10 @@ impl ContainerRunner {
 fn numeric_owner(user: &str) -> Result<(String, String), ExtendedError> {
     match user.split_once(':') {
         Some((uid, gid))
-            if !uid.is_empty() && !gid.is_empty() && uid.bytes().all(|b| b.is_ascii_digit()) && gid.bytes().all(|b| b.is_ascii_digit()) =>
+            if !uid.is_empty()
+                && !gid.is_empty()
+                && uid.bytes().all(|b| b.is_ascii_digit())
+                && gid.bytes().all(|b| b.is_ascii_digit()) =>
         {
             Ok((uid.to_owned(), gid.to_owned()))
         }
@@ -333,15 +352,17 @@ pub fn tool_body(
     }
     let mut body = create_body(&run, limits);
     if login.is_some()
-        && let Some(env) = body.env.as_mut() {
-            env.push(format!("DOCKER_CONFIG={REGISTRY_LOGIN_MOUNT}"));
-        }
+        && let Some(env) = body.env.as_mut()
+    {
+        env.push(format!("DOCKER_CONFIG={REGISTRY_LOGIN_MOUNT}"));
+    }
     if let (Some((bounded, holder)), Some(host)) = (bounded, body.host_config.as_mut()) {
         let size = i64::try_from(bounded.bytes).unwrap_or(i64::MAX);
         host.volumes_from = Some(vec![format!("{holder}:rw")]);
         // **No file larger than the directory**, sparse ones included: tmpfs keeps a sparse file of any apparent
         // size in a few pages, and the daemon archives the apparent size. The kernel sends SIGXFSZ past it (153).
-        host.ulimits = Some(vec![ResourcesUlimits { name: Some("fsize".to_owned()), soft: Some(size), hard: Some(size) }]);
+        host.ulimits =
+            Some(vec![ResourcesUlimits { name: Some("fsize".to_owned()), soft: Some(size), hard: Some(size) }]);
     }
     body
 }

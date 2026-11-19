@@ -224,7 +224,8 @@ impl PluginManifest {
     pub fn digest(&self) -> String {
         let mut languages: Vec<&str> = self.languages.iter().map(|language| language.wire_name()).collect();
         languages.sort_unstable();
-        let arguments: Vec<&str> = self.arguments.iter().map(|argument| argument.as_deref().unwrap_or("null")).collect();
+        let arguments: Vec<&str> =
+            self.arguments.iter().map(|argument| argument.as_deref().unwrap_or("null")).collect();
         let exit_codes: Vec<String> = self.exit_codes.iter().map(i32::to_string).collect();
         let timeout = self.timeout_seconds.map(|seconds| seconds.to_string()).unwrap_or_default();
         let mut fields: Vec<Option<String>> = vec![
@@ -256,7 +257,11 @@ impl PluginManifest {
         self.arguments
             .iter()
             .map(|argument| {
-                argument.as_deref().unwrap_or("null").replace(SOURCE_PLACEHOLDER, source).replace(OUTPUT_PLACEHOLDER, output)
+                argument
+                    .as_deref()
+                    .unwrap_or("null")
+                    .replace(SOURCE_PLACEHOLDER, source)
+                    .replace(OUTPUT_PLACEHOLDER, output)
             })
             .collect()
     }

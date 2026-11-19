@@ -114,6 +114,9 @@ async fn run() -> Result<(), Fatal> {
         scan::Places::from_lookup(|name| std::env::var(name).ok()),
         config.vulnerability_db_dir.clone(),
         trust,
+        // `VECTISPIRE_PLUGIN_REGISTRY` and `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`, as the Java agent reads them: a mirror
+        // that is not a registry host stops the start, as it stops the Java agent's.
+        scan::PluginSettings::from_lookup(|name| std::env::var(name).ok()).map_err(Fatal::Runner)?,
     )
     .map_err(Fatal::Runner)?;
     let watch = ExecutorWatch::new("docker");

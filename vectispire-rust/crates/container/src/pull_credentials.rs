@@ -122,7 +122,8 @@ impl DockerConfig {
     /// The directory's `config.json`: empty when there is none, refused when it is there and cannot be read.
     pub fn load(directory: &Path) -> Result<DockerConfig, UnreadableConfig> {
         let file = directory.join("config.json");
-        let unreadable = |reason: &str| UnreadableConfig { path: directory.display().to_string(), reason: reason.into() };
+        let unreadable =
+            |reason: &str| UnreadableConfig { path: directory.display().to_string(), reason: reason.into() };
         if !file.is_file() {
             return Ok(DockerConfig::default());
         }
@@ -311,7 +312,12 @@ mod tests {
     #[test]
     fn the_file_written_holds_one_entry_owner_only_and_is_erased() {
         let parent = tempfile::tempdir().unwrap();
-        let auth = AuthConfig { username: Some("u".into()), password: Some("p".into()), identity_token: None, registry_token: None };
+        let auth = AuthConfig {
+            username: Some("u".into()),
+            password: Some("p".into()),
+            identity_token: None,
+            registry_token: None,
+        };
         let directory = write(&auth, "r.io", parent.path()).unwrap();
         let written = std::fs::read_to_string(directory.join("config.json")).unwrap();
         assert_eq!(written, r#"{"auths":{"r.io":{"auth":"dTpw"}}}"#);

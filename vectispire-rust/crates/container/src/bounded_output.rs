@@ -118,7 +118,9 @@ impl CollectedOutput {
                 let columns: Vec<&str> = split_whitespace_java(line);
                 match columns.as_slice() {
                     [_, _, _, available, _, _]
-                        if !available.is_empty() && available.chars().count() < 19 && available.chars().all(|c| java::digit(c).is_some()) =>
+                        if !available.is_empty()
+                            && available.chars().count() < 19
+                            && available.chars().all(|c| java::digit(c).is_some()) =>
                     {
                         parse_signed(available, 10)
                     }
@@ -240,7 +242,8 @@ fn take_block<'a>(rest: &mut &'a [u8]) -> Result<Option<&'a [u8]>, UnreadableArc
     if rest.is_empty() {
         return Ok(None);
     }
-    let (block, after) = rest.split_at_checked(BLOCK).ok_or(UnreadableArchive("The output archive ends inside a header."))?;
+    let (block, after) =
+        rest.split_at_checked(BLOCK).ok_or(UnreadableArchive("The output archive ends inside a header."))?;
     *rest = after;
     Ok(Some(block))
 }
@@ -249,8 +252,10 @@ fn content<'a>(rest: &mut &'a [u8], size: i64, ceiling: u64) -> Result<&'a [u8],
     if size < 0 || size.unsigned_abs() > ceiling {
         return Err(UnreadableArchive("An entry of the output archive is larger than it may be."));
     }
-    let length = usize::try_from(size).map_err(|_| UnreadableArchive("An entry of the output archive is larger than it may be."))?;
-    let (bytes, after) = rest.split_at_checked(length).ok_or(UnreadableArchive("The output archive ends inside an entry."))?;
+    let length = usize::try_from(size)
+        .map_err(|_| UnreadableArchive("An entry of the output archive is larger than it may be."))?;
+    let (bytes, after) =
+        rest.split_at_checked(length).ok_or(UnreadableArchive("The output archive ends inside an entry."))?;
     // The padding to the next block, skipped as `skipNBytes` skips it: what is short of it is the stream's end.
     let padding = match length.checked_rem(BLOCK) {
         Some(0) | None => 0,
@@ -271,7 +276,10 @@ fn size_of(header: &[u8]) -> Result<i64, UnreadableArchive> {
         let impossible = UnreadableArchive("An entry of the output archive declares an impossible size.");
         let mut value = i64::from(first & 0x7f);
         for byte in others {
-            value = value.checked_mul(256).and_then(|value| value.checked_add(i64::from(*byte))).ok_or(impossible.clone())?;
+            value = value
+                .checked_mul(256)
+                .and_then(|value| value.checked_add(i64::from(*byte)))
+                .ok_or(impossible.clone())?;
         }
         return Ok(value);
     }
@@ -332,10 +340,7 @@ fn pax_value(meta: &[u8], key: &str) -> Result<Option<String>, UnreadableArchive
     while !rest.is_empty() {
         let Some(space) = rest.iter().position(|byte| *byte == b' ') else { break };
         let (digits, _) = rest.split_at(space);
-        let length: usize = std::str::from_utf8(digits)
-            .ok()
-            .and_then(vectispire_parse_int)
-            .ok_or(malformed.clone())?;
+        let length: usize = std::str::from_utf8(digits).ok().and_then(vectispire_parse_int).ok_or(malformed.clone())?;
         if length <= space.saturating_add(1) || length > rest.len() {
             return Err(malformed);
         }
@@ -344,9 +349,11 @@ fn pax_value(meta: &[u8], key: &str) -> Result<Option<String>, UnreadableArchive
         let body = record.get(space.saturating_add(1)..length.saturating_sub(1)).unwrap_or(&[]);
         let text = String::from_utf8_lossy(body);
         if let Some((name, value)) = text.split_once('=')
-            && !name.is_empty() && name == key {
-                return Ok(Some(value.to_owned()));
-            }
+            && !name.is_empty()
+            && name == key
+        {
+            return Ok(Some(value.to_owned()));
+        }
         rest = after;
     }
     Ok(None)
@@ -356,7 +363,10 @@ fn pax_value(meta: &[u8], key: &str) -> Result<Option<String>, UnreadableArchive
 fn vectispire_parse_int(text: &str) -> Option<usize> {
     let digits = text.strip_prefix('+').unwrap_or(text);
     if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
-        return if text.strip_prefix('-').is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit())) {
+        return if text
+            .strip_prefix('-')
+            .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
+        {
             Some(0)
         } else {
             None
@@ -367,5 +377,6 @@ fn vectispire_parse_int(text: &str) -> Option<usize> {
 
 /// `Long.parseLong(value.strip())` of a PAX size; a negative one is refused by `content`, as Java's `size < 0` is.
 fn parse_pax_size(value: &str) -> Result<i64, UnreadableArchive> {
-    parse_signed(java::strip(value), 10).ok_or(UnreadableArchive("The output archive carries a malformed extended header."))
+    parse_signed(java::strip(value), 10)
+        .ok_or(UnreadableArchive("The output archive carries a malformed extended header."))
 }

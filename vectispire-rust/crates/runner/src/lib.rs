@@ -8,8 +8,10 @@
 //! **What this build does not run yet, it says.** The language census, the project manifest and the
 //! API discovery are not ported (`README.md`, "Remaining work"): the census and the manifest are
 //! ordinary absences — "unknown", no finding resolved — and the discovery is a step like the others,
-//! so it is recorded as one that did not run rather than left silently absent. A plugin step is
-//! recorded absent, under its plugin's name, as the Java runner records a plugin that could not run.
+//! so it is recorded as one that did not run rather than left silently absent. **The plugins run** (`with_plugins`),
+//! last and each on its own, decided on the census of the tree — until the census lands (the workspace stream's
+//! `scanners::census`), on Java's rule for a census that could not finish: every plugin runs, since "not
+//! applicable" is a claim nothing has proven.
 //!
 //! **An image is one step**: exported by this process through the daemon, inventoried from the
 //! archive, matched — secrets, IaC and source analysis stay absent, since they look inside source code
@@ -28,8 +30,9 @@ pub use vectispire_domain::FailureKind;
 pub use vectispire_git::WithoutKey;
 use vectispire_git::{CloneRequest, HostKeyPolicy, HttpsCredential};
 pub use vectispire_protocol::ScanArtifacts;
-use vectispire_protocol::{Findings, Image, PluginStep, ScanTask, Step, Target};
+use vectispire_protocol::{Findings, Image, PluginRef, PluginStep, ScanTask, Step, Target};
 use vectispire_scanners::dependencies::{self, StepError};
+use vectispire_scanners::plugins::{self, PluginScanner};
 pub use vectispire_scanners::rules::StoredFile;
 use vectispire_scanners::rules::{self, RulePlacement};
 use vectispire_scanners::vulnerability_database::VulnerabilityDatabase;
@@ -50,6 +53,34 @@ where
 {
     fn fetch_rule_set<'a>(&'a self, hash: &'a str) -> BoxFuture<'a, Result<Vec<StoredFile>, String>> {
         (self)(hash)
+    }
+}
+
+/// Where a plugin's manifest comes from — fetched over the protocol by the agent, read from the control plane's
+/// tables by its built-in worker (`PluginProvider`). `Value::Null` for none; the error says why it could not be had.
+pub trait PluginSource: Send + Sync {
+    fn fetch_manifest<'a>(&'a self, reference: &'a PluginRef) -> BoxFuture<'a, Result<serde_json::Value, String>>;
+}
+
+/// The source a runner has when it was given none — `PluginProvider.NONE`: every plugin a task names is absent,
+/// loudly.
+struct NoPluginSource;
+
+impl PluginSource for NoPluginSource {
+    fn fetch_manifest<'a>(&'a self, reference: &'a PluginRef) -> BoxFuture<'a, Result<serde_json::Value, String>> {
+        Box::pin(async move { Err(format!("This executor has no way to fetch plugin {}.", reference.id)) })
+    }
+}
+
+/// A [`PluginSource`] as the plugin steps take it.
+struct Provider<'a>(&'a dyn PluginSource);
+
+impl plugins::PluginProvider for Provider<'_> {
+    fn manifest<'a>(
+        &'a self,
+        reference: &'a PluginRef,
+    ) -> impl Future<Output = Result<serde_json::Value, String>> + Send + 'a {
+        self.0.fetch_manifest(reference)
     }
 }
 
@@ -155,6 +186,9 @@ pub struct Runner {
     /// a directory of their own, which is theirs and is never removed.
     _bundled: Option<rules::MaterialisedRules>,
     rule_provider: Option<Arc<dyn RuleProvider>>,
+    /// Where the plugins' manifests come from, and what this executor decides about them for itself.
+    plugin_source: Arc<dyn PluginSource>,
+    plugin_settings: plugins::Settings,
     places: Places,
     trust: TlsTrust,
     without_key: WithoutKey,
@@ -173,7 +207,6 @@ const SAST_ABSENT: &str = "the source analysis did not run, or covered too few f
 /// Not a Java sentence: this build's own, for the step it does not run yet.
 const API_DISCOVERY_NOT_PORTED: &str =
     "this agent (the Rust port, in progress) does not run the API discovery yet; the inventory is left as it was.";
-const PLUGIN_NOT_PORTED: &str = "this agent (the Rust port, in progress) does not run plugins yet.";
 
 impl Runner {
     /// `vulnerability_root`: `VECTISPIRE_VULNERABILITY_DB_DIR`, blank for a directory beside the
@@ -198,7 +231,18 @@ impl Runner {
         options: Options,
     ) -> Result<Runner, String> {
         let limits = ScannerLimits::default_for_this_host();
-        let containers = Arc::new(ContainerRunner::connect(None, limits).map_err(|error| error.to_string())?);
+        // The pulls' credentials, read once as docker-java reads them for the Java runner: `DOCKER_CONFIG`, else
+        // `.docker` under the home. One that cannot be read stops the start, rather than every private pull — and
+        // every plugin signature kept in a private registry — failing as "anonymous" later.
+        let docker_config = std::env::var("DOCKER_CONFIG")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .map_or_else(|| places.home.join(".docker"), PathBuf::from);
+        let credentials = vectispire_container::pull_credentials::DockerConfig::load(&docker_config)
+            .map_err(|error| error.to_string())?;
+        let containers = Arc::new(
+            ContainerRunner::connect(None, limits).map_err(|error| error.to_string())?.with_docker_config(credentials),
+        );
         let root = vulnerability_root.unwrap_or_else(|| places.work.join("vectispire-vulnerability-db"));
         let database =
             VulnerabilityDatabase::with_defaults(containers.clone(), images.grype.clone(), &root, limits.timeout);
@@ -221,10 +265,21 @@ impl Runner {
             placement,
             _bundled: bundled,
             rule_provider,
+            plugin_source: Arc::new(NoPluginSource),
+            plugin_settings: plugins::Settings::default(),
             places,
             trust,
             without_key: options.without_key,
         })
+    }
+
+    /// This runner, fetching plugin manifests from `source` and deciding about them by `settings` — the mirror their
+    /// images are pulled from, and whether a signer is required (on unless the operator switched it off).
+    #[must_use]
+    pub fn with_plugins(mut self, source: Arc<dyn PluginSource>, settings: plugins::Settings) -> Runner {
+        self.plugin_source = source;
+        self.plugin_settings = settings;
+        self
     }
 
     /// Why the executor cannot run anything now — `None` when its daemon answers. Asked before claiming.
@@ -252,7 +307,7 @@ impl Runner {
         let sub_path = vectispire_domain::sub_path::normalize(repository.sub_path.as_deref())
             .map_err(|problem| permanent(format!("The repository's sub-path is refused: {problem}")))?;
         let branch = repository.branch.clone().unwrap_or_default();
-        prepare_tree(&workspace.source, &sub_path, &branch)?;
+        let scan_root = prepare_tree(&workspace.source, &sub_path, &branch)?;
         let sub = (!sub_path.is_empty()).then_some(sub_path.as_str());
 
         artifacts.failed("api discovery", API_DISCOVERY_NOT_PORTED);
@@ -305,17 +360,39 @@ impl Runner {
             }
         }
 
-        for plugin in &task.plugins {
-            artifacts.plugins.push(PluginStep::Absent {
-                plugin_id: plugin.id.clone(),
-                manifest_digest: plugin.digest.clone(),
-                reason: PLUGIN_NOT_PORTED.to_owned(),
-            });
-            artifacts.failed(format!("plugin {}", plugin.id), PLUGIN_NOT_PORTED);
-        }
+        // Last, and each on its own: see `run_plugins`.
+        self.run_plugins(&task, &workspace.root, &scan_root, &mut artifacts).await;
 
         artifacts.duration = started.elapsed();
         Ok(artifacts)
+    }
+
+    /// `runPlugins`: the task's plugins, after every scanner. **Each on its own**: a plugin's failure is its own
+    /// step's — recorded as a failure of the scan under the plugin's name, its issues left alone, no scanner touched.
+    /// A plugin the executor refused to start is a failure too, under the same name; one whose languages the tree
+    /// does not hold is not run and not a failure.
+    async fn run_plugins(
+        &self,
+        task: &ScanTask,
+        workspace_root: &Path,
+        scan_root: &Path,
+        artifacts: &mut ScanArtifacts,
+    ) {
+        if task.plugins.is_empty() {
+            return;
+        }
+        let scanner = PluginScanner::new(self.containers.as_ref(), self.plugin_settings.clone());
+        // No census yet (see the module's documentation): Java's rule for one that did not finish — every plugin runs.
+        let steps = plugins::run_steps(
+            &scanner,
+            &Provider(self.plugin_source.as_ref()),
+            &task.plugins,
+            workspace_root,
+            Some(scan_root),
+            |declared| plugins::applies(&std::collections::BTreeSet::new(), false, declared),
+        )
+        .await;
+        record_plugins(steps, artifacts);
     }
 
     /// `runImage`: one step, over an archive this process exported. Nothing else applies to an image, and nothing
@@ -404,6 +481,21 @@ impl Runner {
 }
 
 /// A step's findings as the protocol carries them, each written as the Java agent's mapper writes it.
+/// Each step into the artifacts, and the absent and refused ones into the scan's failures under `plugin <id>`.
+fn record_plugins(steps: Vec<PluginStep>, artifacts: &mut ScanArtifacts) {
+    for step in steps {
+        match &step {
+            PluginStep::Absent { plugin_id, reason, .. } | PluginStep::Refused { plugin_id, reason, .. } => {
+                // Refused is a failure of the scan too — nothing was examined, and somebody has to act: sign the
+                // image, or have the governor waive the requirement in writing.
+                artifacts.failed(format!("plugin {plugin_id}"), reason.clone());
+            }
+            PluginStep::Produced { .. } | PluginStep::NotApplicable { .. } => {}
+        }
+        artifacts.plugins.push(step);
+    }
+}
+
 fn findings<T: serde::Serialize>(found: &[T]) -> Option<Findings> {
     // A finding that does not serialize cannot happen for these types; were it to, the step reads as
     // absent rather than as a shorter list.
@@ -540,6 +632,42 @@ mod tests {
     }
 
     /// The Docker backend exports images, so the executor the agents screen shows serves containers too.
+    #[test]
+    fn a_refused_or_absent_plugin_is_a_failure_of_the_scan_under_its_name_and_the_others_are_not() {
+        let step = |state: &str, id: &str| -> PluginStep {
+            let digest = "d".to_owned();
+            match state {
+                "absent" => {
+                    PluginStep::Absent { plugin_id: id.into(), manifest_digest: digest, reason: "exited".into() }
+                }
+                "refused" => PluginStep::Refused {
+                    plugin_id: id.into(),
+                    manifest_digest: digest,
+                    refusal: vectispire_protocol::Refusal::Unsigned,
+                    reason: "unsigned".into(),
+                },
+                "na" => PluginStep::NotApplicable { plugin_id: id.into(), manifest_digest: digest, languages: vec![] },
+                _ => PluginStep::Produced {
+                    plugin_id: id.into(),
+                    manifest_digest: digest,
+                    tool_name: None,
+                    tool_version: None,
+                    findings: Findings::default(),
+                    signature: None,
+                },
+            }
+        };
+        let mut artifacts = ScanArtifacts::default();
+        record_plugins(
+            vec![step("absent", "a"), step("refused", "b"), step("na", "c"), step("produced", "d")],
+            &mut artifacts,
+        );
+        assert_eq!(artifacts.plugins.len(), 4, "every step is on the wire, in order");
+        let failures: Vec<(&str, &str)> =
+            artifacts.failures.iter().map(|failure| (failure.step.as_str(), failure.reason.as_str())).collect();
+        assert_eq!(failures, [("plugin a", "exited"), ("plugin b", "unsigned")]);
+    }
+
     #[test]
     fn the_docker_backend_says_it_exports_images() {
         let work = tempfile::tempdir().unwrap();
