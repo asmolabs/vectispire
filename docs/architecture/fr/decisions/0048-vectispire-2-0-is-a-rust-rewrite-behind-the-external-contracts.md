@@ -67,8 +67,6 @@ Trois constats du portage façonnent cette décision :
    repensée dans les mêmes versions que le serveur. Les écrans sont de toute façon retravaillés pour cette API, mais
    changer en même temps la manière de les construire ajouterait une seconde migration — le système de design, les
    deux langues, la suite Playwright, les compétences de l'équipe — à celle que sont déjà le serveur et ses données.
-   Une interface en Rust a été examinée et écartée (voir « Alternatives envisagées ») ; la frontière HTTP laisse la
-   question ouverte pour une version majeure ultérieure.
 
 5. **Les données migrent une fois, vers l'avant, après répétition.** La 2.0 a son propre schéma, sur MySQL seulement
    (comme la 1.0, décision 0043 §3). Un outil de migration lit une base 1.x (dernière migration 1.x, aujourd'hui V102)
@@ -132,20 +130,6 @@ Trois constats du portage façonnent cette décision :
 - **Arrêter Rust pour le plan de contrôle et garder Java.** Reste une issue valable : si le spike montre que la
   réécriture ne vaut pas son coût, la 2.0 garde le plan de contrôle Java et l'agent Rust. Cette décision ne tranche pas
   cette question ; elle fixe comment se fait une réécriture si elle se fait.
-- **Une interface en Rust.** Deux formes ont été comparées :
-
-  | | Axum + Askama + htmx | Leptos |
-  |---|---|---|
-  | Forme | du HTML rendu par le serveur, des fragments échangés par htmx ; presque pas de JavaScript | une application monopage compilée en WebAssembly, rendue côté serveur puis hydratée |
-  | Pour | plus de chaîne d'approvisionnement npm en production ; une seule chaîne d'outils et un seul livrable ; l'autorisation décidée une fois, côté serveur ; une CSP stricte est facile ; gabarits vérifiés à la compilation ; la suite Playwright survit en grande partie | le plus proche de l'interface actuelle ; réactivité fine ; fonctions serveur partagées avec Axum |
-  | Contre | les graphiques riches et les écrans très interactifs demandent encore un peu de JavaScript ou du SVG dessiné côté serveur ; le système de design et les deux langues sont à refaire | avant la 1.0, son API bouge ; un paquet WebAssembly et sa chaîne d'outils à livrer et à auditer ; la complexité d'une application monopage pour guère plus qu'une seule langue de programmation |
-
-  La force de Dioxus — une seule base de code pour le web, le bureau et le mobile — ne sert pas un produit uniquement
-  web ; Yew a ralenti, la communauté de Sycamore est petite, et les boîtes à outils natives ou en mode immédiat (egui,
-  Iced, Slint) ne font pas une application web accessible et bilingue. Le HTML rendu côté serveur était le plus solide
-  des deux, surtout parce qu'il supprime la chaîne d'approvisionnement npm ; il a été écarté le 2026-11-19 pour limiter
-  la 2.0 à une seule migration, et c'est le candidat à examiner en premier si une version majeure ultérieure rouvre la
-  question.
 
 ## Questions ouvertes, à trancher avant le début de la réécriture
 

@@ -64,8 +64,7 @@ Three findings of the port shape this decision:
 4. **The web interface stays Angular** (decided by the product owner on 2026-11-19). It moves to the redesigned
    internal API in the same releases as the back end. The screens are reworked for that API anyway, but changing how
    they are built at the same time would add a second migration — the design system, the two languages, the
-   Playwright suite, the team's own skills — to the one the back end and its data already are. A Rust interface was
-   weighed and set aside (see "Alternatives considered"); the HTTP boundary keeps the question open for a later major.
+   Playwright suite, the team's own skills — to the one the back end and its data already are.
 
 5. **The data moves once, forward, rehearsed.** 2.0 has its own schema, on MySQL only (as 1.0, decision 0043 §3). A
    migration tool reads a 1.x database (the last 1.x migration, today V102) and writes a 2.0 one; the 1.x database is
@@ -125,19 +124,6 @@ Three findings of the port shape this decision:
 - **Stop Rust for the control plane and keep Java.** Remains a valid outcome: if the spike shows the rewrite is not
   worth its cost, 2.0 keeps the Java control plane and the Rust agent. This decision does not pre-empt that answer;
   it fixes how a rewrite is done if one is done.
-- **A Rust interface.** Two shapes were compared:
-
-  | | Axum + Askama + htmx | Leptos |
-  |---|---|---|
-  | Shape | HTML rendered by the server, fragments swapped by htmx; almost no JavaScript | a single-page application compiled to WebAssembly, rendered on the server and hydrated |
-  | For | no npm supply chain in production; one toolchain and one deliverable; authorisation decided once, on the server; a strict CSP is easy; templates checked at compile time; the Playwright suite largely survives | the closest to today's interface; fine-grained reactivity; server functions shared with Axum |
-  | Against | rich charts and highly interactive screens still need some JavaScript or SVG drawn on the server; the design system and the two languages are rebuilt | pre-1.0 and its API moves; a WebAssembly bundle and its toolchain to ship and audit; a single-page application's complexity for little more than one language |
-
-  Dioxus's strength — one code base for web, desktop and mobile — does not apply to a web-only product; Yew has
-  slowed, Sycamore's community is small, and native or immediate-mode toolkits (egui, Iced, Slint) do not make an
-  accessible, bilingual web application. Server-rendered HTML was the stronger of the two, chiefly for removing the npm
-  supply chain; it was set aside on 2026-11-19 to keep 2.0 to one migration, and is the candidate to weigh first if a
-  later major reopens the question.
 
 ## Open questions, to settle before the rewrite starts
 
