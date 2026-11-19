@@ -228,7 +228,7 @@ fn anchor_of(certificate: &Certificate<'_>, subject: &Subject) -> Result<Option<
 }
 
 /// `BufferedReader.readLine`: a line ends at `\n`, `\r` or `\r\n`, and a last line with no end is still a line.
-fn java_lines(text: &str) -> Vec<&str> {
+pub(crate) fn java_lines(text: &str) -> Vec<&str> {
     let mut lines = Vec::new();
     let mut rest = text;
     while !rest.is_empty() {
@@ -252,7 +252,7 @@ fn java_lines(text: &str) -> Vec<&str> {
 /// is refused for it, by `PinnedCa::parse_pasted`; a stored one is not). `Some(None)`
 /// is an object that cannot be read: no end marker, or Base64 that does not decode.
 #[allow(clippy::option_option)]
-fn next_object<'a>(lines: &mut impl Iterator<Item = &'a str>) -> Option<Option<(String, Vec<u8>)>> {
+pub(crate) fn next_object<'a>(lines: &mut impl Iterator<Item = &'a str>) -> Option<Option<(String, Vec<u8>)>> {
     const BEGIN: &str = "-----BEGIN ";
     let begin = lines.find(|line| line.starts_with(BEGIN))?;
     let marker = java::trim(begin.get(BEGIN.len()..).unwrap_or(""));

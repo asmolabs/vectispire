@@ -98,7 +98,7 @@ fn expect(element: Option<&Tlv<'_>>, tag: u8) -> Option<()> {
 }
 
 /// `ASN1Integer`'s check: not empty, and not a redundant leading octet.
-fn integer(element: Option<&Tlv<'_>>) -> Option<()> {
+pub(crate) fn integer(element: Option<&Tlv<'_>>) -> Option<()> {
     let element = element.filter(|element| element.tag == INTEGER)?;
     let mut octets = element.value.iter();
     let first = *octets.next()?;
@@ -120,7 +120,7 @@ fn boolean(element: &Tlv<'_>) -> Option<bool> {
 }
 
 /// `ASN1BitString`: the unused-bit count first, at most 7, and none when there is no bit.
-fn bit_string<'a>(element: &Tlv<'a>) -> Option<(u8, &'a [u8])> {
+pub(crate) fn bit_string<'a>(element: &Tlv<'a>) -> Option<(u8, &'a [u8])> {
     if element.tag != BIT_STRING {
         return None;
     }
