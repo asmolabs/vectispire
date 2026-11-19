@@ -63,23 +63,12 @@ Trois constats du portage façonnent cette décision :
    1.x (elle doit y passer) puis contre la 2.0. L'enregistreur de trafic Java peut encore produire les données de ces
    suites, pour les routes externes seulement.
 
-4. **L'interface web est décidée par un spike, le HTML rendu côté serveur étant le candidat préféré.** L'API interne
-   est repensée (point 2), si bien que les écrans Angular sont retravaillés dans la 2.0 quoi qu'il arrive : changer
-   la manière de les construire coûte bien moins à ce moment-là que face à une interface laissée telle quelle. Deux
-   formes sont comparées sur un écran (question ouverte 6), et Angular — passé à l'API repensée — reste la réponse si
-   aucune ne tient :
-
-   | | Axum + Askama + htmx (préféré) | Leptos |
-   |---|---|---|
-   | Forme | du HTML rendu par le serveur, des fragments échangés par htmx ; presque pas de JavaScript | une application monopage compilée en WebAssembly, rendue côté serveur puis hydratée |
-   | Pour | **plus de chaîne d'approvisionnement npm en production** — l'interface actuelle apporte un large arbre npm, tenu par `npm audit`, Dependabot et des versions majeures qui doivent avancer ensemble ; une seule chaîne d'outils et un seul livrable, le binaire servant ses pages ; l'autorisation décidée une fois, côté serveur, sans logique cliente à tenir au pas des règles de l'API ; une CSP stricte est facile, ce qui ferme l'essentiel du cross-site scripting ; gabarits vérifiés à la compilation ; la suite Playwright, qui pilote des pages rendues, survit en grande partie | le plus proche de l'interface actuelle ; réactivité fine ; fonctions serveur partagées avec Axum |
-   | Contre | les graphiques riches et les écrans très interactifs (tableaux de bord, graphe d'attaque) demandent encore une petite bibliothèque JavaScript éprouvée ou du SVG dessiné côté serveur ; le système de design et les deux langues sont à refaire ; un risque sur les écrans qui vivent d'interactions côté client | avant la 1.0, son API bouge ; un paquet WebAssembly et sa chaîne d'outils à livrer et à auditer ; elle garde la complexité d'une application monopage pour guère plus qu'une seule langue de programmation |
-
-   La force de Dioxus — une seule base de code pour le web, le bureau et le mobile — ne sert pas un produit uniquement
-   web ; Yew a ralenti, la communauté de Sycamore est petite, et les boîtes à outils natives ou en mode immédiat (egui,
-   Iced, Slint) ne font pas une application web accessible et bilingue. Quel que soit le choix, l'accessibilité et les
-   deux langues sont tenues au niveau qu'atteint la 1.x, et le coût par écran mesuré par le spike entre dans
-   l'estimation de la 2.0.
+4. **L'interface web reste en Angular** (décidé par le responsable produit le 2026-11-19). Elle passe à l'API interne
+   repensée dans les mêmes versions que le serveur. Les écrans sont de toute façon retravaillés pour cette API, mais
+   changer en même temps la manière de les construire ajouterait une seconde migration — le système de design, les
+   deux langues, la suite Playwright, les compétences de l'équipe — à celle que sont déjà le serveur et ses données.
+   Une interface en Rust a été examinée et écartée (voir « Alternatives envisagées ») ; la frontière HTTP laisse la
+   question ouverte pour une version majeure ultérieure.
 
 5. **Les données migrent une fois, vers l'avant, après répétition.** La 2.0 a son propre schéma, sur MySQL seulement
    (comme la 1.0, décision 0043 §3). Un outil de migration lit une base 1.x (dernière migration 1.x, aujourd'hui V102)
@@ -143,8 +132,20 @@ Trois constats du portage façonnent cette décision :
 - **Arrêter Rust pour le plan de contrôle et garder Java.** Reste une issue valable : si le spike montre que la
   réécriture ne vaut pas son coût, la 2.0 garde le plan de contrôle Java et l'agent Rust. Cette décision ne tranche pas
   cette question ; elle fixe comment se fait une réécriture si elle se fait.
-- **Une application monopage en Rust (Dioxus, Leptos) choisie d'avance.** Rejetée : l'interface est décidée par le
-  spike du point 4, où Leptos est le second candidat et Dioxus aucun, pour les raisons qui y sont données.
+- **Une interface en Rust.** Deux formes ont été comparées :
+
+  | | Axum + Askama + htmx | Leptos |
+  |---|---|---|
+  | Forme | du HTML rendu par le serveur, des fragments échangés par htmx ; presque pas de JavaScript | une application monopage compilée en WebAssembly, rendue côté serveur puis hydratée |
+  | Pour | plus de chaîne d'approvisionnement npm en production ; une seule chaîne d'outils et un seul livrable ; l'autorisation décidée une fois, côté serveur ; une CSP stricte est facile ; gabarits vérifiés à la compilation ; la suite Playwright survit en grande partie | le plus proche de l'interface actuelle ; réactivité fine ; fonctions serveur partagées avec Axum |
+  | Contre | les graphiques riches et les écrans très interactifs demandent encore un peu de JavaScript ou du SVG dessiné côté serveur ; le système de design et les deux langues sont à refaire | avant la 1.0, son API bouge ; un paquet WebAssembly et sa chaîne d'outils à livrer et à auditer ; la complexité d'une application monopage pour guère plus qu'une seule langue de programmation |
+
+  La force de Dioxus — une seule base de code pour le web, le bureau et le mobile — ne sert pas un produit uniquement
+  web ; Yew a ralenti, la communauté de Sycamore est petite, et les boîtes à outils natives ou en mode immédiat (egui,
+  Iced, Slint) ne font pas une application web accessible et bilingue. Le HTML rendu côté serveur était le plus solide
+  des deux, surtout parce qu'il supprime la chaîne d'approvisionnement npm ; il a été écarté le 2026-11-19 pour limiter
+  la 2.0 à une seule migration, et c'est le candidat à examiner en premier si une version majeure ultérieure rouvre la
+  question.
 
 ## Questions ouvertes, à trancher avant le début de la réécriture
 
@@ -164,7 +165,3 @@ Trois constats du portage façonnent cette décision :
    bien qu'un nouveau dépôt est une nouvelle identité de signature à faire connaître aux utilisateurs. S'il est retenu,
    le déménagement vient après la sortie de l'agent depuis ce dépôt et une fois les suites de contrat externes (point 3)
    publiées depuis ce dépôt comme un artefact versionné que le nouveau consomme.
-6. **L'interface** : un spike sur un écran — la liste des problèmes avec ses filtres, son triage et ses deux langues —
-   construit avec Axum, Askama et htmx et avec Leptos, mesuré sur la surface d'attaque côté client, les dépendances
-   qu'il livre, l'accessibilité, les deux langues et le coût par écran. Le HTML rendu côté serveur est retenu s'il tient
-   sur les quatre ; Leptos seulement s'il est seul à tenir ; Angular, passé à la nouvelle API, sinon (point 4).
