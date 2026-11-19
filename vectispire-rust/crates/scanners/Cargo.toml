@@ -22,6 +22,7 @@ vectispire-container.workspace = true
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+base64.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 vectispire-testkit = { path = "../testkit" }

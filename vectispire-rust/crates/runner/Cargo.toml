@@ -23,5 +23,9 @@ vectispire-protocol.workspace = true
 vectispire-scanners.workspace = true
 vectispire-tls.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
 [lints]
 workspace = true

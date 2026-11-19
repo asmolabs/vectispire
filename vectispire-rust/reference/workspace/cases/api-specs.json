@@ -1,0 +1,261 @@
+{
+ "cases": [
+  {
+   "name": "openapi-json",
+   "entries": [
+    {
+     "path": "docs/openapi.json",
+     "text": "{\"openapi\": \"3.0.1\", \"info\": {\"title\": \"Pets\", \"version\": \"2.1.0\"}, \"components\": {\"securitySchemes\": {\"b\": {\"type\": \"http\"}}}, \"paths\": {\"/pets\": {\"parameters\": [], \"get\": {\"summary\": \"List\", \"operationId\": \"list\", \"tags\": [\"x\"]}, \"POST\": {\"operationId\": 7, \"summary\": null}, \"delete\": {\"security\": []}, \"put\": \"not an object\"}, \"pets/{id}\": {\"get\": {\"security\": [{\"b\": []}]}, \"patch\": {\"security\": {}}}, \"\": {\"head\": {}}, \"/weird\": {\"optıons\": {}, \"poſt\": {}, \"get\": {}, \"GET\": {\"summary\": \"upper\"}}, \"/not-object\": []}}"
+    },
+    {
+     "path": "swagger.json",
+     "text": "{\"swagger\": \"2.0\", \"securityDefinitions\": {}, \"paths\": {\"/s\": {\"get\": {}, \"trace\": {}}}}"
+    },
+    {
+     "path": "public/api-docs.json",
+     "text": "{\"openapi\": 3.1, \"info\": {\"title\": 5, \"version\": null}, \"paths\": {\"/open\": {\"get\": {\"security\": [{}]}}}}"
+    }
+   ]
+  },
+  {
+   "name": "openapi-json-edges",
+   "entries": [
+    {
+     "path": "api.json",
+     "text": "{\"info\":{}}"
+    },
+    {
+     "path": "a/openapi.json",
+     "text": "[{\"openapi\":\"3\"}]"
+    },
+    {
+     "path": "b/openapi.json",
+     "text": "{not json"
+    },
+    {
+     "path": "c/openapi.json",
+     "text": "{\"openapi\":\"\"}"
+    },
+    {
+     "path": "d/openapi.json",
+     "text": "{\"openapi\":{}}"
+    },
+    {
+     "path": "e/openapi.json",
+     "text": "{\"openapi\":null,\"paths\":{\"/e\":{\"get\":{}}}}"
+    },
+    {
+     "path": "f/openapi.json",
+     "text": "{\"openapi\":1e3,\"info\":\"x\",\"security\":[],\"paths\":{\"/f\":{\"get\":{}}}}"
+    },
+    {
+     "path": "g/openapi.json",
+     "text": "{\"openapi\":true,\"info\":{\"title\":null,\"version\":{\"a\":1}},\"paths\":{\"/g\":{\"get\":{}}}}"
+    },
+    {
+     "path": "h/openapi.json",
+     "text": "{\"openapi\":\"3\"} trailing"
+    },
+    {
+     "path": "i/openapi.json",
+     "text": ""
+    },
+    {
+     "path": "j/OPENAPI.JSON",
+     "text": "{\"openapi\":\"3\",\"paths\":{\"/upper-name\":{\"get\":{}}}}"
+    },
+    {
+     "path": "k/my-swagger-spec.json",
+     "text": "{\"swagger\":\"2\",\"paths\":{\"/contains\":{\"get\":{}}}}"
+    },
+    {
+     "path": "l/openapi.json",
+     "text": "{\"openapi\":\"3\",\"paths\":{\"/dupe\":{\"get\":{},\"Get\":{}}},\"paths\":{\"/second\":{\"get\":{}}}}"
+    },
+    {
+     "path": "m/openapi.json",
+     "text": "{\"openapi\":\"\\u00e93\",\"info\":{\"title\":\"\\ud83d\\ude00\"},\"paths\":{\"/m\":{\"get\":{}}}}"
+    },
+    {
+     "path": "n/openapi.json",
+     "text": "{\"openapi\":\"-1\",\"paths\":{\"/n\":{\"get\":{\"security\":[1]}}}}"
+    },
+    {
+     "path": "o/openapi.json",
+     "text": "{\"openapi\":3.0,\"components\":[],\"paths\":{\"/o\":{\"get\":{}}}}"
+    },
+    {
+     "path": "p/openapi.json",
+     "text": "{\"openapi\":\"3\",\"components\":{\"securitySchemes\":null},\"paths\":{\"/p\":{\"get\":{}}}}"
+    }
+   ]
+  },
+  {
+   "name": "openapi-json-limits",
+   "entries": [
+    {
+     "path": "a/openapi.json",
+     "head": "{\"openapi\":\"3\",\"paths\":{\"/deep-1000\":{\"get\":{}}},\"x\":",
+     "text": "[",
+     "repeat": 998,
+     "tail": "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+    },
+    {
+     "path": "b/openapi.json",
+     "head": "{\"openapi\":\"3\",\"paths\":{\"/deep-1001\":{\"get\":{}}},\"x\":",
+     "text": "[",
+     "repeat": 1000,
+     "tail": "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+    },
+    {
+     "path": "c/openapi.json",
+     "head": "{\"openapi\":\"3\",\"x\":",
+     "text": "9",
+     "repeat": 1000,
+     "tail": ",\"paths\":{\"/number-1000\":{\"get\":{}}}}"
+    },
+    {
+     "path": "d/openapi.json",
+     "head": "{\"openapi\":\"3\",\"x\":",
+     "text": "9",
+     "repeat": 1001,
+     "tail": ",\"paths\":{\"/number-1001\":{\"get\":{}}}}"
+    },
+    {
+     "path": "i/openapi.json",
+     "head": "{\"openapi\":\"3\",\"x\":1.",
+     "text": "5",
+     "repeat": 999,
+     "tail": ",\"paths\":{\"/fraction-1000\":{\"get\":{}}}}"
+    },
+    {
+     "path": "j/openapi.json",
+     "head": "{\"openapi\":\"3\",\"x\":-1.",
+     "text": "5",
+     "repeat": 998,
+     "tail": "e10,\"paths\":{\"/signed-exponent\":{\"get\":{}}}}"
+    },
+    {
+     "path": "e/openapi.json",
+     "head": "{\"openapi\":\"3\",\"x\":1.",
+     "text": "5",
+     "repeat": 1000,
+     "tail": ",\"paths\":{\"/fraction\":{\"get\":{}}}}"
+    },
+    {
+     "path": "f/openapi.json",
+     "head": "{\"openapi\":\"3\",\"paths\":{\"/",
+     "text": "n",
+     "repeat": 49999,
+     "tail": "\":{\"get\":{}}}}"
+    },
+    {
+     "path": "g/openapi.json",
+     "head": "{\"openapi\":\"3\",\"paths\":{\"/",
+     "text": "n",
+     "repeat": 50000,
+     "tail": "\":{\"get\":{}}}}"
+    },
+    {
+     "path": "h/openapi.json",
+     "text": "{\"openapi\":\"3\",\"x\":-0.0e-5,\"y\":1E+2,\"paths\":{\"/exponents\":{\"get\":{}}}}"
+    }
+   ]
+  },
+  {
+   "name": "openapi-yaml",
+   "entries": [
+    {
+     "path": "openapi.yaml",
+     "text": "openapi: \"3.0.3\"\ninfo:\n  title: 'Shop API'\n  version: 1.2.3\nsecurity:\n  - bearerAuth: []\npaths:\n  /orders:\n    get:\n      summary: list\n    post: { security: [] }\n    delete:  security: []\n  /orders/{id}:\n    patch:\n      x: y\n   /three-spaces:\n    get:\n        put:\n  /tab:\t\n\tget:\ncomponents:\n  schemas:\n    get:\npaths: {}\n  /after-reentry:\n    head:\n"
+    },
+    {
+     "path": "legacy/swagger.yml",
+     "text": "swagger: '2.0'\r\ninfo:\r\n  title: Legacy\r\npaths:\r\n  /legacy:\r\n    get:\r\n    options:\r\n"
+    },
+    {
+     "path": "free/openapi.yml",
+     "text": "openapi: x\npaths:\n  /free:\n    get:\n"
+    },
+    {
+     "path": "spread/openapi.yaml",
+     "text": "openapi: 3\ninfo:\n  title:\n    Spread\n  version:\n"
+    },
+    {
+     "path": "plain/openapi-notes.txt",
+     "text": "openapi: 3\npaths:\n  /txt:\n    get:\n"
+    },
+    {
+     "path": "neither/openapi.yaml",
+     "text": "info: {}\npaths:\n  /neither:\n    get:\n"
+    }
+   ]
+  },
+  {
+   "name": "yaml-security-words",
+   "entries": [
+    {
+     "path": "a/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /jwt:\n    get:\n# jwt\n"
+    },
+    {
+     "path": "b/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /apikey:\n    get:\nApiKey\n"
+    },
+    {
+     "path": "c/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /oauth:\n    get:\nx: oauth2\n"
+    },
+    {
+     "path": "d/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /bearer:\n    get:\nbearerAuth\n"
+    },
+    {
+     "path": "e/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /schemes:\n    get:\nsecuritySchemes:\n"
+    },
+    {
+     "path": "f/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /definitions:\n    get:\nsecurityDefinitions:\n"
+    },
+    {
+     "path": "g/openapi.yaml",
+     "text": "openapi: 3\npaths:\n  /none:\n    get:\n"
+    }
+   ]
+  },
+  {
+   "name": "contract-ceiling",
+   "entries": [
+    {
+     "path": "openapi.json",
+     "text": "{\"openapi\":\"3\",\"paths\":{\"/a\":{},\"/b\":{},\"/c\":{}}}"
+    }
+   ],
+   "ceiling": 2
+  },
+  {
+   "name": "contract-at-ceiling",
+   "entries": [
+    {
+     "path": "openapi.json",
+     "text": "{\"openapi\":\"3\",\"paths\":{\"/a\":{},\"/b\":{}}}"
+    }
+   ],
+   "ceiling": 2
+  },
+  {
+   "name": "invalid-utf8-spec",
+   "entries": [
+    {
+     "path": "openapi.json",
+     "base64": "eyJvcGVuYXBpIjoiMyIsImluZm8iOnsidGl0bGUiOiJ0/yJ9LCJwYXRocyI6eyIv6SI6eyJnZXQiOnsic3VtbWFyeSI6IsCvIn19fX0="
+    },
+    {
+     "path": "x/openapi.yaml",
+     "base64": "b3BlbmFwaTogMwppbmZvOgogIHRpdGxlOiD+/wpwYXRoczoKICAveek6CiAgICBnZXQ6Cg=="
+    }
+   ]
+  }
+ ]
+}

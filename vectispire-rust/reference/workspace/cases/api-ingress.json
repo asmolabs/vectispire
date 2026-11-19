@@ -1,0 +1,51 @@
+{
+ "cases": [
+  {
+   "name": "ingress-exposes-prefixes",
+   "entries": [
+    {
+     "path": "k8s/ingress.yaml",
+     "text": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nspec:\n  rules:\n  - http:\n      paths:\n      - path: /api\n        pathType: Prefix\n      - path: /exact/one\n      - path: \"/quoted\"\n      - path: /docs/\n      - path: /p/{id}\n"
+    },
+    {
+     "path": "k8s/service.yml",
+     "text": "kind: Service\nspec:\n  - path: /\n"
+    },
+    {
+     "path": "k8s/quoted.yaml",
+     "text": "kind: \"Ingress\"\nbackend-path: /internal\n"
+    },
+    {
+     "path": "routes.js",
+     "text": "app.get('/api', h)\napp.get('/api/users', h)\napp.get('/apiary', h)\napp.get('/exact/one', h)\napp.get('/exact/one/two', h)\napp.get('/docs/x', h)\napp.get('/docs', h)\napp.get('/quoted', h)\napp.get('/internal/x', h)\napp.get('/p/{id}/q', h)\napp.get('/other', h)\napp.get('/', h)\n"
+    }
+   ]
+  },
+  {
+   "name": "ingress-root-exposes-everything",
+   "entries": [
+    {
+     "path": "ingress.yaml",
+     "text": "kind: Ingress\n  path: /\n"
+    },
+    {
+     "path": "a.go",
+     "text": "r.GET(\"/x/y\", h)\nr.GET(\"relative\", h)\n"
+    }
+   ]
+  },
+  {
+   "name": "ingress-unreadable-is-not-fatal",
+   "entries": [
+    {
+     "path": "ingress.yaml",
+     "base64": "a2luZDogSW5ncmVzcwpwYXRoOiAvYmlu/wo="
+    },
+    {
+     "path": "a.go",
+     "text": "r.GET(\"/bin\", h)\n"
+    }
+   ]
+  }
+ ]
+}

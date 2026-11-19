@@ -468,7 +468,7 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 
 | Stream | Done when |
 |---|---|
-| Workspace, census, API discovery | `LanguageCensus`, `ProjectManifest`, `ApiDiscoveryScanner` ported, each held to its own reference set |
+| Workspace, census, API discovery | **done** 2026-11-19 (branch `claude/rust-agent-census-api-156251`): `LanguageCensus`, `ProjectManifest`, `ApiDiscoveryScanner` ported and wired in the runner, held to `reference/workspace/` (176 trees, `WorkspaceReferenceSetTest`); the census is handed on for the plugins stream |
 | Plugins and bundled rules | plugin steps, bounded outputs, registry login, `ImageSignatureVerifier` through the pinned cosign image |
 | Image export | **done** 2026-11-15 (2.10): `ContainerRunner::export_image`, behind `ExportImages` |
 | Image and side-by-side conformance | reproducible image on both architectures; `scripts/composition-scan-check.sh MODE=agent` identical to the Java agent for two weeks in the nightly; only then does `release.yml` sign it |

@@ -1,0 +1,1368 @@
+{
+ "cases": [
+  {
+   "name": "maven-not-a-dependency-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <dependencies>\n    <dependency><groupId>g</groupId><artifactId>a</artifactId><version>9.9.9</version></dependency>\n  </dependencies>\n  <version>  1.4.2  </version>\n</project>\n"
+    }
+   ]
+  },
+  {
+   "name": "maven-inherited-from-the-parent",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><parent><groupId>g</groupId><version>3.1.0</version></parent><artifactId>x</artifactId></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-no-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><artifactId>x</artifactId></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-parent-without-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><parent/></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-doctype-refused",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version=\"1.0\"?>\n<!DOCTYPE project [<!ENTITY v \"6.6.6\">]>\n<project><version>&v;</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-external-entity-refused",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<!DOCTYPE p [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><project><version>&x;</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-malformed",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.0</version>"
+    }
+   ]
+  },
+  {
+   "name": "maven-mismatched-tags",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.0</versio></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-two-roots",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.0</version></project><other/>"
+    }
+   ]
+  },
+  {
+   "name": "maven-text-after-root",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.0</version></project>tail"
+    }
+   ]
+  },
+  {
+   "name": "maven-comment-and-pi-after-root",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.0</version></project>\n<!-- c --><?pi x?>\n"
+    }
+   ]
+  },
+  {
+   "name": "maven-space-before-declaration",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": " <?xml version=\"1.0\"?><project><version>1.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-not-first",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<!-- c --><?xml version=\"1.0\"?><project><version>1.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-pi-named-xml",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><?XmL x?><version>1.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-entities-cdata-comments",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version> 1.&#48;<!-- x -->.&lt;<![CDATA[&amp;]]>&#x41;&quot;&apos;&gt;&amp; </version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-unknown-entity",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>&nbsp;1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-bad-character-reference",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>&#0;1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-surrogate-character-reference",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>&#xD800;1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-nested-text",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1.<b>2</b>.3</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-prefixed-names",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<m:project xmlns:m=\"urn:x\"><m:version>7</m:version><version>8</version></m:project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-undeclared-prefix",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><x:version>7</x:version><version>8</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-attributes",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project a='1' b=\"&lt;\"><version  c = 'x' >2.0</version ></project >"
+    }
+   ]
+  },
+  {
+   "name": "maven-duplicate-attribute",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project a='1' a='2'><version>2.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-lt-in-attribute",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project a='<'><version>2.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-cdata-end-in-text",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>2]]>0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-double-dash-comment",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><!-- a -- b --><version>2.0</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-control-character",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>2\u0001</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-crlf-inside",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1\r\n2\r3</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-too-long-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-exactly-100",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-100-astral",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-101-astral",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀x</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-bom",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "77u/PHByb2plY3Q+PHZlcnNpb24+NTwvdmVyc2lvbj48L3Byb2plY3Q+"
+    }
+   ]
+  },
+  {
+   "name": "maven-latin1",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iSVNPLTg4NTktMSI/Pjxwcm9qZWN0Pjx2ZXJzaW9uPjEt6TwvdmVyc2lvbj48L3Byb2plY3Q+"
+    }
+   ]
+  },
+  {
+   "name": "maven-invalid-utf8",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PHByb2plY3Q+PHZlcnNpb24+MS3pPC92ZXJzaW9uPjwvcHJvamVjdD4="
+    }
+   ]
+  },
+  {
+   "name": "maven-invalid-utf8-in-comment",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PHByb2plY3Q+PCEtLSD/IC0tPjx2ZXJzaW9uPjE8L3ZlcnNpb24+PC9wcm9qZWN0Pg=="
+    }
+   ]
+  },
+  {
+   "name": "maven-utf16-bom",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "//48AHAAcgBvAGoAZQBjAHQAPgA8AHYAZQByAHMAaQBvAG4APgAxADYAPAAvAHYAZQByAHMAaQBvAG4APgA8AC8AcAByAG8AagBlAGMAdAA+AA=="
+    }
+   ]
+  },
+  {
+   "name": "maven-standalone-and-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><project><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-1-1",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.1'?><project><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-2-0",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='2.0'?><project><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-without-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml encoding='UTF-8'?><project><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-long-name",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><",
+     "text": "n",
+     "repeat": 1001,
+     "tail": "/><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-long-attribute-name",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project ",
+     "text": "n",
+     "repeat": 1001,
+     "tail": "='1'><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-long-pi-target",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><?",
+     "text": "n",
+     "repeat": 1001,
+     "tail": "?><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-pi-target-1000",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><?",
+     "text": "n",
+     "repeat": 1000,
+     "tail": " x?><version>4.1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-depth-100",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><version>4.2</version><a>",
+     "text": "<a>",
+     "repeat": 98,
+     "tail": "</a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-depth-101",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><version>4.3</version><a>",
+     "text": "<a>",
+     "repeat": 99,
+     "tail": "</a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-attributes-200",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project a0='1' a1='1' a2='1' a3='1' a4='1' a5='1' a6='1' a7='1' a8='1' a9='1' a10='1' a11='1' a12='1' a13='1' a14='1' a15='1' a16='1' a17='1' a18='1' a19='1' a20='1' a21='1' a22='1' a23='1' a24='1' a25='1' a26='1' a27='1' a28='1' a29='1' a30='1' a31='1' a32='1' a33='1' a34='1' a35='1' a36='1' a37='1' a38='1' a39='1' a40='1' a41='1' a42='1' a43='1' a44='1' a45='1' a46='1' a47='1' a48='1' a49='1' a50='1' a51='1' a52='1' a53='1' a54='1' a55='1' a56='1' a57='1' a58='1' a59='1' a60='1' a61='1' a62='1' a63='1' a64='1' a65='1' a66='1' a67='1' a68='1' a69='1' a70='1' a71='1' a72='1' a73='1' a74='1' a75='1' a76='1' a77='1' a78='1' a79='1' a80='1' a81='1' a82='1' a83='1' a84='1' a85='1' a86='1' a87='1' a88='1' a89='1' a90='1' a91='1' a92='1' a93='1' a94='1' a95='1' a96='1' a97='1' a98='1' a99='1' a100='1' a101='1' a102='1' a103='1' a104='1' a105='1' a106='1' a107='1' a108='1' a109='1' a110='1' a111='1' a112='1' a113='1' a114='1' a115='1' a116='1' a117='1' a118='1' a119='1' a120='1' a121='1' a122='1' a123='1' a124='1' a125='1' a126='1' a127='1' a128='1' a129='1' a130='1' a131='1' a132='1' a133='1' a134='1' a135='1' a136='1' a137='1' a138='1' a139='1' a140='1' a141='1' a142='1' a143='1' a144='1' a145='1' a146='1' a147='1' a148='1' a149='1' a150='1' a151='1' a152='1' a153='1' a154='1' a155='1' a156='1' a157='1' a158='1' a159='1' a160='1' a161='1' a162='1' a163='1' a164='1' a165='1' a166='1' a167='1' a168='1' a169='1' a170='1' a171='1' a172='1' a173='1' a174='1' a175='1' a176='1' a177='1' a178='1' a179='1' a180='1' a181='1' a182='1' a183='1' a184='1' a185='1' a186='1' a187='1' a188='1' a189='1' a190='1' a191='1' a192='1' a193='1' a194='1' a195='1' a196='1' a197='1' a198='1' a199='1'><version>4.4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-attributes-201",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version xmlns:a0='1' xmlns:a1='1' xmlns:a2='1' xmlns:a3='1' xmlns:a4='1' xmlns:a5='1' xmlns:a6='1' xmlns:a7='1' xmlns:a8='1' xmlns:a9='1' xmlns:a10='1' xmlns:a11='1' xmlns:a12='1' xmlns:a13='1' xmlns:a14='1' xmlns:a15='1' xmlns:a16='1' xmlns:a17='1' xmlns:a18='1' xmlns:a19='1' xmlns:a20='1' xmlns:a21='1' xmlns:a22='1' xmlns:a23='1' xmlns:a24='1' xmlns:a25='1' xmlns:a26='1' xmlns:a27='1' xmlns:a28='1' xmlns:a29='1' xmlns:a30='1' xmlns:a31='1' xmlns:a32='1' xmlns:a33='1' xmlns:a34='1' xmlns:a35='1' xmlns:a36='1' xmlns:a37='1' xmlns:a38='1' xmlns:a39='1' xmlns:a40='1' xmlns:a41='1' xmlns:a42='1' xmlns:a43='1' xmlns:a44='1' xmlns:a45='1' xmlns:a46='1' xmlns:a47='1' xmlns:a48='1' xmlns:a49='1' xmlns:a50='1' xmlns:a51='1' xmlns:a52='1' xmlns:a53='1' xmlns:a54='1' xmlns:a55='1' xmlns:a56='1' xmlns:a57='1' xmlns:a58='1' xmlns:a59='1' xmlns:a60='1' xmlns:a61='1' xmlns:a62='1' xmlns:a63='1' xmlns:a64='1' xmlns:a65='1' xmlns:a66='1' xmlns:a67='1' xmlns:a68='1' xmlns:a69='1' xmlns:a70='1' xmlns:a71='1' xmlns:a72='1' xmlns:a73='1' xmlns:a74='1' xmlns:a75='1' xmlns:a76='1' xmlns:a77='1' xmlns:a78='1' xmlns:a79='1' xmlns:a80='1' xmlns:a81='1' xmlns:a82='1' xmlns:a83='1' xmlns:a84='1' xmlns:a85='1' xmlns:a86='1' xmlns:a87='1' xmlns:a88='1' xmlns:a89='1' xmlns:a90='1' xmlns:a91='1' xmlns:a92='1' xmlns:a93='1' xmlns:a94='1' xmlns:a95='1' xmlns:a96='1' xmlns:a97='1' xmlns:a98='1' xmlns:a99='1' xmlns:a100='1' xmlns:a101='1' xmlns:a102='1' xmlns:a103='1' xmlns:a104='1' xmlns:a105='1' xmlns:a106='1' xmlns:a107='1' xmlns:a108='1' xmlns:a109='1' xmlns:a110='1' xmlns:a111='1' xmlns:a112='1' xmlns:a113='1' xmlns:a114='1' xmlns:a115='1' xmlns:a116='1' xmlns:a117='1' xmlns:a118='1' xmlns:a119='1' xmlns:a120='1' xmlns:a121='1' xmlns:a122='1' xmlns:a123='1' xmlns:a124='1' xmlns:a125='1' xmlns:a126='1' xmlns:a127='1' xmlns:a128='1' xmlns:a129='1' xmlns:a130='1' xmlns:a131='1' xmlns:a132='1' xmlns:a133='1' xmlns:a134='1' xmlns:a135='1' xmlns:a136='1' xmlns:a137='1' xmlns:a138='1' xmlns:a139='1' xmlns:a140='1' xmlns:a141='1' xmlns:a142='1' xmlns:a143='1' xmlns:a144='1' xmlns:a145='1' xmlns:a146='1' xmlns:a147='1' xmlns:a148='1' xmlns:a149='1' xmlns:a150='1' xmlns:a151='1' xmlns:a152='1' xmlns:a153='1' xmlns:a154='1' xmlns:a155='1' xmlns:a156='1' xmlns:a157='1' xmlns:a158='1' xmlns:a159='1' xmlns:a160='1' xmlns:a161='1' xmlns:a162='1' xmlns:a163='1' xmlns:a164='1' xmlns:a165='1' xmlns:a166='1' xmlns:a167='1' xmlns:a168='1' xmlns:a169='1' xmlns:a170='1' xmlns:a171='1' xmlns:a172='1' xmlns:a173='1' xmlns:a174='1' xmlns:a175='1' xmlns:a176='1' xmlns:a177='1' xmlns:a178='1' xmlns:a179='1' xmlns:a180='1' xmlns:a181='1' xmlns:a182='1' xmlns:a183='1' xmlns:a184='1' xmlns:a185='1' xmlns:a186='1' xmlns:a187='1' xmlns:a188='1' xmlns:a189='1' xmlns:a190='1' xmlns:a191='1' xmlns:a192='1' xmlns:a193='1' xmlns:a194='1' xmlns:a195='1' xmlns:a196='1' xmlns:a197='1' xmlns:a198='1' xmlns:a199='1' xmlns:a200='1'>4.5</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-alias",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGOCc/Pjxwcm9qZWN0Pjx2ZXJzaW9uPjUuMS3DqTwvdmVyc2lvbj48L3Byb2plY3Q+"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-l1",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nbDEnPz48cHJvamVjdD48dmVyc2lvbj41LjIt6TwvdmVyc2lvbj48L3Byb2plY3Q+"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-cp1252",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nY3AxMjUyJz8+PHByb2plY3Q+PHZlcnNpb24+NS4zLYCfPC92ZXJzaW9uPjwvcHJvamVjdD4="
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-latin2-ascii",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='ISO-8859-2'?><project><version>5.4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-shift-jis-ascii",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='Shift_JIS'?><project><version>5.5</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-unknown",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='x-foo'?><project><version>5.6</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-invalid-name",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='1abc'?><project><version>5.7</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-ascii-non-ascii",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVMtQVNDSUknPz48cHJvamVjdD48dmVyc2lvbj41Ljgt6TwvdmVyc2lvbj48L3Byb2plY3Q+"
+    }
+   ]
+  },
+  {
+   "name": "maven-encoding-ascii-non-ascii-in-comment",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVMtQVNDSUknPz48cHJvamVjdD48dmVyc2lvbj41Ljk8L3ZlcnNpb24+PCEtLSDpIC0tPjwvcHJvamVjdD4="
+    }
+   ]
+  },
+  {
+   "name": "maven-declared-utf16-in-utf8",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' encoding='UTF-16'?><project><version>6</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-utf16-be-bom",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "/v8APABwAHIAbwBqAGUAYwB0AD4APAB2AGUAcgBzAGkAbwBuAD4AMQA2AC0AYgBlADwALwB2AGUAcgBzAGkAbwBuAD4APAAvAHAAcgBvAGoAZQBjAHQAPg=="
+    }
+   ]
+  },
+  {
+   "name": "maven-utf16-without-bom",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "base64": "PAA/AHgAbQBsACAAdgBlAHIAcwBpAG8AbgA9ACcAMQAuADAAJwAgAGUAbgBjAG8AZABpAG4AZwA9ACcAVQBUAEYALQAxADYAJwA/AD4APABwAHIAbwBqAGUAYwB0AD4APAB2AGUAcgBzAGkAbwBuAD4AMQA2AC0AbgBvAGIAbwBtADwALwB2AGUAcgBzAGkAbwBuAD4APAAvAHAAcgBvAGoAZQBjAHQAPgA="
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-1-1-nel",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.1'?><project><version>12 3</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-1-1-c1",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.1'?><project><version>1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-1-0-c1",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0'?><project><version>1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-xml-1-1-control-reference",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.1'?><project><version>&#x1;7</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-pi-xml-prefixed",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><?xml:foo?><?xmlfoo x?><version>7.1</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-variants",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml\tversion = \"1.0\"\r\n encoding = 'utf-8'  ?><project><version>7.2</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-uppercase",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?XML version='1.0'?><project><version>7.3</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-standalone-maybe",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' standalone='maybe'?><project><version>7.4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-declaration-encoding-after-standalone",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<?xml version='1.0' standalone='no' encoding='UTF-8'?><project><version>7.5</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-empty-root",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project/>"
+    }
+   ]
+  },
+  {
+   "name": "maven-only-comment",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<!-- nothing -->"
+    }
+   ]
+  },
+  {
+   "name": "maven-colon-names",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<:project><:x/><version>7.6</version></:project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-whitespace-only-version",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version> \t\n </version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-character-reference-forms",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>&#00065;&#x0062;&#X41;</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-reference-in-attribute",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project a='&unknown;'><version>7.7</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-cdata-before-root",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<![CDATA[x]]><project><version>7.8</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-name-1000",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn/><version>4</version></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-deep",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><version>4</version>",
+     "text": "<a>",
+     "repeat": 5000,
+     "tail": "</a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></project>"
+    }
+   ]
+  },
+  {
+   "name": "maven-empty-file",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "name": "maven-linked",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "link": "{outside}/pom.xml"
+    },
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"0.0.1\"}"
+    }
+   ]
+  },
+  {
+   "name": "maven-too-large",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "head": "<project><version>9</version></project>",
+     "text": " ",
+     "repeat": 2097152,
+     "tail": ""
+    }
+   ]
+  },
+  {
+   "name": "maven-directory",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "dir": true
+    },
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"0.0.2\"}"
+    }
+   ]
+  },
+  {
+   "name": "maven-first",
+   "entries": [
+    {
+     "path": "pom.xml",
+     "text": "<project><version>1</version></project>"
+    },
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"2\"}"
+    },
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\nversion=\"3\"\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-kts-before-groovy",
+   "entries": [
+    {
+     "path": "build.gradle.kts",
+     "text": ""
+    },
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=1.2.3\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-syntax",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "# version=commented\n! version=also\n   version   :   2.\\\n     0.\\u0031\\t \n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-last-wins",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=1\nversion 2\nversion\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-escaped-key",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "vers\\ion=4\nversion\\=x=5\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-continued-comment",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "# a comment \\\nversion=6\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-continuation-then-blank",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=7\\\n\nother=8\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-crlf",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "a=b\r\nversion=8.1\\\r\n  .2\r\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-trailing-backslash",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=9\\"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-malformed-escape",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=1.0\nother=\\u12\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-latin1",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "base64": "dmVyc2lvbj0xLekK"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-utf8-read-as-latin1",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=1-é\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-form-feed",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "\fversion\f=\f10\f\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-without-properties",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": "version = '3.3'\n"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-linked",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "link": "{outside}/gradle.properties"
+    }
+   ]
+  },
+  {
+   "name": "gradle-properties-blank-version",
+   "entries": [
+    {
+     "path": "build.gradle",
+     "text": ""
+    },
+    {
+     "path": "gradle.properties",
+     "text": "version=   \n"
+    }
+   ]
+  },
+  {
+   "name": "npm-version",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"name\":\"x\",\"version\":\" 1.0.0 \"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-number-version",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"version\":1.5}"
+    }
+   ]
+  },
+  {
+   "name": "npm-array",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "[{\"version\":\"1\"}]"
+    }
+   ]
+  },
+  {
+   "name": "npm-not-json",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "version: 1"
+    }
+   ]
+  },
+  {
+   "name": "npm-trailing-garbage",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"2.0.0\"} trailing"
+    }
+   ]
+  },
+  {
+   "name": "npm-bom",
+   "entries": [
+    {
+     "path": "package.json",
+     "base64": "77u/eyJ2ZXJzaW9uIjoiMy4wLjAifQ=="
+    }
+   ]
+  },
+  {
+   "name": "npm-empty",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "name": "npm-duplicate-keys",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"1\",\"version\":\"2\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-invalid-utf8-elsewhere",
+   "entries": [
+    {
+     "path": "package.json",
+     "base64": "eyJkZXNjcmlwdGlvbiI6Iv8iLCJ2ZXJzaW9uIjoiNCJ9"
+    }
+   ]
+  },
+  {
+   "name": "npm-invalid-utf8-after",
+   "entries": [
+    {
+     "path": "package.json",
+     "base64": "eyJ2ZXJzaW9uIjoiNC4xIn3/"
+    }
+   ]
+  },
+  {
+   "name": "npm-overlong-utf8",
+   "entries": [
+    {
+     "path": "package.json",
+     "base64": "eyJkZXNjcmlwdGlvbiI6IsCvIiwidmVyc2lvbiI6IjQuMiJ9"
+    }
+   ]
+  },
+  {
+   "name": "npm-surrogate-utf8",
+   "entries": [
+    {
+     "path": "package.json",
+     "base64": "eyJkZXNjcmlwdGlvbiI6Iu2ggCIsInZlcnNpb24iOiI0LjMifQ=="
+    }
+   ]
+  },
+  {
+   "name": "npm-escaped-lone-surrogate",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"description\":\"\\ud800\",\"version\":\"4.4\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-deep-500",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"version\":\"5\",\"x\":",
+     "text": "{\"a\":",
+     "repeat": 500,
+     "tail": "1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"
+    }
+   ]
+  },
+  {
+   "name": "npm-deep-999",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"version\":\"5.1\",\"x\":",
+     "text": "[",
+     "repeat": 998,
+     "tail": "1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+    }
+   ]
+  },
+  {
+   "name": "npm-deep-1000",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"version\":\"5.2\",\"x\":",
+     "text": "[",
+     "repeat": 999,
+     "tail": "1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+    }
+   ]
+  },
+  {
+   "name": "npm-deep-1001",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"version\":\"5.3\",\"x\":",
+     "text": "[",
+     "repeat": 1000,
+     "tail": "1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+    }
+   ]
+  },
+  {
+   "name": "npm-long-number",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"x\":",
+     "text": "1",
+     "repeat": 1001,
+     "tail": ",\"version\":\"6\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-number-1000",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"x\":",
+     "text": "1",
+     "repeat": 1000,
+     "tail": ",\"version\":\"6.1\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-long-name",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"",
+     "text": "k",
+     "repeat": 50001,
+     "tail": "\":1,\"version\":\"7\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-name-50000",
+   "entries": [
+    {
+     "path": "package.json",
+     "head": "{\"",
+     "text": "k",
+     "repeat": 50000,
+     "tail": "\":1,\"version\":\"7.1\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-comment",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{/* c */\"version\":\"8\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-nan",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"x\":NaN,\"version\":\"8.1\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-control-in-string",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"x\":\"a\tb\",\"version\":\"8.2\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-version-with-escapes",
+   "entries": [
+    {
+     "path": "package.json",
+     "text": "{\"version\":\"\\u0031.\\t0\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "npm-linked",
+   "entries": [
+    {
+     "path": "package.json",
+     "link": "{outside}/package.json"
+    }
+   ]
+  },
+  {
+   "name": "python-pep621",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[build-system]\nrequires = [\"setuptools>=61\"]\nversion = \"0.0.0\"\n\n  [project]  \nname = \"x\"\ndependencies = [\"a==1.0\"]\nversion = \"2.3.4\" # the version\n"
+    }
+   ]
+  },
+  {
+   "name": "python-poetry",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[tool.black]\nversion = '1'\n[tool.poetry]\nversion='  5.6  '\n"
+    }
+   ]
+  },
+  {
+   "name": "python-dependency-table-first",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[tool.poetry.dependencies]\nversion = \"9\"\n[project]\nname=\"n\"\n"
+    }
+   ]
+  },
+  {
+   "name": "python-dynamic",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\ndynamic = [\"version\"]\n"
+    }
+   ]
+  },
+  {
+   "name": "python-separators",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\r\nname='a' version\t=\t\"7.7\"\u000bx\n"
+    }
+   ]
+  },
+  {
+   "name": "python-unquoted",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\nversion = 1.0\nversion = \"after\"\n"
+    }
+   ]
+  },
+  {
+   "name": "python-mixed-quotes",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\nversion = \"1.0'\n"
+    }
+   ]
+  },
+  {
+   "name": "python-strip-not-trim",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[project]\n　version = \"3\"　\n"
+    }
+   ]
+  },
+  {
+   "name": "python-repeated-headers",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "head": "",
+     "text": "[project]\n",
+     "repeat": 20000,
+     "tail": "version = \"r\"\n"
+    }
+   ]
+  },
+  {
+   "name": "python-invalid-utf8",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "base64": "W3Byb2plY3RdCnZlcnNpb24gPSAiMS3//i3igiIK"
+    }
+   ]
+  },
+  {
+   "name": "python-header-with-space",
+   "entries": [
+    {
+     "path": "pyproject.toml",
+     "text": "[ project ]\nversion = \"no\"\n"
+    }
+   ]
+  },
+  {
+   "name": "none",
+   "entries": [
+    {
+     "path": "README.md",
+     "text": ""
+    }
+   ]
+  }
+ ]
+}

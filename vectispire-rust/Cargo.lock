@@ -5053,6 +5053,7 @@ dependencies = [
 name = "vectispire-scanners"
 version = "2.0.0-dev"
 dependencies = [
+ "base64 0.22.1",
  "rand_core 0.6.4",
  "regex",
  "rustix",

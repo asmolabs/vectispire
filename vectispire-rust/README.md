@@ -4,10 +4,10 @@
 deployment runs it. The agent that ships is `vectispire-java/vectispire-agent`. This binary speaks the
 whole agent protocol — it announces itself and its signed sealing key, claims up to its limit of scans
 at once, opens the credentials they carry, beats for each, and hands back a signed result or a signed,
-scrubbed failure report — and it runs a repository scan: the clone and the four analyses
-(dependencies, secrets, IaC, SAST), as the Java agent does (`crates/agent/src/scan.rs`). **What is not
-ported yet is said, never read as "found nothing"**: the API discovery is recorded as a step that did
-not run and a plugin as an absent step under its name. An image target is exported through the daemon
+scrubbed failure report — and it runs a repository scan: the clone, the project manifest, the language
+census and the API discovery read in process, and the four analyses (dependencies, secrets, IaC, SAST), as
+the Java agent does (`crates/agent/src/scan.rs`). **What is not ported yet is said, never read as "found
+nothing"**: a plugin is recorded as an absent step under its name. An image target is exported through the daemon
 and inventoried from the archive, as on the Java agent (since 2026-11-15, task 2.10). Never point it at a
 control plane whose scans matter.
 
@@ -110,6 +110,7 @@ answers for fixed inputs, and the Rust tests read them:
 | Set | Java writer | Rust reader | What it pins |
 |---|---|---|---|
 | `secrets/` | `SecretsReferenceSetTest` | `scanners/tests/reference_set.rs` | gitleaks reports in, findings out, **byte for byte** as the agent's mapper writes them — fingerprint material |
+| `workspace/` | `WorkspaceReferenceSetTest` | `scanners/tests/workspace_reference_set.rs` | 176 trees built from `cases/` (text, base64, repeated runs, links to a decoy directory beside the tree) and what the scan learns from each in process (`answers/`, one JSON line per tree): the **census** (whole and stopped early), the **project manifest**, and the **API discovery**'s endpoints and contracts or its failure sentence. Hostile shapes throughout: links out of the tree, files past 2 MiB, 200 levels of directories, bytes that are not UTF-8 (the JDK's decoder delimits an encoded surrogate unlike the WHATWG), the JDK's XML limits under secure processing (depth 100, 200 attributes, names of 1,000), Jackson's (depth 1,000, numbers of 1,000 digits, names of 50,000), `Properties`' escapes and continuations, patterns written to backtrack. Regenerated with `./gradlew :vectispire-common:test --tests '*WorkspaceReferenceSetTest*' -Dvectispire.rust.reference.write=true`; `scanners/tests/workspace_corruption.rs` corrupts every file of it through every reader |
 | `repository-url/` | `RepositoryUrlReferenceSetTest` | `domain/tests/reference_set.rs` | `validate`, `host`, `redact`, `isHttps`, `hasHost` for 90 URLs chosen to tell parsers apart |
 | `container/` | `ContainerReferenceSetTest` | `scanners/tests/create_request.rs` | the secrets scan's container-create request, captured off the wire by a stub daemon |
 | `iac/` | `IacReferenceSetTest` | `scanners/tests/iac_reference_set.rs` | checkov container results in (`runs/`: stdout, optional `.stderr` and `.case` with `exit=` and `subPath=`), the step's **outcome** out (`outcomes/`): `findings` and the wire JSON, `absent`, or `failure` and its sentence. Runs 01–04 are the pinned image's real output, `iac/regenerate.sh` |
@@ -183,7 +184,7 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 
 **Read the Rust figures for what they are.**
 - The binary links the clone, the container runner, the whole protocol with its loop, the crypto and four
-  scanners. Plugins and the API discovery are not ported yet; image export is, since 2026-11-15.
+  scanners, and the in-process readers of the tree. Plugins are not ported yet; image export is, since 2026-11-15.
 - No scan-time figure is claimed: the scanners run in their own containers either way.
 
 ## Against a real control plane
@@ -226,8 +227,19 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 - **A matcher's SBOM is forwarded byte for byte** (the workspace turns on `serde_json`'s `preserve_order`);
   a lone surrogate escape, `1e400` and a nesting deeper than 128, which Jackson reads and serde refuses, are
   not in the reference set: no scanner writes them.
-- **The API discovery and the language census are not ported**: the first is recorded as a failed step
-  ("does not run the API discovery yet"), the second is left absent — "unknown", which resolves nothing.
+- **A `pom.xml` in a charset the JDK knows but this reader does not decode** — `ISO-8859-2`, `Shift_JIS`… with
+  bytes outside ASCII — is refused here ("maven", no version) and read by Java. UTF-8, UTF-16, ISO-8859-1,
+  windows-1252 and ASCII are read as the JDK reads them, under every name it accepts; any other charset it knows
+  is read when the document is ASCII. Its element names are checked against XML 1.0's fifth edition, where the
+  JDK's tables are older: they differ only on names outside ASCII (`scanners::pom`).
+- **A `package.json` name's length is counted in the bytes written**, escapes included, where Jackson counts the
+  bytes it decoded: the two differ only for a name of 50,000 bytes written with `\u` escapes.
+- **Java's `AnalysisBudget` is not reproduced**: it stops a pattern that reads more than 64 characters per
+  character of a file, and the `regex` crate cannot backtrack. A file that exhausted it would be skipped by Java
+  and read here; Java's own tests keep its patterns under six reads per character, and no case of
+  `reference/workspace/` exhausts it.
+- **A source file is opened `O_NONBLOCK`** as well as `O_NOFOLLOW`: a file replaced by a FIFO between the walk's
+  look and the open would hold the Java worker until somebody writes to it.
 - **JSON integers beyond 64 bits** in a scanner report would be read as doubles here, where Jackson
   keeps their low 32 bits. No scanner writes one.
 
@@ -259,7 +271,7 @@ additively.
 | **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. Image export is `ContainerRunner::export_image` (a pull for the platform, then a save), since 2026-11-15 (task 2.10). |
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
-| **Workspace, census, API discovery** | `crates/scanners/src/{census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) and the sub-path checks are ported in `agent/src/scan.rs`; `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` — which parse repository content in-process, and so need their own reference set — are not. |
+| **Workspace, census, API discovery** — *done* (branch `claude/rust-agent-census-api-156251`) | `crates/scanners/src/{census,manifest,api_discovery}.rs` and their readers (`source_files`, `walk`, `pom`, `properties`, `jackson_tree`), `reference/workspace/` | **Done** — `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` hold to `reference/workspace/` (176 trees, hostile ones among them); the runner reads the manifest and the census before the containers and runs the discovery as a step (`runner::read_in_process`), the census kept for the plugins stream. 63/63 mutants killed (`security/mutants/agent-census-api.py`); two parsers fuzzed nightly (`project_manifest`, `api_discovery`). |
 | **Plugins and bundled rules** | `crates/scanners/src/plugins.rs`, `crates/container/src/bounded_output.rs` | Plugin steps, the bounded output holder (`ContainerRun.BoundedOutput`), registry login, and `ImageSignatureVerifier` through the pinned cosign image. |
 | **Image and side-by-side conformance** | `Dockerfile.agent`, `measure.sh`, a new CI job | Reproducible builds (built twice, same bytes) and both architectures. Then `scripts/composition-scan-check.sh MODE=agent AGENT_IMAGE=vs-rs-agent` runs the five analyses through each agent in the nightly, compares the results, and stays identical for two weeks. Only then does `release.yml` sign this image. |
 
