@@ -64,7 +64,18 @@ Three findings of the port shape this decision:
 4. **The web interface stays Angular.** It moves to the redesigned internal API in the same releases. A Rust UI
    (Dioxus, Leptos) is not adopted: neither is past 1.0, and replacing a working interface — its design system, its two
    languages, its Playwright suite — buys consistency, not anything a user sees. The HTTP boundary keeps the question
-   open for later.
+   open for later, and if it is reopened, two candidates are compared, not one:
+
+   | | Leptos | Axum + Askama + htmx |
+   |---|---|---|
+   | Shape | a single-page application compiled to WebAssembly, rendered on the server and hydrated | HTML rendered by the server, fragments swapped by htmx; almost no JavaScript |
+   | For | the closest to today's interface; fine-grained reactivity; server functions shared with Axum | the smallest client attack surface (no WebAssembly, a strict CSP is easy); templates checked at compile time; one stack |
+   | Against | pre-1.0 and its API moves; a WebAssembly bundle to ship and audit | rich charts and very interactive screens still need some JavaScript; the screens are redesigned, not translated |
+
+   Dioxus's strength — one code base for web, desktop and mobile — does not apply to a web-only product; Yew has
+   slowed, Sycamore's community is small, and native or immediate-mode toolkits (egui, Iced, Slint) do not make an
+   accessible, bilingual web application. Whatever is chosen, the two languages, accessibility and the Playwright suite
+   are rebuilt, and that is a large part of the cost.
 
 5. **The data moves once, forward, rehearsed.** 2.0 has its own schema, on MySQL only (as 1.0, decision 0043 §3). A
    migration tool reads a 1.x database (the last 1.x migration, today V102) and writes a 2.0 one; the 1.x database is
@@ -140,3 +151,6 @@ Three findings of the port shape this decision:
    agent — and the release signatures name this repository's workflow, so a new repository is a new signing identity
    for consumers to learn. If it is chosen, the move comes after the agent ships from here and once the external
    contract suites (point 3) are published from this repository as a versioned artifact the new one consumes.
+6. **A Rust interface, if the question is reopened**: a spike on one screen — the issues list with its filters — built
+   with Leptos and with Axum, Askama and htmx, measured on the client's attack surface, accessibility, the two
+   languages and the cost per screen (point 4).

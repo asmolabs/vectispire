@@ -66,7 +66,19 @@ Trois constats du portage façonnent cette décision :
 4. **L'interface web reste en Angular.** Elle passe à l'API interne repensée dans les mêmes versions. Une interface en
    Rust (Dioxus, Leptos) n'est pas adoptée : aucune n'a passé la 1.0, et remplacer une interface qui fonctionne — son
    système de design, ses deux langues, sa suite Playwright — achète de la cohérence, rien qu'un utilisateur voie. La
-   frontière HTTP laisse la question ouverte pour plus tard.
+   frontière HTTP laisse la question ouverte pour plus tard, et si elle est rouverte, deux candidats sont comparés, pas
+   un seul :
+
+   | | Leptos | Axum + Askama + htmx |
+   |---|---|---|
+   | Forme | une application monopage compilée en WebAssembly, rendue côté serveur puis hydratée | du HTML rendu par le serveur, des fragments échangés par htmx ; presque pas de JavaScript |
+   | Pour | le plus proche de l'interface actuelle ; réactivité fine ; fonctions serveur partagées avec Axum | la plus petite surface d'attaque côté client (pas de WebAssembly, une CSP stricte est facile) ; gabarits vérifiés à la compilation ; une seule pile |
+   | Contre | avant la 1.0, son API bouge ; un paquet WebAssembly à livrer et à auditer | les graphiques riches et les écrans très interactifs demandent encore un peu de JavaScript ; les écrans sont repensés, pas traduits |
+
+   La force de Dioxus — une seule base de code pour le web, le bureau et le mobile — ne sert pas un produit uniquement
+   web ; Yew a ralenti, la communauté de Sycamore est petite, et les boîtes à outils natives ou en mode immédiat (egui,
+   Iced, Slint) ne font pas une application web accessible et bilingue. Quel que soit le choix, les deux langues,
+   l'accessibilité et la suite Playwright sont à refaire, et c'est une grande part du coût.
 
 5. **Les données migrent une fois, vers l'avant, après répétition.** La 2.0 a son propre schéma, sur MySQL seulement
    (comme la 1.0, décision 0043 §3). Un outil de migration lit une base 1.x (dernière migration 1.x, aujourd'hui V102)
@@ -151,3 +163,6 @@ Trois constats du portage façonnent cette décision :
    bien qu'un nouveau dépôt est une nouvelle identité de signature à faire connaître aux utilisateurs. S'il est retenu,
    le déménagement vient après la sortie de l'agent depuis ce dépôt et une fois les suites de contrat externes (point 3)
    publiées depuis ce dépôt comme un artefact versionné que le nouveau consomme.
+6. **Une interface en Rust, si la question est rouverte** : un spike sur un écran — la liste des problèmes avec ses
+   filtres — construit avec Leptos et avec Axum, Askama et htmx, mesuré sur la surface d'attaque côté client,
+   l'accessibilité, les deux langues et le coût par écran (point 4).
