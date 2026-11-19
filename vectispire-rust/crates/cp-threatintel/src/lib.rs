@@ -7,10 +7,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod end_of_life;
+pub mod enrichment;
 pub mod epss_feed;
 pub mod epss_file;
 pub mod feeds;
 pub mod kev_catalog;
+pub mod life_cycle;
 mod persistence;
 pub mod prioritization;
 pub mod risk_matrix;

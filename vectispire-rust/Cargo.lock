@@ -4841,6 +4841,7 @@ version = "2.0.0-dev"
 dependencies = [
  "axum",
  "flate2",
+ "futures-util",
  "http",
  "rand_core 0.6.4",
  "sea-orm",
@@ -4861,6 +4862,8 @@ dependencies = [
  "vectispire-cp-maintenance",
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
+ "vectispire-cp-scanning",
+ "vectispire-cp-settings",
  "vectispire-cp-targets",
  "vectispire-domain",
  "vectispire-testkit",

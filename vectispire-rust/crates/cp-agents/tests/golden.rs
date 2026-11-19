@@ -697,12 +697,28 @@ fn ingestor(
     issues: &vectispire_cp_issues::Issues,
     inventory: &vectispire_cp_inventory::Inventory,
 ) -> vectispire_cp_scanning::ingestion::ScanIngestor {
-    use vectispire_cp_scanning::ingestion::{EndOfLifeStandIn, EnrichmentStandIn, LicenseService, ScanIngestor};
+    use vectispire_cp_scanning::ingestion::{LicenseService, ScanIngestor};
+    // As `cp-app` composes them: the stored feeds, and endoflife.date itself — the Java suite reached the real catalog
+    // when it recorded, with nothing stood in for it.
+    let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(SystemClock);
+    let enrichment = vectispire_cp_threatintel::enrichment::EnrichmentService::new(
+        db.clone(),
+        Settings::new(db.clone()),
+        vectispire_cp_threatintel::feeds::ThreatIntel::new(db.clone(), clock.clone()),
+    );
+    let end_of_life = vectispire_cp_threatintel::end_of_life::EndOfLifeService::new(
+        Settings::new(db.clone()),
+        Arc::new(vectispire_cp_outbound::json::OutboundJson::new(
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+        )),
+        clock,
+    );
     ScanIngestor::new(
         issues.backlog().clone(),
         inventory.sink(),
-        Some(Arc::new(EnrichmentStandIn)),
-        Some(Arc::new(EndOfLifeStandIn)),
+        Some(Arc::new(enrichment)),
+        Some(Arc::new(end_of_life)),
         Some(Arc::new(LicenseService::from_settings(Settings::new(db.clone())))),
         Arc::new(SystemClock),
     )

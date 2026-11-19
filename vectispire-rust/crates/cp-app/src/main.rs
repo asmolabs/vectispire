@@ -458,8 +458,13 @@ async fn serve() -> ExitCode {
     let ingestor = Arc::new(vectispire_cp_app::ingestion::ingestor(
         issues.backlog().clone(),
         inventory.sink(),
-        vectispire_cp_settings::Settings::new(db.clone()),
-        clock.clone(),
+        vectispire_cp_app::ingestion::IngestionSources {
+            db: db.clone(),
+            settings: vectispire_cp_settings::Settings::new(db.clone()),
+            clock: clock.clone(),
+            guard: guard.clone(),
+            trust: trust.clone(),
+        },
     ));
     let scanning = Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {
         db: db.clone(),

@@ -8,25 +8,43 @@
 
 use std::sync::Arc;
 
-use vectispire_cp_scanning::ingestion::{
-    Backlog, EndOfLifeStandIn, EnrichmentStandIn, InventorySink, LicenseService, ScanIngestor,
-};
+use vectispire_cp_db::Db;
+use vectispire_cp_outbound::guard::OutboundUrlGuard;
+use vectispire_cp_outbound::json::OutboundJson;
+use vectispire_cp_scanning::ingestion::{Backlog, InventorySink, LicenseService, ScanIngestor};
 use vectispire_cp_settings::Settings;
 use vectispire_cp_targets::Clock;
+use vectispire_cp_threatintel::end_of_life::EndOfLifeService;
+use vectispire_cp_threatintel::enrichment::EnrichmentService;
+use vectispire_cp_threatintel::feeds::ThreatIntel;
 
-/// Java's `ScanIngestor` bean: the licences read from the settings at each scan, and the two `threatintel` sources as
-/// named stand-ins until Phase 4 task 4.4 ports them.
+/// What the ingestor reads besides the backlog and the inventory.
+#[allow(missing_debug_implementations)] // pools
+pub struct IngestionSources {
+    pub db: Db,
+    pub settings: Settings,
+    pub clock: Arc<dyn Clock>,
+    /// The end-of-life catalog's door: endoflife.date, public only, with the runtime's trust.
+    pub guard: OutboundUrlGuard,
+    pub trust: vectispire_tls::TlsTrust,
+}
+
+/// Java's `ScanIngestor` bean: the licences read from the settings at each scan, the enrichment from the stored
+/// threat feeds, and end of life from endoflife.date.
 pub fn ingestor(
     backlog: Arc<dyn Backlog>,
     inventory: Arc<dyn InventorySink>,
-    settings: Settings,
-    clock: Arc<dyn Clock>,
+    sources: IngestionSources,
 ) -> ScanIngestor {
+    let IngestionSources { db, settings, clock, guard, trust } = sources;
+    let enrichment = EnrichmentService::new(db.clone(), settings.clone(), ThreatIntel::new(db, clock.clone()));
+    let catalog = OutboundJson::new(vectispire_cp_outbound::PinnedHttpSender::new(trust), guard);
+    let end_of_life = EndOfLifeService::new(settings.clone(), Arc::new(catalog), clock.clone());
     ScanIngestor::new(
         backlog,
         inventory,
-        Some(Arc::new(EnrichmentStandIn)),
-        Some(Arc::new(EndOfLifeStandIn)),
+        Some(Arc::new(enrichment)),
+        Some(Arc::new(end_of_life)),
         Some(Arc::new(LicenseService::from_settings(settings))),
         clock,
     )

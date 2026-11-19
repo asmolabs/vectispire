@@ -12,6 +12,7 @@ axum.workspace = true
 http.workspace = true
 # The EPSS file is gzip, framed here as Java's `GZIPInputStream` frames it over zlib: the same library inflates, so
 # a damaged archive fails at the same byte with the same sentence (`miniz_oxide` words its errors otherwise).
+futures-util.workspace = true
 flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
 sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-time", "sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
 serde.workspace = true
@@ -29,6 +30,8 @@ vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
+vectispire-cp-scanning = { path = "../cp-scanning" }
+vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 

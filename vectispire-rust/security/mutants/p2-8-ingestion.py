@@ -102,8 +102,8 @@ MUTANTS = [
      "                let _ = settings;\n                let raw = String::new();", MY),
     ("the binary composes no licence source", APP,
      "        Some(Arc::new(LicenseService::from_settings(settings))),", "        { let _ = settings; None },", COMPOSED),
-    ("the binary drops the enrichment stand-in", APP, "        Some(Arc::new(EnrichmentStandIn)),", "        None,", COMPOSED),
-    ("the binary drops the end-of-life stand-in", APP, "        Some(Arc::new(EndOfLifeStandIn)),", "        None,", COMPOSED),
+    ("the binary drops the enrichment", APP, "        Some(Arc::new(enrichment)),", "        None,", COMPOSED),
+    ("the binary drops end of life", APP, "        Some(Arc::new(end_of_life)),", "        None,", COMPOSED),
 
     # ── enrichment: the exploited flag the gate reads ──
     ("the exploited flag is never set", ING, "                    finding.is_kev = enrichment.exploited.contains(id);\n", "", ORACLE),
