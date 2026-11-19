@@ -74,6 +74,30 @@ for case in json.load(open(sys.argv[2]))["workbooks"]:
     open(os.path.join(sys.argv[1], hashlib.sha1(data).hexdigest()), "wb").write(data)
 PY
 
+# project_manifest and api_discovery: every file of the workspace trees, decoded from the cases (a run of repeated
+# text capped, so that a seed stays a seed). A manifest is prefixed with the byte that picks its reader; any other file
+# with its name and a NUL, as the API discovery target reads it.
+mkdir -p "$corpus/project_manifest" "$corpus/api_discovery"
+python3 - "$corpus" ../reference/workspace/cases/*.json <<'PY'
+import base64, hashlib, json, os, sys
+readers = {"pom.xml": b"\0", "gradle.properties": b"\1", "package.json": b"\2", "pyproject.toml": b"\3"}
+def put(target, data):
+    open(os.path.join(sys.argv[1], target, hashlib.sha1(data).hexdigest()), "wb").write(data)
+for path in sys.argv[2:]:
+    for case in json.load(open(path))["cases"]:
+        for entry in case["entries"]:
+            if "base64" in entry:
+                data = base64.b64decode(entry["base64"])
+            elif "text" in entry or "head" in entry:
+                body = entry.get("text", "") * min(entry.get("repeat", 1), 4096)
+                data = (entry.get("head", "") + body + entry.get("tail", "")).encode()
+            else:
+                continue
+            name = os.path.basename(entry["path"])
+            if name in readers:
+                put("project_manifest", readers[name] + data)
+            put("api_discovery", name.encode() + b"\0" + data)
+PY
 failed=""
 for target in $targets; do
   mkdir -p "$corpus/$target"

@@ -5,13 +5,14 @@
 //! is recorded as a failure with what happened. Only the clone and the sub-path are blocking: with no
 //! tree there is nothing to analyse, and carrying on would produce empty lists that resolve everything.
 //!
-//! **What this build does not run yet, it says.** The language census, the project manifest and the
-//! API discovery are not ported (`README.md`, "Remaining work"): the census and the manifest are
-//! ordinary absences — "unknown", no finding resolved — and the discovery is a step like the others,
-//! so it is recorded as one that did not run rather than left silently absent. **The plugins run** (`with_plugins`),
-//! last and each on its own, decided on the census of the tree — until the census lands (the workspace stream's
-//! `scanners::census`), on Java's rule for a census that could not finish: every plugin runs, since "not
-//! applicable" is a claim nothing has proven.
+//! **The tree is read in process before any container runs**: the project manifest and the language census, which
+//! are not steps — a file read and a count of names, whose absence fails nothing — and the API discovery, which is
+//! one, and fails as one. Each reads the repository's content in this process, through `vectispire_scanners`'
+//! bounded, link-refusing readers.
+//!
+//! **The plugins run** (`with_plugins`), last and each on its own, decided on that census: a plugin none of whose
+//! languages the tree holds is not applicable; an incomplete census runs every plugin, since "not applicable" is a
+//! claim.
 //!
 //! **An image is one step**: exported by this process through the daemon, inventoried from the
 //! archive, matched — secrets, IaC and source analysis stay absent, since they look inside source code
@@ -19,6 +20,7 @@
 
 pub mod configuration_files;
 
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -30,13 +32,13 @@ pub use vectispire_domain::FailureKind;
 pub use vectispire_git::WithoutKey;
 use vectispire_git::{CloneRequest, HostKeyPolicy, HttpsCredential};
 pub use vectispire_protocol::ScanArtifacts;
-use vectispire_protocol::{Findings, Image, PluginRef, PluginStep, ScanTask, Step, Target};
+use vectispire_protocol::{Findings, Image, PluginRef, PluginStep, Project, ScanTask, Step, Target};
 use vectispire_scanners::dependencies::{self, StepError};
 use vectispire_scanners::plugins::{self, PluginScanner};
 pub use vectispire_scanners::rules::StoredFile;
 use vectispire_scanners::rules::{self, RulePlacement};
 use vectispire_scanners::vulnerability_database::VulnerabilityDatabase;
-use vectispire_scanners::{container_paths, iac, jackson, sast, secrets};
+use vectispire_scanners::{api_discovery, census, container_paths, iac, jackson, manifest, sast, secrets};
 use vectispire_tls::TlsTrust;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -204,9 +206,6 @@ impl std::fmt::Debug for Runner {
 const SECRETS_ABSENT: &str = "the search for hardcoded secrets did not complete.";
 const IAC_ABSENT: &str = "the infrastructure manifest check did not complete.";
 const SAST_ABSENT: &str = "the source analysis did not run, or covered too few files to be worth reading.";
-/// Not a Java sentence: this build's own, for the step it does not run yet.
-const API_DISCOVERY_NOT_PORTED: &str =
-    "this agent (the Rust port, in progress) does not run the API discovery yet; the inventory is left as it was.";
 
 impl Runner {
     /// `vulnerability_root`: `VECTISPIRE_VULNERABILITY_DB_DIR`, blank for a directory beside the
@@ -310,7 +309,8 @@ impl Runner {
         let scan_root = prepare_tree(&workspace.source, &sub_path, &branch)?;
         let sub = (!sub_path.is_empty()).then_some(sub_path.as_str());
 
-        artifacts.failed("api discovery", API_DISCOVERY_NOT_PORTED);
+        // The census is kept for the plugins below: an incomplete one runs every plugin.
+        let census = read_in_process(scan_root.clone(), &mut artifacts).await;
 
         if task.runs(Step::Dependencies) {
             let (step, sbom) = dependencies::tree_step(
@@ -361,7 +361,7 @@ impl Runner {
         }
 
         // Last, and each on its own: see `run_plugins`.
-        self.run_plugins(&task, &workspace.root, &scan_root, &mut artifacts).await;
+        self.run_plugins(&task, &workspace.root, &scan_root, &census, &mut artifacts).await;
 
         artifacts.duration = started.elapsed();
         Ok(artifacts)
@@ -376,20 +376,21 @@ impl Runner {
         task: &ScanTask,
         workspace_root: &Path,
         scan_root: &Path,
+        census: &census::Census,
         artifacts: &mut ScanArtifacts,
     ) {
         if task.plugins.is_empty() {
             return;
         }
         let scanner = PluginScanner::new(self.containers.as_ref(), self.plugin_settings.clone());
-        // No census yet (see the module's documentation): Java's rule for one that did not finish — every plugin runs.
+        // The runner's census of the whole tree, as Java decides the plugins on it (`runPlugins(…, census, …)`).
         let steps = plugins::run_steps(
             &scanner,
             &Provider(self.plugin_source.as_ref()),
             &task.plugins,
             workspace_root,
             Some(scan_root),
-            |declared| plugins::applies(&std::collections::BTreeSet::new(), false, declared),
+            |declared| census.applies(declared),
         )
         .await;
         record_plugins(steps, artifacts);
@@ -481,6 +482,38 @@ impl Runner {
 }
 
 /// A step's findings as the protocol carries them, each written as the Java agent's mapper writes it.
+/// What `ScanRunner.analyse` learns from the tree in its own process, in its order: the manifest, the census, and
+/// the API discovery — on a blocking thread, since each walks or reads the tree.
+async fn read_in_process(scan_root: PathBuf, artifacts: &mut ScanArtifacts) -> census::Census {
+    let read = tokio::task::spawn_blocking(move || {
+        (manifest::read(&scan_root), census::of(&scan_root, &BTreeSet::new()), api_discovery::scan(&scan_root))
+    })
+    .await;
+    let (project, census, discovery) = match read {
+        Ok(read) => read,
+        Err(_) => {
+            // The thread did not finish: nothing was learnt, and the discovery says so.
+            artifacts.failed(api_discovery::STEP, "the API discovery did not complete.");
+            return census::Census { found: BTreeSet::new(), complete: false };
+        }
+    };
+    // **Not a step, and not wrapped in one**: a missing manifest is an ordinary property of a repository.
+    artifacts.project =
+        project.map(|project| Project { kind: Some(project.kind.to_owned()), version: project.version });
+    // An incomplete census records nothing: absent reads as unknown, where a partial set would say a Java
+    // repository holds no Java.
+    artifacts.languages = census.recorded();
+    // A step like the others: failed, never empty, when it did not happen — empty would replace the inventory.
+    match discovery {
+        Ok(discovery) => {
+            artifacts.api_endpoints = findings(&discovery.endpoints);
+            artifacts.api_contracts = findings(&discovery.contracts);
+        }
+        Err(failed) => artifacts.failed(api_discovery::STEP, failed.0),
+    }
+    census
+}
+
 /// Each step into the artifacts, and the absent and refused ones into the scan's failures under `plugin <id>`.
 fn record_plugins(steps: Vec<PluginStep>, artifacts: &mut ScanArtifacts) {
     for step in steps {
@@ -716,5 +749,40 @@ mod tests {
             let failure = scan_root(clone.path(), sub, "main").unwrap_err();
             assert_eq!((failure.message.as_str(), failure.kind), (said, FailureKind::Permanent), "{sub}");
         }
+    }
+
+    #[tokio::test]
+    async fn the_tree_is_read_in_process_as_the_java_runner_reads_it() {
+        let tree = tempfile::tempdir().unwrap();
+        std::fs::write(tree.path().join("package.json"), r#"{"version":"1.2.3"}"#).unwrap();
+        std::fs::write(tree.path().join("server.js"), "app.get('/health', h)\n").unwrap();
+        std::fs::write(tree.path().join("openapi.yaml"), "openapi: 3\npaths:\n  /spec:\n    get:\n").unwrap();
+        let mut artifacts = ScanArtifacts::default();
+        let census = read_in_process(tree.path().to_owned(), &mut artifacts).await;
+        assert!(census.complete);
+        assert_eq!(artifacts.project, Some(Project { kind: Some("npm".into()), version: Some("1.2.3".into()) }));
+        let languages: Vec<_> = artifacts.languages.clone().unwrap().into_iter().collect();
+        assert_eq!(languages, ["javascript", "json", "yaml"]);
+        let body: serde_json::Value = serde_json::from_str(&artifacts.to_body().unwrap()).unwrap();
+        let paths: Vec<_> =
+            body["apiEndpoints"].as_array().unwrap().iter().map(|endpoint| endpoint["path"].clone()).collect();
+        assert_eq!(paths.len(), 2, "{paths:?}");
+        assert!(paths.contains(&serde_json::json!("/health")) && paths.contains(&serde_json::json!("/spec")));
+        assert_eq!(body["apiContracts"][0]["contractPath"], "openapi.yaml");
+        assert!(artifacts.failures.is_empty(), "{:?}", artifacts.failures);
+        assert!(artifacts.observed_nothing(), "a version and an API inventory observe nothing (`observedNothing`)");
+    }
+
+    #[tokio::test]
+    async fn a_tree_that_is_not_there_fails_the_discovery_and_records_no_language() {
+        let tree = tempfile::tempdir().unwrap();
+        let mut artifacts = ScanArtifacts::default();
+        let census = read_in_process(tree.path().join("missing"), &mut artifacts).await;
+        assert!(!census.complete);
+        assert_eq!((artifacts.project.clone(), artifacts.languages.clone()), (None, None));
+        assert!(artifacts.api_endpoints.is_none() && artifacts.api_contracts.is_none(), "absent, never empty");
+        assert_eq!(artifacts.failures.len(), 1);
+        assert_eq!(artifacts.failures[0].step, "api discovery");
+        assert!(artifacts.failures[0].reason.ends_with(": no source tree to discover APIs in"));
     }
 }

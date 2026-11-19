@@ -1,0 +1,239 @@
+{
+ "cases": [
+  {
+   "name": "empty-tree",
+   "entries": []
+  },
+  {
+   "name": "polyglot",
+   "entries": [
+    {
+     "path": "src/main/java/App.java",
+     "text": "class App {}\n"
+    },
+    {
+     "path": "web/app.TSX",
+     "text": ""
+    },
+    {
+     "path": "Dockerfile.prod",
+     "text": "FROM x\n"
+    },
+    {
+     "path": "infra/main.tf",
+     "text": ""
+    },
+    {
+     "path": "scripts/run.sh",
+     "text": ""
+    },
+    {
+     "path": "build.gradle.kts",
+     "text": ""
+    },
+    {
+     "path": "Cargo.toml",
+     "text": ""
+    },
+    {
+     "path": "README",
+     "text": ""
+    },
+    {
+     "path": "noext.",
+     "text": ""
+    },
+    {
+     "path": ".hidden",
+     "text": ""
+    },
+    {
+     "path": "x.JSON",
+     "text": ""
+    },
+    {
+     "path": "Containerfile",
+     "text": ""
+    },
+    {
+     "path": "lib/a.ex",
+     "text": ""
+    },
+    {
+     "path": "ui/index.htm",
+     "text": ""
+    },
+    {
+     "path": "contracts/Token.sol",
+     "text": ""
+    },
+    {
+     "path": "x.pyi",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "name": "skipped-directories",
+   "entries": [
+    {
+     "path": ".git/hooks/a.py",
+     "text": ""
+    },
+    {
+     "path": "NODE_MODULES/lib/a.rb",
+     "text": ""
+    },
+    {
+     "path": "node_modules/x/y.go",
+     "text": ""
+    },
+    {
+     "path": "ok.c",
+     "text": ""
+    },
+    {
+     "path": "sub/.git/z.php",
+     "text": ""
+    },
+    {
+     "path": "sub/.GIT/z.swift",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "name": "root-named-like-a-skipped-directory",
+   "entries": [
+    {
+     "path": "node_modules/a.kt",
+     "text": ""
+    },
+    {
+     "path": "node_modules/.git/b.scala",
+     "text": ""
+    }
+   ],
+   "root": "node_modules"
+  },
+  {
+   "name": "links-are-not-followed",
+   "entries": [
+    {
+     "path": "out",
+     "link": "{outside}/dir"
+    },
+    {
+     "path": "Main.java",
+     "link": "{outside}/dir/Main.java"
+    },
+    {
+     "path": "real.rb",
+     "text": ""
+    },
+    {
+     "path": "dangling.go",
+     "link": "{outside}/missing.go"
+    }
+   ]
+  },
+  {
+   "name": "stops-early-once-everything-wanted-is-seen",
+   "entries": [
+    {
+     "path": "only.java",
+     "text": ""
+    }
+   ],
+   "wanted": [
+    "java"
+   ]
+  },
+  {
+   "name": "wanted-but-absent",
+   "entries": [
+    {
+     "path": "a.py",
+     "text": ""
+    },
+    {
+     "path": "b/c.py",
+     "text": ""
+    }
+   ],
+   "wanted": [
+    "java",
+    "python"
+   ]
+  },
+  {
+   "name": "no-tree",
+   "entries": [],
+   "root": "missing"
+  },
+  {
+   "name": "root-is-a-file",
+   "entries": [
+    {
+     "path": "file.java",
+     "text": ""
+    }
+   ],
+   "root": "file.java"
+  },
+  {
+   "name": "deep-tree",
+   "entries": [
+    {
+     "path": "d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/deep.rs",
+     "text": "fn main() {}\n"
+    },
+    {
+     "path": "top.cs",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "name": "adversarial-names",
+   "entries": [
+    {
+     "path": "a.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "text": ""
+    },
+    {
+     "path": "....................................................................................................",
+     "text": ""
+    },
+    {
+     "path": "dockerfile.",
+     "text": ""
+    },
+    {
+     "path": "DOCKERFILE",
+     "text": ""
+    },
+    {
+     "path": "Pipfile",
+     "text": ""
+    },
+    {
+     "path": "a.b.c.d.e.KTS",
+     "text": ""
+    },
+    {
+     "path": "İ.java",
+     "text": ""
+    },
+    {
+     "path": "x.ĸt",
+     "text": ""
+    },
+    {
+     "path": "ﬀ.py",
+     "text": ""
+    }
+   ]
+  }
+ ]
+}
