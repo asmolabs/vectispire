@@ -7,7 +7,9 @@ at once, opens the credentials they carry, beats for each, and hands back a sign
 scrubbed failure report — and it runs a repository scan: the clone and the four analyses
 (dependencies, secrets, IaC, SAST), as the Java agent does (`crates/agent/src/scan.rs`). **What is not
 ported yet is said, never read as "found nothing"**: the API discovery is recorded as a step that did
-not run and a plugin as an absent step under its name. An image target is exported through the daemon
+not run. The task's plugins run (`crates/scanners/src/plugins.rs`): a declared signer verified by the pinned
+cosign image before the pull, the plugin in the closed shape with a bounded output, its report read under
+SARIF's guards, each plugin produced, not applicable, absent or refused. An image target is exported through the daemon
 and inventoried from the archive, as on the Java agent (since 2026-11-15, task 2.10). Never point it at a
 control plane whose scans matter.
 
@@ -127,6 +129,9 @@ answers for fixed inputs, and the Rust tests read them:
 | `cron/` | `CronReferenceSetTest` (`vectispire-core`) | `domain/tests/cron_reference_set.rs` | Spring's `CronExpression` for 187 expressions — the refusal sentence, or the next six fire times from four starts — and `CronExpressions`' crontab reading of each |
 | `siem/` | `SiemReferenceSetTest` | `domain/tests/siem_reference_set.rs` | the SIEM's domain, byte for byte: the 39 events' catalogue, the signal of each of the 103 audit operations, 28 CEF lines (escapes, controls, a key given twice to a `LinkedHashMap`, Java's `isBlank`), 16 syslog headers and 5 octet-counted frames, 136 endpoints and their refusals (an IPv4-mapped address in brackets, a full-width port, a webhook's port as `URI.getPort` reads it, a numeric syslog host as `Inet4Address.ofLiteral` reads it, a port's leading zeros), the protocols, the severity minimums and the triage signals; 59 collector-CA bundles built from 18 certificates BouncyCastle 1.86 wrote (`collector-ca/generate.jsh`) — the subject `X500Name` renders (every string type, the escapes, multi-valued RDNs, values that are not strings), the dates, the DER, and each refusal of the PEM text and of the certificate, read as stored (`parse`) and as pasted (`parsePasted`, which refuses a `-----BEGIN` line the reader skipped) |
 | `siem/module.json` | `SiemModuleReferenceSetTest` (`vectispire-core`) | `cp-siem/tests/engines.rs` (both engines) | the SIEM module over Java's real services and mocked collaborators: the payload 16 audit entries and broken chains queue (members, order, `null`, the 1,024-unit cut and its `?`), what 25 stored rows become at delivery (the webhook's JSON body and header, the syslog message, or the refusal and whether it abandons the row), what 40 saves refuse, write, audit and tell the collector being left, what 18 connection tests answer and send |
+| `plugins/{manifests,images,sarif,steps}/` | `PluginsReferenceSetTest` | `scanners/tests/plugins_reference_set.rs` | committed `cases.json`, Java's `answers.json`: 121 manifests as the agent's mapper reads them (digest, command, or the refusal — the signer's key read as BouncyCastle reads it: curves, RSA bits, PEM blocks), 144 image relocations and mirrors, 95 SARIF reports (Jackson's constraints, absent vs empty, suppressions, severities, `SarifPaths`' refusals — fingerprint material), and 63 end-to-end scenarios through `PluginSteps` with a stand-in executor: each plugin's state on the wire, its reason, and every container request (cosign's flags and login, the plugin's mounts, user, network, timeout, bounded output). A refusal in Jackson's own words is compared up to "not readable JSON:" |
+| `plugins/{archives,measurements,credentials}/` | `PluginRunsReferenceSetTest` | `container/tests/plugin_runs_reference_set.rs` | the bounded output read back: 36 tar archives as the daemon answers them (ustar, PAX, GNU long names, base-256, links, truncations — the size refused on the header), the holder's `df`, and docker-java's pull credentials for 21 Docker configurations (the registry key, Hub's legacy address, the one-entry file handed to cosign, the redaction) |
+| `plugins/creates/` | `PluginRunsReferenceSetTest` | `scanners/tests/plugin_creates.rs` | the holder's, the plugin's and cosign's container-create requests, captured off the wire: the tmpfs volume and its options, `VolumesFrom`, `fsize`, the key and the registry login mounted read-only with `DOCKER_CONFIG` |
 | `artifacts/` | `protocol/tests/artifacts_reference_set.rs` (**the Rust side writes**) | `ScanArtifactsReferenceSetTest` | result bodies the Rust agent sends, read by the agent's mapper and written back: the tree must be the one sent, so a step sent absent cannot arrive empty (decision 0007) |
 | `artifacts/java-read.json`, `artifacts/server-wire.json` | `AgentWireReferenceSetTest` (`vectispire-core`) | `protocol/tests/java_read_reference_set.rs`, `server_wire_reference_set.rs` | 456 result bodies and what the control plane's Jackson 2 bean made of each (refused, `null`, or every step and field read), the encodings, surrogates, coercions and `StreamReadConstraints` limits included; the claim, hello and failure answers Spring MVC's Jackson 3 writes, byte for byte; the hello, sealing-key and failure requests as read; the contract comparison; every refusal's sentence |
 
@@ -183,7 +188,8 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 
 **Read the Rust figures for what they are.**
 - The binary links the clone, the container runner, the whole protocol with its loop, the crypto and four
-  scanners. Plugins and the API discovery are not ported yet; image export is, since 2026-11-15.
+  scanners. The API discovery is not ported yet; image export is, since 2026-11-15, and plugins since 2026-11-19
+  (measured before them).
 - No scan-time figure is claimed: the scanners run in their own containers either way.
 
 ## Against a real control plane
@@ -237,6 +243,20 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 - **The bundled rules' sweep compares with when this process materialised them**, not when it started
   (Rust has no portable process start time): later, which only ever keeps a leftover for the next sweep.
 
+## The plugins: where this port and Java differ, and what the reference set found in Java
+
+- **`OutputArchive` threw a `NullPointerException` on a PAX header naming a path but no size** (a `long`/`Long`
+  ternary unboxing `null`): a well-formed archive was refused and the plugin absent. Fixed on the Java side in the
+  same change (`Long.valueOf`), with a test; the reference set holds both sides to the fix.
+- **The holder's `df` is multiplied as Java multiplies it, wrapping**: a value no bounded tmpfs can print reads as
+  full on both sides (`measurements/`). Kept for parity; harmless, since the report is not believed either way.
+- **Jackson's own words are not reproduced**: a SARIF document Jackson cannot read is refused on both sides with
+  "not readable JSON:" and the parser's detail, which differs; a manifest the agent's mapper cannot read is absent
+  with this port's sentence where Java writes Jackson's. The decisions are the same, pinned by the sets.
+- **Not ported**: docker-java's `registry.username`/`registry.password` properties, which override every entry of
+  the Docker configuration (the Java agent sets none); `Character.digit`'s non-ASCII hexadecimal digits in a SARIF
+  `%`-escape (Java decodes a full-width `%Ａ1`, this refuses it).
+
 ## A defect the reference sets found on the Java side — fixed in 0.11.1
 
 Five readers took a corrupt or missing report for "ran, found nothing", and so resolved the whole backlog
@@ -260,7 +280,7 @@ additively.
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
 | **Workspace, census, API discovery** | `crates/scanners/src/{census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) and the sub-path checks are ported in `agent/src/scan.rs`; `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` — which parse repository content in-process, and so need their own reference set — are not. |
-| **Plugins and bundled rules** | `crates/scanners/src/plugins.rs`, `crates/container/src/bounded_output.rs` | Plugin steps, the bounded output holder (`ContainerRun.BoundedOutput`), registry login, and `ImageSignatureVerifier` through the pinned cosign image. |
+| **Plugins and bundled rules** — *done* 2026-11-19 (branch `claude/rust-agent-plugins-cosign-18a640`) | `crates/scanners/src/{plugins,sarif}.rs`, `crates/container/src/{bounded_output,run_with,pull_credentials}.rs`, `crates/domain/src/plugin_{manifest,signature,image}.rs`, `reference/plugins/` | Plugin steps, the bounded output holder (`ContainerRunner::run_with`, beside `run`), registry login and pull credentials, and `ImageSignatureVerifier` through the pinned cosign image — every decision held to `reference/plugins/`; a real keyless-signed plugin verified against Sigstore and run, another signer and an unsigned image refused, an overflowing output refused (`scanners/tests/plugins_through_the_proxy.rs`, Docker and the network); `security/mutants/agent-plugins.py`. **Left**: the census decides applicability once the workspace stream's `scanners::census` lands — until then every plugin runs, Java's rule for a census that could not finish; the built-in worker (`cp-app`) has no plugin source yet (every plugin absent, `PluginProvider.NONE`'s sentence). |
 | **Image and side-by-side conformance** | `Dockerfile.agent`, `measure.sh`, a new CI job | Reproducible builds (built twice, same bytes) and both architectures. Then `scripts/composition-scan-check.sh MODE=agent AGENT_IMAGE=vs-rs-agent` runs the five analyses through each agent in the nightly, compares the results, and stays identical for two weeks. Only then does `release.yml` sign this image. |
 
 Two pieces are shared and owned by nobody in particular, so they change only additively: the

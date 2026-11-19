@@ -25,7 +25,9 @@ I = "crates/domain/src/plugin_image.rs"
 
 # Equivalent, and not listed: the holder's `df` column held under 19 digits — a value of 19 digits overflows `long` and
 # is dropped by the parse as by the length test; Docker Hub's key matched before the exact lookup — the exact lookup
-# finds the same key; and the prescan's string tracking against a quote inside a key — keys are strings either way.
+# finds the same key; the prescan's string tracking against a quote inside a key — keys are strings either way; the
+# page threshold moved to 4095 bytes — `df -P -k` prints whole KiB, so no measurement lands between 4095 and 4096; and
+# `content`'s `size < 0` — `usize::try_from` refuses a negative size with the same sentence right after it.
 MUTANTS = [
     # Admission: who may run, before anything is pulled.
     ("not required read as required", P, "if !self.settings.signature_required {", "if self.settings.signature_required {", S),
@@ -72,14 +74,12 @@ MUTANTS = [
     ("another host's file followed", Q, "if !host.is_empty() && !host.eq_ignore_ascii_case(\"localhost\") {", "if !host.is_empty() && false {", S),
     ("a control character kept", Q, "    if has_control(&decoded) {\n", "    if false {\n", S),
     # The bounded output.
-    ("a page left is room", B, "self.available_bytes < 4096 || self.available_inodes <= 0", "self.available_bytes < 4095 || self.available_inodes <= 0", C),
     ("no inode left is room", B, "self.available_bytes < 4096 || self.available_inodes <= 0", "self.available_bytes < 4096 || self.available_inodes < 0", C),
     ("a link read as the report", B, "let regular = kind == b'0' || kind == 0;", "let regular = true;", C),
     ("another file read as the report", B, "if !regular || name != file {", "if !regular {", C),
     ("too large past the ceiling only", B, "if size > i64::try_from(ceiling).unwrap_or(i64::MAX) {", "if size > i64::try_from(ceiling).unwrap_or(i64::MAX).saturating_add(1) {", C),
     ("pax size ignored", B, "        if let Some(pending) = pending_size {\n            size = pending;\n        }\n", "", C),
     ("extended header unbounded", B, "const MAX_META: u64 = 64 * 1024;", "const MAX_META: u64 = 64 * 1024 + 1;", C),
-    ("negative size read", B, "if size < 0 || size.unsigned_abs() > ceiling {", "if size.unsigned_abs() > ceiling {", C),
     # Pull credentials: docker-java's rule.
     ("a user without a password usable", K, "(self.username.is_some() && self.password.is_some())\n", "(self.username.is_some())\n", C),
     ("a key with a scheme not matched", K, ".find(|(key, _)| to_hostname(key) == normalized)", ".find(|(key, _)| key.as_str() == normalized)", C),

@@ -77,16 +77,23 @@ async fn run(limits: ScannerLimits, settings: Settings, manifests: Vec<(Value, b
     let scanner = PluginScanner::new(&runner, settings);
     let source = workspace.path().join("source");
     let steps = plugins::run_steps(&scanner, &provider, &references, workspace.path(), Some(&source), |_| true).await;
-    assert_nothing_left(workspace.path());
+    let ids: Vec<String> = references.iter().map(|reference| reference.id.clone()).collect();
+    assert_nothing_left(workspace.path(), &ids);
     steps
 }
 
-/// No container and no volume of a plugin is left on the host, and no registry login in the workspace.
-fn assert_nothing_left(workspace: &Path) {
-    let containers = docker(&["ps", "-a", "--filter", "label=dev.vectispire.scanner", "--format", "{{.Labels}}"]);
-    assert!(!containers.contains("plugin "), "every plugin container was removed: {containers}");
-    let volumes = docker(&["volume", "ls", "--filter", "label=dev.vectispire.scanner", "-q"]);
-    assert!(volumes.trim().is_empty(), "every holder's volume was removed: {volumes}");
+/// No container and no volume of this run's plugins is left on the host, and no registry login in the workspace —
+/// counted by their own labels: the other tests of the suite run at the same time on the same daemon.
+fn assert_nothing_left(workspace: &Path, ids: &[String]) {
+    for id in ids {
+        for label in [format!("plugin {id}"), format!("plugin {id} signature"), format!("plugin {id} (output)")] {
+            let filter = format!("label=dev.vectispire.scanner={label}");
+            let containers = docker(&["ps", "-a", "--filter", &filter, "-q"]);
+            assert!(containers.trim().is_empty(), "the container of {label} was removed: {containers}");
+            let volumes = docker(&["volume", "ls", "--filter", &filter, "-q"]);
+            assert!(volumes.trim().is_empty(), "the volume of {label} was removed: {volumes}");
+        }
+    }
     let logins = walk(workspace).into_iter().filter(|path| path.contains("registry-login")).collect::<Vec<_>>();
     assert!(logins.is_empty(), "no registry login outlives its run: {logins:?}");
 }
