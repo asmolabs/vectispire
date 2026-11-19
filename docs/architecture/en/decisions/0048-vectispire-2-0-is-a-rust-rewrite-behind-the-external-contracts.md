@@ -61,21 +61,21 @@ Three findings of the port shape this decision:
    pass there) and then against 2.0. The Java traffic recorder may still produce these suites' fixtures, for the
    external routes only.
 
-4. **The web interface stays Angular.** It moves to the redesigned internal API in the same releases. A Rust UI
-   (Dioxus, Leptos) is not adopted: neither is past 1.0, and replacing a working interface — its design system, its two
-   languages, its Playwright suite — buys consistency, not anything a user sees. The HTTP boundary keeps the question
-   open for later, and if it is reopened, two candidates are compared, not one:
+4. **The web interface is decided by a spike, with server-rendered HTML as the preferred candidate.** The internal API
+   is redesigned (point 2), so the Angular screens are reworked in 2.0 whatever happens: changing how they are built
+   costs far less at that moment than it would against an interface left as it is. Two shapes are compared on one
+   screen (open question 6), and Angular — moved to the redesigned API — remains the answer if neither holds:
 
-   | | Leptos | Axum + Askama + htmx |
+   | | Axum + Askama + htmx (preferred) | Leptos |
    |---|---|---|
-   | Shape | a single-page application compiled to WebAssembly, rendered on the server and hydrated | HTML rendered by the server, fragments swapped by htmx; almost no JavaScript |
-   | For | the closest to today's interface; fine-grained reactivity; server functions shared with Axum | the smallest client attack surface (no WebAssembly, a strict CSP is easy); templates checked at compile time; one stack |
-   | Against | pre-1.0 and its API moves; a WebAssembly bundle to ship and audit | rich charts and very interactive screens still need some JavaScript; the screens are redesigned, not translated |
+   | Shape | HTML rendered by the server, fragments swapped by htmx; almost no JavaScript | a single-page application compiled to WebAssembly, rendered on the server and hydrated |
+   | For | **no npm supply chain in production** — today's interface brings a large npm tree, kept by `npm audit`, Dependabot and majors that must move together; one toolchain and one deliverable, the binary serving its pages; authorisation decided once, on the server, with no client logic to keep in step with the API's rules; a strict CSP is easy, which closes most of cross-site scripting; templates checked at compile time; the Playwright suite, which drives rendered pages, largely survives | the closest to today's interface; fine-grained reactivity; server functions shared with Axum |
+   | Against | rich charts and highly interactive screens (dashboards, the attack graph) still need a small, vetted JavaScript library or SVG drawn on the server; the design system and the two languages are rebuilt; a risk on screens that live on client-side interaction | pre-1.0 and its API moves; a WebAssembly bundle and its toolchain to ship and audit; it keeps a single-page application's complexity for little more than one language |
 
    Dioxus's strength — one code base for web, desktop and mobile — does not apply to a web-only product; Yew has
    slowed, Sycamore's community is small, and native or immediate-mode toolkits (egui, Iced, Slint) do not make an
-   accessible, bilingual web application. Whatever is chosen, the two languages, accessibility and the Playwright suite
-   are rebuilt, and that is a large part of the cost.
+   accessible, bilingual web application. Whatever is chosen, accessibility and the two languages are held to the
+   level 1.x reaches, and the cost per screen measured by the spike is part of 2.0's estimate.
 
 5. **The data moves once, forward, rehearsed.** 2.0 has its own schema, on MySQL only (as 1.0, decision 0043 §3). A
    migration tool reads a 1.x database (the last 1.x migration, today V102) and writes a 2.0 one; the 1.x database is
@@ -135,7 +135,8 @@ Three findings of the port shape this decision:
 - **Stop Rust for the control plane and keep Java.** Remains a valid outcome: if the spike shows the rewrite is not
   worth its cost, 2.0 keeps the Java control plane and the Rust agent. This decision does not pre-empt that answer;
   it fixes how a rewrite is done if one is done.
-- **A full-stack Rust rewrite with a Rust UI (Dioxus).** Rejected for now, for the reasons of point 4.
+- **A single-page application in Rust (Dioxus, Leptos) chosen up front.** Rejected: the interface is decided by the
+  spike of point 4, where Leptos is the second candidate and Dioxus none, for the reasons given there.
 
 ## Open questions, to settle before the rewrite starts
 
@@ -151,6 +152,7 @@ Three findings of the port shape this decision:
    agent — and the release signatures name this repository's workflow, so a new repository is a new signing identity
    for consumers to learn. If it is chosen, the move comes after the agent ships from here and once the external
    contract suites (point 3) are published from this repository as a versioned artifact the new one consumes.
-6. **A Rust interface, if the question is reopened**: a spike on one screen — the issues list with its filters — built
-   with Leptos and with Axum, Askama and htmx, measured on the client's attack surface, accessibility, the two
-   languages and the cost per screen (point 4).
+6. **The interface**: a spike on one screen — the issues list with its filters, its triage and its two languages —
+   built with Axum, Askama and htmx and with Leptos, measured on the client's attack surface, the dependencies it
+   ships, accessibility, the two languages and the cost per screen. Server-rendered HTML is kept if it holds on all
+   four; Leptos only if it alone does; Angular, moved to the new API, otherwise (point 4).
