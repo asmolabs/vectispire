@@ -116,3 +116,88 @@ pub async fn count_unsettled_within(
     // `repo_id!`: the filter on it has already left out an image's issue, whose column is null.
     Ok(rows)
 }
+
+// ------------------------------------------------------------------ tickets (`super`'s note on each)
+
+pub async fn attach_ticket(
+    conn: &mut PgConnection,
+    id: i64,
+    reference: &str,
+    url: Option<&str>,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* postgres */ update t_issue set ticket_ref = $1, ticket_url = $2, revision = revision + 1, ticket_claimed_by = null, ticket_claim_until = null where id = $3 and ticket_ref is null",
+        reference,
+        url,
+        id
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn claim_ticket(
+    conn: &mut PgConnection,
+    id: i64,
+    holder: &str,
+    until: time::OffsetDateTime,
+    at: time::OffsetDateTime,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* postgres */ update t_issue set ticket_claimed_by = $1, ticket_claim_until = $2 where id = $3 and ticket_ref is null and (ticket_claim_until is null or ticket_claim_until <= $4)",
+        holder,
+        until,
+        id,
+        at
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn release_ticket_claim(conn: &mut PgConnection, id: i64, holder: &str) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* postgres */ update t_issue set ticket_claimed_by = null, ticket_claim_until = null where id = $1 and ticket_claimed_by = $2",
+        id,
+        holder
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn mark_ticket_closed(
+    conn: &mut PgConnection,
+    id: i64,
+    closed: &str,
+    reference: &str,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* postgres */ update t_issue set ticket_ref = $1, revision = revision + 1 where id = $2 and ticket_ref = $3",
+        closed,
+        id,
+        reference
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn attach_ticket_by(
+    conn: &mut PgConnection,
+    id: i64,
+    reference: &str,
+    url: Option<&str>,
+    by: &str,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* postgres */ update t_issue set ticket_ref = $1, ticket_url = $2, ticket_attached_by = $3, revision = revision + 1 where id = $4",
+        reference,
+        url,
+        by,
+        id
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}

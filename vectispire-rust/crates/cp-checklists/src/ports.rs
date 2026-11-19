@@ -1,6 +1,6 @@
 //! What the module asks of the modules beside it, as ports the binary implements: the projects and their
 //! repositories (`targets`), the accounts and what each sees (`access`), the platform's signing key (`crypto`), and
-//! the mail channel (`notifications`, not ported: [`NoMail`] answers "no relay" until wave 3).
+//! the mail channel (`notifications`' [`vectispire_cp_notifications::MailChannel`]; [`NoMail`] for the tests).
 
 use std::collections::BTreeMap;
 
@@ -47,8 +47,7 @@ pub trait MailChannel: Send + Sync {
     fn public_url(&self) -> Option<String>;
 }
 
-/// The notifications module's stand-in until wave 3: no relay, so the reminder prepares nothing and marks nothing
-/// sent — the week's reminders go out once a relay exists.
+/// No relay, for the module's tests: the reminder prepares nothing and marks nothing sent.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoMail;
 
@@ -64,5 +63,27 @@ impl MailChannel for NoMail {
     }
     fn public_url(&self) -> Option<String> {
         None
+    }
+}
+
+/// `MailNotificationChannel` itself.
+impl MailChannel for vectispire_cp_notifications::MailChannel {
+    fn has_relay<'a>(&'a self) -> Answer<'a, bool> {
+        Box::pin(async move { Ok(vectispire_cp_notifications::MailChannel::has_relay(self)) })
+    }
+    fn is_switched_on<'a>(&'a self) -> Answer<'a, bool> {
+        Box::pin(async move {
+            vectispire_cp_notifications::MailChannel::is_switched_on(self).await.map_err(|e| e.to_string())
+        })
+    }
+    fn send_text_to<'a>(&'a self, addresses: &'a [String], subject: &'a str, body: &'a str) -> Answer<'a, ()> {
+        Box::pin(async move {
+            vectispire_cp_notifications::MailChannel::send_text_to(self, addresses, subject, body)
+                .await
+                .map_err(|e| e.to_string())
+        })
+    }
+    fn public_url(&self) -> Option<String> {
+        vectispire_cp_notifications::MailChannel::public_url(self)
     }
 }

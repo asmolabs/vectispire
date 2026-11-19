@@ -360,13 +360,49 @@ async fn serve() -> ExitCode {
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
 
+    // The notifications (wave 2): the channels go into the outbox's registry, and the routing of a scan's delta into the
+    // issues' backlog once the outbox exists. The door out is the start's guard over the runtime's trust.
+    let (notifications_config, notification_channels) =
+        vectispire_cp_app::notifications::compose(vectispire_cp_app::notifications::NotificationParts {
+            db: db.clone(),
+            encryption: encryption.clone(),
+            post: vectispire_cp_outbound::OutboundPost::new(
+                guard.clone(),
+                vectispire_cp_outbound::PinnedHttpSender::new(trust.clone()),
+            ),
+            public_url: settings.exports.public_url.clone(),
+            mail_host_named: settings.mail.is_some(),
+            clock: Arc::new(vectispire_cp_audit::SystemClock),
+        });
+
     // The checklists' `checklist_answer` handler, registered now and handed its service once the module is composed.
     let (checklist_delivery, checklist_slot) = vectispire_cp_app::checklists::answer_delivery();
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem, checklist_delivery),
+        vectispire_cp_app::maintenance::outbox_registry(
+            audit.clone(),
+            &siem,
+            checklist_delivery,
+            &notification_channels,
+        ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
+    // The tickets (wave 2): its token's alerts are told through the notifications, in the outbox.
+    let tickets = vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: db.clone(),
+        encryption: encryption.clone(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            guard.clone(),
+            vectispire_cp_outbound::PinnedHttpSender::new(trust.clone()),
+        ),
+        audit: audit.clone(),
+        alerts: vectispire_cp_app::notifications::token_alerts(
+            &notifications_config,
+            &notification_channels,
+            outbox.clone(),
+        ),
+        clock: Arc::new(vectispire_cp_audit::SystemClock),
+    });
     let siem_service = vectispire_cp_app::siem::service(
         &siem,
         db.clone(),
@@ -383,6 +419,7 @@ async fn serve() -> ExitCode {
         .with(vectispire_cp_gate::purge::listeners())
         .with(vectispire_cp_compliance::purge::listeners())
         .with(vectispire_cp_forges::purge::listeners())
+        .with(vec![Arc::new(vectispire_cp_tickets::TicketLinkPurge)])
         .with_projects(vec![Arc::new(vectispire_cp_checklists::ChecklistPurge)]);
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
@@ -440,14 +477,25 @@ async fn serve() -> ExitCode {
         None
     };
 
-    let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
-        db: db.clone(),
-        targets: targets.clone(),
-        scans: (*scan_catalog).clone(),
-        settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
-        audit: audit.clone(),
-        events: siem.security_events(),
-    }));
+    let issues = Arc::new(
+        vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+            db: db.clone(),
+            targets: targets.clone(),
+            scans: (*scan_catalog).clone(),
+            settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+            audit: audit.clone(),
+            events: siem.security_events(),
+        })
+        // A scan's delta queued for the channels in the scan's transaction (`ScanDeltaNotifier`).
+        // A reference attached by hand is the configured tracker's to judge.
+        .with_ticket_references(tickets.references())
+        .with_scan_deltas(vectispire_cp_app::notifications::scan_deltas(
+            &notifications_config,
+            &notification_channels,
+            outbox.clone(),
+            targets.clone(),
+        )),
+    );
 
     let policy = vectispire_domain::scan_queue::Policy {
         lease: settings.queue.lease,
@@ -549,8 +597,7 @@ async fn serve() -> ExitCode {
         siem.security_events(),
     ));
 
-    // The figures of risk. The weekly report's channels are the notifications module's, not ported: the stand-in
-    // answers that none is configured, so the digest sends nothing and writes no entry (wave 2).
+    // The figures of risk. The weekly report goes through the notifications module's webhook and mail.
     let posture = Arc::new(vectispire_cp_posture::PostureModule::new(vectispire_cp_posture::PostureConfig {
         db: db.clone(),
         gate: gate.gate.clone(),
@@ -568,7 +615,10 @@ async fn serve() -> ExitCode {
             Arc::new(vectispire_cp_audit::SystemClock),
             Vec::new(),
         )),
-        channels: Arc::new(vectispire_cp_posture::NotificationsStandIn),
+        channels: Arc::new(vectispire_cp_posture::ChannelsDigest {
+            config: notifications_config.clone(),
+            channels: notification_channels.clone(),
+        }),
         clock: clock.clone(),
     }));
 
@@ -635,6 +685,7 @@ async fn serve() -> ExitCode {
         ),
         max_workbook_bytes: i64::try_from(settings.max_body.checklist_template_import).unwrap_or(i64::MAX),
         max_file_bytes: i64::try_from(settings.max_body.checklist_evidence).unwrap_or(i64::MAX),
+        mail: notification_channels.mail.clone(),
     });
     if checklist_slot.set(checklists.checklists.clone()).is_err() {
         tracing::error!("The checklists' answer delivery was handed its service twice.");
@@ -680,6 +731,7 @@ async fn serve() -> ExitCode {
         access.session_cleanup.clone(),
         checklists.reminders.clone(),
         forges.services.tasks().into_iter().chain(threatintel.tasks()).collect(),
+        &tickets,
         &gauges,
     ) {
         Ok(turns) => turns,
@@ -719,6 +771,8 @@ async fn serve() -> ExitCode {
         targets.clone(),
         siem_service.clone(),
         forges.services.connections.clone(),
+        notification_channels.service.clone(),
+        tickets.service.clone(),
     );
     app.actuator.serve_encryption(Arc::new(vectispire_cp_app::actuator::Census(census.clone())));
 
@@ -763,6 +817,8 @@ async fn serve() -> ExitCode {
     access_routes.extend(forges.routes);
     // Threat intelligence (wave 2): the feeds' status, the ranking, a CVE's record and the two syncs.
     access_routes.extend(vectispire_cp_threatintel::routes(threatintel.clone()));
+    access_routes.extend(vectispire_cp_app::notifications::routes(&notifications_config, &notification_channels));
+    access_routes.extend(tickets.routes());
     let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
@@ -785,6 +841,7 @@ async fn serve() -> ExitCode {
                 &db,
                 (*audit).clone(),
                 guard.clone(),
+                Arc::new(vectispire_cp_app::tickets::TrackerCa(tickets.clone())),
                 Arc::new(vectispire_cp_audit::SystemClock),
             ),
         },

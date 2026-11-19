@@ -28,6 +28,7 @@ mod signals;
 pub mod sla;
 pub mod sync;
 pub mod target_backlog;
+pub mod tickets;
 pub mod triage;
 pub mod views;
 
@@ -51,8 +52,9 @@ pub use history::{Dossier, HistoryQueryService, ObservedIssue, TriageHistoryRepo
 pub use purge::listeners;
 pub use query::{BacklogQuery, IssueQueryService};
 pub use sla::{RemediationSla, SlaBreachSignals, SlaService};
-pub use sync::{IssueBacklog, IssueSyncService};
+pub use sync::{IssueBacklog, IssueSyncService, ScanDelta, ScanDeltaSink, SyncResult};
 pub use target_backlog::TargetBacklogFigures;
+pub use tickets::{FixState, NoTracker, TicketReferenceError, TicketReferences, TicketableIssue};
 pub use triage::{
     IssueTriageService, ReviewOutcome, Triage, TriageDecision, TriageOrigin, TriageRequest, TriageStatus,
     VexJustification,
@@ -91,6 +93,10 @@ pub struct Issues {
     breaches: Arc<SlaBreachSignals>,
     backlog: Arc<IssueBacklog>,
     target_backlog: Arc<TargetBacklogFigures>,
+    // Kept to rebuild the two services a port is handed to later (`with_ticket_references`, `with_scan_deltas`).
+    settings: Arc<Settings>,
+    audit: Arc<AuditLog>,
+    events: Arc<dyn SecurityEvents>,
 }
 
 impl Issues {
@@ -116,6 +122,9 @@ impl Issues {
         let target_backlog = Arc::new(TargetBacklogFigures::new(config.db.clone()));
 
         Self {
+            settings: config.settings,
+            audit: config.audit,
+            events: config.events,
             db: config.db,
             queries,
             decisions,
@@ -129,6 +138,25 @@ impl Issues {
             backlog,
             target_backlog,
         }
+    }
+
+    /// Hands the attach-ticket decision the configured tracker's judgement on a reference (`tickets`' implementation)
+    /// in place of [`NoTracker`]. **Before** `decisions()` is cloned anywhere: a clone taken earlier keeps the stand-in.
+    #[must_use]
+    pub fn with_ticket_references(mut self, tickets: Arc<dyn TicketReferences>) -> Self {
+        self.decisions = Arc::new(
+            IssueDecisionService::new(self.db.clone(), self.settings.clone(), self.audit.clone())
+                .with_ticket_references(tickets),
+        );
+        self
+    }
+
+    /// Announces every scan's [`ScanDelta`] to `sink` (`notifications`' routing), in the scan's transaction.
+    /// **Before** `backlog()` is handed to the ingestion: a clone taken earlier announces nothing.
+    #[must_use]
+    pub fn with_scan_deltas(mut self, sink: Arc<dyn ScanDeltaSink>) -> Self {
+        self.backlog = Arc::new(IssueBacklog::new(self.events.clone()).with_deltas(sink));
+        self
     }
 
     pub fn queries(&self) -> &Arc<IssueQueryService> {

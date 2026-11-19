@@ -47,6 +47,8 @@ vectispire-cp-forges = { path = "../cp-forges" }
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-checklists = { path = "../cp-checklists" }
+vectispire-cp-notifications = { path = "../cp-notifications" }
+vectispire-cp-tickets = { path = "../cp-tickets" }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-posture = { path = "../cp-posture" }
 vectispire-cp-rules = { path = "../cp-rules" }

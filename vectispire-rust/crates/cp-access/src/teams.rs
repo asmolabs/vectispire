@@ -492,6 +492,11 @@ impl TeamChannels {
         Ok(!store::teams_with_webhook(tx).await?.is_empty())
     }
 
+    /// `countWithChannel`: how many teams have a channel of their own — what keeps the webhook channel in use.
+    pub async fn count_with_channel(tx: &mut vectispire_cp_db::Tx) -> Result<usize, AdminError> {
+        Ok(store::teams_with_webhook(tx).await?.len())
+    }
+
     /// `webhookUrl`: the team's channel as stored; `None` when it has none.
     pub async fn webhook_url(tx: &mut vectispire_cp_db::Tx, team_id: i64) -> Result<Option<String>, AdminError> {
         Ok(store::webhook_url(tx, team_id).await?)

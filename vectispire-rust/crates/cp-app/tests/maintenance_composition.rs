@@ -51,6 +51,7 @@ fn outbox() -> Arc<Outbox> {
             audit(),
             &siem(),
             vectispire_cp_app::checklists::answer_delivery().0,
+            &notifications(),
         ),
         Arc::new(SystemClock),
     ))
@@ -83,6 +84,58 @@ fn siem() -> vectispire_cp_app::siem::Siem {
         Arc::new(vectispire_cp_audit::SystemClock),
     )
     .unwrap()
+}
+
+/// The notifications' channels over a pool that never connects.
+fn notifications() -> vectispire_cp_notifications::Channels {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    vectispire_cp_app::notifications::compose_plain(
+        &vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+        Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+    )
+    .1
+}
+
+/// The tickets module over a pool that never connects.
+fn tickets() -> Arc<vectispire_cp_tickets::Tickets> {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+        encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        audit: audit(),
+        alerts: Arc::new(vectispire_cp_outbox::NotTold),
+        clock: Arc::new(vectispire_cp_audit::SystemClock),
+    })
 }
 
 /// An audit log over a pool that never connects: the composition delivers nothing.
@@ -564,6 +617,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
             .tasks(),
         )
         .collect(),
+        &tickets(),
         &gauges,
     )
     .unwrap();
@@ -589,10 +643,21 @@ async fn the_binary_registers_every_handler_it_has() {
         audit(),
         &siem(),
         vectispire_cp_app::checklists::answer_delivery().0,
+        &notifications(),
     );
     assert_eq!(
         registry.handler_types().into_iter().collect::<Vec<_>>(),
-        vec!["agent_result_audit".to_owned(), "checklist_answer".to_owned(), "siem_event".to_owned()]
+        vec![
+            "agent_result_audit".to_owned(),
+            "checklist_answer".to_owned(),
+            "siem_event".to_owned(),
+            "token_alert".to_owned(),
+            "token_alert_audit".to_owned()
+        ]
     );
-    assert!(registry.channel_types().is_empty());
+    // The notifications' five channels (wave 2): every channel Java relays.
+    assert_eq!(
+        registry.channel_types().into_iter().collect::<Vec<_>>(),
+        vec!["scan_delta", "scan_delta_discord", "scan_delta_mail", "scan_delta_slack", "scan_delta_teams"]
+    );
 }

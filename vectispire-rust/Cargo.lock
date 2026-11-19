@@ -4106,6 +4106,7 @@ dependencies = [
  "vectispire-cp-inventory",
  "vectispire-cp-issues",
  "vectispire-cp-maintenance",
+ "vectispire-cp-notifications",
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
  "vectispire-cp-platform",
@@ -4117,6 +4118,7 @@ dependencies = [
  "vectispire-cp-siem",
  "vectispire-cp-targets",
  "vectispire-cp-threatintel",
+ "vectispire-cp-tickets",
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-migrate",
@@ -4154,6 +4156,7 @@ dependencies = [
  "vectispire-cp-inventory",
  "vectispire-cp-issues",
  "vectispire-cp-maintenance",
+ "vectispire-cp-notifications",
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
  "vectispire-cp-platform",
@@ -4165,6 +4168,7 @@ dependencies = [
  "vectispire-cp-siem",
  "vectispire-cp-targets",
  "vectispire-cp-threatintel",
+ "vectispire-cp-tickets",
  "vectispire-crypto",
  "vectispire-domain",
  "vectispire-migrate",
@@ -4236,6 +4240,7 @@ dependencies = [
  "vectispire-cp-inventory",
  "vectispire-cp-issues",
  "vectispire-cp-maintenance",
+ "vectispire-cp-notifications",
  "vectispire-cp-outbox",
  "vectispire-cp-scanning",
  "vectispire-cp-settings",
@@ -4561,6 +4566,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-notifications"
+version = "2.0.0-dev"
+dependencies = [
+ "axum",
+ "futures-util",
+ "http",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-issues",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-outbox",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-domain",
+ "vectispire-migrate",
+ "vectispire-testkit",
+ "vectispire-tls",
+]
+
+[[package]]
 name = "vectispire-cp-outbound"
 version = "2.0.0-dev"
 dependencies = [
@@ -4651,6 +4688,7 @@ dependencies = [
  "vectispire-cp-inventory",
  "vectispire-cp-issues",
  "vectispire-cp-maintenance",
+ "vectispire-cp-notifications",
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
  "vectispire-cp-rules",
@@ -4871,6 +4909,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-tickets"
+version = "2.0.0-dev"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-gate",
+ "vectispire-cp-http",
+ "vectispire-cp-issues",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-outbox",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-domain",
+ "vectispire-tls",
+]
+
+[[package]]
 name = "vectispire-crypto"
 version = "2.0.0-dev"
 dependencies = [
@@ -4892,6 +4966,7 @@ name = "vectispire-domain"
 version = "2.0.0-dev"
 dependencies = [
  "base64 0.22.1",
+ "hmac 0.12.1",
  "regex",
  "serde",
  "serde_json",

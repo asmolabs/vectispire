@@ -8,7 +8,6 @@ use uuid::Uuid;
 use vectispire_cp_audit::{AuditLog, AuditOperation, RequestActor};
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_issues::IssueCatalog;
-use vectispire_cp_issues::triage::TriageStatus;
 use vectispire_cp_issues::views::IssueView;
 use vectispire_cp_outbox::{RaiseError, SecurityEvents};
 use vectispire_cp_rules::RuleCoverageService;
@@ -16,7 +15,7 @@ use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::{Clock, Targets};
 use vectispire_domain::instant::Instant;
 use vectispire_domain::siem::{CefEvent, SecurityEventType};
-use vectispire_domain::{FindingType, ScanStatus, Severity, bounded_text, java};
+use vectispire_domain::{ScanStatus, Severity, bounded_text, java};
 
 use crate::cursor::RegisterCursor;
 use crate::error::GateError;
@@ -669,17 +668,7 @@ impl GateService {
     }
 
     fn view_to_gate_issue(v: &IssueView) -> GateIssue {
-        GateIssue {
-            id: v.id,
-            open: v.state == "open",
-            type_: FindingType::from_wire_name(Some(&v.type_)),
-            severity: Severity::of(Some(&v.severity)),
-            identifier: v.identifier.clone(),
-            package_name: v.package_name.clone(),
-            fix_versions: v.fix_versions.clone(),
-            kev: v.is_kev,
-            triage: TriageStatus::from_wire_name(&v.triage_status),
-        }
+        GateIssue::of_view(v)
     }
 
     async fn latest_scans(&self) -> Result<HashMap<ScanTarget, LatestScan>, GateError> {

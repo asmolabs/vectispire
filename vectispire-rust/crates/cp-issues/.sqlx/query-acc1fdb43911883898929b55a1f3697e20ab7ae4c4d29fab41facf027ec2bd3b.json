@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_issue set ticket_claimed_by = $1, ticket_claim_until = $2 where id = $3 and ticket_ref is null and (ticket_claim_until is null or ticket_claim_until <= $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "acc1fdb43911883898929b55a1f3697e20ab7ae4c4d29fab41facf027ec2bd3b"
+}

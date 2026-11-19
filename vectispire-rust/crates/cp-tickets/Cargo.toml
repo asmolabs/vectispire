@@ -1,0 +1,61 @@
+[package]
+name = "vectispire-cp-tickets"
+description = "The control plane's tickets module: the tracker client (GitLab, GitHub, Jira, ServiceNow) and its token's health, the ticket sweep, the links attached by hand, the tracker's inbound webhook — core.tickets, ported."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Each engine's checked queries are a feature of their own, as in cp-db (crates/cp-db/scripts/sqlx-prepare.sh).
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
+[dependencies]
+# The routes: the server stack is the control plane's (deny.toml lists this crate among axum's wrappers).
+axum.workspace = true
+# Jira's and ServiceNow's basic authentication.
+base64.workspace = true
+futures-util.workspace = true
+http.workspace = true
+# The webhook's raw body, read under the chain's ceiling.
+http-body-util.workspace = true
+# A query parameter decoded as the servlet container decodes it.
+percent-encoding.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# A delivery's body hash, as `Sessions.hashOf` computes it.
+sha2.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio.workspace = true
+tracing.workspace = true
+uuid = { version = "1", features = ["v4"] }
+# `access`, `issues`, `targets`: a ticket is attached to a visible issue of a target. `access::security` for the
+# routes' actors.
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db" }
+# `gate`: the sweep opens a ticket only for an issue the policy of its scope would fail on.
+vectispire-cp-gate = { path = "../cp-gate" }
+vectispire-cp-http.workspace = true
+vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+vectispire-cp-contract = { path = "../cp-contract" }
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+vectispire-tls.workspace = true
+
+[lints]
+workspace = true

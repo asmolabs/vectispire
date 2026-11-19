@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 # A pinned CA's PEM body, read as BouncyCastle's decoder reads it: the workspace's, already linked by the agent.
 base64.workspace = true
+# The webhook signature and the tracker webhook's: HMAC-SHA256, already vetted and linked by the agent through `git`.
+hmac.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true

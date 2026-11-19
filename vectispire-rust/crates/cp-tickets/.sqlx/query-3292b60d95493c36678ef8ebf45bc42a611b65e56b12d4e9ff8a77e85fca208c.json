@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_issue_ticket where issue_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "3292b60d95493c36678ef8ebf45bc42a611b65e56b12d4e9ff8a77e85fca208c"
+}

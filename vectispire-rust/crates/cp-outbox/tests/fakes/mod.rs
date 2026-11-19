@@ -213,10 +213,6 @@ impl NotificationChannel for Channel {
         &self.kind
     }
 
-    fn is_configured(&self) -> bool {
-        true
-    }
-
     fn deliver<'a>(&'a self, payload: &'a str, team_id: Option<i64>) -> Delivery<'a> {
         Box::pin(async move {
             let id: Value = serde_json::from_str(payload)

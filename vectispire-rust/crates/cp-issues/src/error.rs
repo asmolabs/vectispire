@@ -23,6 +23,21 @@ pub enum IssueError {
     /// Under four-eyes, the requester administered the approver's account recently (`ApproverIndependence`).
     #[error(transparent)]
     Independence(#[from] vectispire_cp_access::accounts::IndependenceError),
+    /// `IntegrationDisabledException`, raised by the tracker's [`crate::TicketReferences`]: a reference attached while
+    /// the configured tracker is suspended — 409 `integration-disabled`, naming it (decision 0040 §3).
+    #[error("{}", .0.disabled_message(""))]
+    IntegrationDisabled(vectispire_domain::integrations::Integration),
+}
+
+impl From<crate::tickets::TicketReferenceError> for IssueError {
+    fn from(err: crate::tickets::TicketReferenceError) -> Self {
+        match err {
+            crate::tickets::TicketReferenceError::IntegrationDisabled(integration) => {
+                IssueError::IntegrationDisabled(integration)
+            }
+            crate::tickets::TicketReferenceError::Failed(message) => IssueError::Store(message),
+        }
+    }
 }
 
 impl From<StoreError> for IssueError {
@@ -74,6 +89,15 @@ impl axum::response::IntoResponse for IssueError {
                     }
                 }
             }
+            // A conflict naming its cause, the integration's key in a member of its own so that a screen names it in
+            // its language without parsing the sentence.
+            IssueError::IntegrationDisabled(integration) => vectispire_cp_http::Problem::handler(
+                http::StatusCode::CONFLICT,
+                IssueError::IntegrationDisabled(integration).to_string(),
+            )
+            .caused_by(vectispire_domain::integrations::DISABLED_CAUSE)
+            .with("integration", integration.key())
+            .into_response(),
             IssueError::Store(msg) => {
                 vectispire_cp_http::Problem::handler(http::StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }

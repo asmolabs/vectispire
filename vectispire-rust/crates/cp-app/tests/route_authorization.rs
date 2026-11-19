@@ -161,6 +161,19 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
         vectispire_cp_app::siem::audit_listeners(&siem),
     ));
+    let (notifications_config, notification_channels) =
+        vectispire_cp_app::notifications::compose_plain(&db, encryption.clone());
+    let tickets = vectispire_cp_app::tickets::compose(vectispire_cp_app::tickets::TicketParts {
+        db: db.clone(),
+        encryption: encryption.clone(),
+        post: vectispire_cp_outbound::OutboundPost::new(
+            OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        ),
+        audit: audit.clone(),
+        alerts: Arc::new(vectispire_cp_outbox::NotTold),
+        clock: Arc::new(vectispire_cp_audit::SystemClock),
+    });
     let (db_for_access, audit_for_access, creds_for_access) = (db.clone(), audit.clone(), creds.clone());
     let (audit_for_sign_in, creds_for_sign_in, encryption_for_sign_in) =
         (audit.clone(), creds.clone(), encryption.clone());
@@ -181,6 +194,7 @@ fn stand_ins() -> StandIns {
             audit.clone(),
             &siem,
             vectispire_cp_app::checklists::answer_delivery().0,
+            &notification_channels,
         ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
@@ -272,6 +286,7 @@ fn stand_ins() -> StandIns {
             &db,
             (*audit).clone(),
             vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            Arc::new(vectispire_cp_app::tickets::TrackerCa(tickets.clone())),
             Arc::new(vectispire_cp_audit::SystemClock),
         ),
     };
@@ -381,9 +396,14 @@ fn stand_ins() -> StandIns {
             product_version: None,
             max_workbook_bytes: 1,
             max_file_bytes: 1,
+            mail: notification_channels.mail.clone(),
         })
         .routes,
     );
+    // The notification centre's routes, as `main.rs` composes them.
+    access.extend(vectispire_cp_app::notifications::routes(&notifications_config, &notification_channels));
+    // The tickets' routes, as `main.rs` composes them.
+    access.extend(tickets.routes());
     (targets, scanning, agents, rules, inventory, issues, gate, posture, siem, platform, compliance, access)
 }
 

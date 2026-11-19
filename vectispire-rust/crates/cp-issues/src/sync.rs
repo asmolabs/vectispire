@@ -16,6 +16,7 @@ use crate::error::IssueError;
 use crate::persistence::{IssueRepository, IssueRow, NewIssue, NewTriageEvent};
 use crate::signals::{self, Signalled};
 use crate::triage::{TriageOrigin, TriageStatus};
+use crate::views::IssueView;
 
 pub struct IssueSyncService;
 
@@ -34,21 +35,30 @@ impl IssueSyncService {
         scanned_tools: &BTreeSet<String>,
         import_source: Option<&str>,
         descriptions: &BTreeMap<Option<String>, String>,
-    ) -> Result<BacklogDelta, IssueError> {
+    ) -> Result<SyncResult, IssueError> {
         let now = OffsetDateTime::now_utc();
 
-        // 1. Compute fingerprints for each finding, preserving index positions
+        // 1. Compute fingerprints for each finding, preserving index positions. **In the order of first appearance**,
+        // as Java's `LinkedHashMap`: it is the order new issues are inserted in — so the order of their keys — and the
+        // order a scan's delta lists them in. A map sorted by fingerprint numbered them in hash order.
         let mut fingerprints = Vec::with_capacity(findings.len());
-        let mut by_fingerprint: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        let mut by_fingerprint: Vec<(String, Vec<usize>)> = Vec::new();
+        let mut position: BTreeMap<String, usize> = BTreeMap::new();
 
         for (idx, finding) in findings.iter().enumerate() {
             let fp = Self::fingerprint_of(target, finding)?;
             fingerprints.push(fp.clone());
-            by_fingerprint.entry(fp).or_default().push(idx);
+            match position.get(&fp).and_then(|at| by_fingerprint.get_mut(*at)) {
+                Some((_, indices)) => indices.push(idx),
+                None => {
+                    position.insert(fp.clone(), by_fingerprint.len());
+                    by_fingerprint.push((fp, vec![idx]));
+                }
+            }
         }
 
         // 2. Fetch existing issues for these fingerprints in batches
-        let sought: Vec<String> = by_fingerprint.keys().cloned().collect();
+        let sought: Vec<String> = by_fingerprint.iter().map(|(fp, _)| fp.clone()).collect();
         let mut existing: BTreeMap<String, IssueRow> = BTreeMap::new();
 
         for batch in sought.chunks(Self::FINGERPRINT_BATCH) {
@@ -64,6 +74,10 @@ impl IssueSyncService {
         let mut reopen_events = Vec::new();
         let mut id_by_fingerprint: BTreeMap<String, i64> = BTreeMap::new();
         let mut leaks = Vec::new();
+        // The rows themselves, not only the counts: a scan's delta has to say what appeared, and rebuilding the list
+        // afterwards would mean re-deducing "which ones are new" — the one thing this loop knows for certain.
+        let mut created = Vec::new();
+        let mut reopened = Vec::new();
 
         for (fp, indices) in &by_fingerprint {
             let first_idx = indices.first().copied().unwrap_or_default();
@@ -123,6 +137,10 @@ impl IssueSyncService {
 
                 IssueRepository::update_issue(tx, &existing_issue).await?;
                 id_by_fingerprint.insert(fp.clone(), existing_issue.id);
+                if is_resolved {
+                    existing_issue.revision = existing_issue.revision.saturating_add(1);
+                    reopened.push(existing_issue.to_view());
+                }
             } else {
                 // New issue
                 created_count = created_count.saturating_add(1);
@@ -184,6 +202,7 @@ impl IssueSyncService {
 
                 let inserted = IssueRepository::insert_issue(tx, &new_issue).await?;
                 id_by_fingerprint.insert(fp.clone(), inserted.id);
+                created.push(inserted.to_view());
                 if signals::is_leak(&new_issue.type_, &new_issue.severity) {
                     leaks.push((inserted.id, new_issue));
                 }
@@ -218,7 +237,7 @@ impl IssueSyncService {
             scanned_types.iter().filter(|t| !t.tool_scoped()).map(|t| t.wire_name().to_owned()).collect();
 
         let tools_vec: Vec<String> = scanned_tools.iter().cloned().collect();
-        let seen_fps: std::collections::BTreeSet<String> = by_fingerprint.keys().cloned().collect();
+        let seen_fps = &position;
 
         let (repo_id, container_id) = match target {
             ScanTarget::Repository(id) => (Some(id), None),
@@ -247,7 +266,7 @@ impl IssueSyncService {
 
         let disappeared_ids: Vec<i64> = open_candidates
             .into_iter()
-            .filter(|i| !seen_fps.contains(&i.fingerprint))
+            .filter(|i| !seen_fps.contains_key(&i.fingerprint))
             .map(|i| i.id)
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
@@ -261,12 +280,16 @@ impl IssueSyncService {
         let distinct_total = i32::try_from(by_fingerprint.len()).unwrap_or(i32::MAX);
         let still_open = distinct_total.saturating_sub(created_count).saturating_sub(reopened_count);
 
-        Ok(BacklogDelta {
-            created: created_count,
-            resolved: i32::try_from(resolved_count).unwrap_or(i32::MAX),
-            reopened: reopened_count,
-            still_open,
-            issue_ids,
+        Ok(SyncResult {
+            reconciliation: BacklogDelta {
+                created: created_count,
+                resolved: i32::try_from(resolved_count).unwrap_or(i32::MAX),
+                reopened: reopened_count,
+                still_open,
+                issue_ids,
+            },
+            new_issues: created,
+            reopened_issues: reopened,
         })
     }
 
@@ -403,16 +426,62 @@ impl IssueSyncService {
     }
 }
 
+/// What one fold did: the counts and occurrences the scan records, and the issue rows it opened and reopened — Java's
+/// `IssueSyncService.SyncResult`, each list in the order the findings first named its issues.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyncResult {
+    pub reconciliation: BacklogDelta,
+    pub new_issues: Vec<IssueView>,
+    pub reopened_issues: Vec<IssueView>,
+}
+
+/// What one scan changed in a target's backlog: the issues it opened, the ones it reopened, how many it resolved —
+/// Java's `ScanDelta`.
+///
+/// Announced through [`ScanDeltaSink`], **inside the scan's transaction**, so that a notification becomes durable at
+/// the same instant as the issues it describes: queued one line after the commit, it would be lost by the very crash
+/// the outbox exists to cover.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScanDelta {
+    pub scan_id: i64,
+    pub target: ScanTarget,
+    /// The issues themselves, not only the counts: a notification has to say *what* appeared.
+    pub new_issues: Vec<IssueView>,
+    pub reopened_issues: Vec<IssueView>,
+    pub resolved: i32,
+}
+
+/// Where a delta goes — `notifications`' routing, and nothing else so far: Java's `ScanDelta.Sink`, a port of
+/// `issues` since the delta is the backlog's. Optional: without one, reconciling is exactly what it was.
+pub trait ScanDeltaSink: Send + Sync {
+    /// Queues the delta inside `tx`, the scan's, or does nothing. **A failure fails the scan's transaction**: a scan
+    /// whose notifications were lost would announce nothing about what it found, and a retried scan is visible where
+    /// a missing notification is not (Java's `IssueSyncHookDatabaseTest`, decision 0033).
+    fn enqueue<'a>(&'a self, tx: &'a mut Tx, delta: &'a ScanDelta) -> BoxFuture<'a, Result<(), PortError>>;
+}
+
 /// Backlog port implementation for `ScanIngestor`. It holds no database: it folds in the transaction it is handed,
-/// and raises the leaks it creates in it.
+/// raises the leaks it creates in it, and announces the delta there before the scan commits.
 pub struct IssueBacklog {
     events: Arc<dyn SecurityEvents>,
+    deltas: Option<Arc<dyn ScanDeltaSink>>,
 }
 
 impl IssueBacklog {
     pub fn new(events: Arc<dyn SecurityEvents>) -> Self {
-        Self { events }
+        Self { events, deltas: None }
     }
+
+    /// Announces every scan's delta to `sink`, in the scan's transaction.
+    #[must_use]
+    pub fn with_deltas(mut self, sink: Arc<dyn ScanDeltaSink>) -> Self {
+        self.deltas = Some(sink);
+        self
+    }
+}
+
+fn port_error(error: IssueError) -> PortError {
+    Box::new(error)
 }
 
 impl Backlog for IssueBacklog {
@@ -423,15 +492,15 @@ impl Backlog for IssueBacklog {
     ) -> BoxFuture<'a, Result<BacklogDelta, PortError>> {
         Box::pin(async move {
             let Some(target) = observation.target else {
-                return Err(PortError::from(Box::new(IssueError::InvalidInput(format!(
+                return Err(port_error(IssueError::InvalidInput(format!(
                     "Scan {} belongs to no target.",
                     observation.scan_id
-                ))) as Box<dyn std::error::Error + Send + Sync>));
+                ))));
             };
 
             // Only in the scan's transaction: the fold and the delta it queues commit with the scan's findings, or
             // roll back with them — never in a transaction of its own, which kept a refused result's issues.
-            IssueSyncService::fold(
+            let result = IssueSyncService::fold(
                 self.events.as_ref(),
                 tx,
                 Some(observation.scan_id),
@@ -443,7 +512,21 @@ impl Backlog for IssueBacklog {
                 &observation.descriptions,
             )
             .await
-            .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>))
+            .map_err(port_error)?;
+
+            // Where Java's `beforeCommit` runs: after the fold's every write, its resolutions included, and before the
+            // scan's commit. Propagated, never logged and swallowed — see `ScanDeltaSink::enqueue`.
+            if let Some(sink) = &self.deltas {
+                let delta = ScanDelta {
+                    scan_id: observation.scan_id,
+                    target,
+                    new_issues: result.new_issues,
+                    reopened_issues: result.reopened_issues,
+                    resolved: result.reconciliation.resolved,
+                };
+                sink.enqueue(tx, &delta).await?;
+            }
+            Ok(result.reconciliation)
         })
     }
 }

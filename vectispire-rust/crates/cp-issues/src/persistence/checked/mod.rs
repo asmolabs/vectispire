@@ -73,6 +73,71 @@ pub async fn reopening_migration_installed_on(tx: &mut Tx) -> Result<Vec<time::O
     )
 }
 
+// ------------------------------------------------------------------ tickets
+// Java's `IssueRepository` ticket updates, each a fixed text: the claim columns (V95) are in no entity, and a
+// conditional update whose row count names the winner is what these are for.
+
+/// `attachTicket`: the reference a sweep opened, only on an issue that carries none — and the claim cleared.
+pub async fn attach_ticket(tx: &mut Tx, id: i64, reference: &str, url: Option<&str>) -> Result<u64, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::attach_ticket(conn, id, reference, url).await,
+        postgres::attach_ticket(conn, id, reference, url).await
+    )
+}
+
+/// `claimTicket`: 1 when the issue is now `holder`'s — no reference, and no claim still running at `at`, its own
+/// included.
+pub async fn claim_ticket(
+    tx: &mut Tx,
+    id: i64,
+    holder: &str,
+    until: time::OffsetDateTime,
+    at: time::OffsetDateTime,
+) -> Result<u64, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::claim_ticket(conn, id, holder, until, at).await,
+        postgres::claim_ticket(conn, id, holder, until, at).await
+    )
+}
+
+/// `releaseTicketClaim`: only `holder`'s own claim.
+pub async fn release_ticket_claim(tx: &mut Tx, id: i64, holder: &str) -> Result<u64, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::release_ticket_claim(conn, id, holder).await,
+        postgres::release_ticket_claim(conn, id, holder).await
+    )
+}
+
+/// `markTicketClosed`: `CLOSED:` before the reference while the issue still carries it. Java's `concat('CLOSED:',
+/// :reference)` is spelt here before binding: PostgreSQL cannot type a parameter handed to `concat`, and the text
+/// written is the same.
+pub async fn mark_ticket_closed(tx: &mut Tx, id: i64, reference: &str) -> Result<u64, StoreError> {
+    let closed = format!("CLOSED:{reference}");
+    on!(
+        tx,
+        |conn| mysql::mark_ticket_closed(conn, id, &closed, reference).await,
+        postgres::mark_ticket_closed(conn, id, &closed, reference).await
+    )
+}
+
+/// `attachTicketBy`: a reference a person attached, and who — unconditional on the id, as Java's is.
+pub async fn attach_ticket_by(
+    tx: &mut Tx,
+    id: i64,
+    reference: &str,
+    url: Option<&str>,
+    by: &str,
+) -> Result<u64, StoreError> {
+    on!(
+        tx,
+        |conn| mysql::attach_ticket_by(conn, id, reference, url, by).await,
+        postgres::attach_ticket_by(conn, id, reference, url, by).await
+    )
+}
+
 /// What a checklist's figures count issues by: a built-in finding type, or one tool's fingerprint key (`plugin:<id>`,
 /// `import:<source>/<tool>`) — never a type for a tool, which would count every plugin's issues as one's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

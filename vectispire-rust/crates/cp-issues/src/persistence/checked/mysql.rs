@@ -116,3 +116,88 @@ pub async fn count_unsettled_within(
     // `repo_id!`: the filter on it has already left out an image's issue, whose column is null.
     Ok(rows)
 }
+
+// ------------------------------------------------------------------ tickets (`super`'s note on each)
+
+pub async fn attach_ticket(
+    conn: &mut MySqlConnection,
+    id: i64,
+    reference: &str,
+    url: Option<&str>,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_issue set ticket_ref = ?, ticket_url = ?, revision = revision + 1, ticket_claimed_by = null, ticket_claim_until = null where id = ? and ticket_ref is null",
+        reference,
+        url,
+        id
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn claim_ticket(
+    conn: &mut MySqlConnection,
+    id: i64,
+    holder: &str,
+    until: time::OffsetDateTime,
+    at: time::OffsetDateTime,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_issue set ticket_claimed_by = ?, ticket_claim_until = ? where id = ? and ticket_ref is null and (ticket_claim_until is null or ticket_claim_until <= ?)",
+        holder,
+        UtcInstant(until),
+        id,
+        UtcInstant(at)
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn release_ticket_claim(conn: &mut MySqlConnection, id: i64, holder: &str) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_issue set ticket_claimed_by = null, ticket_claim_until = null where id = ? and ticket_claimed_by = ?",
+        id,
+        holder
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn mark_ticket_closed(
+    conn: &mut MySqlConnection,
+    id: i64,
+    closed: &str,
+    reference: &str,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_issue set ticket_ref = ?, revision = revision + 1 where id = ? and ticket_ref = ?",
+        closed,
+        id,
+        reference
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}
+
+pub async fn attach_ticket_by(
+    conn: &mut MySqlConnection,
+    id: i64,
+    reference: &str,
+    url: Option<&str>,
+    by: &str,
+) -> Result<u64, StoreError> {
+    Ok(sqlx::query!(
+        "/* mysql */ update t_issue set ticket_ref = ?, ticket_url = ?, ticket_attached_by = ?, revision = revision + 1 where id = ?",
+        reference,
+        url,
+        by,
+        id
+    )
+    .execute(conn)
+    .await?
+    .rows_affected())
+}

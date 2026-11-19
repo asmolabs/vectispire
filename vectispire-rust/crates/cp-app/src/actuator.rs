@@ -68,6 +68,8 @@ pub fn encryption_census(
     targets: Arc<dyn SealedStore>,
     siem: Arc<dyn SealedStore>,
     forges: Arc<dyn SealedStore>,
+    notifications: Arc<dyn SealedStore>,
+    tickets: Arc<dyn SealedStore>,
 ) -> EncryptionCensus {
-    EncryptionCensus::new(vec![signing, targets, siem, forges])
+    EncryptionCensus::new(vec![signing, targets, siem, forges, notifications, tickets])
 }

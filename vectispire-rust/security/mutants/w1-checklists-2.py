@@ -23,7 +23,7 @@ CONTRACT = ["-p", "vectispire-cp-contract", "--lib", "binary_bodies"]
 
 MUTANTS = [
     ("the answers' handler not registered", MT,
-     "            siem.delivery.clone(),\n            checklist_answers,\n", "            siem.delivery.clone(),\n", MAINT),
+     "        siem.delivery.clone(),\n        checklist_answers,\n", "        siem.delivery.clone(),\n", MAINT),
     ("a withdrawal leaves its answer standing", SERVICE,
      "            current.remove(&row.item_id);\n", "            current.insert(row.item_id, row.clone());\n", UNIT),
     ("a link proves a line asking for a file", SERVICE,

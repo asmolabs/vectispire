@@ -9,6 +9,7 @@ use vectispire_cp_settings::{Setting, Settings};
 
 use crate::error::IssueError;
 use crate::persistence::IssueRepository;
+use crate::tickets::{NoTracker, TicketReferences};
 use crate::triage::{IssueTriageService, TriageRequest, TriageStatus, VexJustification};
 use crate::views::IssueView;
 
@@ -54,6 +55,7 @@ pub struct IssueDecisionService {
     settings: Arc<Settings>,
     audit: Arc<AuditLog>,
     independence: ApproverIndependence,
+    tickets: Arc<dyn TicketReferences>,
 }
 
 impl IssueDecisionService {
@@ -61,9 +63,17 @@ impl IssueDecisionService {
     pub const MAX_TICKET_REFERENCE: usize = 64;
     pub const MAX_TICKET_URL: usize = 500;
 
+    /// With [`NoTracker`]: every reference accepted as a label, as Java answers with no tracker configured.
     pub fn new(db: Db, settings: Arc<Settings>, audit: Arc<AuditLog>) -> Self {
         let independence = ApproverIndependence::new(db.clone(), settings.clone());
-        Self { db, settings, audit, independence }
+        Self { db, settings, audit, independence, tickets: Arc::new(NoTracker) }
+    }
+
+    /// The configured tracker's judgement on a reference — `tickets`' implementation, handed in by the binary.
+    #[must_use]
+    pub fn with_ticket_references(mut self, tickets: Arc<dyn TicketReferences>) -> Self {
+        self.tickets = tickets;
+        self
     }
 
     /// Records one triage decision.
@@ -162,7 +172,13 @@ impl IssueDecisionService {
         Ok(result.triaged.into_iter().map(|i| i.to_view()).collect())
     }
 
-    /// Attaches an existing ticket to a finding.
+    /// Attaches an existing ticket to a finding, onto the field the sweep and the inbound webhook read.
+    ///
+    /// **Java's order, refusal by refusal**: the visibility first, so that a hidden or absent issue answers 404
+    /// whatever was sent; then the reference (required, then its length in UTF-16 units — the column's), then the
+    /// tracker's say on it ([`TicketReferences`]: a 400 in its own sentence, or 409 while the tracker is suspended),
+    /// then the URL. No transaction around it all, as Java's service has none: the write commits on its own and the
+    /// audit entry follows it.
     pub async fn attach_ticket(
         &self,
         id: i64,
@@ -170,50 +186,48 @@ impl IssueDecisionService {
         raw_url: Option<String>,
         caller: Caller,
     ) -> Result<IssueView, IssueError> {
-        let reference = raw_reference
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| IssueError::InvalidInput("A ticket reference is required.".to_owned()))?;
+        let previous_ticket = {
+            let mut tx = crate::persistence::read(&self.db).await?;
+            let issue = IssueRepository::find_by_id(&mut tx, id)
+                .await?
+                .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
+            crate::persistence::commit(tx).await?;
+            Self::require_visible(&issue, &caller.visibility)?;
+            issue.ticket_ref
+        };
 
-        if reference.len() > Self::MAX_TICKET_REFERENCE {
-            return Err(IssueError::InvalidInput(format!(
-                "That reference is longer than {} characters.",
-                Self::MAX_TICKET_REFERENCE
-            )));
+        // `String.trim`, not `str::trim`: Java's takes the controls and nothing beyond U+0020.
+        let reference = vectispire_domain::java::trim(raw_reference.as_deref().unwrap_or(""));
+        if reference.is_empty() {
+            return Err(IssueError::InvalidInput("A ticket reference is required.".to_owned()));
         }
-
-        let url = raw_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
-
-        if let Some(u) = url
-            && u.len() > Self::MAX_TICKET_URL
+        if let Some(refused) =
+            vectispire_domain::bounded_text::too_long(Some(reference), Self::MAX_TICKET_REFERENCE, "That reference")
         {
-            return Err(IssueError::InvalidInput(format!(
-                "That URL is longer than {} characters.",
-                Self::MAX_TICKET_URL
-            )));
+            return Err(IssueError::InvalidInput(refused));
+        }
+        // Whether the configured tracker issues such a reference is the tracker's to say — see `TicketReferences`
+        // for why it is asked through a port.
+        if let Some(refused) = self.tickets.refusal(reference).await? {
+            return Err(IssueError::InvalidInput(refused));
+        }
+        // `isBlank` then `trim`, as Java spells it: the two disagree on the no-break spaces, which are kept.
+        let url =
+            raw_url.as_deref().filter(|url| !vectispire_domain::java::is_blank(url)).map(vectispire_domain::java::trim);
+        if let Some(refused) = vectispire_domain::bounded_text::too_long(url, Self::MAX_TICKET_URL, "That URL") {
+            return Err(IssueError::InvalidInput(refused));
         }
 
         let actor = caller.actor();
+        // Recorded with its author: a ticket a person attached is theirs to close, and the sweep leaves it alone (see
+        // `IssueRepository::find_resolved_with_open_ticket`). Unconditional on the id, as Java's `attachTicketBy` is:
+        // the reference is the person's latest word, whatever a scan moved meanwhile.
         let mut tx = crate::persistence::write(&self.db).await?;
-
-        let mut issue = IssueRepository::find_by_id(&mut tx, id)
-            .await?
-            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
-
-        Self::require_visible(&issue, &caller.visibility)?;
-
-        let previous_ticket = issue.ticket_ref.clone();
-        issue.ticket_ref = Some(reference.to_owned());
-        issue.ticket_url = url.map(str::to_owned);
-        issue.ticket_attached_by = Some(actor.clone());
-
-        let updated = IssueRepository::update_issue(&mut tx, &issue).await?;
-        if !updated {
-            return Err(IssueError::ChangedMeanwhile);
-        }
+        crate::persistence::checked::attach_ticket_by(&mut tx, id, reference, url, &actor).await?;
         crate::persistence::commit(tx).await?;
 
+        // Recorded as a decision, because it is one: the tracker's webhook can now close this finding, and replacing
+        // the reference changes who holds that power.
         let desc = match previous_ticket {
             Some(prev) => format!("Ticket reference changed from {prev} to {reference}"),
             None => format!("Ticket {reference} attached"),

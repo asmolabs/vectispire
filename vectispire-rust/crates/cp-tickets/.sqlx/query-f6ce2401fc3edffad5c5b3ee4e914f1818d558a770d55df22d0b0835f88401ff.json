@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_issue_ticket (issue_id, provider, ticket_key, ticket_url, status, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_issue_ticket",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f6ce2401fc3edffad5c5b3ee4e914f1818d558a770d55df22d0b0835f88401ff"
+}

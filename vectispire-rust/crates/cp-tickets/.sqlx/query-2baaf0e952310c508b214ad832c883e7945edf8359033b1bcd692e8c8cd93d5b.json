@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(*) from t_webhook_delivery where body_hash = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count(*)",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2baaf0e952310c508b214ad832c883e7945edf8359033b1bcd692e8c8cd93d5b"
+}

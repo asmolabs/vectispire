@@ -81,6 +81,7 @@ fn compose(db: &Db, guard: OutboundUrlGuard) -> Composed {
             Arc::new(audit.clone()),
             &siem,
             vectispire_cp_app::checklists::answer_delivery().0,
+            &vectispire_cp_app::notifications::compose_plain(db, encryption.clone()).1,
         ),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     );

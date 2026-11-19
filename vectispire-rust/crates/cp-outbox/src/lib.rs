@@ -10,6 +10,8 @@
 //! - [`SecurityEvents`] is the port a module raises a SIEM event through — Java's `SecurityEventRaised` and
 //!   `SecurityEventRaisedApart` — implemented by the SIEM module and handed in by the binary, so that `issues`, `gate`
 //!   and the threat feed raise events without depending on the export.
+//! - [`TokenAlertSink`] is the port an integration token's owner tells its change of state through, implemented by
+//!   the notifications module — Java's `TokenAlert` event.
 //! - [`Outbox::prune_sent`] and [`Outbox::counts`] are the purge and the screen's figures.
 //! - [`NotificationRelayTask`] and [`SentMessagesTask`] are the module's slots in the maintenance turns. **The relay task
 //!   is held back while this binary's handlers differ from Java's** (README.md, "The relay is held back").
@@ -22,6 +24,7 @@ mod payload;
 mod persistence;
 pub mod retry;
 mod security_events;
+mod token_alerts;
 
 use std::collections::BTreeMap;
 use std::panic::AssertUnwindSafe;
@@ -41,6 +44,7 @@ pub use internal::{NotificationRelayTask, SentMessagesTask};
 pub use payload::{PayloadError, stamped};
 pub use persistence::{DueMessage, FAILED, NewMessage, OutboxStore, PENDING, SENT, StoreError, StoreFuture};
 pub use security_events::{NotExported, RaiseError, SecurityEvents};
+pub use token_alerts::{NotTold, TokenAlertSink};
 
 use delivery::Route;
 
