@@ -1,0 +1,389 @@
+[
+ {
+  "name": "one-finding",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "no-results-property",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}}]}"
+ },
+ {
+  "name": "results-null",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"x\"}},\"results\":null}]}"
+ },
+ {
+  "name": "results-empty",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "no-runs",
+  "document": "{\"version\": \"2.1.0\", \"runs\": []}"
+ },
+ {
+  "name": "two-runs",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}, {\"tool\": {\"driver\": {\"name\": \"second\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME002\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "second-run-no-results",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}}]}"
+ },
+ {
+  "name": "run-failed",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}], \"invocations\": [{\"executionSuccessful\": false}]}]}"
+ },
+ {
+  "name": "run-failed-second-invocation",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}], \"invocations\": [{\"executionSuccessful\": true}, {\"executionSuccessful\": false}]}]}"
+ },
+ {
+  "name": "run-success-as-string",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}], \"invocations\": [{\"executionSuccessful\": \"false\"}]}]}"
+ },
+ {
+  "name": "failed-run-after-empty",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}], \"invocations\": [{\"executionSuccessful\": false}]}]}"
+ },
+ {
+  "name": "version-2.0",
+  "document": "{\"version\": \"2.0.0\", \"runs\": []}"
+ },
+ {
+  "name": "version-absent",
+  "document": "{\"runs\": []}"
+ },
+ {
+  "name": "version-number",
+  "document": "{\"version\": 2.1, \"runs\": []}"
+ },
+ {
+  "name": "not-object",
+  "document": "[]"
+ },
+ {
+  "name": "string",
+  "document": "\"x\""
+ },
+ {
+  "name": "empty",
+  "document": ""
+ },
+ {
+  "name": "whitespace",
+  "document": "   "
+ },
+ {
+  "name": "not-json",
+  "document": "{nope"
+ },
+ {
+  "name": "trailing-content",
+  "document": "{\"version\": \"2.1.0\", \"runs\": []} {}"
+ },
+ {
+  "name": "trailing-whitespace",
+  "document": "{\"version\": \"2.1.0\", \"runs\": []} \n\t"
+ },
+ {
+  "name": "duplicate-key",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[],\"runs\":[]}"
+ },
+ {
+  "name": "duplicate-key-nested",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"a\",\"name\":\"b\"}},\"results\":[]}]}"
+ },
+ {
+  "name": "runs-absent",
+  "document": "{\"version\": \"2.1.0\"}"
+ },
+ {
+  "name": "runs-object",
+  "document": "{\"version\": \"2.1.0\", \"runs\": {}}"
+ },
+ {
+  "name": "runs-21",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "runs-20",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}, {\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "inline-external",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [], \"inlineExternalProperties\": [{\"x\": 1}]}"
+ },
+ {
+  "name": "inline-external-empty",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [], \"inlineExternalProperties\": []}"
+ },
+ {
+  "name": "inline-external-null",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [], \"inlineExternalProperties\": null}"
+ },
+ {
+  "name": "external-files",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [], \"externalPropertyFileReferences\": {\"results\": [{\"location\": {\"uri\": \"x\"}}]}}]}"
+ },
+ {
+  "name": "external-files-empty",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [], \"externalPropertyFileReferences\": {}}]}"
+ },
+ {
+  "name": "run-not-object",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [1]}"
+ },
+ {
+  "name": "no-tool-name",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-blank",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"  \"}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-number",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": 5}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-101",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-100",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-control",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\\u0001b\", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "tool-name-padded",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"  acme  \", \"version\": \"4.2.0\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "semantic-version-wins",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"version\": \"1\", \"semanticVersion\": \" 2.0.0 \"}}, \"results\": []}]}"
+ },
+ {
+  "name": "version-blank-falls-back",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"version\": \"1\", \"semanticVersion\": \" \"}}, \"results\": []}]}"
+ },
+ {
+  "name": "no-version",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\"}}, \"results\": []}]}"
+ },
+ {
+  "name": "version-number-ignored",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"version\": 3}}, \"results\": []}]}"
+ },
+ {
+  "name": "results-object",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": {}}]}"
+ },
+ {
+  "name": "results-100001",
+  "repeatedResults": [
+   50001,
+   50000
+  ]
+ },
+ {
+  "name": "results-100000",
+  "repeatedResults": [
+   50000,
+   50000
+  ]
+ },
+ {
+  "name": "result-not-object",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [1]}]}"
+ },
+ {
+  "name": "kind-pass",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": \"pass\"}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": \"notApplicable\"}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": \"review\"}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": \"informational\"}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": \"open\"}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"kind\": 7}]}]}"
+ },
+ {
+  "name": "suppressed",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"suppressions\": [{\"kind\": \"inSource\"}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"suppressions\": [{\"status\": \"underReview\"}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"suppressions\": [{\"status\": \"rejected\"}, {\"status\": \"accepted\"}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"suppressions\": [{\"status\": \"rejected\"}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"suppressions\": []}]}]}"
+ },
+ {
+  "name": "rule-from-rule-object",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"rule\": {\"id\": \"R1\"}}]}]}"
+ },
+ {
+  "name": "rule-from-index",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"rules\": [{\"id\": \"R0\", \"shortDescription\": {\"text\": \"short\"}}, {\"id\": \"R1\", \"fullDescription\": {\"text\": \"full\"}, \"defaultConfiguration\": {\"level\": \"note\"}, \"properties\": {\"security-severity\": \"9.1\"}}]}}, \"results\": [{\"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"ruleIndex\": 1}, {\"level\": \"error\", \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"rule\": {\"index\": 0}}]}]}"
+ },
+ {
+  "name": "rule-index-out-of-range",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"rules\": [{\"id\": \"R0\"}]}}, \"results\": [{\"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"ruleIndex\": 5}]}]}"
+ },
+ {
+  "name": "rule-by-id-lookup",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"rules\": [{\"id\": \"ACME001\", \"properties\": {\"security-severity\": 3.9}}, {\"id\": \"ACME001\", \"properties\": {\"security-severity\": 9.9}}]}}, \"results\": [{\"ruleId\": \"ACME001\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "no-rule",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-blank",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"  \", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-1001",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-1000",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-control",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"a\\nb\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-padded",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"  R1 \", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "levels",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"warning\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"note\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"none\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"ERROR\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"bogus\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "rule-default-level",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"rules\": [{\"id\": \"ACME001\", \"defaultConfiguration\": {\"level\": \"error\"}}]}}, \"results\": [{\"ruleId\": \"ACME001\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "security-severity",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 9.0}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 8.99}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 7.0}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 6.9}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 4.0}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 3.99}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 0}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 10}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": 10.1}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": -1}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"7.5\"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \" 9.5 \"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"high\"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": null}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": true}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"NaN\"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"Infinity\"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"1e1\"}}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}], \"properties\": {\"security-severity\": \"0x10\"}}]}]}"
+ },
+ {
+  "name": "line-forms",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": 1}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": 0}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": -3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": \"5\"}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": 2.0}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": 2.5}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": 2147483648}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\"}, \"region\": {\"startLine\": null}}}]}]}]}"
+ },
+ {
+  "name": "no-locations",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}}]}]}"
+ },
+ {
+  "name": "location-no-uri",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"region\": {\"startLine\": 2}}}]}]}]}"
+ },
+ {
+  "name": "message-fallbacks",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"a\", \"rules\": [{\"id\": \"ACME001\", \"shortDescription\": {\"text\": \" short \"}, \"fullDescription\": {\"text\": \"full\"}}]}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"  \"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"markdown\": \"m\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uris",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/app/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source/\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file:///repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file:/repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"FILE:///repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file://localhost/repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file://LOCALHOST/repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file://\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"src\\\\win\\\\a.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"./a/./b//c/\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"src/My%20File.java\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a+b.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%E2%82%AC.py\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \" spaced.py \"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"  \"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \".\"}, \"region\": {\"startLine\": 3}}}]}, {\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"./\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-00",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a/../b\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-01",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"..\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-02",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%2e%2e/x\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-03",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/sourcex/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-04",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/etc/passwd\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-05",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"https://evil.example/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-06",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"http://x\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-07",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"ssh:x\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-08",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"file://host/repo/source/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-09",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%zz\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-10",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%4\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-11",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%C3\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-12",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"%00x\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-13",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a\\u0001b\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-14",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"1abc:def\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-15",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"a:b/c\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-16",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"c:\\\\src\\\\a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-refused-17",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "uri-number",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": 5}}}]}]}]}"
+ },
+ {
+  "name": "too-deep",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[],\"x\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+ },
+ {
+  "name": "deep-63",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[],\"x\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+ },
+ {
+  "name": "long-number",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[],\"x\":11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111}"
+ },
+ {
+  "name": "number-100",
+  "document": "{\"version\":\"2.1.0\",\"runs\":[],\"x\":1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111}"
+ },
+ {
+  "name": "too-large",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}",
+  "maxBytes": 50
+ },
+ {
+  "name": "bom",
+  "document": "\ufeff{\"version\": \"2.1.0\", \"runs\": []}"
+ },
+ {
+  "name": "unicode-message",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"caf\\u00e9 \\ud83d\\ude00\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"app/a.py\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ },
+ {
+  "name": "absolute-under-root-trailing",
+  "document": "{\"version\": \"2.1.0\", \"runs\": [{\"tool\": {\"driver\": {\"name\": \"acme-lint\", \"version\": \"4.2.0\"}}, \"results\": [{\"ruleId\": \"ACME001\", \"level\": \"error\", \"message\": {\"text\": \"eval() here\"}, \"locations\": [{\"physicalLocation\": {\"artifactLocation\": {\"uri\": \"/repo/source//x/./y\"}, \"region\": {\"startLine\": 3}}}]}]}]}"
+ }
+]

@@ -1,0 +1,578 @@
+[
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "registry.acme.internal/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "localhost/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "localhost:5000/team/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "docker.io/library/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "index.docker.io/acme/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "acme:5000/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "a.b/c/d/e@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "acme/lint:1@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": null
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": ""
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "  "
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "acme/lint",
+  "mirror": "///"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": null
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": ""
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "  "
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "Mirror.Internal:5000/"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal:5000/path/"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "https://mirror.internal"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "user@mirror.internal"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "/mirror"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror internal"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "mirror.internal//"
+ },
+ {
+  "reference": "ACME/lint@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mirror": "///"
+ }
+]
