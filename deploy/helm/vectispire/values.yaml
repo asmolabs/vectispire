@@ -245,9 +245,13 @@ agents:
     key: signing-key
   # A PKCS12 truststore, when the Ingress certificate is from a private CA. It replaces the JVM's own:
   # include every authority the agent must trust, the forges' included.
+  # pemKey: the same authorities in PEM, in the same Secret, for the Rust agent's image, which reads no PKCS12 and
+  # refuses to start on the store alone (`keytool -exportcert -rfc` per alias, or `openssl pkcs12 -nokeys`).
+  # Keep both forms one set: whichever image runs trusts its own form and nothing else.
   trustStore:
     secretName: ""
     key: truststore.p12
+    pemKey: ""
   # The forges' SSH host keys, pinned: a read-only known_hosts is only matched against, never written.
   # Without it the first contact records them, and the pod forgets them at every restart.
   knownHosts: ""

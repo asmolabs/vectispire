@@ -249,7 +249,15 @@
         "controlPlaneUrl": { "type": "string" },
         "token": { "$ref": "#/definitions/secretRef" },
         "signingKey": { "$ref": "#/definitions/secretRef" },
-        "trustStore": { "$ref": "#/definitions/secretRef" },
+        "trustStore": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secretName": { "$ref": "#/definitions/secretName" },
+            "key": { "$ref": "#/definitions/secretKey" },
+            "pemKey": { "anyOf": [{ "const": "" }, { "$ref": "#/definitions/secretKey" }] }
+          }
+        },
         "knownHosts": { "type": "string" },
         "pluginRegistry": { "type": "string" },
         "pluginSignatureRequired": { "type": "boolean" },

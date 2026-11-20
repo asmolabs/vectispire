@@ -125,6 +125,12 @@ in a pod's log.
 {{- if not .Values.agents.signingKey.secretName -}}
 {{- fail "agents.signingKey.secretName is required: without a pinned signing key the control plane accepts the agent's results unattested." -}}
 {{- end -}}
+{{- if and .Values.agents.trustStore.pemKey (not .Values.agents.trustStore.secretName) -}}
+{{- fail "agents.trustStore.pemKey needs agents.trustStore.secretName: it names the PEM form of that Secret's truststore." -}}
+{{- end -}}
+{{- if and .Values.agents.trustStore.pemKey (eq .Values.agents.trustStore.pemKey .Values.agents.trustStore.key) -}}
+{{- fail "agents.trustStore.pemKey and agents.trustStore.key name one entry: the store is PKCS12 for the Java agent, the PEM form another entry for the Rust agent." -}}
+{{- end -}}
 {{- if and (not .Values.agents.networkPolicy.enabled) (not .Values.agents.networkPolicy.acknowledgeClusterReachable) -}}
 {{- fail "agents.networkPolicy.enabled is false: the agents' pods would have no egress rule at all, and a scanner escaping its container would reach every pod, the nodes, the database and the cloud metadata endpoint. Keep the policy and list agents.networkPolicy.excludeCidrs, or set agents.networkPolicy.acknowledgeClusterReachable to render it without one." -}}
 {{- end -}}
