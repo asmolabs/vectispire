@@ -1910,3 +1910,22 @@ jobs:
           name: sbom-agent-rs
           path: vectispire-agent-rs.cdx.json
           retention-days: 30
+
+  # **The same image for arm64, reproducible too**, on GitHub's arm runner rather than under emulation: a fat-LTO
+  # release build through QEMU is the better part of an hour, and the binary each platform ships is the one built
+  # natively. Not cross-compiled either: libssh2's vendored OpenSSL would need a musl C toolchain per target, a
+  # second set of inputs to pin. The scans stay on `rust-image` — the crates are the same, the lockfile one.
+  rust-image-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    defaults:
+      run:
+        working-directory: vectispire-rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: built twice, the same image
+        run: ./security/reproducible-image.sh linux/arm64

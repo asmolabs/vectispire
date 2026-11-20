@@ -1,0 +1,16 @@
+# Differences between the Java agent's and the Rust agent's scans of the same composition that are
+# accepted, read by scripts/compare-agent-runs.py (run by scripts/agent-conformance.sh, nightly).
+#
+# The comparison fails on any difference in what the control plane recorded of a scan — status, failed
+# steps and their sentences, absent vs empty, plugins, findings, issues and their fingerprints — that no
+# line here accepts. One line per difference, three fields separated by " | ":
+#
+#   <scan label, as the run names it> | <field path, as the comparison prints it> | <why it is right>
+#
+# Both the label and the path are shell-style patterns (`*`, `?`, `[...]`), e.g.
+#
+#   unreachable | scan.scan.error | the Rust agent words the resolver's failure in its own terms (README)
+#
+# **The list only shrinks.** A line no difference used fails the run. A fingerprint is never accepted
+# here: a fingerprint that differs is every such issue resolved and recreated the day the image is
+# swapped, which is a defect of the port, not a difference to live with.

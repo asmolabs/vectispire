@@ -86,6 +86,9 @@
 #   MODE=agent AGENT_IMAGE=ghcr.io/…@sha256:… EXPECT_AGENT_VERSION=0.11.2 …  # the previous release's agent
 #   DAEMON_DIR=/somewhere scripts/composition-scan-check.sh  # the scans' directories, on the daemon's host
 #   KEEP=1 scripts/composition-scan-check.sh                 # leave it up to poke at
+#   HEALTH_TIMEOUT=900 scripts/composition-scan-check.sh     # a busy machine: wait longer for the control plane
+#   DETAIL_DIR=/somewhere FIXTURE_TOKEN=ghp_… MODE=agent …   # keep every scan's answers, on a fixture another
+#                                                            # run plants identically (agent-conformance.sh)
 set -euo pipefail
 [ -z "${TRACE:-}" ] || set -x
 
@@ -108,8 +111,15 @@ TOLERATED_STEPS="${TOLERATED_STEPS:-}"
 # `previous-agent` job (decision 0043 §2): an agent of this commit standing in for it would pass every
 # step and prove nothing about the promise. Empty: whichever agent the image holds.
 EXPECT_AGENT_VERSION="${EXPECT_AGENT_VERSION:-}"
-# A directory to keep each scan's detail in (`scan-<id>.json`), to compare two agents' runs.
+# A directory to keep what each scan answered in, named by what the scan is (`<label>.scan.json`: the
+# scan's detail; `<label>.issues.json`: its target's issues after it, fingerprints included), so that two
+# agents' runs pair up file by file — `scripts/agent-conformance.sh` compares them.
 DETAIL_DIR="${DETAIL_DIR:-}"
+# The token planted for the secrets scanner, generated when empty. Two runs that are to be compared
+# plant the same one: a secret's fingerprint is read off the value found, so two tokens would be two
+# issues whatever the agents did. With the commit's dates fixed below, the fixture is then the same
+# commit, byte for byte, in both runs.
+FIXTURE_TOKEN="${FIXTURE_TOKEN:-}"
 # The fixture's servers: `git daemon`, since a repository URL is https, ssh or git — plain http is
 # refused, and a certificate for a throwaway host would be more fixture than check — and `sshd`.
 fixture_dir="$root/scripts/composition-scan-fixture"
@@ -216,7 +226,7 @@ chmod 644 "$work/ssh/"*
 # ── The fixture: one commit, one thing for each scanner to find, served by `git daemon`.
 mkdir -p "$work/fixture/src" "$work/fixture/srv"
 # Not `tr < /dev/urandom | head`: `head` closing the pipe is a SIGPIPE, and `pipefail` makes it fatal.
-token="ghp_$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-36)"
+token="${FIXTURE_TOKEN:-ghp_$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-36)}"
 printf 'GITHUB_TOKEN=%s\n' "$token" > "$work/fixture/src/deploy.env"
 printf 'resource "aws_s3_bucket" "b" {\n  bucket = "scan-check"\n}\n' > "$work/fixture/src/main.tf"
 printf '%s==1.0.0\n' "$PACKAGE" > "$work/fixture/src/requirements.txt"
@@ -238,7 +248,8 @@ if [ -z "$EXPECT_AGENT_VERSION" ]; then
 fi
 git -C "$work/fixture/src" init -q -b main
 git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid add .
-git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid commit -q -m fixture
+GIT_AUTHOR_DATE='2026-01-01T00:00:00Z' GIT_COMMITTER_DATE='2026-01-01T00:00:00Z' \
+  git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid commit -q -m fixture
 git clone -q --bare "$work/fixture/src" "$work/fixture/srv/fixture.git"
 chmod -R a+rX "$work/fixture/srv"
 
@@ -339,9 +350,12 @@ publish_matcher_database() { # executor directory, on the daemon's host
 
 echo "── starting the composition ($MODE)"
 "${compose[@]}" up -d --no-build --pull missing db docker-proxy work-dir control-plane fixture sshfixture >/dev/null
-deadline=$(( $(date +%s) + 300 ))
+# 300 seconds unless the run says otherwise: a machine running other suites beside this one can take longer
+# to start the control plane (measured: 30 minutes under a load of 28), which is not this check's subject.
+health_timeout="${HEALTH_TIMEOUT:-300}"
+deadline=$(( $(date +%s) + health_timeout ))
 until curl -sf "$base/actuator/health" > /dev/null 2>&1; do
-  [ "$(date +%s)" -lt "$deadline" ] || fail "the control plane did not become healthy in 300s"
+  [ "$(date +%s)" -lt "$deadline" ] || fail "the control plane did not become healthy in ${health_timeout}s"
   sleep 3
 done
 
@@ -426,7 +440,15 @@ sys.exit(not (d.get("status") == 409 and d.get("type", "about:blank") == "about:
   printf '%s' "$scan_id"
 }
 
-# Queues a scan of repository $1, waits for it to finish, prints it, and leaves its detail in $detail.
+# Keeps scan detail $detail as $1 in DETAIL_DIR, with the issues of repository $2 as they stand after it.
+keep_detail() {
+  [ -n "$DETAIL_DIR" ] || return 0
+  printf '%s' "$detail" > "$DETAIL_DIR/$1.scan.json"
+  bearer "$session" | curl -sf -K - "$base/api/v1/issues?repository_id=$2" > "$DETAIL_DIR/$1.issues.json"
+}
+
+# Queues a scan of repository $1, waits for it to finish, prints it, and leaves its detail in $detail —
+# and in DETAIL_DIR as $2.
 scan() {
   local scan_id status deadline began=$SECONDS
   scan_id="$(queue "$1")"
@@ -441,7 +463,7 @@ scan() {
     [ "$(date +%s)" -lt "$deadline" ] || fail "scan $scan_id still $status after 900s"
     sleep 5
   done
-  [ -z "$DETAIL_DIR" ] || printf '%s' "$detail" > "$DETAIL_DIR/scan-$scan_id.json"
+  keep_detail "$2" "$1"
   scanned="$scan_id"
   printf '%s' "$detail" | python3 -c '
 import collections, json, sys
@@ -510,7 +532,7 @@ print("" if row is None else (row["version"] or "?") + " " + (row["contractVersi
 
 # Assigned before use: a registration refused inside `scan "$(…)"` would not stop the script.
 plain_repo="$(register '{"url":"git://fixture/fixture.git","branch":"main","name":"scan-check"}')"
-scan "$plain_repo"
+scan "$plain_repo" plain
 scanned_the_tree
 claimed_by_the_agent
 echo "✓ the composition scans: the tree reached every scanner, and each read it"
@@ -524,7 +546,7 @@ key_id="$({ bearer "$session"; body "$(python3 -c 'import json, sys; print(json.
     "$work/ssh/deploy" "$work/ssh/deploy.pub")"; } \
   | curl -sf -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/ssh-keys" | json 'd["id"]')"
 ssh_repo="$(register "{\"url\":\"ssh://git@sshfixture/srv/fixture.git\",\"branch\":\"main\",\"name\":\"scan-check-ssh\",\"sshKeyId\":\"$key_id\"}")"
-scan "$ssh_repo"
+scan "$ssh_repo" ssh
 scanned_the_tree
 claimed_by_the_agent
 # Read through a container: the directory is 0700 and the executor's user's, not this script's.
@@ -553,7 +575,7 @@ changed="has changed since the last clone"
 # its lease to lapse, and the refusal was in the agent's log alone. It reports the failure now, so
 # the scan fails with the reason, each attempt in one poll — a lapse would take twenty minutes each.
 started=$(date +%s)
-scan "$ssh_repo"
+scan "$ssh_repo" ssh-host-key-changed
 printf '%s' "$detail" | CHANGED="$changed" MODE="$MODE" python3 -c '
 import json, os, sys
 s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
@@ -587,6 +609,7 @@ echo "── a repository the fixture does not serve: failed at its first attemp
 missing_repo="$(register '{"url":"git://fixture/missing.git","branch":"main","name":"scan-check-missing"}')"
 missing_scan="$(queue "$missing_repo")"
 first_attempt "$missing_scan"
+keep_detail missing "$missing_repo"
 printf '%s' "$detail" | python3 -c '
 import json, sys
 s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
@@ -609,6 +632,7 @@ unreachable_repo="$(register '{"url":"git://unreachable.invalid/fixture.git","br
 queued_at=$(date +%s)
 unreachable_scan="$(queue "$unreachable_repo")"
 first_attempt "$unreachable_scan"
+keep_detail unreachable "$unreachable_repo"
 observed_at=$(date +%s)
 printf '%s' "$detail" | QUEUED_AT="$queued_at" OBSERVED_AT="$observed_at" python3 -c '
 import datetime, json, os, re, sys

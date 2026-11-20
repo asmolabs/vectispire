@@ -125,7 +125,11 @@ engines, and nothing runs it. The nightly's `rust-replay` records afresh and rep
 changed — the check that a Java change to a route the port serves is seen the next morning, not the next time
 someone touches the port. `rust-image` builds the image twice from nothing and refuses two different digests, writes
 the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
-too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
+too few crates, since a static binary shows none without cargo-auditable's list; `rust-image-arm64` builds it
+twice on the arm runner. The nightly's `agent-conformance` runs the composition check through the Java agent and
+the Rust agent, both built at the commit, and fails on any difference in what the control plane recorded of their
+scans — fingerprints included — not listed in `ci/agent-conformance/accepted-differences.txt`; `release.yml` signs
+the Rust image only after two weeks of nights without one. The nightly's
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
 check refuses and how it was proved is in `vectispire-rust/security/README.md`.
 
