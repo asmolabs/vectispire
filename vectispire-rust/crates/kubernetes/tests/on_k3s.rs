@@ -18,7 +18,10 @@ use serde_json::{Map, json};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
-use vectispire_container::{ContainerRun, Executor, Mount, RunnerError, ScannerLimits};
+use vectispire_container::bounded_output::{BoundedOutput, OutputFile};
+use vectispire_container::{
+    ContainerExecutor, ContainerRun, Executor, Extras, Mount, RegistryLogin, RunnerError, ScannerLimits,
+};
 use vectispire_domain::secret::Secret;
 use vectispire_kubernetes::api::KubernetesApi;
 use vectispire_kubernetes::choice::{self, KubernetesConfig};
@@ -312,6 +315,83 @@ async fn the_scanners_on_k3s() {
     the_scanners_run_as_pods(&run, temporary.path()).await;
 }
 
+/// A plugin's two needs, as Java's `KubernetesExecutorTest` runs them: the registry login reaching the tool redacted and
+/// gone after, and the bounded output read back, measured, and refused past its ceiling.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_plugins_needs_on_k3s() {
+    let cluster = K3s::start();
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+
+    // The login: the plugin's registry's entry alone, read by the tool's own user in its pod, redacted, and gone after.
+    let auth = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, "robot:s3cret-pull"); // gitleaks:allow — invented
+    let mounted = directory(root, "registry");
+    std::fs::write(
+        mounted.join("config.json"),
+        format!(
+            "{{\"auths\": {{\"registry.acme.internal\": {{\"auth\": \"{auth}\"}}, \"other.acme.internal\": {{\"auth\": \
+             \"b3RoZXI6b3RoZXI=\"}}}}}}"
+        ),
+    )
+    .unwrap();
+    let settings = executor(&cluster, 256, None, None).settings().clone().with_registry_credentials(Some(mounted));
+    let with_secret = KubernetesExecutor::new(cluster.api(), settings);
+    let workspace = directory(root, "workspace");
+    let plugin = format!("registry.acme.internal/security/plugin@sha256:{}", "d".repeat(64));
+    let login = |reference: &str| Extras {
+        output: None,
+        login: Some(RegistryLogin { reference: reference.to_owned(), directory: workspace.clone() }),
+    };
+    let mut cat = shell("cat \"$DOCKER_CONFIG/config.json\"", vec![]);
+    cat.user = Some("1000:1000".into());
+    let done = with_secret.run_with(&cat, &login(&plugin)).await.unwrap().result;
+    assert_eq!(done.exit_code, 0, "{}", done.stderr);
+    assert!(done.stdout.contains("registry.acme.internal") && done.stdout.contains("[redacted]"), "{}", done.stdout);
+    assert!(!done.stdout.contains(&auth) && !done.stdout.contains("other.acme.internal"), "{}", done.stdout);
+    assert_eq!(std::fs::read_dir(&workspace).unwrap().count(), 0, "the login directory outlives the run");
+    assert!(with_secret.registry_access_for(&plugin).credentials_held);
+    let elsewhere = format!("ghcr.io/acme/plugin@sha256:{}", "e".repeat(64));
+    assert!(!with_secret.registry_access_for(&elsewhere).credentials_held);
+    // A registry the secret does not name: no login handed, the tool reads anonymously as before.
+    let mut anonymous = shell("test -z \"$DOCKER_CONFIG\"", vec![]);
+    anonymous.user = Some("1000:1000".into());
+    let done = with_secret.run_with(&anonymous, &login(&elsewhere)).await.unwrap().result;
+    assert_eq!(done.exit_code, 0, "{}", done.stderr);
+    // A failure quoting the secret carries it nowhere: here a timeout naming the run by a label that holds it.
+    let mut quoting = shell("sleep 120", vec![]);
+    quoting.user = Some("1000:1000".into());
+    quoting.label = "plugin s3cret-pull".into(); // gitleaks:allow — invented
+    quoting.timeout = Some(Duration::from_secs(5));
+    let failed = with_secret.run_with(&quoting, &login(&plugin)).await.unwrap_err().to_string();
+    assert!(!failed.contains("s3cret-pull") && failed.contains("[redacted]"), "{failed}");
+    assert_eq!(std::fs::read_dir(&workspace).unwrap().count(), 0, "the login directory outlives a failed run");
+
+    // The bounded output: read back and measured, missing when nothing is written, full at the kernel's ENOSPC.
+    let run = Executor::new(executor(&cluster, 256, None, None));
+    let bounded = |bytes: u64| Extras {
+        output: Some(BoundedOutput::new("/output", bytes, HELPER_IMAGE, "report.json").unwrap()),
+        login: None,
+    };
+    let as_user = |script: &str| {
+        let mut run = shell(script, vec![]);
+        run.user = Some("1000:1000".into());
+        run
+    };
+    let written = run.run_with(&as_user("echo '{\"ok\":true}' > /output/report.json"), &bounded(64 * 1024)).await;
+    let written = written.unwrap().output.unwrap();
+    assert_eq!(written.file, OutputFile::Read(b"{\"ok\":true}\n".to_vec()));
+    assert!(!written.full(), "{written:?}");
+    let missing = run.run_with(&as_user("true"), &bounded(64 * 1024)).await.unwrap().output.unwrap();
+    assert_eq!(missing.file, OutputFile::Missing);
+    let full = run.run_with(&as_user("head -c 200000 /dev/zero > /output/filler; true"), &bounded(64 * 1024)).await;
+    assert!(full.unwrap().output.unwrap().full(), "the directory reports itself full");
+
+    // Past the scanner's output ceiling (1 MiB here) though within its directory: refused on its size, never read.
+    let writer = as_user("head -c 2097152 /dev/zero > /output/report.json");
+    let large = run.run_with(&writer, &bounded(4 * 1024 * 1024)).await.unwrap().output.unwrap();
+    assert_eq!(large.file, OutputFile::TooLarge(2 * 1024 * 1024));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn the_choice_at_start_on_k3s() {
     let cluster = K3s::start();
@@ -433,7 +513,11 @@ async fn the_choice_at_start(cluster: &K3s) {
         "jsonpath={.subsets[0].addresses[0].ip}",
     ]);
     let context = choice::Context { matcher_database: "db".into(), own_user: Some("1000:1000".into()) };
+    // The pull secret as the chart mounts it: what the executor hands a plugin's cosign.
+    let secret = tempfile::tempdir().unwrap();
+    std::fs::write(secret.path().join("config.json"), "{\"auths\": {}}").unwrap();
     let config = |require_isolation: bool| KubernetesConfig {
+        registry_credentials: secret.path().display().to_string(),
         namespace: NAMESPACE.into(),
         name: "vs-agent".into(),
         user: "1000:1000".into(),
@@ -467,6 +551,7 @@ async fn the_choice_at_start(cluster: &K3s) {
         .unwrap();
     }
     let executor = start(false).await.unwrap();
+    assert_eq!(executor.settings().registry_credentials.as_deref(), Some(secret.path()), "the pull secret is used");
     assert_eq!(executor.why_unavailable().await, None);
     let deadline = Instant::now() + Duration::from_secs(60);
     while !api.pods(NAMESPACE, "vectispire.dev/agent=vs-agent").await.unwrap().is_empty() {

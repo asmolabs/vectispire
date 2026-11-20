@@ -1,0 +1,133 @@
+{
+  "probes" : [ {
+    "target" : "/repo/output",
+    "bytes" : 1048576,
+    "holderImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "file" : "results.sarif",
+    "inodes" : 4096,
+    "script" : "df -P -k /repo/output; df -P -i /repo/output; f=/repo/output/results.sarif; if [ -L \"$f\" ]; then echo kind=other; elif [ ! -e \"$f\" ]; then echo kind=missing; elif [ ! -f \"$f\" ]; then echo kind=other; else echo kind=file size=$(wc -c < \"$f\"); fi"
+  }, {
+    "target" : "/out",
+    "bytes" : 4096,
+    "holderImage" : "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092",
+    "file" : "report-1_x.json",
+    "inodes" : 2,
+    "script" : "df -P -k /out; df -P -i /out; f=/out/report-1_x.json; if [ -L \"$f\" ]; then echo kind=other; elif [ ! -e \"$f\" ]; then echo kind=missing; elif [ ! -f \"$f\" ]; then echo kind=other; else echo kind=file size=$(wc -c < \"$f\"); fi"
+  } ],
+  "answers" : [ {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\nkind=missing\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "missing"
+    }
+  }, {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\nkind=other\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "notRegular"
+    }
+  }, {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\nkind=file size=10\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\nkind=file size=100\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\nkind=file size=101\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "tooLarge",
+      "size" : 101
+    }
+  }, {
+    "answer" : "",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "notRegular"
+    }
+  }, {
+    "answer" : "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\nFilesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "notRegular"
+    }
+  }, {
+    "answer" : "kind=file size= 7 \n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=5\r\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=5 \n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=+5\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=-1\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=٥\n",
+    "ceiling" : 100,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=9223372036854775807\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "tooLarge",
+      "size" : 9223372036854775807
+    }
+  }, {
+    "answer" : "kind=file size=99999999999999999999\n",
+    "ceiling" : 100,
+    "thrown" : "NumberFormatException"
+  }, {
+    "answer" : "kind=file size=x\n",
+    "ceiling" : 100,
+    "thrown" : "NumberFormatException"
+  }, {
+    "answer" : "kind=file size=\n",
+    "ceiling" : 100,
+    "thrown" : "NumberFormatException"
+  }, {
+    "answer" : "kind=file size=5 6\n",
+    "ceiling" : 100,
+    "thrown" : "NumberFormatException"
+  }, {
+    "answer" : "kind=missing\nkind=file size=5\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "missing"
+    }
+  }, {
+    "answer" : "kind=file size=5\nkind=missing\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "missing"
+    }
+  }, {
+    "answer" : "kind=file size=4096\n",
+    "ceiling" : 4096,
+    "settled" : null
+  }, {
+    "answer" : "kind=file size=4097\n",
+    "ceiling" : 4096,
+    "settled" : {
+      "kind" : "tooLarge",
+      "size" : 4097
+    }
+  }, {
+    "answer" : "kind=FILE size=5\n",
+    "ceiling" : 100,
+    "settled" : {
+      "kind" : "notRegular"
+    }
+  } ]
+}

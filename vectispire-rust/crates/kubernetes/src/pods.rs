@@ -16,6 +16,7 @@ use crate::executor::Settings;
 use crate::json;
 use serde_json::{Map, Value, json};
 use std::time::Duration;
+use vectispire_container::bounded_output::BoundedOutput;
 use vectispire_container::{ContainerRun, Mount, SCANNER_ENVIRONMENT, SCRATCH_HOME, SCRATCH_MEGABYTES, STDERR_BYTES};
 
 pub const RECEIVE: &str = "receive";
@@ -45,9 +46,12 @@ pub const CACHE: &str = "/matcher-cache";
 pub const GENERATIONS: &str = "generations";
 
 /// Where a run asking for a registry's login finds it — `ContainerRunner.REGISTRY_LOGIN_MOUNT`: a mount there names
-/// itself to the tool through `DOCKER_CONFIG`, as on Docker. Registry logins (plugins, cosign) are not ported to the
-/// Rust agent yet; the pod is shaped for them already, so that it is held to Java's whole.
-pub const REGISTRY_LOGIN_MOUNT: &str = "/trust/registry";
+/// itself to the tool through `DOCKER_CONFIG`, as on Docker. The executor copies the login's directory in like any
+/// read-only mount ([`crate::executor`]).
+pub const REGISTRY_LOGIN_MOUNT: &str = vectispire_container::REGISTRY_LOGIN_MOUNT;
+
+/// The volume a bounded output lives in: the tool's to write, the holder's to read back.
+pub const OUTPUT: &str = "output";
 
 /// Waiting reasons that will not resolve themselves: the run fails now rather than at its timeout.
 const CANNOT_START: [&str; 7] = [
@@ -108,6 +112,7 @@ pub fn writable(request: &ContainerRun, output_bytes: u64) -> u64 {
 pub fn pod(
     name: &str,
     request: &ContainerRun,
+    output: Option<&BoundedOutput>,
     settings: &Settings,
     uid: u64,
     gid: u64,
@@ -166,6 +171,11 @@ pub fn pod(
         memory_volume("tmp", &format!("{SCRATCH_MEGABYTES}Mi")),
         memory_volume("home", &format!("{SCRATCH_MEGABYTES}Mi")),
     ];
+    if let Some(output) = output {
+        // Memory-backed with a size: the kernel answers ENOSPC past it (measured, 0045's spike), as Docker's tmpfs
+        // does — so a plugin, code somebody else wrote, cannot fill the node's disk through it.
+        volumes.push(memory_volume(OUTPUT, &output.bytes.to_string()));
+    }
     if cached && let Some(cache) = &settings.cache {
         volumes.push(json!({"name": "matcher-cache", "persistentVolumeClaim": {"claimName": cache.claim}}));
     }
@@ -240,11 +250,18 @@ pub fn pod(
     mount(&mut scanner, "tools", TOOLS, false, None);
     mount(&mut scanner, "tmp", "/tmp", false, None);
     mount(&mut scanner, "home", SCRATCH_HOME, false, None);
+    if let Some(output) = output {
+        mount(&mut scanner, OUTPUT, &output.target, false, None);
+    }
 
     let mut holder = container(HOLDER, &settings.helper_image, uid, gid, 32);
     command(&mut holder, &["sleep", &lifetime.to_string()]);
     mount(&mut holder, "work", WORK, true, None);
     mount(&mut holder, "tools", TOOLS, true, None);
+    if let Some(output) = output {
+        // Read-only: the holder only reads the file back and measures the directory, once the tool has exited.
+        mount(&mut holder, OUTPUT, &output.target, true, None);
+    }
     spec.insert("containers".into(), json!([scanner, holder]));
 
     json!({

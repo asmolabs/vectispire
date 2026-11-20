@@ -122,20 +122,22 @@ impl DockerConfig {
     /// The directory's `config.json`: empty when there is none, refused when it is there and cannot be read.
     pub fn load(directory: &Path) -> Result<DockerConfig, UnreadableConfig> {
         let file = directory.join("config.json");
-        let unreadable =
-            |reason: &str| UnreadableConfig { path: directory.display().to_string(), reason: reason.into() };
+        let unreadable = |reason: String| UnreadableConfig { path: directory.display().to_string(), reason };
         if !file.is_file() {
             return Ok(DockerConfig::default());
         }
-        let text = std::fs::read(&file).map_err(|error| unreadable(&error.to_string()))?;
+        // docker-java's words for a file it could not read, as for one it could not parse.
+        let text = std::fs::read(&file).map_err(|_| unreadable(UNPARSABLE.to_owned()))?;
         DockerConfig::parse(&text).map_err(unreadable)
     }
 
     /// The configuration's bytes, read as docker-java reads them: unknown fields ignored, each `auth` decoded into a
-    /// user and a password — and the whole file refused when one cannot be.
-    pub fn parse(text: &[u8]) -> Result<DockerConfig, &'static str> {
-        let root: Value = serde_json::from_slice(text).map_err(|_| "Failed to parse docker config.json")?;
-        let Value::Object(root) = root else { return Err("Failed to parse docker config.json") };
+    /// user and a password — and the whole file refused when one cannot be, in docker-java's words: its own sentence,
+    /// or `java.util.Base64`'s for an `auth` that is not base64, which docker-java lets through unwrapped.
+    pub fn parse(text: &[u8]) -> Result<DockerConfig, String> {
+        let unparsable = || UNPARSABLE.to_owned();
+        let root: Value = serde_json::from_slice(text).map_err(|_| unparsable())?;
+        let Value::Object(root) = root else { return Err(unparsable()) };
         let mut auths = BTreeMap::new();
         match root.get("auths") {
             None | Some(Value::Null) => {}
@@ -144,7 +146,7 @@ impl DockerConfig {
                     auths.insert(key.clone(), entry_of(entry)?);
                 }
             }
-            Some(_) => return Err("Failed to parse docker config.json"),
+            Some(_) => return Err(unparsable()),
         }
         Ok(DockerConfig { auths })
     }
@@ -170,15 +172,19 @@ impl DockerConfig {
     }
 }
 
-fn entry_of(entry: &Value) -> Result<AuthConfig, &'static str> {
-    let Value::Object(fields) = entry else { return Err("Failed to parse docker config.json") };
-    let text = |name: &str| -> Result<Option<String>, &'static str> {
+/// docker-java's sentence for a configuration it could not read or parse — `DefaultDockerClientConfig`'s, around the
+/// file's own exception: the content never appears in it.
+const UNPARSABLE: &str = "Failed to parse docker configuration file";
+
+fn entry_of(entry: &Value) -> Result<AuthConfig, String> {
+    let Value::Object(fields) = entry else { return Err(UNPARSABLE.to_owned()) };
+    let text = |name: &str| -> Result<Option<String>, String> {
         match fields.get(name) {
             None | Some(Value::Null) => Ok(None),
             Some(Value::String(value)) => Ok(Some(value.clone())),
             Some(Value::Number(number)) => Ok(Some(number.to_string())),
             Some(Value::Bool(flag)) => Ok(Some(flag.to_string())),
-            Some(_) => Err("Failed to parse docker config.json"),
+            Some(_) => Err(UNPARSABLE.to_owned()),
         }
     };
     let mut auth = AuthConfig {
@@ -188,13 +194,73 @@ fn entry_of(entry: &Value) -> Result<AuthConfig, &'static str> {
         registry_token: text("registrytoken")?,
     };
     if let Some(encoded) = text("auth")? {
-        let decoded = STANDARD.decode(encoded.as_bytes()).map_err(|_| "Invalid auth configuration file")?;
+        let decoded = java_base64(&encoded)?;
         let decoded = String::from_utf8_lossy(&decoded).into_owned();
-        let (username, password) = decoded.split_once(':').ok_or("Invalid auth configuration file")?;
+        // `Invalid auth configuration file`, an IOException docker-java wraps in its own sentence.
+        let (username, password) = decoded.split_once(':').ok_or_else(|| UNPARSABLE.to_owned())?;
         auth.username = Some(username.to_owned());
         auth.password = Some(password.to_owned());
     }
     Ok(auth)
+}
+
+/// `Base64.getDecoder().decode(String)`, the basic decoder docker-java reads an `auth` with: padding optional, nothing
+/// outside the alphabet, and the JDK's own messages — which reach the operator, since docker-java does not wrap them.
+/// The text is taken as ISO-8859-1, as the JDK takes it: a character past `ÿ` is `?`.
+fn java_base64(text: &str) -> Result<Vec<u8>, String> {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let source: Vec<u8> = text.encode_utf16().map(|unit| u8::try_from(unit).unwrap_or(b'?')).collect();
+    match source.as_slice() {
+        [] => return Ok(Vec::new()),
+        [_] => return Err("Input byte[] should at least have 2 bytes for base64 bytes".to_owned()),
+        _ => {}
+    }
+    let mut decoded = Vec::with_capacity(source.len());
+    // The sextets of the 4-character unit being read.
+    let mut unit: Vec<u8> = Vec::with_capacity(4);
+    let mut bytes = source.iter().copied().enumerate();
+    while let Some((_, byte)) = bytes.next() {
+        if byte == b'=' {
+            // `=` opening a unit, or one `=` after two characters where two were due.
+            let wrong = match unit.len() {
+                0 => true,
+                2 => !matches!(bytes.next(), Some((_, b'='))),
+                _ => false,
+            };
+            if wrong {
+                return Err("Input byte array has wrong 4-byte ending unit".to_owned());
+            }
+            break;
+        }
+        let Some(sextet) = ALPHABET.iter().position(|c| *c == byte).and_then(|at| u8::try_from(at).ok()) else {
+            // `Integer.toString(byte, 16)` of a signed byte: a minus and its magnitude past 0x7f.
+            let signed = i8::from_ne_bytes([byte]);
+            let hex = if signed < 0 { format!("-{:x}", signed.unsigned_abs()) } else { format!("{signed:x}") };
+            return Err(format!("Illegal base64 character {hex}"));
+        };
+        unit.push(sextet);
+        if let [a, b, c, d] = unit.as_slice() {
+            decoded.extend_from_slice(&[
+                a.wrapping_shl(2) | b.wrapping_shr(4),
+                b.wrapping_shl(4) | c.wrapping_shr(2),
+                c.wrapping_shl(6) | d,
+            ]);
+            unit.clear();
+        }
+    }
+    match unit.as_slice() {
+        [_] => return Err("Last unit does not have enough valid bits".to_owned()),
+        [a, b] => decoded.push(a.wrapping_shl(2) | b.wrapping_shr(4)),
+        [a, b, c] => {
+            decoded.extend_from_slice(&[a.wrapping_shl(2) | b.wrapping_shr(4), b.wrapping_shl(4) | c.wrapping_shr(2)])
+        }
+        _ => {}
+    }
+    // Nothing may follow the padding: Java names the index of the first byte that does.
+    if let Some((at, _)) = bytes.next() {
+        return Err(format!("Input byte array has incorrect ending byte at {at}"));
+    }
+    Ok(decoded)
 }
 
 /// `convertToHostname`: a scheme and a path dropped.
@@ -269,6 +335,57 @@ pub struct RegistryAccess {
     pub credentials_held: bool,
 }
 
+/// Pull credentials read from a mounted Docker configuration directory, for an executor that pulls nothing itself but
+/// runs a tool that reads a registry — the Kubernetes executor, whose images the kubelet pulls and whose cosign
+/// verifies a plugin's signature in a pod of its own — `MountedPullCredentials`.
+///
+/// **The pull's rule, not a copy of it**: the entry is chosen as [`DockerConfig::credentials_for`] chooses it for the
+/// Docker executor's pulls, and what leaves is the same one-entry file ([`write`]). **Read at each run**, as Java reads
+/// it: a pull secret the kubelet rotates is seen by the next plugin.
+#[derive(Clone)]
+pub struct MountedPullCredentials {
+    auth: AuthConfig,
+    registry: String,
+}
+
+impl std::fmt::Debug for MountedPullCredentials {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Never the credentials, whoever logs this.
+        write!(formatter, "MountedPullCredentials[{}]", self.registry)
+    }
+}
+
+impl MountedPullCredentials {
+    /// What `configuration`'s `config.json` holds for `reference`'s registry: `None` when it holds nothing usable for
+    /// it, or when no configuration is mounted; refused, by its path, when the file is there and cannot be read — a
+    /// broken pull secret says so, rather than sending the tool to the registry anonymously.
+    pub fn of(
+        configuration: Option<&Path>,
+        reference: &str,
+    ) -> Result<Option<MountedPullCredentials>, UnreadableConfig> {
+        let Some(configuration) = configuration else { return Ok(None) };
+        let config = DockerConfig::load(configuration)?;
+        Ok(config
+            .credentials_for(reference)
+            .map(|auth| MountedPullCredentials { auth: auth.clone(), registry: registry_of(reference) }))
+    }
+
+    /// The registry the entry is for, as the pull keys it.
+    pub fn registry(&self) -> &str {
+        &self.registry
+    }
+
+    /// [`write`]: this entry alone, in a directory of its own under `parent`, readable by this process's user only.
+    pub fn write_under(&self, parent: &Path) -> std::io::Result<PathBuf> {
+        write(&self.auth, &self.registry, parent)
+    }
+
+    /// `text` with every secret of this entry replaced: a tool's words reach the screen.
+    pub fn redact(&self, text: &str) -> String {
+        self.auth.redact(text)
+    }
+}
+
 /// `PullCredentials.write`: a Docker configuration holding `auth` for `registry` alone, in a directory of its own
 /// under `parent`, created 0700 with its file 0600 — there is no instant at which anyone else may read it.
 pub fn write(auth: &AuthConfig, registry: &str, parent: &Path) -> std::io::Result<PathBuf> {
@@ -307,6 +424,38 @@ mod tests {
         assert_eq!(registry_of(&format!("r.io/acme/lint{d}")), "r.io");
         assert_eq!(registry_of(&format!("localhost:5000/lint{d}")), "localhost:5000");
         assert_eq!(registry_of(&format!("index.docker.io/acme/lint{d}")), "index.docker.io");
+    }
+
+    /// An `auth` decoded as docker-java decodes it — `java.util.Base64.getDecoder()` — with the JDK's own messages,
+    /// which reach the operator unwrapped. The answers are JDK 25's, asked of it directly.
+    #[test]
+    fn an_auth_is_decoded_as_the_jdk_decodes_it() {
+        let ok = |bytes: &[u8]| Ok::<Vec<u8>, String>(bytes.to_vec());
+        let refused = |message: &str| Err::<Vec<u8>, String>(message.to_owned());
+        let cases: [(&str, Result<Vec<u8>, String>); 19] = [
+            ("eHk", ok(b"xy")),
+            ("eHk=", ok(b"xy")),
+            ("eA==", ok(b"x")),
+            ("eA=", refused("Input byte array has wrong 4-byte ending unit")),
+            ("eA", ok(b"x")),
+            ("e", refused("Input byte[] should at least have 2 bytes for base64 bytes")),
+            ("e=", refused("Last unit does not have enough valid bits")),
+            ("=AAA", refused("Input byte array has wrong 4-byte ending unit")),
+            ("AAAA=A", refused("Input byte array has wrong 4-byte ending unit")),
+            ("AA==AA", refused("Input byte array has incorrect ending byte at 4")),
+            ("eHl6", ok(b"xyz")),
+            ("eHl6=", refused("Input byte array has wrong 4-byte ending unit")),
+            ("\u{fc}", refused("Input byte[] should at least have 2 bytes for base64 bytes")),
+            ("\u{ff}\u{ff}", refused("Illegal base64 character -1")),
+            ("\u{20ac}A", refused("Illegal base64 character 3f")),
+            ("a!b=", refused("Illegal base64 character 21")),
+            ("eA===", refused("Input byte array has incorrect ending byte at 4")),
+            ("", ok(b"")),
+            ("eA==x", refused("Input byte array has incorrect ending byte at 4")),
+        ];
+        for (text, java) in cases {
+            assert_eq!(java_base64(text), java, "{text:?}");
+        }
     }
 
     #[test]

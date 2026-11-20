@@ -845,28 +845,42 @@ public final class KubernetesExecutor implements ContainerExecutor {
     private CollectedOutput collect(String pod, ContainerRun.BoundedOutput bounded, String label) {
         String file = bounded.target() + "/" + bounded.file();
         long ceiling = Math.min(bounded.bytes(), outputBytes());
-        String probe = "df -P -k " + bounded.target() + "; df -P -i " + bounded.target() + "; f=" + file
-                + "; if [ -L \"$f\" ]; then echo kind=other; elif [ ! -e \"$f\" ]; then echo kind=missing; "
-                + "elif [ ! -f \"$f\" ]; then echo kind=other; else echo kind=file size=$(wc -c < \"$f\"); fi";
-        String answer = new String(exec(pod, ScanPods.HOLDER, List.of("sh", "-c", probe), SMALL, label).stdout(),
-                StandardCharsets.UTF_8);
-        OutputFile read;
-        if (answer.contains("kind=missing")) {
-            read = new OutputFile.Missing();
-        } else if (!answer.contains("kind=file size=")) {
-            read = new OutputFile.NotRegular();
-        } else {
-            long size = Long.parseLong(answer.substring(answer.indexOf("kind=file size=") + 15).strip());
-            if (size > ceiling) {
-                read = new OutputFile.TooLarge(size);
-            } else {
-                KubernetesApi.ExecResult content = exec(pod, ScanPods.HOLDER, List.of("cat", file), ceiling, label);
-                read = content.overCeiling() ? new OutputFile.TooLarge(ceiling + 1) : new OutputFile.Read(content.stdout());
-            }
-        }
+        String answer = new String(exec(pod, ScanPods.HOLDER, List.of("sh", "-c", collectionProbe(bounded)), SMALL, label)
+                .stdout(), StandardCharsets.UTF_8);
+        OutputFile read = probed(answer, ceiling).orElseGet(() -> {
+            KubernetesApi.ExecResult content = exec(pod, ScanPods.HOLDER, List.of("cat", file), ceiling, label);
+            return content.overCeiling() ? new OutputFile.TooLarge(ceiling + 1) : new OutputFile.Read(content.stdout());
+        });
         return CollectedOutput.measured(bounded, answer, read).orElseThrow(() -> ScannerFailureException.of(label,
                 "Its output directory could not be measured, so whether a write was refused is unknown; the report "
                         + "is not believed."));
+    }
+
+    /**
+     * What the holder runs once the tool has exited: {@code df} of the directory in bytes and in inodes, as the Docker
+     * executor's holder prints them, then what the file is — a link and anything but a regular file told apart, and a
+     * regular file's size, so that one past the ceiling is refused before a byte of it is read.
+     */
+    static String collectionProbe(ContainerRun.BoundedOutput bounded) {
+        String file = bounded.target() + "/" + bounded.file();
+        return "df -P -k " + bounded.target() + "; df -P -i " + bounded.target() + "; f=" + file
+                + "; if [ -L \"$f\" ]; then echo kind=other; elif [ ! -e \"$f\" ]; then echo kind=missing; "
+                + "elif [ ! -f \"$f\" ]; then echo kind=other; else echo kind=file size=$(wc -c < \"$f\"); fi";
+    }
+
+    /**
+     * The file as {@link #collectionProbe}'s answer settles it — missing, not a regular file, or too large — or empty
+     * when it is a regular file within {@code ceiling}, which is then read.
+     */
+    static Optional<OutputFile> probed(String answer, long ceiling) {
+        if (answer.contains("kind=missing")) {
+            return Optional.of(new OutputFile.Missing());
+        }
+        if (!answer.contains("kind=file size=")) {
+            return Optional.of(new OutputFile.NotRegular());
+        }
+        long size = Long.parseLong(answer.substring(answer.indexOf("kind=file size=") + 15).strip());
+        return size > ceiling ? Optional.of(new OutputFile.TooLarge(size)) : Optional.empty();
     }
 
     private KubernetesApi.ExecResult exec(String pod, String container, List<String> command, long ceiling, String label) {

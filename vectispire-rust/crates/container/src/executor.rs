@@ -55,10 +55,10 @@ pub trait ContainerExecutor: Send + Sync + std::fmt::Debug {
     /// The ceiling on what a scanner may hand back: its standard output, and a plugin's report.
     fn output_bytes(&self) -> u64;
 
-    /// A plugin's run — `ContainerExecutor.run` with a bounded output or a registry login. Java's Kubernetes executor
-    /// runs both; this port's does not yet, so the default **refuses**, naming why, rather than running the plugin
-    /// without its report or its login: the plugin step is then absent and the scan says which plugin did not run —
-    /// never an empty report that would resolve its findings (decision 0007).
+    /// A plugin's run — `ContainerExecutor.run` with a bounded output or a registry login. The Docker and the
+    /// Kubernetes executors run both; for any other, the default **refuses**, naming why, rather than running the
+    /// plugin without its report or its login: the plugin step is then absent and the scan says which plugin did not
+    /// run — never an empty report that would resolve its findings (decision 0007).
     fn run_with<'a>(
         &'a self,
         run: &'a ContainerRun,

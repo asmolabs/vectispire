@@ -84,7 +84,7 @@ MUTANTS = [
     ("a user without a password usable", K, "(self.username.is_some() && self.password.is_some())\n", "(self.username.is_some())\n", C),
     ("a key with a scheme not matched", K, ".find(|(key, _)| to_hostname(key) == normalized)", ".find(|(key, _)| key.as_str() == normalized)", C),
     ("the password not redacted", K, "        redacted = replace(&redacted, self.password.as_deref());\n", "", C),
-    ("an auth without a colon read", K, ".split_once(':').ok_or(\"Invalid auth configuration file\")?;", ".split_once(':').unwrap_or((decoded.as_str(), \"\"));", C),
+    ("an auth without a colon read", K, ".split_once(':').ok_or_else(|| UNPARSABLE.to_owned())?;", ".split_once(':').unwrap_or((decoded.as_str(), \"\"));", C),
     ("the login file readable by others", K, "std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);", "std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);", CL),
     # The create requests.
     ("no fsize hard limit", W, "soft: Some(size), hard: Some(size)", "soft: Some(size), hard: None", CR),

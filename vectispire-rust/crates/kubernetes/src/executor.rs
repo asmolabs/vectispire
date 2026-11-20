@@ -24,8 +24,11 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use vectispire_container::bounded_output::{BoundedOutput, CollectedOutput, OutputFile};
+use vectispire_container::pull_credentials::MountedPullCredentials;
 use vectispire_container::{
-    BoxFuture, ContainerExecutor, ContainerResult, ContainerRun, ExportError, RunnerError, STDERR_BYTES, ScannerLimits,
+    BoxFuture, ContainerExecutor, ContainerResult, ContainerRun, ExportError, ExtendedError, ExtendedResult, Extras,
+    Mount, REGISTRY_LOGIN_MOUNT, RegistryAccess, RunnerError, STDERR_BYTES, ScannerLimits, registry_of,
 };
 
 /// The static busybox the wrapper runs: musl, so it needs nothing of the scanner's image. Pinned by digest.
@@ -99,6 +102,10 @@ pub struct Settings {
     /// The `address:port` every scan pod must be refused before its scanner starts — the isolation probe's target —
     /// or `None` where isolation is not required.
     pub cut_off_from: Option<String>,
+    /// A Docker configuration directory — the pull secret the chart mounts — whose entry for a registry a tool reading
+    /// that registry is handed, cosign verifying a plugin's signature; `None` where none is mounted, and the tool reads
+    /// anonymously.
+    pub registry_credentials: Option<PathBuf>,
 }
 
 impl Settings {
@@ -133,7 +140,14 @@ impl Settings {
             placement,
             cache,
             cut_off_from,
+            registry_credentials: None,
         })
+    }
+
+    /// These settings, a registry's tool handed `configuration`'s entry for it.
+    pub fn with_registry_credentials(mut self, configuration: Option<PathBuf>) -> Settings {
+        self.registry_credentials = configuration;
+        self
     }
 
     fn output_bytes(&self) -> u64 {
@@ -217,7 +231,7 @@ impl KubernetesExecutor {
         probe.timeout = Some(Duration::from_secs(120));
         probe.network = online;
         // Not gated as a scanner is: whether this pod is cut off is the question, not a precondition.
-        let result = self.run_pod(&probe, false).await?;
+        let (result, _) = self.run_pod(&probe, None, false).await?;
         match vectispire_domain::java::strip(&result.stdout) {
             "BLOCKED" => Ok(Isolation::Enforced),
             "REACHED" => Ok(Isolation::NotEnforced),
@@ -228,7 +242,64 @@ impl KubernetesExecutor {
         }
     }
 
-    async fn run_pod(&self, request: &ContainerRun, gated: bool) -> Result<ContainerResult, RunnerError> {
+    /// A run asking for a registry's login ([`Extras::login`]) is handed the mounted pull secret's entry for that
+    /// registry, as the Docker executor hands its daemon's: one entry, in a directory of its own copied into the pod
+    /// like a read-only mount, `DOCKER_CONFIG` naming it, removed after the run. Without it cosign read a private
+    /// registry anonymously, and every plugin kept there was refused. What the tool prints, and any failure quoting
+    /// it, is redacted of the entry's secrets.
+    async fn run_extended(&self, request: &ContainerRun, extras: &Extras) -> Result<ExtendedResult, ExtendedError> {
+        let label = request.label.as_str();
+        let gated = self.settings.cut_off_from.is_some();
+        let credentials = match &extras.login {
+            None => None,
+            Some(login) => MountedPullCredentials::of(self.settings.registry_credentials.as_deref(), &login.reference)
+                // Its path, never its content.
+                .map_err(|unreadable| extended_failure(label, unreadable.to_string()))?,
+        };
+        if extras.output.is_some() && request.user.is_none() {
+            // The Docker executor's contract, kept here: its holder creates the directory owned by that user, and a
+            // request one executor refuses must not run on the other.
+            return Err(ExtendedError::Refused("A bounded output needs the user it belongs to.".to_owned()));
+        }
+        let output = extras.output.as_ref();
+        let (Some(credentials), Some(login)) = (credentials, &extras.login) else {
+            let (result, output) = self.run_pod(request, output, gated).await?;
+            return Ok(ExtendedResult { result, output });
+        };
+        let written = credentials.write_under(&login.directory).map_err(|unwritable| {
+            // The error names a path, never the credentials.
+            extended_failure(label, format!("The registry credentials could not be handed to it: {unwritable}"))
+        })?;
+        let erasure = Erasure(Some(written.clone()));
+        let mut with_login = request.clone();
+        with_login.mounts.push(Mount::read_only(written.display().to_string(), REGISTRY_LOGIN_MOUNT));
+        let outcome = self.run_pod(&with_login, output, gated).await;
+        // After the pod, which held its copy: the credentials outlive the run by nothing.
+        drop(erasure);
+        match outcome {
+            Ok((result, output)) => Ok(ExtendedResult {
+                result: ContainerResult {
+                    stdout: credentials.redact(&result.stdout),
+                    stderr: credentials.redact(&result.stderr),
+                    exit_code: result.exit_code,
+                },
+                output,
+            }),
+            Err(failure) => {
+                // A registry quoting what it was sent must not carry it to the scan's failures.
+                let said = failure.to_string();
+                let redacted = credentials.redact(&said);
+                Err(if redacted == said { ExtendedError::Runner(failure) } else { extended_failure(label, redacted) })
+            }
+        }
+    }
+
+    async fn run_pod(
+        &self,
+        request: &ContainerRun,
+        output: Option<&BoundedOutput>,
+        gated: bool,
+    ) -> Result<(ContainerResult, Option<CollectedOutput>), RunnerError> {
         let label = request.label.as_str();
         let settings = &*self.settings;
         let timeout = request.timeout.unwrap_or(settings.limits.timeout);
@@ -261,12 +332,13 @@ impl KubernetesExecutor {
         let mut suffix = [0u8; 5];
         rand_core::OsRng.fill_bytes(&mut suffix);
         let name = pod_name(label, &suffix);
-        let spec = pods::pod(&name, request, settings, uid, gid, &sources, copied, timeout, transfer_time(moved));
+        let spec =
+            pods::pod(&name, request, output, settings, uid, gid, &sources, copied, timeout, transfer_time(moved));
         if let Err(refused) = self.api.create_pod(&settings.namespace, &spec).await {
             return Err(failed(label, format!("Its pod could not be created: {refused}")));
         }
         let removal = Removal { api: self.api.clone(), namespace: settings.namespace.clone(), pod: Some(name.clone()) };
-        let outcome = self.drive(&name, request, &sources, &sizes, timeout, gated).await;
+        let outcome = self.drive(&name, request, output, &sources, &sizes, timeout, gated).await;
         removal.now().await;
         match outcome {
             Ok(result) => Ok(result),
@@ -275,16 +347,19 @@ impl KubernetesExecutor {
         }
     }
 
-    /// The pod's life once created: the workspace in, the gate, the scanner, its output, its writes back.
+    /// The pod's life once created: the workspace in, the gate, the scanner, its output, its bounded output, its
+    /// writes back.
+    #[allow(clippy::too_many_arguments)] // What one run is, already worked out by `run_pod`: nothing to group.
     async fn drive(
         &self,
         pod: &str,
         request: &ContainerRun,
+        output: Option<&BoundedOutput>,
         sources: &[MountSource],
         sizes: &[u64],
         timeout: Duration,
         gated: bool,
-    ) -> Result<ContainerResult, Failure> {
+    ) -> Result<(ContainerResult, Option<CollectedOutput>), Failure> {
         let label = request.label.as_str();
         let settings = &*self.settings;
         self.await_receiving(pod, label).await?;
@@ -350,13 +425,60 @@ impl KubernetesExecutor {
             (String::new(), self.log(pod).await)
         };
 
+        let collected = match output {
+            Some(bounded) => Some(self.collect(pod, bounded, label).await?),
+            None => None,
+        };
         for (index, mount) in request.mounts.iter().enumerate() {
             if !mount.read_only {
                 let ceiling = pods::ceiling(mount, settings.output_bytes());
                 self.copy_back(pod, index, Path::new(&mount.source), ceiling, label).await?;
             }
         }
-        Ok(ContainerResult { stdout, stderr, exit_code: i64::from(exit_code) })
+        Ok((ContainerResult { stdout, stderr, exit_code: i64::from(exit_code) }, collected))
+    }
+
+    /// The bounded output's file and what the kernel says of its directory, read from the holder — the same answer
+    /// the Docker executor gives ([`CollectedOutput`]), so the plugins read it the same way. The size first: a file
+    /// past the ceiling is refused before a byte of it is read.
+    async fn collect(&self, pod: &str, bounded: &BoundedOutput, label: &str) -> Result<CollectedOutput, Failure> {
+        let file = format!("{}/{}", bounded.target, bounded.file);
+        let ceiling = bounded.bytes.min(self.settings.output_bytes());
+        let probe = collection_probe(bounded);
+        let answered = self.exec(pod, pods::HOLDER, &["sh", "-c", &probe], SMALL, label).await?;
+        let answer = String::from_utf8_lossy(&answered.stdout).into_owned();
+        let read = match probed(&answer, ceiling) {
+            Ok(Some(settled)) => settled,
+            Ok(None) => {
+                let content = self.exec(pod, pods::HOLDER, &["cat", &file], ceiling, label).await?;
+                if content.over_ceiling {
+                    OutputFile::TooLarge(ceiling.saturating_add(1))
+                } else if content.exit_code != 0 {
+                    // A file that could not be read is absent, not empty (0007): Java reads `cat`'s nothing as the
+                    // report, which the SARIF reader then refuses — same outcome, said here.
+                    return Err(Failure::Scanner(failed(
+                        label,
+                        format!("Its output could not be read back: {}", excerpt(&content.stderr)),
+                    )));
+                } else {
+                    OutputFile::Read(content.stdout)
+                }
+            }
+            Err(unreadable) => {
+                return Err(Failure::Scanner(failed(
+                    label,
+                    format!("Its output could not be read back: {unreadable}"),
+                )));
+            }
+        };
+        CollectedOutput::measured(bounded, &answer, read).ok_or_else(|| {
+            Failure::Scanner(failed(
+                label,
+                "Its output directory could not be measured, so whether a write was refused is unknown; the report is \
+                 not believed."
+                    .to_owned(),
+            ))
+        })
     }
 
     fn transfer_timeout(&self, bytes: u64) -> Duration {
@@ -631,7 +753,10 @@ impl KubernetesExecutor {
 
 impl ContainerExecutor for KubernetesExecutor {
     fn run<'a>(&'a self, run: &'a ContainerRun) -> BoxFuture<'a, Result<ContainerResult, RunnerError>> {
-        Box::pin(self.run_pod(run, self.settings.cut_off_from.is_some()))
+        Box::pin(async move {
+            let (result, _) = self.run_pod(run, None, self.settings.cut_off_from.is_some()).await?;
+            Ok(result)
+        })
     }
 
     /// Not yet: an image target is copied into the workspace by a pinned copy step (0045 §8), which is not built. A
@@ -666,6 +791,66 @@ impl ContainerExecutor for KubernetesExecutor {
     fn output_bytes(&self) -> u64 {
         self.settings.output_bytes()
     }
+
+    /// A plugin's run: its bounded output an `emptyDir` in memory of its size, read back from the holder; cosign's
+    /// registry login the mounted pull secret's entry ([`Settings::registry_credentials`]).
+    fn run_with<'a>(
+        &'a self,
+        run: &'a ContainerRun,
+        extras: &'a Extras,
+    ) -> BoxFuture<'a, Result<ExtendedResult, ExtendedError>> {
+        Box::pin(self.run_extended(run, extras))
+    }
+
+    /// Whether the mounted pull secret holds an entry for `reference`'s registry — never it. A secret that cannot be
+    /// read holds none: the run that asks for it says why.
+    fn registry_access_for(&self, reference: &str) -> RegistryAccess {
+        let held =
+            matches!(MountedPullCredentials::of(self.settings.registry_credentials.as_deref(), reference), Ok(Some(_)));
+        RegistryAccess { registry: registry_of(reference), credentials_held: held }
+    }
+}
+
+fn extended_failure(label: &str, message: String) -> ExtendedError {
+    ExtendedError::Failed { label: label.to_owned(), message }
+}
+
+/// A registry login's directory, erased once the run is over — on drop too, so a future given up half-way leaves none.
+struct Erasure(Option<PathBuf>);
+
+impl Drop for Erasure {
+    fn drop(&mut self) {
+        vectispire_container::pull_credentials::erase(self.0.take().as_deref());
+    }
+}
+
+/// What the holder runs once the tool has exited: `df` of the directory in bytes and in inodes, as the Docker
+/// executor's holder prints them, then what the file is — a link and anything but a regular file told apart, and a
+/// regular file's size, so that one past the ceiling is refused before a byte of it is read.
+pub fn collection_probe(bounded: &BoundedOutput) -> String {
+    let target = &bounded.target;
+    format!(
+        "df -P -k {target}; df -P -i {target}; f={target}/{}; if [ -L \"$f\" ]; then echo kind=other; elif [ ! -e \"$f\" \
+         ]; then echo kind=missing; elif [ ! -f \"$f\" ]; then echo kind=other; else echo kind=file size=$(wc -c < \
+         \"$f\"); fi",
+        bounded.file
+    )
+}
+
+/// The file as [`collection_probe`]'s answer settles it — missing, not a regular file, or too large — or `None` when it
+/// is a regular file within `ceiling`, which is then read. A size that is not a number is an error, where Java's
+/// `Long.parseLong` throws.
+pub fn probed(answer: &str, ceiling: u64) -> Result<Option<OutputFile>, String> {
+    if answer.contains("kind=missing") {
+        return Ok(Some(OutputFile::Missing));
+    }
+    let Some((_, size)) = answer.split_once("kind=file size=") else { return Ok(Some(OutputFile::NotRegular)) };
+    let size = vectispire_domain::java::read_long(vectispire_domain::java::strip(size))
+        .ok_or_else(|| format!("its holder gave a size that is not a number: \"{}\".", excerpt(size)))?;
+    Ok(match u64::try_from(size) {
+        Ok(size) if size > ceiling => Some(OutputFile::TooLarge(size)),
+        _ => None,
+    })
 }
 
 /// How a pod's run ended badly: the API server's failure, which the run wraps in "Kubernetes failed it", or a failure

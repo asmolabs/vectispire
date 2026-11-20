@@ -14,10 +14,15 @@ use std::collections::BTreeSet;
 use std::net::IpAddr;
 use std::path::Path;
 use std::time::Duration;
-use vectispire_container::{ContainerRun, Mount, ScannerLimits};
+use vectispire_container::bounded_output::{BoundedOutput, OutputFile};
+use vectispire_container::pull_credentials::MountedPullCredentials;
+use vectispire_container::{
+    ContainerExecutor, ContainerRun, ExtendedError, Extras, Mount, RegistryLogin, ScannerLimits,
+};
 use vectispire_kubernetes::address::{self, ClusterAddress};
+use vectispire_kubernetes::api::KubernetesApi;
 use vectispire_kubernetes::channels::ExecChannels;
-use vectispire_kubernetes::executor::{self, MatcherCache, Settings};
+use vectispire_kubernetes::executor::{self, KubernetesExecutor, MatcherCache, Settings};
 use vectispire_kubernetes::{KubernetesError, archives, choice, pods};
 use vectispire_testkit::read_json;
 
@@ -83,12 +88,27 @@ fn request(given: &Value) -> ContainerRun {
     run
 }
 
+/// The request's bounded output, as Java's record holds it.
+fn output(given: &Value) -> Option<BoundedOutput> {
+    given["output"].as_object().map(|output| {
+        BoundedOutput::with_inodes(
+            text(&output["target"]),
+            u64::try_from(int(&output["bytes"])).unwrap(),
+            text(&output["holderImage"]),
+            text(&output["file"]),
+            u32::try_from(int(&output["inodes"])).unwrap(),
+        )
+        .unwrap()
+    })
+}
+
 #[test]
 fn the_pods_the_runs_become() {
     let cases = read_json("kubernetes/pods.json");
     for case in cases.as_array().unwrap() {
         let name = text(&case["name"]);
         let request = request(&case["request"]);
+        let output = output(&case["request"]);
         let settings = settings(&case["settings"]);
         let sources: Vec<pods::MountSource> = case["sources"]
             .as_array()
@@ -104,6 +124,7 @@ fn the_pods_the_runs_become() {
         let pod = pods::pod(
             &pod_name,
             &request,
+            output.as_ref(),
             &settings,
             u64::try_from(int(&case["uid"])).unwrap(),
             u64::try_from(int(&case["gid"])).unwrap(),
@@ -421,4 +442,131 @@ async fn what_the_choice_refuses_at_start() {
         let refused = choice::check_resources(int(&case["cpuMillis"]), int(&case["memoryMiB"])).err();
         assert_eq!(refused.as_deref(), case["refused"].as_str());
     }
+}
+
+#[test]
+fn the_bounded_output_collected() {
+    let file = read_json("kubernetes/collection.json");
+    for probe in file["probes"].as_array().unwrap() {
+        let bounded = output(&serde_json::json!({ "output": probe })).unwrap();
+        assert_eq!(executor::collection_probe(&bounded), text(&probe["script"]), "the probe of {bounded:?}");
+    }
+    for case in file["answers"].as_array().unwrap() {
+        let answer = text(&case["answer"]);
+        let ceiling = u64::try_from(int(&case["ceiling"])).unwrap();
+        let said = executor::probed(answer, ceiling);
+        if case.get("thrown").is_some() {
+            assert!(said.is_err(), "{answer:?}: Java throws, and the run fails; this read {said:?}");
+            continue;
+        }
+        let settled = match said.unwrap_or_else(|error| panic!("{answer:?}: {error}")) {
+            None => Value::Null,
+            Some(OutputFile::Missing) => serde_json::json!({"kind": "missing"}),
+            Some(OutputFile::NotRegular) => serde_json::json!({"kind": "notRegular"}),
+            Some(OutputFile::TooLarge(size)) => serde_json::json!({"kind": "tooLarge", "size": size}),
+            Some(OutputFile::Read(_)) => serde_json::json!({"kind": "read"}),
+        };
+        assert_eq!(settled, case["settled"], "{answer:?} within {ceiling}");
+    }
+}
+
+/// An executor whose API server is never reached: what is decided before a pod is created.
+fn unreachable_executor(registry_credentials: Option<std::path::PathBuf>) -> KubernetesExecutor {
+    let api = KubernetesApi::with_token(
+        "https://127.0.0.1:1",
+        vectispire_domain::secret::Secret::new("t"),
+        &vectispire_tls::TlsTrust::BuiltIn,
+    )
+    .unwrap();
+    let settings = Settings::new(
+        "ns",
+        "a",
+        executor::HELPER_IMAGE,
+        "1000:1000",
+        Duration::from_secs(60),
+        ScannerLimits::default_for_this_host(),
+        Map::new(),
+        None,
+        None,
+    )
+    .unwrap()
+    .with_registry_credentials(registry_credentials);
+    KubernetesExecutor::new(api, settings)
+}
+
+#[tokio::test]
+async fn the_registry_login_mounted() {
+    let cases = read_json("kubernetes/registry-login.json");
+    let root = tempfile::tempdir().unwrap();
+    for (index, case) in cases.as_array().unwrap().iter().enumerate() {
+        let name = text(&case["name"]);
+        let mounted = case["mounted"].as_bool().unwrap().then(|| {
+            let directory = root.path().join(format!("secret-{index}"));
+            std::fs::create_dir_all(&directory).unwrap();
+            if let Some(config) = case["config"].as_str() {
+                std::fs::write(directory.join("config.json"), config).unwrap();
+            }
+            directory
+        });
+        let executor = unreachable_executor(mounted.clone());
+        for answer in case["references"].as_array().unwrap() {
+            let reference = text(&answer["reference"]);
+            let access = executor.registry_access_for(reference);
+            assert_eq!(
+                serde_json::json!({"registry": access.registry, "credentialsHeld": access.credentials_held}),
+                answer["access"],
+                "{name}: the access to {reference}"
+            );
+            match MountedPullCredentials::of(mounted.as_deref(), reference) {
+                Err(unreadable) => {
+                    let path = mounted.as_ref().unwrap().display().to_string();
+                    let said = unreadable.to_string().replace(&path, "<configuration>");
+                    assert_eq!(said, text(&answer["unreadable"]), "{name}: {reference}");
+                    // And the run asking for that login fails with it, before any pod — never anonymously.
+                    let mut run = ContainerRun::new(executor::HELPER_IMAGE, vec!["true".into()], vec![], "plugin x");
+                    run.user = Some("1000:1000".into());
+                    let login =
+                        RegistryLogin { reference: reference.to_owned(), directory: root.path().join("logins") };
+                    match executor.run_with(&run, &Extras { output: None, login: Some(login) }).await {
+                        Err(ExtendedError::Failed { label, message }) => {
+                            assert_eq!((label.as_str(), message.replace(&path, "<configuration>")), ("plugin x", said));
+                        }
+                        other => panic!("{name}: {reference}: {other:?}"),
+                    }
+                }
+                Ok(None) => assert!(
+                    answer.get("login").is_some_and(Value::is_null),
+                    "{name}: {reference}: Java hands a login, this none"
+                ),
+                Ok(Some(credentials)) => {
+                    let written = credentials.write_under(&root.path().join("written")).unwrap();
+                    let file = std::fs::read_to_string(written.join("config.json")).unwrap();
+                    vectispire_container::pull_credentials::erase(Some(&written));
+                    assert!(!written.exists(), "{name}: erased");
+                    let said =
+                        format!("cosign said: {file} robot:s3cret-pull s3cret-pull tok-123 b3RoZXI6b3RoZXI= other");
+                    assert_eq!(
+                        serde_json::json!({
+                            "registry": credentials.registry(),
+                            "configuration": file,
+                            "redacted": credentials.redact(&said),
+                        }),
+                        answer["login"],
+                        "{name}: {reference}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_bounded_output_without_its_user_is_refused_before_any_pod() {
+    let output = BoundedOutput::new("/out", 4096, executor::HELPER_IMAGE, "report.json").unwrap();
+    let run = ContainerRun::new(executor::HELPER_IMAGE, vec!["true".into()], vec![], "plugin x");
+    let refused = unreachable_executor(None).run_with(&run, &Extras { output: Some(output), login: None }).await;
+    assert!(
+        matches!(&refused, Err(ExtendedError::Refused(message)) if message == "A bounded output needs the user it belongs to."),
+        "{refused:?}"
+    );
 }

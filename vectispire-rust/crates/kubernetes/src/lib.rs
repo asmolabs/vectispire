@@ -14,8 +14,14 @@
 //! WebSocket framing is written here ([`websocket`]), and the part of the exec protocol that can be got wrong is
 //! held apart from the socket ([`channels`]), as Java holds it in `ExecChannels`.
 //!
+//! **Plugins run here as on Docker.** A bounded output is a memory `emptyDir` of its size, written by the plugin and
+//! read back and measured by the holder once it has exited; a registry login is the mounted pull secret's entry for the
+//! image's registry, copied in read-only with `DOCKER_CONFIG` naming it, redacted from what the tool and its failures
+//! say, and erased after the pod ([`executor`]).
+//!
 //! **Held to the Java executor by `reference/kubernetes/`**: the pods a run becomes, the probes, the scripts, the
-//! address checks, the exec framing, a pod's status read as a failure, and the archive brought back.
+//! address checks, the exec framing, a pod's status read as a failure, the archive brought back, the bounded output's
+//! probe and what its answer settles, and the registry login handed over.
 
 pub mod address;
 pub mod api;
