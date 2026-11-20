@@ -1,8 +1,8 @@
 # The Rust code's security checks
 
 What every change under `vectispire-rust/` passes, where it runs, and what each one is for. They are the
-steps of CI's `rust` and `rust-image` jobs (`.github/workflows/ci.yml`) and of the nightly `rust-fuzz`
-job (`nightly.yml`). `../check.sh` runs the per-push ones locally, in the same order. The cargo
+steps of CI's `rust`, `rust-image` and `rust-image-arm64` jobs (`.github/workflows/ci.yml`) and of the
+nightly `rust-fuzz` and `agent-conformance` jobs (`nightly.yml`). `../check.sh` runs the per-push ones locally, in the same order. The cargo
 subcommands among them — cargo-deny, cargo-vet, cargo-nextest, cargo-cyclonedx, cargo-fuzz — are installed by
 `install-tools.sh` at the versions `tools.txt` pins, locally and in CI alike, so a version changes in one
 file.
@@ -21,7 +21,8 @@ says how, so that the next person can repeat it rather than believe it.
 | `cargo vet --locked` (`../supply-chain/`) | a crate neither audited by an imported set (Mozilla, Google, Bytecode Alliance, Zcash, ISRG) nor exempted by name and version | `rust` | a new dependency added |
 | `semgrep.sh` (`semgrep/rust.yml`) | certificate checks switched off, an HTTP client built outside `crates/tls`, a redirect followed, a program started, a `Secret` exposed in a log line, a weak or seeded RNG | `rust` | `danger_accept_invalid_certs(true)` added |
 | gitleaks | a credential in the history — the `secrets` job already reads every commit, `vectispire-rust/` included | `secrets` | the port's own fixtures, rewritten after it flagged three |
-| `reproducible-image.sh` | an image that differs between two builds of one commit from nothing | `rust-image` | a build-time value written into the image |
+| `reproducible-image.sh` | an image that differs between two builds of one commit from nothing, per platform | `rust-image` (amd64), `rust-image-arm64` (arm64, on the arm runner) | a build-time value written into the image |
+| `../../scripts/agent-conformance.sh` | a difference between what the control plane recorded of the Java agent's and the Rust agent's scans of the same composition — status, failed steps, absent vs empty, plugins, findings, fingerprints — not accepted with its reason in `ci/agent-conformance/accepted-differences.txt`; an accepted line no difference used | nightly `agent-conformance` | the Rust run's answers altered by hand — one issue's fingerprint, and a failed scan's `examinedTypes` from `null` to `[]` — refused as three differences; an accepted line nothing matched, refused as unused (2026-11-20) |
 | syft + grype, at `ScannerImages`' digests | a fixable high or critical in the image; a scan that saw too few crates in the binary (cargo-auditable's list missing) | `rust-image` | the image built without `cargo auditable` |
 | cargo-cyclonedx | — (an artifact: the CycloneDX SBOM of the agent's resolved crates) | `rust-image` | — |
 | checkov | the Dockerfile's policy (non-root, pinned base, no `latest`…), by name as well as in the directory walk | `dockerfile-policy` | `USER 1000:1000` removed |

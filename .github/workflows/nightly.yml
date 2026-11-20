@@ -417,3 +417,33 @@ jobs:
         env:
           VECTISPIRE_TEST_ENGINES: mysql
         run: crates/cp-contract/scripts/replay-goldens.sh "$RUNNER_TEMP/goldens"
+
+  # **The Rust agent beside the Java one, on the same composition** (vectispire-rust/README.md, "Image and
+  # side-by-side conformance"). The control plane and both agents built at the night's commit, the composition
+  # check run through each agent on a fixture planted identically, and what the control plane recorded of every
+  # scan compared — status, failed steps, absent vs empty, plugins, findings, issues and their fingerprints. A
+  # difference not in ci/agent-conformance/accepted-differences.txt, with its reason, is a red job.
+  #
+  # **This job is what `release.yml` waits on before it signs the Rust image**: two weeks of nights with no
+  # difference. Until then the image is built and checked (`rust-image`) and published nowhere.
+  agent-conformance:
+    runs-on: ubuntu-24.04
+    # Two composition checks (some 10 minutes each once the scanners are pulled) and three image builds.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f Dockerfile -t vectispire:conformance .
+      - run: docker build -f Dockerfile.agent -t vectispire-agent:conformance .
+      - run: docker build -f vectispire-rust/Dockerfile.agent -t vectispire-agent-rs:conformance vectispire-rust
+      - name: the same composition through each agent, compared
+        env:
+          CONTROL_PLANE_IMAGE: vectispire:conformance
+          JAVA_AGENT_IMAGE: vectispire-agent:conformance
+          RUST_AGENT_IMAGE: vectispire-agent-rs:conformance
+        run: ./scripts/agent-conformance.sh "$RUNNER_TEMP/conformance"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: agent-conformance
+          path: ${{ runner.temp }}/conformance/
+          retention-days: 30
