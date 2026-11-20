@@ -440,6 +440,9 @@ jobs:
           CONTROL_PLANE_IMAGE: vectispire:conformance
           JAVA_AGENT_IMAGE: vectispire-agent:conformance
           RUST_AGENT_IMAGE: vectispire-agent-rs:conformance
+          # Each step's start and end in the Rust agent's log, kept with the run's artifact
+          # (`rust.containers.log`): a scan that stays `scanning` then says which step it is in.
+          AGENT_RUST_LOG: info,vectispire_runner=debug
         run: ./scripts/agent-conformance.sh "$RUNNER_TEMP/conformance"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

@@ -211,15 +211,31 @@ build time, so two builds on two days are the same only while 3.22 has not moved
 **A drop-in for the Java agent's image**: user 1000:1000, `HOME=/home/vectispire` (owned by 1000, 0700,
 where Jib's is 0777), a `/tmp` (1777), and the Java agent's variables read where it reads them —
 `VECTISPIRE_*`, `DOCKER_HOST`, `SPRING_CONFIG_IMPORT`'s config trees for the token and the signing key,
-`JDK_JAVA_OPTIONS`' `-Djava.io.tmpdir=` and `-Duser.home=`. What it does not take:
+`JDK_JAVA_OPTIONS`' `-Djava.io.tmpdir=` and `-Duser.home=`. On the Docker Compose install, setting the
+`agent` service's image to this one is the whole change:
 
-- **`sh`.** The composition's `agent-work-dir` runs `chmod` with the agent's image; with this one it needs
-  another (`AGENT_WORK_DIR_IMAGE` in `scripts/composition-scan-check.sh`).
-- **`-Djavax.net.ssl.trustStore=` (PKCS12)**, which the chart sets from `agents.trustStore`: this agent reads
-  a PEM bundle from `VECTISPIRE_TLS_CA_BUNDLE`. A chart installation with a trust store of its own is not a
-  drop-in yet.
-- **`/app/LICENSE` and `/app/NOTICE`**, which the Java images carry: the build context is `vectispire-rust/`,
-  which holds neither. To add before the image is published.
+- **No shell needed.** The composition's `agent-work-dir` (one `chown` and one `chmod` of the agent's
+  directory, as root, before the agent starts) runs the **control plane's** image since 2026-11-20, not the
+  agent's: it needs `sh`, which this image does not have on purpose, and the control plane's is already
+  there — `agent` depends on it in the same file. The Java image keeps working unchanged; nothing is added
+  to this one. (A subcommand of the binary doing the same was the alternative: it would have had to be
+  run as root from this image while the Java image needs `sh -c`, so the composition could not name one
+  entrypoint for both.)
+- **`/app/LICENSE` and `/app/NOTICE`**, where the Java images carry theirs, and beside them what a static
+  binary cannot carry inside itself: `/app/THIRD-PARTY-LICENSES`, every crate linked in with the licence it
+  declares and every licence file it ships, and the C libraries built from source with their own licences —
+  libgit2 (GPL-2.0 with its linking exception), libssh2, zlib, OpenSSL — and `/app/RUST-STD-COPYRIGHT.html`,
+  the standard library's notices from the pinned toolchain (musl and libunwind, linked statically). `LICENSE`
+  is the repository's, copied into this build context; `NOTICE` is this image's own (the repository's
+  describes the jars and Alpine). The list is generated from `Cargo.lock` and **committed**, not generated
+  in the build, so the image stays reproducible by construction: `security/third-party-licences.py` writes
+  it, and `security/third_party_licences_test.py` (in `check.sh` and CI's `rust` job) fails when it is stale,
+  when `NOTICE` does not name a licence the graph carries, or when `LICENSE` differs from the repository's —
+  `security/mutants/agent-compose-dropin.py`. A dependency change therefore runs the script in the same diff.
+
+Not a drop-in yet: **`-Djavax.net.ssl.trustStore=` (PKCS12)**, which the chart sets from `agents.trustStore`:
+this agent reads a PEM bundle from `VECTISPIRE_TLS_CA_BUNDLE`. A chart installation with a trust store of its
+own is not a drop-in yet.
 
 **Side by side.** `../scripts/agent-conformance.sh` runs `scripts/composition-scan-check.sh` in agent mode
 twice against one control plane image — through the Java agent, then the Rust agent — on a fixture planted
@@ -228,7 +244,24 @@ scan (`DETAIL_DIR`: the scan's detail and its target's issues), and `../scripts/
 compares them after setting aside ids, instants and durations: status, failed steps and their sentences,
 `examinedTypes` null vs empty, plugins, findings, and every issue with its fingerprint. A difference must be
 listed in `../ci/agent-conformance/accepted-differences.txt` with its reason, and a line no difference used
-fails too. The nightly's `agent-conformance` job runs it on the images built at the night's commit.
+fails too. The nightly's `agent-conformance` job runs it on the images built at the night's commit, and keeps
+each side's whole control-plane and agent logs, timestamped (`java.containers.log`, `rust.containers.log`:
+`CONTAINER_LOG`), so that a red night says what the agent was doing, not only that a scan never finished.
+With `AGENT_RUST_LOG=info,vectispire_runner=debug` (the nightly sets it) the Rust agent also logs each step's
+start and end under the scan's span: the last step started and never done is where a scan is.
+
+*Why:* one early run left the Rust agent's first scan `scanning` for 900 s on an overloaded machine, a rerun
+passed, and the log had gone with the containers. Measured again on 2026-11-20 — once unloaded (Java and Rust,
+identical), then with 10 and with 20 busy loops in the Docker VM plus as many on the host (the control plane
+needed 228 s and 378 s to become healthy): every check passed, the first scan in 98 s and 101 s, no missed
+heartbeat, no failed claim, every step ending well inside its bound (IaC 36–45 s, SAST 29–34 s). Nothing in
+the agent waits without a bound — the clone runs on a blocking thread under libgit2's timeouts, each scanner
+under its 15-minute wait, every control-plane call under its own timeout, and the socket proxy cuts a stream
+silent for 10 minutes. What would hold a scan `scanning` past 900 s without any defect is a step legitimately
+that slow, or **a claim whose answer is lost**: a control plane too starved to answer within the wait plus 30 s
+assigns the scan, the agent gives up on the call ("Could not claim"), and the scan waits for its lease to
+lapse. The Java agent has the same bound and the same exposure; closing it is a protocol change (a claim the
+agent can repeat and get the same scan back), not an agent fix.
 
 **The rule for signing.** `release.yml` does not build, sign or publish this image. It starts to only after
 **fourteen consecutive nightly `agent-conformance` runs green** — no difference outside the accepted list,
@@ -352,7 +385,7 @@ additively.
 | **Workspace, census, API discovery** — *done* (branch `claude/rust-agent-census-api-156251`) | `crates/scanners/src/{census,manifest,api_discovery}.rs` and their readers (`source_files`, `walk`, `pom`, `properties`, `jackson_tree`), `reference/workspace/` | **Done** — `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` hold to `reference/workspace/` (176 trees, hostile ones among them); the runner reads the manifest and the census before the containers and runs the discovery as a step (`runner::read_in_process`), the census kept for the plugins stream. 63/63 mutants killed (`security/mutants/agent-census-api.py`); two parsers fuzzed nightly (`project_manifest`, `api_discovery`). |
 | **Plugins and bundled rules** — *done* 2026-11-19 (branch `claude/rust-agent-plugins-cosign-18a640`) | `crates/scanners/src/{plugins,sarif}.rs`, `crates/container/src/{bounded_output,run_with,pull_credentials}.rs`, `crates/domain/src/plugin_{manifest,signature,image}.rs`, `reference/plugins/` | Plugin steps, the bounded output holder (`ContainerRunner::run_with`, beside `run`), registry login and pull credentials, and `ImageSignatureVerifier` through the pinned cosign image — every decision held to `reference/plugins/`; a real keyless-signed plugin verified against Sigstore and run, another signer and an unsigned image refused, an overflowing output refused (`scanners/tests/plugins_through_the_proxy.rs`, Docker and the network); `security/mutants/agent-plugins.py`. **Left**: the built-in worker (`cp-app`) has no plugin source yet (every plugin absent, `PluginProvider.NONE`'s sentence). |
 | **Kubernetes executor** — *done* (branch `claude/rust-agent-kubernetes-1d5565`) | `crates/kubernetes/**`, `crates/agent/src/executor.rs`; additions to `crates/container` (the `ContainerExecutor` seam, `ContainerRun.entrypoint`, `Mount.writable_bytes`) and the scanners' declared entrypoints | `VECTISPIRE_AGENT_EXECUTOR=kubernetes` chooses it at start, as Java does, with the chart's variables; the agent announces `kubernetes` and no image target. Held to `reference/kubernetes/` (all equal), and run on k3s 1.34 under the chart's Role by `crates/kubernetes/tests/on_k3s.rs` — Java's `KubernetesExecutorTest` and `ExecutorChoiceClusterTest`, and gitleaks, checkov, semgrep and syft each as a pod. Plugins run on it since 2026-11-20 (branch `rust/agent-k8s-plugins`): a bounded output is a memory `emptyDir` of its size, the plugin's to write and the holder's to read back and measure, and cosign's registry login is the mounted pull secret's entry (`VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS`), copied in read-only, redacted from what the tool says, erased after — held to `reference/kubernetes/{pods,collection,registry-login}.json` and run on k3s. **Not yet**: image targets (Java's §8 is not built either), the matcher against its real 3 GB database, and the agent binary run *inside* a cluster (the chart and `scripts/kubernetes-scan-check.sh` with this image). |
-| **Image and side-by-side conformance** — *built* (branch `rust/agent-image-conformance`); the two weeks have not started | `Dockerfile.agent`, `measure.sh`, `security/reproducible-image.sh`; CI's `rust-image` and `rust-image-arm64`; `../scripts/agent-conformance.sh`, `../scripts/compare-agent-runs.py`, `../ci/agent-conformance/accepted-differences.txt`, the nightly's `agent-conformance` | Built twice from nothing, one digest, on amd64 and on arm64 (each natively). A drop-in for the Java image: user 1000:1000, `HOME=/home/vectispire` writable by it, a `/tmp`, the same variables read. The nightly runs `scripts/composition-scan-check.sh` in agent mode through the Java agent and the Rust agent, both built at the commit, on a fixture planted identically, and compares what the control plane recorded of every scan. See "The image, and the side-by-side conformance" below for the rule that decides when `release.yml` signs it. |
+| **Image and side-by-side conformance** — *built* (branch `rust/agent-image-conformance`); the two weeks have not started | `Dockerfile.agent`, `measure.sh`, `security/reproducible-image.sh`; CI's `rust-image` and `rust-image-arm64`; `../scripts/agent-conformance.sh`, `../scripts/compare-agent-runs.py`, `../ci/agent-conformance/accepted-differences.txt`, the nightly's `agent-conformance` | Built twice from nothing, one digest, on amd64 and on arm64 (each natively). A drop-in for the Java image: user 1000:1000, `HOME=/home/vectispire` writable by it, a `/tmp`, the same variables read, `/app/LICENSE`, `/app/NOTICE` and the third-party licences (2026-11-20, branch `rust/agent-compose-dropin`); on the Compose install the image swap is the whole change, `agent-work-dir` running the control plane's image. The nightly runs `scripts/composition-scan-check.sh` in agent mode through the Java agent and the Rust agent, both built at the commit, on a fixture planted identically, and compares what the control plane recorded of every scan. See "The image, and the side-by-side conformance" below for the rule that decides when `release.yml` signs it. |
 
 Two pieces are shared and owned by nobody in particular, so they change only additively: the
 `ScanArtifacts` type, which goes into `crates/protocol/src/wire.rs` and comes from the protocol

@@ -104,7 +104,8 @@ impl ExecutorWatch {
             }
             Ok(ExecutorsReported::NotSupported) => {
                 tracing::info!(
-                    "The control plane predates executor reports: it hands this agent work whatever its executor says.                      Executors: {}.",
+                    "The control plane predates executor reports: it hands this agent work whatever its executor says. \
+                     Executors: {}.",
                     describe_executors(&current)
                 );
                 self.state().unsupported = true;
@@ -431,7 +432,13 @@ impl<E: Execute> AgentLoop<E> {
 
         let lost = Arc::new(AtomicBool::new(false));
         let beating = self.start_heartbeat(scan, lost.clone());
-        let executed = self.execute.execute(assigned.task.clone()).await;
+        // Under the scan's span, so that what the runner says of its steps names the scan it is about — with two
+        // scans at once, a step's line would otherwise be nobody's.
+        let executed = tracing::Instrument::instrument(
+            self.execute.execute(assigned.task.clone()),
+            tracing::info_span!("scan", id = scan),
+        )
+        .await;
         beating.abort();
 
         let artifacts = match executed {

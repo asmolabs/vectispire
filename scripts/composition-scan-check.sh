@@ -82,7 +82,6 @@
 #   scripts/composition-scan-check.sh                        # images vectispire:latest, vectispire-agent:latest
 #   MODE=agent scripts/composition-scan-check.sh             # the scans run on the `with-agent` profile's agent
 #   CONTROL_PLANE_IMAGE=vectispire:x AGENT_IMAGE=vectispire-agent:x scripts/composition-scan-check.sh
-#   AGENT_WORK_DIR_IMAGE=alpine@sha256:… MODE=agent AGENT_IMAGE=vs-rs-agent …  # an agent image with no shell
 #   MODE=agent AGENT_IMAGE=ghcr.io/…@sha256:… EXPECT_AGENT_VERSION=0.11.2 …  # the previous release's agent
 #   DAEMON_DIR=/somewhere scripts/composition-scan-check.sh  # the scans' directories, on the daemon's host
 #   KEEP=1 scripts/composition-scan-check.sh                 # leave it up to poke at
@@ -100,10 +99,6 @@ MODE="${MODE:-embedded}"
 PROJECT="${PROJECT:-vectispire-scan-check}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-vectispire:latest}"
 AGENT_IMAGE="${AGENT_IMAGE:-vectispire-agent:latest}"
-# The image `agent-work-dir` prepares the agent's directory with: the agent's own by default, as the
-# composition has it. The Rust port's image is a lone static binary with no shell to run that `chmod`,
-# so its runs name another image here (any with `sh`, e.g. the fixture's base).
-AGENT_WORK_DIR_IMAGE="${AGENT_WORK_DIR_IMAGE:-$AGENT_IMAGE}"
 # Steps allowed to fail, by name and comma-separated — empty, so none, unless a run says which. For the
 # Rust port's agent, whose API discovery is not ported yet and which says so as a failed step.
 TOLERATED_STEPS="${TOLERATED_STEPS:-}"
@@ -120,6 +115,12 @@ DETAIL_DIR="${DETAIL_DIR:-}"
 # issues whatever the agents did. With the commit's dates fixed below, the fixture is then the same
 # commit, byte for byte, in both runs.
 FIXTURE_TOKEN="${FIXTURE_TOKEN:-}"
+# A file to write the control plane's and the agent's whole logs to, timestamped, when the run ends — passed
+# or failed. Empty: only the last eighty lines, and only on a failure.
+CONTAINER_LOG="${CONTAINER_LOG:-}"
+# The agent's log filter, for an agent that reads `RUST_LOG` (the Rust port's; the Java agent ignores it).
+# Empty: the image's default.
+AGENT_RUST_LOG="${AGENT_RUST_LOG:-}"
 # The fixture's servers: `git daemon`, since a repository URL is https, ssh or git — plain http is
 # refused, and a certificate for a throwaway host would be more fixture than check — and `sshd`.
 fixture_dir="$root/scripts/composition-scan-fixture"
@@ -160,6 +161,12 @@ cleanup() {
   if [ "$status" -ne 0 ]; then
     echo "── what the containers had to say"
     "${compose[@]}" logs --no-color --tail 80 control-plane agent 2>/dev/null || true
+  fi
+  # The whole of both logs, before `down` takes them: eighty lines say why a run failed, not what an
+  # executor was doing for the fifteen minutes a scan stayed `scanning` (a Rust run did, once, on an
+  # overloaded machine, and its log was gone with the containers).
+  if [ -n "$CONTAINER_LOG" ]; then
+    "${compose[@]}" logs --no-color --timestamps control-plane agent > "$CONTAINER_LOG" 2>&1 || true
   fi
   if [ -z "${KEEP:-}" ]; then
     "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
@@ -254,6 +261,9 @@ git clone -q --bare "$work/fixture/src" "$work/fixture/srv/fixture.git"
 chmod -R a+rX "$work/fixture/srv"
 
 # ── The override: local images, and no name that could be a real installation's.
+# Only when asked: an empty RUST_LOG is a filter that lets nothing below an error through.
+agent_environment=""
+[ -z "$AGENT_RUST_LOG" ] || agent_environment="environment: { RUST_LOG: \"$AGENT_RUST_LOG\" }"
 cat > "$work/override.yml" <<EOF
 services:
   db:
@@ -270,8 +280,10 @@ services:
   agent:
     image: $AGENT_IMAGE
     container_name: !reset null
+    $agent_environment
+  # The control plane's image, as the composition has it: the agent's image may have no shell.
   agent-work-dir:
-    image: $AGENT_WORK_DIR_IMAGE
+    image: $CONTROL_PLANE_IMAGE
   agent-docker-proxy:
     container_name: !reset null
   # The image's own command: \`git daemon\`, as its unprivileged user.

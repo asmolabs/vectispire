@@ -1705,6 +1705,10 @@ jobs:
         run: ./security/check-unsafe.sh
       - name: the lints that panic on input, at their ceilings
         run: ./security/lint-ceilings.sh
+      # The image's /app/THIRD-PARTY-LICENSES is committed, not generated in its build (reproducibility): this is
+      # what keeps it current — a dependency moved without it, or a licence NOTICE does not name, fails here.
+      - name: the image's notices, current
+        run: python3 security/third_party_licences_test.py
       # Includes `crates/agent/tests/isolation.rs`: no database client, server framework or test
       # support in the agent's resolved graph (decision 0003). **nextest, not `cargo test`**: every test a process
       # of its own, from every binary at once, where `cargo test` runs one binary after another and so waits on each

@@ -470,9 +470,15 @@ services:
       - vectispire-agent
       - vectispire-agent-docker
 
-  # The agent's directory, prepared like the control plane's by `work-dir` above.
+  # The agent's directory, prepared like the control plane's by `work-dir` above — and with the same
+  # image, the control plane's, not the agent's. The agent's image used to run it, which needs a `sh`
+  # and a `chmod` in that image: the Rust agent's has neither, on purpose (a static binary on
+  # `scratch`), so swapping the agent's image also meant naming a third one here. The control plane's
+  # is already pulled — the agent depends on it in this file — and the container is the same either
+  # way: root for one chown and one chmod, no network, nothing mounted but that one directory. It
+  # never sees the agent's secrets, which are mounted into `agent` alone.
   agent-work-dir:
-    image: *agent-image
+    image: *control-plane-image
     profiles:
       - with-agent
     user: "0:0"

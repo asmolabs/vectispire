@@ -309,7 +309,9 @@ impl Runner {
         let workspace = Workspace::create(&self.places.work)?;
         let mut artifacts = ScanArtifacts::default();
 
+        let timed = Timed::start("clone");
         self.clone_into(&repository, &workspace.source).await?;
+        timed.done();
         let sub_path = vectispire_domain::sub_path::normalize(repository.sub_path.as_deref())
             .map_err(|problem| permanent(format!("The repository's sub-path is refused: {problem}")))?;
         let branch = repository.branch.clone().unwrap_or_default();
@@ -317,9 +319,12 @@ impl Runner {
         let sub = (!sub_path.is_empty()).then_some(sub_path.as_str());
 
         // The census is kept for the plugins below: an incomplete one runs every plugin.
+        let timed = Timed::start("census, manifest and API discovery");
         let census = read_in_process(scan_root.clone(), &mut artifacts).await;
+        timed.done();
 
         if task.runs(Step::Dependencies) {
+            let timed = Timed::start("dependencies");
             let (step, sbom) = dependencies::tree_step(
                 self.containers.as_ref(),
                 &self.database,
@@ -338,6 +343,7 @@ impl Runner {
                 Err(StepError::DidNotRun(reason)) => artifacts.failed("dependencies", reason),
                 Err(StepError::Failed(error)) => artifacts.failed("dependencies", error.to_string()),
             }
+            timed.done();
         }
 
         // **Placed before the scanners, not inside the SAST step**: the secrets scanner needs its
@@ -347,28 +353,36 @@ impl Runner {
             .map_err(|error| transient(format!("the bundled rules could not be placed: {error}")))?;
 
         if task.runs(Step::Secrets) {
+            let timed = Timed::start("secrets");
             match secrets::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.gitleaks).await {
                 Ok(Some(found)) => artifacts.secrets = findings(&found),
                 Ok(None) => artifacts.failed("secrets", SECRETS_ABSENT),
                 Err(error) => artifacts.failed("secrets", error.to_string()),
             }
+            timed.done();
         }
         if task.runs(Step::Iac) {
+            let timed = Timed::start("IaC");
             match iac::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.checkov).await {
                 Some(found) => artifacts.iac = findings(&found),
                 None => artifacts.failed("IaC", IAC_ABSENT),
             }
+            timed.done();
         }
         if task.runs(Step::Sast) {
+            let timed = Timed::start("SAST");
             match self.sast(&task, &workspace, sub).await {
                 Ok(Some(found)) => artifacts.sast = findings(&found),
                 Ok(None) => artifacts.failed("SAST", SAST_ABSENT),
                 Err(reason) => artifacts.failed("SAST", reason),
             }
+            timed.done();
         }
 
         // Last, and each on its own: see `run_plugins`.
+        let timed = Timed::start("plugins");
         self.run_plugins(&task, &workspace.root, &scan_root, &census, &mut artifacts).await;
+        timed.done();
 
         artifacts.duration = started.elapsed();
         Ok(artifacts)
@@ -485,6 +499,26 @@ impl Runner {
         sast::scan(self.containers.as_ref(), &workspace.root, sub, &self.images.semgrep)
             .await
             .map_err(|error| error.to_string())
+    }
+}
+
+/// A step of a scan, said when it starts and when it ends, at debug level — under the scan's span, so the agent's log
+/// names the scan. **What makes a scan that stays `scanning` diagnosable**: one did, once, for fifteen minutes on an
+/// overloaded machine, and the log said only that it had been claimed. With `RUST_LOG=vectispire_runner=debug` the
+/// last "started" without its "done" is where it is; at the default level these cost nothing.
+struct Timed {
+    name: &'static str,
+    started: Instant,
+}
+
+impl Timed {
+    fn start(name: &'static str) -> Timed {
+        tracing::debug!("{name}: started");
+        Timed { name, started: Instant::now() }
+    }
+
+    fn done(self) {
+        tracing::debug!("{}: done in {} ms", self.name, self.started.elapsed().as_millis());
     }
 }
 
