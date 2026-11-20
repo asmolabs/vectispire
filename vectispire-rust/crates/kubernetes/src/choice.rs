@@ -184,6 +184,7 @@ pub async fn kubernetes(
                 credentials.display()
             ));
         }
+        settings = settings.with_registry_credentials(Some(credentials.to_path_buf()));
     }
     // After the settings: a placement they refuse stops the start whatever the cluster's address.
     let target =

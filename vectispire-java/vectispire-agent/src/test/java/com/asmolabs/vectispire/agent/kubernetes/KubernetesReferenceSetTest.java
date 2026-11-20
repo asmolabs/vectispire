@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.agent.kubernetes;
 import com.asmolabs.vectispire.agent.RustReference;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.MountedPullCredentials;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -131,6 +133,21 @@ class KubernetesReferenceSetTest {
                 settings("agent", "1000:1000", 1, tiny, null, null),
                 run("busybox@sha256:" + "5".repeat(64), List.of("sh", "-c", "echo $HOME"), List.of(), "", false, List.of()),
                 1000, 1000, List.of(), 0, Duration.ofSeconds(1), Duration.ZERO);
+        pod(cases, "a plugin's bounded output: a memory volume of its size, the plugin's to write, the holder's to read",
+                settings("agent", "1000:1000", 300, small, pool, null),
+                run("registry.example/acme/lint@sha256:" + "e".repeat(64), List.of("--src", "/repo/source", "--out",
+                        "/repo/output/results.sarif"), List.of(new ContainerRun.Mount("/w/analysed", "/repo/source", true, 0)),
+                        "plugin acme-lint", false, null,
+                        new ContainerRun.BoundedOutput("/repo/output", 1024 * 1024, "busybox@sha256:" + "5".repeat(64),
+                                "results.sarif")),
+                4242, 4243, List.of(new ScanPods.MountSource(false, "")), 4096, Duration.ofMinutes(10), Duration.ZERO);
+        pod(cases, "a bounded output beside the registry login, a declared entrypoint, online",
+                settings("agent", "1000:1000", 120, large, null, null),
+                run("registry.acme.internal/security/plugin@sha256:" + "d".repeat(64), List.of("scan"),
+                        List.of(new ContainerRun.Mount("/w/login/registry-login1", ContainerRunner.REGISTRY_LOGIN_MOUNT, true, 0)),
+                        "plugin private", true, List.of("/plugin"),
+                        new ContainerRun.BoundedOutput("/out", 65_537, KubernetesExecutor.HELPER_IMAGE, "report.json", 16)),
+                1000, 1000, List.of(new ScanPods.MountSource(false, "")), 120, Duration.ofSeconds(30), Duration.ZERO);
         RustReference.expect("kubernetes/pods.json", JSON.writeValueAsString(cases) + "\n");
     }
 
@@ -142,7 +159,12 @@ class KubernetesReferenceSetTest {
 
     private static ContainerRun run(String image, List<String> command, List<ContainerRun.Mount> mounts, String label,
             boolean network, List<String> entrypoint) {
-        return new ContainerRun(image, command, mounts, label, network, false, null, null, null, null, entrypoint);
+        return run(image, command, mounts, label, network, entrypoint, null);
+    }
+
+    private static ContainerRun run(String image, List<String> command, List<ContainerRun.Mount> mounts, String label,
+            boolean network, List<String> entrypoint, ContainerRun.BoundedOutput output) {
+        return new ContainerRun(image, command, mounts, label, network, false, null, null, output, null, entrypoint);
     }
 
     private static void pod(ArrayNode cases, String name, KubernetesExecutor.Settings settings, ContainerRun run, long uid,
@@ -171,6 +193,13 @@ class KubernetesReferenceSetTest {
         ArrayNode mounts = request.putArray("mounts");
         run.mounts().forEach(mount -> mounts.addObject().put("source", mount.source()).put("target", mount.target())
                 .put("readOnly", mount.readOnly()).put("writableBytes", mount.writableBytes()));
+        if (run.output() == null) {
+            request.putNull("output");
+        } else {
+            request.putObject("output").put("target", run.output().target()).put("bytes", run.output().bytes())
+                    .put("holderImage", run.output().holderImage()).put("file", run.output().file())
+                    .put("inodes", run.output().inodes());
+        }
         ArrayNode mountSources = entry.putArray("sources");
         sources.forEach(source -> mountSources.addObject().put("cached", source.cached()).put("name", source.name()));
         entry.put("uid", uid).put("gid", gid).put("workBytes", workBytes).put("timeoutSeconds", timeout.toSeconds())
@@ -344,6 +373,139 @@ class KubernetesReferenceSetTest {
             }
         }
         RustReference.expect("kubernetes/statuses.json", JSON.writeValueAsString(cases) + "\n");
+    }
+
+    // ------------------------------------------------------------------------- a plugin's bounded output and login
+
+    /**
+     * The holder's probe of a bounded output once the tool has exited, and what its answer settles before a byte of
+     * the file is read: missing, not a regular file, too large — or a file to read. {@code df}'s lines are read by
+     * {@code CollectedOutput.measured}, held by {@code plugins/measurements/}.
+     */
+    @Test
+    void theBoundedOutputCollected() throws Exception {
+        ObjectNode file = JSON.createObjectNode();
+        ArrayNode probes = file.putArray("probes");
+        for (ContainerRun.BoundedOutput bounded : List.of(
+                new ContainerRun.BoundedOutput("/repo/output", 1024 * 1024, KubernetesExecutor.HELPER_IMAGE, "results.sarif"),
+                new ContainerRun.BoundedOutput("/out", 4096, KubernetesExecutor.HELPER_IMAGE, "report-1_x.json", 2))) {
+            probes.addObject().put("target", bounded.target()).put("bytes", bounded.bytes())
+                    .put("holderImage", bounded.holderImage()).put("file", bounded.file()).put("inodes", bounded.inodes())
+                    .put("script", KubernetesExecutor.collectionProbe(bounded));
+        }
+        String df = "Filesystem 1024-blocks Used Available Capacity Mounted on\ntmpfs 1024 4 1020 1% /out\n"
+                + "Filesystem Inodes Used Available Capacity Mounted on\ntmpfs 16 2 14 13% /out\n";
+        ArrayNode answers = file.putArray("answers");
+        Object[][] inputs = {
+                {df + "kind=missing\n", 100L},
+                {df + "kind=other\n", 100L},
+                {df + "kind=file size=10\n", 100L},
+                {df + "kind=file size=100\n", 100L},
+                {df + "kind=file size=101\n", 100L},
+                {"", 100L},
+                {df, 100L},
+                {"kind=file size= 7 \n", 100L},
+                {"kind=file size=5\r\n", 100L},
+                {"kind=file size=5 \n", 100L},
+                {"kind=file size=+5\n", 100L},
+                {"kind=file size=-1\n", 100L},
+                {"kind=file size=٥\n", 100L},
+                {"kind=file size=9223372036854775807\n", 100L},
+                {"kind=file size=99999999999999999999\n", 100L},
+                {"kind=file size=x\n", 100L},
+                {"kind=file size=\n", 100L},
+                {"kind=file size=5 6\n", 100L},
+                {"kind=missing\nkind=file size=5\n", 100L},
+                {"kind=file size=5\nkind=missing\n", 100L},
+                {"kind=file size=4096\n", 4096L},
+                {"kind=file size=4097\n", 4096L},
+                {"kind=FILE size=5\n", 100L},
+        };
+        for (Object[] input : inputs) {
+            String answer = (String) input[0];
+            long ceiling = (long) input[1];
+            ObjectNode entry = answers.addObject().put("answer", answer).put("ceiling", ceiling);
+            try {
+                KubernetesExecutor.probed(answer, ceiling).ifPresentOrElse(settled -> {
+                    ObjectNode said = entry.putObject("settled");
+                    switch (settled) {
+                        case ContainerRunner.OutputFile.Missing missing -> said.put("kind", "missing");
+                        case ContainerRunner.OutputFile.NotRegular other -> said.put("kind", "notRegular");
+                        case ContainerRunner.OutputFile.TooLarge large -> said.put("kind", "tooLarge").put("size", large.size());
+                        case ContainerRunner.OutputFile.Read read -> said.put("kind", "read");
+                    }
+                }, () -> entry.putNull("settled"));
+            } catch (NumberFormatException unreadable) {
+                entry.put("thrown", unreadable.getClass().getSimpleName());
+            }
+        }
+        RustReference.expect("kubernetes/collection.json", JSON.writeValueAsString(file) + "\n");
+    }
+
+    /**
+     * The mounted pull secret as the Kubernetes executor reads it for a run asking for a registry's login: the entry
+     * chosen and the one-entry file handed to the tool, what the tool's words become, a secret that cannot be read
+     * — by its path, never its content — and what {@code registryAccessFor} says of each registry.
+     */
+    @Test
+    void theRegistryLoginMounted() throws Exception {
+        String robot = Base64.getEncoder().encodeToString("robot:s3cret-pull".getBytes(StandardCharsets.UTF_8)); // gitleaks:allow — invented
+        String[][] configurations = {
+                {"two registries, the plugin's alone handed over", "{\"auths\": {\"registry.acme.internal\": {\"auth\": \""
+                        + robot + "\"}, \"other.acme.internal\": {\"auth\": \"b3RoZXI6b3RoZXI=\"}}}"},
+                {"a key with a scheme and a path", "{\"auths\": {\"https://r.io/v2/\": {\"auth\": \"" + robot + "\"}}}"},
+                {"a token, no password", "{\"auths\": {\"r.io\": {\"identitytoken\": \"tok-123\"}}}"},
+                {"Docker Hub's legacy key", "{\"auths\": {\"https://index.docker.io/v1/\": {\"auth\": \"" + robot + "\"}}}"},
+                {"a credential helper's empty entry", "{\"auths\": {\"registry.acme.internal\": {}}, \"credsStore\": \"desktop\"}"},
+                {"not JSON", "{\"auths\": "},
+                {"an auth that is not base64", "{\"auths\": {\"r.io\": {\"auth\": \"!!!\"}}}"},
+                {"an auth without a colon", "{\"auths\": {\"r.io\": {\"auth\": \"bm9jb2xvbg==\"}}}"},
+                {"auths not an object", "{\"auths\": []}"},
+                {"no config.json in the directory", null},
+                {"no secret mounted", null},
+        };
+        List<String> references = List.of("registry.acme.internal/security/plugin@sha256:" + "d".repeat(64),
+                "r.io/acme/x@sha256:" + "a".repeat(64), "ghcr.io/acme/plugin@sha256:" + "e".repeat(64),
+                "acme/plugin@sha256:" + "f".repeat(64));
+        ArrayNode cases = JSON.createArrayNode();
+        int index = 0;
+        for (String[] configuration : configurations) {
+            Path mounted = null;
+            if (!configuration[0].equals("no secret mounted")) {
+                mounted = Files.createDirectories(directory.resolve("secret-" + index++));
+                if (configuration[1] != null) {
+                    Files.writeString(mounted.resolve("config.json"), configuration[1]);
+                }
+            }
+            KubernetesExecutor.Settings settings = new KubernetesExecutor.Settings("ns", "a", KubernetesExecutor.HELPER_IMAGE,
+                    "1000:1000", Duration.ofMinutes(1), ScannerLimits.DEFAULT, null).withRegistryCredentials(mounted);
+            KubernetesExecutor executor = new KubernetesExecutor(null, settings);
+            ObjectNode entry = cases.addObject().put("name", configuration[0]).put("mounted", mounted != null)
+                    .put("config", configuration[1]);
+            ArrayNode each = entry.putArray("references");
+            for (String reference : references) {
+                ObjectNode answer = each.addObject().put("reference", reference);
+                ContainerRunner.RegistryAccess access = executor.registryAccessFor(reference);
+                answer.putObject("access").put("registry", access.registry()).put("credentialsHeld", access.credentialsHeld());
+                try {
+                    Optional<MountedPullCredentials> credentials = MountedPullCredentials.of(mounted, reference);
+                    if (credentials.isEmpty()) {
+                        answer.putNull("login");
+                        continue;
+                    }
+                    Path written = credentials.get().writeUnder(directory.resolve("written"));
+                    String file = Files.readString(written.resolve("config.json"));
+                    MountedPullCredentials.erase(written);
+                    answer.putObject("login").put("registry", credentials.get().registry()).put("configuration", file)
+                            .put("redacted", credentials.get().redact("cosign said: " + file
+                                    + " robot:s3cret-pull s3cret-pull tok-123 b3RoZXI6b3RoZXI= other"));
+                } catch (IllegalStateException unreadable) {
+                    // The directory is this run's temporary one: named by a placeholder the Rust test puts back.
+                    answer.put("unreadable", unreadable.getMessage().replace(mounted.toString(), "<configuration>"));
+                }
+            }
+        }
+        RustReference.expect("kubernetes/registry-login.json", JSON.writeValueAsString(cases) + "\n");
     }
 
     // ------------------------------------------------------------------------------ the API server's address

@@ -1,0 +1,380 @@
+[ {
+  "name" : "two registries, the plugin's alone handed over",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"registry.acme.internal\": {\"auth\": \"cm9ib3Q6czNjcmV0LXB1bGw=\"}, \"other.acme.internal\": {\"auth\": \"b3RoZXI6b3RoZXI=\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : true
+    },
+    "login" : {
+      "registry" : "registry.acme.internal",
+      "configuration" : "{\"auths\":{\"registry.acme.internal\":{\"auth\":\"cm9ib3Q6czNjcmV0LXB1bGw=\"}}}",
+      "redacted" : "cosign said: {\"auths\":{\"registry.acme.internal\":{\"auth\":\"[redacted]\"}}} robot:[redacted] [redacted] tok-123 b3RoZXI6b3RoZXI= other"
+    }
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+}, {
+  "name" : "a key with a scheme and a path",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"https://r.io/v2/\": {\"auth\": \"cm9ib3Q6czNjcmV0LXB1bGw=\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : true
+    },
+    "login" : {
+      "registry" : "r.io",
+      "configuration" : "{\"auths\":{\"r.io\":{\"auth\":\"cm9ib3Q6czNjcmV0LXB1bGw=\"}}}",
+      "redacted" : "cosign said: {\"auths\":{\"r.io\":{\"auth\":\"[redacted]\"}}} robot:[redacted] [redacted] tok-123 b3RoZXI6b3RoZXI= other"
+    }
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+}, {
+  "name" : "a token, no password",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"r.io\": {\"identitytoken\": \"tok-123\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : true
+    },
+    "login" : {
+      "registry" : "r.io",
+      "configuration" : "{\"auths\":{\"r.io\":{\"identitytoken\":\"tok-123\"}}}",
+      "redacted" : "cosign said: {\"auths\":{\"r.io\":{\"identitytoken\":\"[redacted]\"}}} robot:s3cret-pull s3cret-pull [redacted] b3RoZXI6b3RoZXI= other"
+    }
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+}, {
+  "name" : "Docker Hub's legacy key",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"https://index.docker.io/v1/\": {\"auth\": \"cm9ib3Q6czNjcmV0LXB1bGw=\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : true
+    },
+    "login" : {
+      "registry" : "https://index.docker.io/v1/",
+      "configuration" : "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"cm9ib3Q6czNjcmV0LXB1bGw=\"}}}",
+      "redacted" : "cosign said: {\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"[redacted]\"}}} robot:[redacted] [redacted] tok-123 b3RoZXI6b3RoZXI= other"
+    }
+  } ]
+}, {
+  "name" : "a credential helper's empty entry",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"registry.acme.internal\": {}}, \"credsStore\": \"desktop\"}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+}, {
+  "name" : "not JSON",
+  "mounted" : true,
+  "config" : "{\"auths\": ",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  } ]
+}, {
+  "name" : "an auth that is not base64",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"r.io\": {\"auth\": \"!!!\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Illegal base64 character 21"
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Illegal base64 character 21"
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Illegal base64 character 21"
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Illegal base64 character 21"
+  } ]
+}, {
+  "name" : "an auth without a colon",
+  "mounted" : true,
+  "config" : "{\"auths\": {\"r.io\": {\"auth\": \"bm9jb2xvbg==\"}}}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  } ]
+}, {
+  "name" : "auths not an object",
+  "mounted" : true,
+  "config" : "{\"auths\": []}",
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "unreadable" : "The registry credentials in <configuration> could not be read: Failed to parse docker configuration file"
+  } ]
+}, {
+  "name" : "no config.json in the directory",
+  "mounted" : true,
+  "config" : null,
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+}, {
+  "name" : "no secret mounted",
+  "mounted" : false,
+  "config" : null,
+  "references" : [ {
+    "reference" : "registry.acme.internal/security/plugin@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "access" : {
+      "registry" : "registry.acme.internal",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "r.io/acme/x@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "access" : {
+      "registry" : "r.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "ghcr.io/acme/plugin@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "access" : {
+      "registry" : "ghcr.io",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  }, {
+    "reference" : "acme/plugin@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "access" : {
+      "registry" : "https://index.docker.io/v1/",
+      "credentialsHeld" : false
+    },
+    "login" : null
+  } ]
+} ]
