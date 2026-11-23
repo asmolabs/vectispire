@@ -5,7 +5,8 @@ A mutant is `(name, path, old, new, tests)` (a seventh element, `followups`, is 
 - `path` is relative to the workspace (`vectispire-rust/`), `old` is the text of the guard exactly as it stands
   and must occur exactly once in that file, `new` is what replaces it;
 - `tests` is the arguments of one `cargo test` (without `cargo test --locked`), or a list of such lists run in
-  turn, the first red one killing the mutant;
+  turn, the first red one killing the mutant; a list that starts with `--exec` is a command of its own instead
+  (`["--exec", "python3", "security/x_test.py"]`), for a guard written in something other than Rust;
 - `followups` is a list of `(old, new)` pairs applied to the mutated text afterwards, for a guard whose closing
   has to change with its opening; each must occur exactly once in the mutated text.
 
@@ -77,10 +78,14 @@ def _check(mutants):
     return 1 if bad else 0
 
 
+def _command(args):
+    return list(args[1:]) if args and args[0] == "--exec" else ["cargo", "test", "--locked", *args]
+
+
 def _run_tests(tests, env, timeout):
     """'red', 'compile', 'hung' or 'green'."""
     for args in _runs(tests):
-        process = subprocess.Popen(["cargo", "test", "--locked", *args], cwd=ROOT, env=env, text=True,
+        process = subprocess.Popen(_command(args), cwd=ROOT, env=env, text=True,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
         try:
             stdout, stderr = process.communicate(timeout=timeout)
@@ -106,8 +111,8 @@ def main(mutants, *, timeout=600, env=None, description=""):
     mutants = [m for m in mutants if not words or any(w in m[0] for w in words)]
     if "--list" in flags:
         for index, mutant in enumerate(mutants, 1):
-            runs = " ; ".join(" ".join(r) for r in _runs(mutant[4]))
-            print(f"{index:3}  {mutant[0]}  [{mutant[1]}]  cargo test {runs}")
+            runs = " ; ".join(" ".join(_command(r)) for r in _runs(mutant[4]))
+            print(f"{index:3}  {mutant[0]}  [{mutant[1]}]  {runs}")
         print(f"{len(mutants)} mutants")
         return 0
     if "--check" in flags:

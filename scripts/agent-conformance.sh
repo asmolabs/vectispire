@@ -32,21 +32,18 @@ rm -f "$out/java/"*.json "$out/rust/"*.json
 
 # One token for both fixtures: a secret's fingerprint is read off the value found.
 token="ghp_$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-36)"
-# The Rust image has no shell for `agent-work-dir`'s `chmod`: the fixture's base, one digest, does it.
-shell_image="$(sed -n 's/^FROM //p' "$root/scripts/composition-scan-fixture/Dockerfile")"
-
-run() { # name, agent image, work-dir image
+run() { # name, agent image
   echo "══ the $1 agent ($2)"
-  if MODE=agent CONTROL_PLANE_IMAGE="$CONTROL_PLANE_IMAGE" AGENT_IMAGE="$2" AGENT_WORK_DIR_IMAGE="$3" \
-       PROJECT="vectispire-conformance-$1" DETAIL_DIR="$out/$1" FIXTURE_TOKEN="$token" \
+  if MODE=agent CONTROL_PLANE_IMAGE="$CONTROL_PLANE_IMAGE" AGENT_IMAGE="$2" \
+       PROJECT="vectispire-conformance-$1" DETAIL_DIR="$out/$1" FIXTURE_TOKEN="$token" CONTAINER_LOG="$out/$1.containers.log" \
        "$root/scripts/composition-scan-check.sh" 2>&1 | tee "$out/$1.log"; then
     echo "passed" > "$out/$1.status"
   else
     echo "failed" > "$out/$1.status"
   fi
 }
-run java "$JAVA_AGENT_IMAGE" "$JAVA_AGENT_IMAGE"
-run rust "$RUST_AGENT_IMAGE" "$shell_image"
+run java "$JAVA_AGENT_IMAGE"
+run rust "$RUST_AGENT_IMAGE"
 
 echo "══ comparing what the control plane recorded of each scan (reference: the Java agent)"
 status=0

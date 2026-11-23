@@ -1,0 +1,67 @@
+Vectispire
+Copyright 2026 Laurent Boucher
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+The copyright is held personally, not by an employer or by the Asmolabs
+organisation that hosts the repository. The `com.asmolabs.vectispire` package name
+is a namespace, not an assignment of rights.
+
+--------------------------------------------------------------------------------
+This file is the NOTICE of the Rust agent's image
+--------------------------------------------------------------------------------
+
+The repository's NOTICE describes the Java images: the jars and the Alpine base
+they run on. This one describes the Rust agent's image, which holds a single
+statically linked program, /vectispire-agent, on an empty base (`scratch`):
+no operating-system package, no shell, nothing else.
+
+A static binary carries none of its dependencies' licence texts, where a jar
+carries them in META-INF. They are in the image beside this file:
+
+  /app/THIRD-PARTY-LICENSES   every Rust crate linked into the binary, with the
+                              licence it declares and every licence file it
+                              ships, and the C libraries compiled into it.
+                              Generated from Cargo.lock by
+                              vectispire-rust/security/third-party-licences.py,
+                              which also checks that this file names every
+                              licence listed there.
+  /app/RUST-STD-COPYRIGHT.html
+                              the Rust standard library's own notices, as the
+                              pinned toolchain ships them — musl libc and LLVM's
+                              libunwind among them, both linked statically.
+
+--------------------------------------------------------------------------------
+Licences of the components linked into the binary
+--------------------------------------------------------------------------------
+
+The crates are permissively licensed; most offer a choice ("MIT OR
+Apache-2.0"), and the list above carries every text they ship, so no choice
+is made on anyone's behalf. The licences found in the graph:
+
+  Apache-2.0 (also Apache-2.0 WITH LLVM-exception), MIT, BSD-3-Clause, ISC,
+  Zlib, BSL-1.0 and Unlicense (each offered beside MIT or Apache-2.0)
+
+  Unicode-3.0           the ICU4X crates (URL and IDNA handling): the Unicode
+                        data they embed
+  CDLA-Permissive-2.0   webpki-roots: Mozilla's list of certificate
+                        authorities, compiled in as the agent's default trust
+
+Apache-2.0 asks that a component's own NOTICE be passed on: the ones the crates
+ship are in /app/THIRD-PARTY-LICENSES with the rest.
+
+C libraries compiled from source and linked in, under their own licences,
+whatever the licence of the crate that builds them:
+
+  libgit2   GPL-2.0 with the libgit2 linking exception (git2 / libgit2-sys).
+            The exception permits linking it, unmodified, into a program under
+            any licence and distributing the result; libgit2's source is
+            https://github.com/libgit2/libgit2 at the version the crate names
+            (1.9.7). Its COPYING, with the notices of the code it bundles, is
+            in /app/THIRD-PARTY-LICENSES.
+  libssh2   BSD-3-Clause (libssh2-sys)
+  zlib      Zlib (libz-sys)
+  OpenSSL   Apache-2.0 (openssl-src, libssh2's cryptography)
+
+The scanners the agent runs are separate images, pulled from their publishers
+at run time; it bundles none of them. The repository's NOTICE lists them.

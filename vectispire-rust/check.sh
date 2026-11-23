@@ -36,6 +36,9 @@ cargo deny --locked check
 # rather than fetching them, so a run is the same tomorrow; `cargo vet` (unlocked) refreshes them.
 ./security/check-unsafe.sh
 ./security/lint-ceilings.sh
+# The image's notices (Dockerfile.agent's /app): THIRD-PARTY-LICENSES current with Cargo.lock, NOTICE naming every
+# licence in it, LICENSE the repository's — and the guards that decide it, on fixtures.
+python3 security/third_party_licences_test.py
 cargo vet --locked
 ./security/semgrep.sh
 
