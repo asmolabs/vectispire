@@ -150,6 +150,24 @@ tasks.register<Test>("integrationTest") {
     dependsOn(":vectispire-report-demo:jibDockerBuild")
     systemProperty("vectispire.reportDemo.image", "vectispire-report-demo:latest")
     systemProperty("vectispire.reportDemo.dir", rootProject.file("vectispire-report-demo").absolutePath)
+    useJUnitPlatform { excludeTags("real-matcher") }
+}
+
+/**
+ * **The matcher against its real database**, the Java agent's findings against the Rust agent's on one
+ * snapshot (`RealMatcherIntegrationTest`). Its own task, not a skip: the database is some 3 GB and the
+ * Rust side writes its answers first, so the nightly's `real-matcher` job runs `real_matcher.rs`, then this,
+ * with `VECTISPIRE_REAL_GRYPE_CACHE` and `VECTISPIRE_REAL_MATCHER_OUT`; it fails without them.
+ */
+tasks.register<Test>("realMatcherTest") {
+    description = "Compares the Java agent's dependency findings with the Rust agent's on the real Grype database."
+    group = "verification"
+    testClassesDirs = integrationTest.output.classesDirs
+    classpath = configurations["integrationTestRuntimeClasspath"] + integrationTest.output + sourceSets.main.get().output
+    useJUnitPlatform { includeTags("real-matcher") }
+    systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)
+    // Never up to date: the database it matches against changes daily, outside Gradle's sight.
+    outputs.upToDateWhen { false }
 }
 
 /**
