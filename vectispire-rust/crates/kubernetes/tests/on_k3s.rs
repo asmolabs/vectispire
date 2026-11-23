@@ -5,8 +5,9 @@
 //!
 //! Then the four scanners the Rust agent runs, each as a pod through the same scanner code a scan uses: gitleaks finds
 //! its plant and its report comes back through the writable mount, checkov and semgrep their findings, syft its
-//! inventory. **Not run here**: the matcher (grype) against its real database, whose download is some 3 GB — the
-//! cache it is served from is exercised with a generation of the test's own.
+//! inventory. The matcher (grype) against its real database, whose download is some 3 GB, only in the ignored
+//! `the_matcher_on_its_real_database_on_k3s`, run by the nightly's `real-matcher`; elsewhere the cache it is served
+//! from is exercised with a generation of the test's own.
 //!
 //! Needs Docker, and fails without it — a suite that skips itself reports green having checked nothing. One cluster
 //! per test function (a minute to start): the executor's runs, the scanners, the choice at start — which the mutation
@@ -605,4 +606,103 @@ fn chart_policies(cluster: &K3s, online_except: &str) {
     cluster.apply(&format!(
         "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata: {{name: scans-offline, namespace: {NAMESPACE}}}\nspec:\n  podSelector: {{}}\n  policyTypes: [Ingress, Egress]\n---\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata: {{name: scans-online, namespace: {NAMESPACE}}}\nspec:\n  podSelector: {{matchLabels: {{vectispire.dev/network: egress}}}}\n  policyTypes: [Egress]\n  egress:\n  - ports: [{{port: 53, protocol: UDP}}, {{port: 53, protocol: TCP}}]\n  - to: [{{ipBlock: {{cidr: 0.0.0.0/0, except: [{online_except}]}}}}]"
     ));
+}
+
+/// **The matcher against its real database, on k3s** — what the rest of this file proves with a generation of its own:
+/// the agent's `VulnerabilityDatabase` over the Kubernetes executor, so `db update` runs as a pod with the network, the
+/// 3 GB it writes is copied back to the agent's cache through the API server's exec stream, `db status` reads it back
+/// from a copy in, and the match of a real tree mounts the generation from the cache claim, seeded once.
+///
+/// Ignored, not skipped, as `crates/scanners/tests/real_matcher.rs`: it downloads the publisher's database. Run by the
+/// nightly's `real-matcher` job after that one, with the same variables: the agent's cache is
+/// `$VECTISPIRE_REAL_GRYPE_CACHE-k8s`, and when the Docker run matched against the same archive (`import.json`'s
+/// `source`), the findings here must be its findings, in its order.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "downloads the real Grype database (3 GB) into k3s: VECTISPIRE_REAL_GRYPE_CACHE, VECTISPIRE_REAL_MATCHER_OUT"]
+async fn the_matcher_on_its_real_database_on_k3s() {
+    let docker_cache =
+        PathBuf::from(std::env::var("VECTISPIRE_REAL_GRYPE_CACHE").expect("VECTISPIRE_REAL_GRYPE_CACHE"));
+    let out = PathBuf::from(std::env::var("VECTISPIRE_REAL_MATCHER_OUT").expect("VECTISPIRE_REAL_MATCHER_OUT"));
+    let root = PathBuf::from(format!("{}-k8s", docker_cache.display()));
+    std::fs::create_dir_all(&root).unwrap();
+    let cluster = K3s::start();
+    cluster.apply(&format!(
+        "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata: {{name: matcher-cache, namespace: {NAMESPACE}}}\nspec: {{accessModes: [ReadWriteOnce], resources: {{requests: {{storage: 16Gi}}}}}}"
+    ));
+    let limits = ScannerLimits { nano_cpus: 1_500_000_000, timeout: Duration::from_secs(900), ..limits(2048) };
+    let settings = Settings::new(
+        NAMESPACE,
+        "test-agent",
+        HELPER_IMAGE,
+        "1000:1000",
+        Duration::from_secs(600),
+        limits,
+        Map::new(),
+        Some(MatcherCache::new("matcher-cache", &root.join("generations"), "")),
+        None,
+    );
+    let run = std::sync::Arc::new(Executor::new(KubernetesExecutor::new(cluster.api(), settings.unwrap())));
+    let database = vectispire_scanners::vulnerability_database::VulnerabilityDatabase::with_defaults(
+        std::sync::Arc::clone(&run),
+        images::GRYPE,
+        &root,
+        Duration::from_secs(900),
+    );
+
+    let started = Instant::now();
+    let generation = database.mountable().await.expect("the real database, downloaded through a pod and published");
+    eprintln!("real-matcher on k3s: database ready in {:?}: {}", started.elapsed(), generation.display());
+    assert!(generation.join("6/vulnerability.db").metadata().unwrap().len() > 1024 * 1024 * 1024);
+
+    let temporary = tempfile::tempdir().unwrap();
+    let tree = directory(temporary.path(), "polyglot");
+    std::fs::set_permissions(&tree, std::fs::Permissions::from_mode(0o700)).unwrap();
+    copy_fixture(&vectispire_testkit::reference_root().join("dependencies/fixtures/polyglot"), &tree.join("source"));
+    let started = Instant::now();
+    let (step, _) = dependencies::tree_step(run.as_ref(), &database, images::SYFT, images::GRYPE, &tree, None).await;
+    let step = step.unwrap_or_else(|failed| panic!("the dependency step on k3s did not complete: {failed}"));
+    eprintln!(
+        "real-matcher on k3s: polyglot tree matched in {:?}: {} findings",
+        started.elapsed(),
+        step.dependencies.len()
+    );
+    assert!(step.dependencies.len() >= 10, "{} findings", step.dependencies.len());
+    let findings: Vec<serde_json::Value> =
+        step.dependencies.iter().map(|finding| serde_json::to_value(finding).unwrap()).collect();
+    std::fs::create_dir_all(&out).unwrap();
+    std::fs::write(out.join("rust-k8s-polyglot.json"), serde_json::to_string_pretty(&findings).unwrap()).unwrap();
+
+    let on_docker = std::fs::read_to_string(docker_cache.join("current"))
+        .ok()
+        .map(|name| docker_cache.join("generations").join(name.trim()));
+    let docker_findings = std::fs::read_to_string(out.join("rust-polyglot.json"));
+    match (on_docker.as_deref().and_then(archive), archive(&generation), docker_findings) {
+        (Some(docker), Some(here), Ok(docker_findings)) if docker == here => {
+            let docker_findings: Vec<serde_json::Value> = serde_json::from_str(&docker_findings).unwrap();
+            assert_eq!(findings, docker_findings, "the same archive, the same findings on k3s as on Docker");
+        }
+        other => {
+            eprintln!("real-matcher on k3s: not compared with the Docker run (another archive, or none): {other:?}")
+        }
+    }
+}
+
+/// Which archive a generation was unpacked from — `import.json`'s `source`.
+fn archive(generation: &Path) -> Option<String> {
+    let import = std::fs::read_to_string(generation.join("6/import.json")).ok()?;
+    serde_json::from_str::<serde_json::Value>(&import).ok()?.get("source")?.as_str().map(str::to_owned)
+}
+
+/// The reference set's fixture tree under its real names (`reference/dependencies/capture.sh`).
+fn copy_fixture(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if entry.file_type().unwrap().is_dir() {
+            copy_fixture(&entry.path(), &to.join(&name));
+        } else if let Some(real) = name.strip_suffix(".fixture") {
+            std::fs::copy(entry.path(), to.join(real)).unwrap();
+        }
+    }
 }

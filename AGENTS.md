@@ -129,7 +129,10 @@ too few crates, since a static binary shows none without cargo-auditable's list;
 twice on the arm runner. The nightly's `agent-conformance` runs the composition check through the Java agent and
 the Rust agent, both built at the commit, and fails on any difference in what the control plane recorded of their
 scans — fingerprints included — not listed in `ci/agent-conformance/accepted-differences.txt`; `release.yml` signs
-the Rust image only after two weeks of nights without one. The nightly's
+the Rust image only after two weeks of nights without one. The nightly's `real-matcher` downloads the matcher's real
+3.5 GB database through the Rust agent, on Docker and on k3s, and refuses any difference from the Java agent's findings
+and fingerprints on the same snapshot (`realMatcherTest`), and any update path that leaves less than the old database
+or absent. The nightly's
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
 check refuses and how it was proved is in `vectispire-rust/security/README.md`.
 

@@ -469,3 +469,68 @@ jobs:
           CONTROL_PLANE_IMAGE: vectispire:in-cluster
           AGENT_IMAGE: vectispire-agent-rs:in-cluster
         run: ./scripts/kubernetes-scan-check.sh
+
+  # **The matcher against its real database, through both agents** (vectispire-rust/README.md, "The matcher on its
+  # real database"). Every other check runs a fixture database of a few kilobytes and a gigabyte of filler; this one
+  # downloads the publisher's (3.5 GB unpacked on 2026-11-23) through the Rust agent's own `VulnerabilityDatabase` —
+  # the `fcntl` lock, `db update` into a staging directory, `db status` reading it back, the rename and the pointer —
+  # matches a polyglot tree and an Alpine image against it, then points the Java agent's `VulnerabilityDatabase` at
+  # the same cache and refuses any difference in the findings, their order, or the fingerprint the control plane
+  # gives each. Then the update path on the real database (a download killed half-way, a stale generation kept through
+  # a failed update and replaced whole by a completed one, two corrupted generations: each absent or the old one,
+  # never empty, never partial), and the same download through the Kubernetes executor on k3s. Not on pull requests:
+  # four downloads of 3.5 GB and a cluster.
+  real-matcher:
+    runs-on: ubuntu-24.04
+    # The downloads (one to five minutes each), k3s, and the copies of 3.5 GB through its API server.
+    timeout-minutes: 90
+    steps:
+      # Set here: a job's `env` cannot read the `runner` context.
+      - name: where the database and the answers go
+        run: |
+          echo "VECTISPIRE_REAL_GRYPE_CACHE=$RUNNER_TEMP/real-matcher/cache" >> "$GITHUB_ENV"
+          echo "VECTISPIRE_REAL_MATCHER_OUT=$RUNNER_TEMP/real-matcher/out" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # **Room for four copies of the database**: the cache, the scenarios' aged copy, and on k3s the agent's cache
+      # and the claim it seeds. `df` before and after says it ran.
+      - name: free the disk the database needs
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift
+          df -h /
+      - name: the pinned toolchain
+        working-directory: vectispire-rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
+            || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
+      - name: the Rust agent downloads the real database and matches a tree and an image against it
+        working-directory: vectispire-rust
+        run: |
+          mkdir -p "$VECTISPIRE_REAL_GRYPE_CACHE" "$VECTISPIRE_REAL_MATCHER_OUT"
+          cargo test -p vectispire-scanners --locked --test real_matcher -- --ignored --nocapture real_database_through
+      - name: the Java agent on the same snapshot, the same findings and fingerprints
+        working-directory: vectispire-java
+        run: ./gradlew --no-daemon :vectispire-common:realMatcherTest
+      - name: the update path on the real database
+        working-directory: vectispire-rust
+        run: cargo test -p vectispire-scanners --locked --test real_matcher -- --ignored --nocapture --skip real_database_through
+      - name: the same download and match through the Kubernetes executor, on k3s
+        working-directory: vectispire-rust
+        run: cargo test -p vectispire-kubernetes --locked --test on_k3s -- --ignored --nocapture the_matcher_on_its_real_database_on_k3s
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: real-matcher
+          path: ${{ runner.temp }}/real-matcher/out/
+          retention-days: 30
