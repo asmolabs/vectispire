@@ -149,7 +149,7 @@ find-msvc-tools 0.1.14 — MIT OR Apache-2.0
     [378f5840b258] LICENSE-MIT
 foldhash 0.2.0 — Zlib
     [1d4c38d56650] LICENSE
-form_urlencoded 1.2.2 — MIT OR Apache-2.0
+form_urlencoded 1.2.3 — MIT OR Apache-2.0
     [a60eea817514] LICENSE-APACHE
     [20c7855c364d] LICENSE-MIT
 futures-channel 0.3.34 — MIT OR Apache-2.0
@@ -605,7 +605,7 @@ universal-hash 0.5.1 — MIT OR Apache-2.0
     [6b50510a0400] LICENSE-MIT
 untrusted 0.9.0 — ISC
     [7abd9b6960dc] LICENSE.txt
-url 2.5.8 — MIT OR Apache-2.0
+url 2.5.9 — MIT OR Apache-2.0
     [a60eea817514] LICENSE-APACHE
     [b38f11f60967] LICENSE-MIT
 utf8_iter 1.0.4 — Apache-2.0 OR MIT
@@ -1339,7 +1339,7 @@ DEALINGS IN THE SOFTWARE.
     fastrand 2.5.0: LICENSE-APACHE
     ff 0.13.1: LICENSE-APACHE
     find-msvc-tools 0.1.14: LICENSE-APACHE
-    form_urlencoded 1.2.2: LICENSE-APACHE
+    form_urlencoded 1.2.3: LICENSE-APACHE
     git2 0.21.0: LICENSE-APACHE
     group 0.13.0: LICENSE-APACHE
     hashbrown 0.12.3: LICENSE-APACHE
@@ -1375,7 +1375,7 @@ DEALINGS IN THE SOFTWARE.
     tempfile 3.27.0: LICENSE-APACHE
     thread_local 1.1.10: LICENSE-APACHE
     unicase 2.10.0: LICENSE-APACHE
-    url 2.5.8: LICENSE-APACHE
+    url 2.5.9: LICENSE-APACHE
     uuid 1.28.0: LICENSE-APACHE
 --------------------------------------------------------------------------------
 
@@ -3683,7 +3683,7 @@ the following restrictions:
 
 --------------------------------------------------------------------------------
 [20c7855c364d] shipped by:
-    form_urlencoded 1.2.2: LICENSE-MIT
+    form_urlencoded 1.2.3: LICENSE-MIT
 --------------------------------------------------------------------------------
 
 Copyright (c) 2013-2016 The rust-url developers
@@ -5607,7 +5607,7 @@ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation a
 [b38f11f60967] shipped by:
     idna 1.1.0: LICENSE-MIT
     percent-encoding 2.3.2: LICENSE-MIT
-    url 2.5.8: LICENSE-MIT
+    url 2.5.9: LICENSE-MIT
 --------------------------------------------------------------------------------
 
 Copyright (c) 2013-2025 The rust-url developers
