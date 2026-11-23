@@ -22,6 +22,12 @@
 # the cluster; the scanner images are pulled by the cluster at the digests the product pins. Nothing is
 # installed on this machine but the k3s container, removed at the end.
 #
+# **Then over SSH, with the forge's host key pinned** (`agents.knownHosts`): the same tree served by `sshd` from the
+# fixture's image, cloned with a deployment key — and once more by another name of the same server, which the pin
+# does not list and which must be refused, not learnt: a pin the agent could write would be a list it records new
+# hosts into. The chart mounts the pin where the agent reads it, with no init container, since the Rust agent's
+# image has no `sh` to run one in.
+#
 # **Either agent's image**, installed the same way: the Java agent's by default, the Rust agent's with `AGENT=rust`
 # (built from `vectispire-rust/Dockerfile.agent`) or any image named by `AGENT_IMAGE`. Nothing below asks which one
 # runs — its trust store Secret carries the PKCS12 store and its PEM form, and the matcher's database is put in its
@@ -134,6 +140,17 @@ chmod -R a+rX "$work/fixture/srv"
 docker build -q -t vectispire-k8s-check-fixture-base:local "$fixture_dir" > /dev/null
 printf 'FROM vectispire-k8s-check-fixture-base:local\nCOPY srv /srv\n' > "$work/fixture/Dockerfile"
 docker build -q -t vectispire-k8s-check-fixture:local "$work/fixture" > /dev/null
+
+# ── The SSH fixture's keys: its host key, pinned in the chart's values, and the deployment key it accepts.
+mkdir -p "$work/ssh"
+ssh-keygen -q -t ed25519 -N '' -C k8s-check-host -f "$work/ssh/host_key"
+ssh-keygen -q -t ed25519 -N '' -C k8s-check-deploy -f "$work/ssh/deploy"
+cp "$work/ssh/deploy.pub" "$work/ssh/authorized_keys"
+chmod 644 "$work/ssh/"*
+SSH_HOST=ssh.scan-fixture.svc.cluster.local
+# Another Service in front of the same sshd: the same key, under a name the pin does not list.
+UNLISTED_HOST=ssh-unlisted.scan-fixture.svc.cluster.local
+pinned_line="$SSH_HOST $(cut -d' ' -f1,2 "$work/ssh/host_key.pub")"
 
 # ── The matcher's database, the composition check's fixture, imported by the pinned matcher itself into
 # the layout `VulnerabilityDatabase` publishes: a generation, `current` naming it, `checked` just now.
@@ -291,7 +308,50 @@ kind: Service
 metadata: {name: fixture, namespace: scan-fixture}
 spec: {selector: {app: fixture}, ports: [{port: 9418}]}
 EOF
+docker cp "$work/ssh/host_key" "$NAME:/tmp/ssh_host_key" && docker cp "$work/ssh/authorized_keys" "$NAME:/tmp/authorized_keys"
+k create secret generic ssh-fixture -n scan-fixture --from-file=host_key=/tmp/ssh_host_key \
+  --from-file=authorized_keys=/tmp/authorized_keys > /dev/null
+docker exec "$NAME" rm -f /tmp/ssh_host_key /tmp/authorized_keys
+# The same tree over SSH, as the composition check's `sshfixture` serves it: root, since sshd separates privileges
+# and installs the keys it is handed at start.
+k apply -f - > /dev/null <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: ssh, namespace: scan-fixture}
+spec:
+  selector: {matchLabels: {app: ssh}}
+  template:
+    metadata: {labels: {app: ssh}}
+    spec:
+      containers:
+      - name: sshd
+        image: docker.io/library/vectispire-k8s-check-fixture:local
+        imagePullPolicy: Never
+        securityContext: {runAsUser: 0}
+        command: [sh, -c]
+        args:
+        - >-
+          git config --system --add safe.directory '*' &&
+          install -d -o git -m 700 /home/git/.ssh && install -o git -m 600 /keys/authorized_keys /home/git/.ssh/ &&
+          install -m 600 /keys/host_key /etc/ssh/host_key &&
+          exec /usr/sbin/sshd -D -e -o HostKey=/etc/ssh/host_key -o PasswordAuthentication=no
+        ports: [{containerPort: 22}]
+        volumeMounts: [{name: keys, mountPath: /keys, readOnly: true}]
+        resources: {requests: {memory: 32Mi, cpu: 20m}}
+      volumes: [{name: keys, secret: {secretName: ssh-fixture}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: ssh, namespace: scan-fixture}
+spec: {selector: {app: ssh}, ports: [{port: 22}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: ssh-unlisted, namespace: scan-fixture}
+spec: {selector: {app: ssh}, ports: [{port: 22}]}
+EOF
 k rollout status deployment/mysql -n vectispire --timeout=300s > /dev/null || fail "MySQL did not start"
+k rollout status deployment/ssh -n scan-fixture --timeout=300s > /dev/null || fail "the SSH fixture did not start"
 
 # ── The chart, as an operator installs it: TLS at the Ingress, policies on, the Kubernetes executor.
 cat > "$work/values.yaml" <<EOF
@@ -330,6 +390,7 @@ agents:
   token: {secretName: vectispire-agent}
   signingKey: {secretName: vectispire-agent}
   trustStore: {secretName: vectispire-agent-trust, pemKey: ca.pem}
+  knownHosts: "$pinned_line"
   extraEnv:
     - {name: JAVA_TOOL_OPTIONS, value: "-Djavax.net.ssl.trustStorePassword=$truststore_password"}
   resources:
@@ -352,7 +413,7 @@ agents:
         podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}
         ports: [{port: 8443}]
       - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: scan-fixture}}
-        ports: [{port: 9418}]
+        ports: [{port: 9418}, {port: 22}]
 EOF
 chmod 644 "$work/values.yaml"
 echo "── installing the chart"
@@ -438,34 +499,39 @@ echo "── one repository, one scan"
 repository="$({ bearer "$session"; body '{"url":"git://fixture.scan-fixture.svc.cluster.local/fixture.git","branch":"main","name":"k8s-check"}'; } \
   | curl_ -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/repositories")"
 repo_id="$(printf '%s' "$repository" | json 'd["id"]' 2>/dev/null)" || fail "the fixture repository was refused: $repository"
-response="$(bearer "$session" | curl_ -K - -w '\n%{http_code}' -X POST "$base/api/v1/repositories/$repo_id/scan")"
-code="${response##*$'\n'}"; answer="${response%$'\n'*}"
-if [ "$code" = 200 ]; then
-  scan_id="$(printf '%s' "$answer" | json 'd["id"]')"
-else
-  # Queued by the schedule before this asked: the composition check's reading, the same scan either way.
-  scan_id="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans?repo_id=$repo_id" \
-    | json 'max((s["id"] for s in d if s["status"] in ("pending", "scanning")), default="")')"
-  [ -n "$scan_id" ] || fail "the scan was refused ($code): $answer"
-fi
-began=$SECONDS
-deadline=$(( $(date +%s) + 1800 ))
-while :; do
-  detail="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans/$scan_id")"
-  status="$(printf '%s' "$detail" | json 'd["scan"]["status"]')"
-  case "$status" in pending | scanning) ;; *) break ;; esac
-  [ "$(date +%s)" -lt "$deadline" ] || fail "scan $scan_id still $status after 1800s"
-  sleep 5
-done
-printf '%s' "$detail" | python3 -c '
+# Runs one scan of repository $1 to its end and leaves its detail in $detail.
+scan() {
+  local response code answer status began=$SECONDS deadline=$(( $(date +%s) + 1800 ))
+  response="$(bearer "$session" | curl_ -K - -w '\n%{http_code}' -X POST "$base/api/v1/repositories/$1/scan")"
+  code="${response##*$'\n'}"; answer="${response%$'\n'*}"
+  if [ "$code" = 200 ]; then
+    scan_id="$(printf '%s' "$answer" | json 'd["id"]')"
+  else
+    # Queued by the schedule before this asked: the composition check's reading, the same scan either way.
+    scan_id="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans?repo_id=$1" \
+      | json 'max((s["id"] for s in d if s["status"] in ("pending", "scanning")), default="")')"
+    [ -n "$scan_id" ] || fail "the scan was refused ($code): $answer"
+  fi
+  while :; do
+    detail="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans/$scan_id")"
+    status="$(printf '%s' "$detail" | json 'd["scan"]["status"]')"
+    case "$status" in pending | scanning) ;; *) break ;; esac
+    [ "$(date +%s)" -lt "$deadline" ] || fail "scan $scan_id still $status after 1800s"
+    sleep 5
+  done
+  printf '%s' "$detail" | python3 -c '
 import collections, json, sys
 d = json.load(sys.stdin); s = d["scan"]
 kinds = collections.Counter(f["type"] for f in d["findings"])
 print("status:", s["status"], "| findings:", d["findingsTotal"], dict(kinds), "| SBOM:", d["hasSbom"])
 print("steps that failed:", s["error"] or "none")'
-echo "   in $(elapsed "$began")"
+  echo "   in $(elapsed "$began")"
+}
+scan "$repo_id"
 
-printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" python3 -c '
+# Every scanner read the tree of the last scan ($detail) and found its plant.
+read_the_tree() {
+  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" python3 -c '
 import json, os, sys
 d = json.load(sys.stdin); s = d["scan"]; findings = d["findings"]
 def found(kind, identifier=None):
@@ -488,7 +554,43 @@ if not found("vulnerability", os.environ["ADVISORY"]):
     problems.append("no " + os.environ["ADVISORY"] + " on " + os.environ["PACKAGE"] + ": the matcher did not read the SBOM")
 if problems:
     print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)' \
-  || fail "the scan did not read the tree with every scanner"
+  || fail "the scan of $1 did not read the tree with every scanner"
+}
+read_the_tree git
+
+# ── Over SSH, with a deployment key and the host's key pinned by the chart.
+echo "── the same repository over SSH, its host key pinned in agents.knownHosts"
+key_id="$({ bearer "$session"; body "$(python3 -c 'import json, sys; print(json.dumps({"name": "k8s-check",
+    "private_key": open(sys.argv[1]).read(), "public_key": open(sys.argv[2]).read().strip()}))' \
+    "$work/ssh/deploy" "$work/ssh/deploy.pub")"; } \
+  | curl_ -f -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/ssh-keys" | json 'd["id"]')" \
+  || fail "the deployment key was refused"
+register_ssh() { # host, name -> repository id
+  local registered
+  registered="$({ bearer "$session"; body "{\"url\":\"ssh://git@$1/srv/fixture.git\",\"branch\":\"main\",\"name\":\"$2\",\"sshKeyId\":\"$key_id\"}"; } \
+    | curl_ -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/repositories")"
+  printf '%s' "$registered" | json 'd["id"]' 2>/dev/null || fail "the SSH repository on $1 was refused: $registered"
+}
+ssh_repo="$(register_ssh "$SSH_HOST" k8s-check-ssh)"
+scan "$ssh_repo"
+read_the_tree ssh
+# Captured, then searched: `logs | grep -q` under pipefail reads a SIGPIPE as "not found".
+agent_log="$(k logs -n vectispire-agents deploy/vs-vectispire-agent -c agent 2>/dev/null || true)"
+case "$agent_log" in
+  *"Creating directories for"*) fail "the agent has no writable home under the pin: JGit could not create its configuration" ;;
+esac
+echo "✓ an SSH clone matched the pinned host key, mounted where the agent reads it"
+
+echo "── the same server by a name the pin does not list: refused, not learnt"
+unlisted_repo="$(register_ssh "$UNLISTED_HOST" k8s-check-ssh-unlisted)"
+scan "$unlisted_repo"
+printf '%s' "$detail" | python3 -c '
+import json, sys
+s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
+if s["status"] != "failed" or "never added to" not in error:
+    print("✗ a host the pin does not list was not refused as one: " + s["status"] + " — " + error, file=sys.stderr)
+    sys.exit(1)' || fail "the pinned known_hosts was not read as the operator's pin"
+echo "✓ a host the pin does not list is refused, and the pin is said to be read-only"
 
 # **The scan ran as pods, one per scanner**, scheduled in the scans' namespace — and the two probe pods
 # before them — and none outlived it. Read from the cluster's events, since the agents list does not

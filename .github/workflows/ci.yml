@@ -688,6 +688,30 @@ jobs:
           ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml \
             --set agents.trustStore.secretName=vs-trust | grep -q VECTISPIRE_TLS_CA_BUNDLE ||
             fail "a bundle is rendered with no PEM form named"
+      # **The pinned host keys reach either agent's image without a shell** (`agents.knownHosts`): the ConfigMap
+      # mounted read-only where both agents read it, on a home volume of its own so the runtime's root-owned
+      # mountpoints stop at `.ssh` and the home stays writable for JGit's configuration. No init container: the
+      # Rust agent's image has no `sh` to run one in, and the copy it made is what kept that image out of a cluster.
+      - name: the pinned host keys are mounted, not copied
+        working-directory: deploy/helm/vectispire
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          for values in ci/dind-privileged-values.yaml ci/kubernetes-executor-values.yaml; do
+            helm template vs . -n vectispire -f "$values" -s templates/agents/deployment.yaml \
+              --set agents.knownHosts='forge.example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample' > pinned.yaml
+            ! grep -nE 'initContainers:|- sh$' pinned.yaml || fail "$values: the host keys need a shell in the agent's image"
+            grep -B1 -A3 'name: known-hosts$' pinned.yaml | grep -A2 'mountPath: /var/lib/vectispire/agent-work/home/.ssh/known_hosts$' |
+              grep -q 'subPath: known_hosts' &&
+              grep -A3 'mountPath: /var/lib/vectispire/agent-work/home/.ssh/known_hosts$' pinned.yaml | grep -q 'readOnly: true' ||
+              fail "$values: the pinned host keys are not mounted read-only where the agent reads them"
+            grep -A1 -- '- name: home$' pinned.yaml | grep -q 'mountPath: /var/lib/vectispire/agent-work/home$' &&
+              grep -A2 -- '- name: home$' pinned.yaml | grep -q 'emptyDir:' ||
+              fail "$values: the home under the pin is not a volume of the pod's own — the runtime would create it as root"
+            grep -A3 'name: vs-vectispire-agent-known-hosts$' pinned.yaml | grep -q 'defaultMode: 0444' ||
+              fail "$values: the pinned file is writable by its mode"
+            helm template vs . -n vectispire -f "$values" -s templates/agents/deployment.yaml --set agents.knownHosts= > unpinned.yaml
+            ! grep -qE 'name: (home|known-hosts)$' unpinned.yaml || fail "$values: a home or a pin rendered with no host keys"
+          done
       # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
       # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
       # No host must render no mail variable: the application builds a sender as soon as the host exists.

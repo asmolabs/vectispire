@@ -51,34 +51,6 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
-      {{- if .Values.agents.knownHosts }}
-      # **Copied, not mounted, into the home.** A mount there would have the kubelet create the home and
-      # its `.ssh` as root, and JGit, writing its own configuration under the home, failed on exactly that
-      # once ("Creating directories for /.config/jgit failed"). Copied by the agent's own user, mode 0444:
-      # a read-only known_hosts is only matched against, so a changed host key is refused, never recorded.
-      initContainers:
-        - name: known-hosts
-          image: {{ include "vectispire.image" .Values.agents.image }}
-          imagePullPolicy: {{ .Values.agents.image.pullPolicy }}
-          command:
-            - sh
-            - -c
-            - mkdir -p {{ $work }}/home/.ssh && chmod 0700 {{ $work }}/home/.ssh && cp /known-hosts/known_hosts {{ $work }}/home/.ssh/known_hosts && chmod 0444 {{ $work }}/home/.ssh/known_hosts
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: work
-              mountPath: {{ $work }}
-            - name: known-hosts
-              mountPath: /known-hosts
-              readOnly: true
-      {{- end }}
       containers:
         - name: agent
           image: {{ include "vectispire.image" .Values.agents.image }}
@@ -193,6 +165,21 @@ spec:
             # name rather than through java.io.tmpdir.
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.agents.knownHosts }}
+            # **Mounted where the agent reads it, onto a home of its own.** The pin used to be copied in by an init
+            # container running `sh` from the agent's image, which the Rust agent's image does not have. What the copy
+            # was for is the home, not the file: a file mounted at home/.ssh/known_hosts on the work volume has the
+            # runtime create the home as root, and JGit, writing its configuration under the home, failed on exactly
+            # that once ("Creating directories for /.config/jgit failed"). The home is an emptyDir instead — writable
+            # by the pod's group, whoever created what is mounted under it — and only `.ssh` is the runtime's. Read
+            # only: a known_hosts the agent cannot write is the operator's pin, matched against, never recorded into.
+            - name: home
+              mountPath: {{ $work }}/home
+            - name: known-hosts
+              mountPath: {{ $work }}/home/.ssh/known_hosts
+              subPath: known_hosts
+              readOnly: true
+            {{- end }}
         {{- if not $pods }}
         - name: dind
           {{- if $rootless }}
@@ -295,9 +282,13 @@ spec:
                 path: config.json
         {{- end }}
         {{- if .Values.agents.knownHosts }}
+        - name: home
+          emptyDir:
+            sizeLimit: 16Mi
         - name: known-hosts
           configMap:
             name: {{ $fullname }}-agent-known-hosts
+            defaultMode: 0444
         {{- end }}
       {{- with .Values.agents.nodeSelector }}
       nodeSelector:
