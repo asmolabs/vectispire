@@ -22,8 +22,14 @@
 # the cluster; the scanner images are pulled by the cluster at the digests the product pins. Nothing is
 # installed on this machine but the k3s container, removed at the end.
 #
+# **Either agent's image**, installed the same way: the Java agent's by default, the Rust agent's with `AGENT=rust`
+# (built from `vectispire-rust/Dockerfile.agent`) or any image named by `AGENT_IMAGE`. Nothing below asks which one
+# runs — its trust store Secret carries the PKCS12 store and its PEM form, and the matcher's database is put in its
+# work directory from a container of the check's own, since the Rust image has no `tar` to receive it.
+#
 # Usage (from the repository root):
 #   scripts/kubernetes-scan-check.sh                    # builds vectispire:k8s-check and vectispire-agent:k8s-check
+#   AGENT=rust scripts/kubernetes-scan-check.sh         # the Rust agent's image instead, vectispire-agent-rs:k8s-check
 #   CONTROL_PLANE_IMAGE=vectispire:x AGENT_IMAGE=vectispire-agent:x scripts/kubernetes-scan-check.sh
 #   KEEP=1 scripts/kubernetes-scan-check.sh             # leave the cluster up to poke at
 set -euo pipefail
@@ -37,6 +43,8 @@ NAME="${NAME:-vectispire-k8s-check}"
 PORT="${PORT:-8443}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-}"
 AGENT_IMAGE="${AGENT_IMAGE:-}"
+AGENT="${AGENT:-java}"
+case "$AGENT" in java | rust) ;; *) echo "AGENT is java or rust, not \"$AGENT\"" >&2; exit 2 ;; esac
 # A Kubernetes its upstream still supports, as 0045 requires of a target; the one the executor's tests run.
 K3S_IMAGE=rancher/k3s:v1.34.12-k3s1@sha256:4ea0adb6b0ffedab0c58ffe5c99a49f2f7be871f38636c8baa2692899648d8c5
 HELM_IMAGE=alpine/helm:3.22.0@sha256:70ed3f7b02ab2eee12aa520ad6870305db8a82516b07aff62f5656c657a26e2a
@@ -76,7 +84,7 @@ cleanup() {
     echo "── the agents' node, as its k3s agent logged it"
     docker logs --tail 60 "$AGENTS_NODE" 2>&1 || true
     k get pods -A -o wide 2>/dev/null || true
-    k logs -n vectispire-agents deploy/vs-vectispire-agent --tail 80 2>/dev/null || true
+    k logs -n vectispire-agents deploy/vs-vectispire-agent -c agent --tail 80 2>/dev/null || true
     k logs -n vectispire deploy/vs-vectispire --tail 40 2>/dev/null || true
     k get events -n vs-vectispire-scans --sort-by=.lastTimestamp 2>/dev/null | tail -20 || true
   fi
@@ -95,7 +103,11 @@ cleanup() {
 trap cleanup EXIT
 
 # ── Images: the two Vectispire images built here unless named, and the fixture's.
-if [ -z "$AGENT_IMAGE" ]; then
+if [ -z "$AGENT_IMAGE" ] && [ "$AGENT" = rust ]; then
+  echo "── building the Rust agent's image"
+  AGENT_IMAGE=vectispire-agent-rs:k8s-check
+  docker build -q -f "$root/vectispire-rust/Dockerfile.agent" -t "$AGENT_IMAGE" "$root/vectispire-rust" > /dev/null
+elif [ -z "$AGENT_IMAGE" ]; then
   echo "── building the agent's image"
   AGENT_IMAGE=vectispire-agent:k8s-check
   docker build -q -f "$root/Dockerfile.agent" -t "$AGENT_IMAGE" "$root" > /dev/null
@@ -144,7 +156,9 @@ docker run --rm --network none -u 1000:1000 -v "$work/db:/db" --entrypoint sh "$
   head -c 1073741824 /dev/zero > "generations/$1/filler"
   tar -C /db -cf /db/matcher.tar vectispire-vulnerability-db' sh "$generation"
 
-# ── TLS for the Ingress, from an authority made for the run, and the agent's truststore holding it alone.
+# ── TLS for the Ingress, from an authority made for the run, and the agent's truststore holding it alone — in
+# PKCS12 for the Java agent, and in PEM beside it (`ca.crt`, the same certificate) for the Rust agent, which reads no
+# PKCS12 and refuses to start on the store alone.
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=vectispire-k8s-check-ca \
   -keyout "$work/ca.key" -out "$work/ca.crt" 2> /dev/null
 openssl req -newkey rsa:2048 -nodes -subj "/CN=$HOST" -keyout "$work/tls.key" -out "$work/tls.csr" 2> /dev/null
@@ -202,6 +216,8 @@ for image in "$CONTROL_PLANE_IMAGE" vectispire-k8s-check-fixture:local; do
   docker save "$image" | docker exec -i "$NAME" ctr -n k8s.io images import - > /dev/null
 done
 docker save "$AGENT_IMAGE" | docker exec -i "$AGENTS_NODE" ctr -n k8s.io images import - > /dev/null
+# The fixture's base, beside the agent: what writes the matcher's database into the agent's work directory.
+docker save vectispire-k8s-check-fixture-base:local | docker exec -i "$AGENTS_NODE" ctr -n k8s.io images import - > /dev/null
 cp_ref="$(qualified "$CONTROL_PLANE_IMAGE")"; agent_ref="$(qualified "$AGENT_IMAGE")"
 cp_digest="$(digest_of "$cp_ref" "$NAME")"; agent_digest="$(digest_of "$agent_ref" "$AGENTS_NODE")"
 if [ -z "$cp_digest" ] || [ -z "$agent_digest" ]; then fail "the imported images have no digest in the cluster"; fi
@@ -313,7 +329,7 @@ agents:
   controlPlaneUrl: https://$HOST
   token: {secretName: vectispire-agent}
   signingKey: {secretName: vectispire-agent}
-  trustStore: {secretName: vectispire-agent-trust}
+  trustStore: {secretName: vectispire-agent-trust, pemKey: ca.pem}
   extraEnv:
     - {name: JAVA_TOOL_OPTIONS, value: "-Djavax.net.ssl.trustStorePassword=$truststore_password"}
   resources:
@@ -381,25 +397,42 @@ signing="$({ bearer "$session"; body '{"public_key":"generate"}'; } \
 printf '%s' "$declared" | json 'd["secret"]' | tr -d '\n' > "$work/agent-token"
 printf '%s' "$signing" > "$work/agent-signing-key"
 docker cp "$work/agent-token" "$NAME:/tmp/agent-token" && docker cp "$work/agent-signing-key" "$NAME:/tmp/agent-signing-key"
-docker cp "$work/truststore.p12" "$NAME:/tmp/truststore.p12"
+docker cp "$work/truststore.p12" "$NAME:/tmp/truststore.p12" && docker cp "$work/ca.crt" "$NAME:/tmp/ca.pem"
 k create secret generic vectispire-agent -n vectispire-agents \
   --from-file=token=/tmp/agent-token --from-file=signing-key=/tmp/agent-signing-key > /dev/null
-k create secret generic vectispire-agent-trust -n vectispire-agents --from-file=truststore.p12=/tmp/truststore.p12 > /dev/null
+k create secret generic vectispire-agent-trust -n vectispire-agents --from-file=truststore.p12=/tmp/truststore.p12 \
+  --from-file=ca.pem=/tmp/ca.pem > /dev/null
 docker exec "$NAME" rm -f /tmp/agent-token /tmp/agent-signing-key /tmp/tls.key
 
 # The agent starts once its secrets exist; its start-up probe must pass under the chart's policies.
 k rollout status deployment/vs-vectispire-agent -n vectispire-agents --timeout=600s > /dev/null \
   || fail "the agent did not start"
 deadline=$(( $(date +%s) + 300 ))
-until [[ "$(k logs -n vectispire-agents deploy/vs-vectispire-agent 2>/dev/null)" == *"the policies are enforced"* ]]; do
+until [[ "$(k logs -n vectispire-agents deploy/vs-vectispire-agent -c agent 2>/dev/null)" == *"the policies are enforced"* ]]; do
   [ "$(date +%s)" -lt "$deadline" ] || fail "the agent never proved its scan pods are cut off"
   sleep 3
 done
 echo "✓ the agent started, and proved its scan pods cut off from the API server"
 
 agent_pod="$(k get pods -n vectispire-agents -l app.kubernetes.io/component=agent -o jsonpath='{.items[0].metadata.name}')"
+# **Into the agent's work directory from an ephemeral container of the fixture's base**, mounting the same volume as
+# the agent's user: the Rust agent's image is `scratch`, with no `tar` to exec, and one way for both images is one
+# check. Under the namespace's `restricted` level, as the agent itself runs — a numeric user, since the base's `git`
+# cannot be verified as non-root.
+printf '{"securityContext":{"runAsUser":1000,"runAsGroup":1000},"volumeMounts":[{"name":"work","mountPath":"%s"}]}' \
+  "$AGENT_WORK" > "$work/loader.json"
+chmod 644 "$work/loader.json"
+docker cp "$work/loader.json" "$NAME:/tmp/loader.json"
+k debug -n vectispire-agents "$agent_pod" --container=matcher-loader --profile=restricted --custom=/tmp/loader.json \
+  --image=docker.io/library/vectispire-k8s-check-fixture-base:local --image-pull-policy=Never -- sleep 3600 > /dev/null
+deadline=$(( $(date +%s) + 120 ))
+until [ "$(k get pod -n vectispire-agents "$agent_pod" \
+    -o jsonpath='{.status.ephemeralContainerStatuses[?(@.name=="matcher-loader")].state.running.startedAt}')" ]; do
+  [ "$(date +%s)" -lt "$deadline" ] || fail "the container loading the matcher's database did not start"
+  sleep 2
+done
 docker cp "$work/db/matcher.tar" "$NAME:/tmp/matcher.tar"
-docker exec "$NAME" sh -c "kubectl exec -i -n vectispire-agents $agent_pod -c agent -- tar -x -C $AGENT_WORK < /tmp/matcher.tar"
+docker exec "$NAME" sh -c "kubectl exec -i -n vectispire-agents $agent_pod -c matcher-loader -- tar -x -C $AGENT_WORK < /tmp/matcher.tar"
 
 echo "── one repository, one scan"
 repository="$({ bearer "$session"; body '{"url":"git://fixture.scan-fixture.svc.cluster.local/fixture.git","branch":"main","name":"k8s-check"}'; } \

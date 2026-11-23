@@ -145,6 +145,13 @@ spec:
                 -Djavax.net.ssl.trustStore=/etc/vectispire/trust/{{ .Values.agents.trustStore.key }}
                 -Djavax.net.ssl.trustStoreType=PKCS12
                 {{- end }}
+            {{- if and .Values.agents.trustStore.secretName .Values.agents.trustStore.pemKey }}
+            # The same authorities in PEM, for the Rust agent's image, which reads no PKCS12: with both forms named, either
+            # image runs on this Secret, and the Rust one refuses to start on the store alone rather than fall back to the
+            # authorities compiled into it (vectispire-rust/README.md, "In a cluster").
+            - name: VECTISPIRE_TLS_CA_BUNDLE
+              value: /etc/vectispire/trust/{{ .Values.agents.trustStore.pemKey }}
+            {{- end }}
             - name: VECTISPIRE_PLUGIN_REGISTRY
               value: {{ .Values.agents.pluginRegistry | quote }}
             - name: VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED
@@ -272,6 +279,10 @@ spec:
             items:
               - key: {{ .Values.agents.trustStore.key }}
                 path: {{ .Values.agents.trustStore.key }}
+              {{- with .Values.agents.trustStore.pemKey }}
+              - key: {{ . }}
+                path: {{ . }}
+              {{- end }}
         {{- end }}
         {{- if and $pods .Values.agents.kubernetes.registryCredentials.secretName }}
         # A kubernetes.io/dockerconfigjson Secret, in the agents' namespace: read as a Docker configuration.

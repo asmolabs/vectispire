@@ -13,11 +13,24 @@
 //! - With it, the PEM certificates of that file and nothing else. A file that holds none, or does not
 //!   parse, stops the agent at start: a trust that silently fell back to the defaults would let the
 //!   operator believe their internal CA was the only one.
+//! - **A Java truststore named without a bundle stops the start too.** The chart's `agents.trustStore`
+//!   reaches the Java agent as `-Djavax.net.ssl.trustStore=` in `JDK_JAVA_OPTIONS`, which this agent does not
+//!   read (the PKCS12 is not parsed here: the README's "In a cluster" says why). Started from that chart with
+//!   the store alone, it would have trusted the compiled-in authorities instead — the operator's private CA
+//!   refused, which is loud, but every public CA they had left out trusted again, which is not. So it refuses,
+//!   and names the PEM form the chart passes beside the store (`agents.trustStore.pemKey`).
 
 use std::path::{Path, PathBuf};
 
 /// The variable naming the bundle.
 pub const BUNDLE_VARIABLE: &str = "VECTISPIRE_TLS_CA_BUNDLE";
+
+/// The variables a JVM reads its options from, and so where a Java agent's truststore is named: the launcher's
+/// `JDK_JAVA_OPTIONS` (the chart's) and the VM's own `JAVA_TOOL_OPTIONS`.
+pub const JAVA_OPTION_VARIABLES: [&str; 2] = ["JDK_JAVA_OPTIONS", "JAVA_TOOL_OPTIONS"];
+
+/// The option naming a Java truststore. With its `=`: `-Djavax.net.ssl.trustStorePassword=` and `…Type=` name none.
+const JAVA_TRUST_STORE_OPTION: &str = "-Djavax.net.ssl.trustStore=";
 
 /// The authorities trusted.
 #[derive(Clone)]
@@ -46,15 +59,34 @@ pub enum TrustError {
     Unreadable { path: String, cause: String },
     #[error("{BUNDLE_VARIABLE} names {path}, which holds no PEM certificate: {cause}")]
     NoCertificate { path: String, cause: String },
+    #[error(
+        "{variable} names a Java truststore ({store}), which this agent does not read, and {BUNDLE_VARIABLE} names no PEM \
+         bundle: started on its compiled-in authorities instead, it would trust every public CA the store left out. Give \
+         it the store's certificates in PEM — with the Helm chart, beside the store in its Secret, named by \
+         agents.trustStore.pemKey."
+    )]
+    JavaTrustStoreOnly { variable: &'static str, store: String },
 }
 
 impl TlsTrust {
     /// The trust `VECTISPIRE_TLS_CA_BUNDLE` describes.
     pub fn from_environment() -> Result<TlsTrust, TrustError> {
-        match std::env::var_os(BUNDLE_VARIABLE).filter(|value| !value.is_empty()) {
-            None => Ok(TlsTrust::BuiltIn),
-            Some(path) => TlsTrust::from_bundle(Path::new(&path)),
+        TlsTrust::from_lookup(|name| std::env::var(name).ok())
+    }
+
+    /// The trust the variables `lookup` answers describe: the bundle if one is named — whatever a Java option says,
+    /// since the chart passes both forms of one store — else the compiled-in authorities, unless a Java truststore
+    /// is named, which refuses.
+    pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Result<TlsTrust, TrustError> {
+        if let Some(path) = lookup(BUNDLE_VARIABLE).filter(|value| !value.is_empty()) {
+            return TlsTrust::from_bundle(Path::new(&path));
         }
+        for variable in JAVA_OPTION_VARIABLES {
+            if let Some(store) = lookup(variable).as_deref().and_then(java_trust_store) {
+                return Err(TrustError::JavaTrustStoreOnly { variable, store });
+            }
+        }
+        Ok(TlsTrust::BuiltIn)
     }
 
     /// The certificates of a PEM file, alone.
@@ -96,4 +128,13 @@ impl TlsTrust {
             }
         }
     }
+}
+
+/// The truststore a JVM's options name, if any. Read as `Places` reads `-Djava.io.tmpdir=` from the same variable — split
+/// on whitespace — with a leading quote set aside, since the launcher reads `"-Dx=a b"` as one option: an option this
+/// reading would miss is one whose store the agent then silently replaced, so it errs towards seeing one.
+fn java_trust_store(options: &str) -> Option<String> {
+    options.split_whitespace().find_map(|option| {
+        option.trim_start_matches(['"', '\'']).strip_prefix(JAVA_TRUST_STORE_OPTION).map(str::to_owned)
+    })
 }

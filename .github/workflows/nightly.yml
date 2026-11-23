@@ -447,3 +447,22 @@ jobs:
           name: agent-conformance
           path: ${{ runner.temp }}/conformance/
           retention-days: 30
+
+  # **The Rust agent's image inside a cluster, through the chart** (vectispire-rust/README.md, "In a cluster"): the
+  # `dockerfiles` job's Kubernetes check, the same values and Secrets, with this image as the agent. What only it
+  # sees is the composition of the chart with an image that is not a JVM — the trust store's PEM form, the variables
+  # read where the Java agent reads them, the start-up probe under the policies, no `tar` in the image. On the runner,
+  # as the Java agent's run and the `kubernetes` job: k3s needs Docker. Its own job rather than a step of
+  # `agent-conformance`, whose two composition checks already take most of its time, and whose verdict this is not.
+  rust-agent-in-cluster:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f Dockerfile -t vectispire:in-cluster .
+      - run: docker build -f vectispire-rust/Dockerfile.agent -t vectispire-agent-rs:in-cluster vectispire-rust
+      - name: the chart's Kubernetes shape scans through the Rust agent, every scanner as a pod
+        env:
+          CONTROL_PLANE_IMAGE: vectispire:in-cluster
+          AGENT_IMAGE: vectispire-agent-rs:in-cluster
+        run: ./scripts/kubernetes-scan-check.sh

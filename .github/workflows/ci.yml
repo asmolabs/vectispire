@@ -562,6 +562,10 @@ jobs:
           # only on a cluster that has the API.
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.admissionPolicy.enabled=false
           refused -f ci/kubernetes-executor-values.yaml --kube-version 1.29.0
+          # The trust store's PEM form (for the Rust agent's image) is an entry of the store's Secret, and another one.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.trustStore.pemKey=ca.pem
+          refused -f ci/kubernetes-executor-values.yaml --set agents.trustStore.secretName=vs-trust \
+            --set agents.trustStore.pemKey=truststore.p12
       # **The values are checked before any template renders** (`values.schema.json`): a wrong type, a
       # required value left empty, a misspelt key and an image without its digest, each refused by the
       # schema itself — by `lint` and by `template`, which is what `install` and `upgrade` run. A refusal
@@ -674,6 +678,16 @@ jobs:
           # The agent proves the policies are enforced before it scans, unless the operator turned them off.
           grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
             fail "the agent is not asked to prove its scan pods are cut off"
+          # One Secret serves either agent's image: the PKCS12 store to the JVM, its PEM form to the Rust agent — which
+          # refuses to start on the store alone. No PEM form named, no bundle rendered.
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml \
+            --set agents.trustStore.secretName=vs-trust --set agents.trustStore.pemKey=ca.pem > trust.yaml
+          grep -q -- '-Djavax.net.ssl.trustStore=/etc/vectispire/trust/truststore.p12' trust.yaml &&
+            grep -A1 'name: VECTISPIRE_TLS_CA_BUNDLE' trust.yaml | grep -q 'value: /etc/vectispire/trust/ca.pem' &&
+            grep -q 'key: ca.pem' trust.yaml || fail "the trust store's PEM form does not reach the agent"
+          ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml \
+            --set agents.trustStore.secretName=vs-trust | grep -q VECTISPIRE_TLS_CA_BUNDLE ||
+            fail "a bundle is rendered with no PEM form named"
       # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
       # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
       # No host must render no mail variable: the application builds a sender as soon as the host exists.

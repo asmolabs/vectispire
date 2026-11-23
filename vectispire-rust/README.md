@@ -216,8 +216,8 @@ where Jib's is 0777), a `/tmp` (1777), and the Java agent's variables read where
 - **`sh`.** The composition's `agent-work-dir` runs `chmod` with the agent's image; with this one it needs
   another (`AGENT_WORK_DIR_IMAGE` in `scripts/composition-scan-check.sh`).
 - **`-Djavax.net.ssl.trustStore=` (PKCS12)**, which the chart sets from `agents.trustStore`: this agent reads
-  a PEM bundle from `VECTISPIRE_TLS_CA_BUNDLE`. A chart installation with a trust store of its own is not a
-  drop-in yet.
+  a PEM bundle from `VECTISPIRE_TLS_CA_BUNDLE`, which the chart passes when the store's Secret also holds its PEM
+  form (`agents.trustStore.pemKey`). Named alone, the store stops this agent at start — see "In a cluster" below.
 - **`/app/LICENSE` and `/app/NOTICE`**, which the Java images carry: the build context is `vectispire-rust/`,
   which holds neither. To add before the image is published.
 
@@ -234,6 +234,54 @@ fails too. The nightly's `agent-conformance` job runs it on the images built at 
 **fourteen consecutive nightly `agent-conformance` runs green** — no difference outside the accepted list,
 both agents passing their own check — and that change is its own pull request, citing the runs. A red
 night restarts the count, and so does a line added to the accepted list.
+
+## In a cluster, through the chart
+
+`AGENT=rust scripts/kubernetes-scan-check.sh` (from the repository root) installs the Helm chart in k3s — a server and
+an agents' node — with `agents.executor: kubernetes` and this agent's image, and runs one scan of the composition
+check's fixture: the agent proves its scan pods cut off before it claims anything, every scanner runs as a pod in the
+scans' namespace and finds what was planted for it. The same script, the same values and the same Secrets as for the
+Java agent's image; only the image differs.
+
+**The trust store: the chart passes a PEM form beside the PKCS12, and this agent does not read PKCS12.** Weighed:
+
+- *Reading the store here* means the PKCS12 container, its MAC, and the decryption of its certificate bags — keytool
+  encrypts them under the store's password (PBES2, PBKDF2 and AES since JDK 12, RC2 and 3DES in older stores): some ten
+  crates of cryptography new to the workspace, each to audit for `cargo vet`, to read one file an operator wrote. And it
+  is semantic, not a format: the JDK trusts only the bags carrying Oracle's trusted-key-usage attribute (a store made by
+  `openssl pkcs12 -nokeys` without `-jdktrust` trusts *nothing* in Java), skips the encrypted bags when no password is
+  given, and reads the password from `-Djavax.net.ssl.trustStorePassword=`, which the chart does not set but an
+  operator's `extraEnv` does. Each of those is a way to trust more or less than Java, to pin to a reference set Java
+  writes.
+- *The chart passing a PEM form* is one more entry in the Secret the operator already makes
+  (`keytool -exportcert -rfc` per alias, or `openssl pkcs12 -nokeys`), and nothing new here: the PEM bundle already
+  *replaces* the compiled-in authorities, as the store replaces the JVM's.
+
+Chosen: the second. `agents.trustStore.pemKey` names the PEM entry of the store's Secret; the chart mounts both and sets
+`VECTISPIRE_TLS_CA_BUNDLE` beside `-Djavax.net.ssl.trustStore=`, so one Secret serves either image and switching back
+and forth changes nothing in the values. What must not happen is the case left between the two: **a store named and no
+bundle**. Before this change that agent started on its compiled-in authorities — the operator's private CA refused,
+which is loud, but every public CA their store had left out trusted again, which is not. It now refuses to start,
+saying which variable names which store and what to give (`TrustError::JavaTrustStoreOnly`, read from
+`JDK_JAVA_OPTIONS` and `JAVA_TOOL_OPTIONS`, both of which a JVM honours; `crates/tls/tests/java_trust_store.rs`,
+`security/mutants/agent-in-cluster.py`). The chart refuses a `pemKey` without the store's Secret, or naming the store's
+own entry. No reference set: nothing semantic is decided here — the two forms are one set by the operator's export,
+and the bundle's replacing rule is the one already held.
+
+**The matcher's database** is put in the agent's work directory by an ephemeral container of the check's own (the
+fixture's Alpine base, mounting the agent's `work` volume as uid 1000 under the namespace's `restricted` level): the
+check used to `kubectl exec … tar` into the agent's container, and this image has no `tar`. Both images go through the
+same container.
+
+First run green on 2026-11-20 (k3s 1.34 on Docker Desktop, arm64): the probe proved the scan pods cut off, the scan
+completed with no failed step and every plant found (one vulnerability, one secret, one SAST finding, seven IaC), in
+1592 s, most of it building and importing the images. The Java agent's image passed the changed script the same
+day with the same ten findings, so the shared path (the PEM entry it ignores, the ephemeral loader) is held for both. The nightly's `rust-agent-in-cluster` job runs it on the images
+built at the night's commit, on the runner as the Java agent's run is.
+
+**Not a drop-in yet with `agents.knownHosts`**: the chart copies the pinned host keys into the home with an init
+container running `sh` from the agent's image, which this one does not have. To do before an installation pinning
+its forges' keys moves to it.
 
 ## Against a real control plane
 
@@ -351,7 +399,7 @@ additively.
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
 | **Workspace, census, API discovery** — *done* (branch `claude/rust-agent-census-api-156251`) | `crates/scanners/src/{census,manifest,api_discovery}.rs` and their readers (`source_files`, `walk`, `pom`, `properties`, `jackson_tree`), `reference/workspace/` | **Done** — `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` hold to `reference/workspace/` (176 trees, hostile ones among them); the runner reads the manifest and the census before the containers and runs the discovery as a step (`runner::read_in_process`), the census kept for the plugins stream. 63/63 mutants killed (`security/mutants/agent-census-api.py`); two parsers fuzzed nightly (`project_manifest`, `api_discovery`). |
 | **Plugins and bundled rules** — *done* 2026-11-19 (branch `claude/rust-agent-plugins-cosign-18a640`) | `crates/scanners/src/{plugins,sarif}.rs`, `crates/container/src/{bounded_output,run_with,pull_credentials}.rs`, `crates/domain/src/plugin_{manifest,signature,image}.rs`, `reference/plugins/` | Plugin steps, the bounded output holder (`ContainerRunner::run_with`, beside `run`), registry login and pull credentials, and `ImageSignatureVerifier` through the pinned cosign image — every decision held to `reference/plugins/`; a real keyless-signed plugin verified against Sigstore and run, another signer and an unsigned image refused, an overflowing output refused (`scanners/tests/plugins_through_the_proxy.rs`, Docker and the network); `security/mutants/agent-plugins.py`. **Left**: the built-in worker (`cp-app`) has no plugin source yet (every plugin absent, `PluginProvider.NONE`'s sentence). |
-| **Kubernetes executor** — *done* (branch `claude/rust-agent-kubernetes-1d5565`) | `crates/kubernetes/**`, `crates/agent/src/executor.rs`; additions to `crates/container` (the `ContainerExecutor` seam, `ContainerRun.entrypoint`, `Mount.writable_bytes`) and the scanners' declared entrypoints | `VECTISPIRE_AGENT_EXECUTOR=kubernetes` chooses it at start, as Java does, with the chart's variables; the agent announces `kubernetes` and no image target. Held to `reference/kubernetes/` (all equal), and run on k3s 1.34 under the chart's Role by `crates/kubernetes/tests/on_k3s.rs` — Java's `KubernetesExecutorTest` and `ExecutorChoiceClusterTest`, and gitleaks, checkov, semgrep and syft each as a pod. Plugins run on it since 2026-11-20 (branch `rust/agent-k8s-plugins`): a bounded output is a memory `emptyDir` of its size, the plugin's to write and the holder's to read back and measure, and cosign's registry login is the mounted pull secret's entry (`VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS`), copied in read-only, redacted from what the tool says, erased after — held to `reference/kubernetes/{pods,collection,registry-login}.json` and run on k3s. **Not yet**: image targets (Java's §8 is not built either), the matcher against its real 3 GB database, and the agent binary run *inside* a cluster (the chart and `scripts/kubernetes-scan-check.sh` with this image). |
+| **Kubernetes executor** — *done* (branch `claude/rust-agent-kubernetes-1d5565`) | `crates/kubernetes/**`, `crates/agent/src/executor.rs`; additions to `crates/container` (the `ContainerExecutor` seam, `ContainerRun.entrypoint`, `Mount.writable_bytes`) and the scanners' declared entrypoints | `VECTISPIRE_AGENT_EXECUTOR=kubernetes` chooses it at start, as Java does, with the chart's variables; the agent announces `kubernetes` and no image target. Held to `reference/kubernetes/` (all equal), and run on k3s 1.34 under the chart's Role by `crates/kubernetes/tests/on_k3s.rs` — Java's `KubernetesExecutorTest` and `ExecutorChoiceClusterTest`, and gitleaks, checkov, semgrep and syft each as a pod. Plugins run on it since 2026-11-20 (branch `rust/agent-k8s-plugins`): a bounded output is a memory `emptyDir` of its size, the plugin's to write and the holder's to read back and measure, and cosign's registry login is the mounted pull secret's entry (`VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS`), copied in read-only, redacted from what the tool says, erased after — held to `reference/kubernetes/{pods,collection,registry-login}.json` and run on k3s. **In a cluster** since 2026-11-20 (branch `rust/agent-in-cluster`): this image installed by the chart scans through `AGENT=rust scripts/kubernetes-scan-check.sh` — the probe, every scanner as a pod, each plant found (k3s 1.34, arm64, 1592 s) — with the trust store's PEM form beside the PKCS12 (`agents.trustStore.pemKey`; the store alone refuses the start), run nightly by `rust-agent-in-cluster`; see "In a cluster, through the chart". **Not yet**: image targets (Java's §8 is not built either), the matcher against its real 3 GB database (the check moves a gigabyte of filler), and the chart's `agents.knownHosts`, whose init container runs `sh` from the agent's image, which this one does not have. |
 | **Image and side-by-side conformance** — *built* (branch `rust/agent-image-conformance`); the two weeks have not started | `Dockerfile.agent`, `measure.sh`, `security/reproducible-image.sh`; CI's `rust-image` and `rust-image-arm64`; `../scripts/agent-conformance.sh`, `../scripts/compare-agent-runs.py`, `../ci/agent-conformance/accepted-differences.txt`, the nightly's `agent-conformance` | Built twice from nothing, one digest, on amd64 and on arm64 (each natively). A drop-in for the Java image: user 1000:1000, `HOME=/home/vectispire` writable by it, a `/tmp`, the same variables read. The nightly runs `scripts/composition-scan-check.sh` in agent mode through the Java agent and the Rust agent, both built at the commit, on a fixture planted identically, and compares what the control plane recorded of every scan. See "The image, and the side-by-side conformance" below for the rule that decides when `release.yml` signs it. |
 
 Two pieces are shared and owned by nobody in particular, so they change only additively: the
