@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
@@ -93,6 +94,53 @@ class RealMatcherIntegrationTest {
         // One snapshot for both: had this side downloaded another, the comparison would say nothing.
         assertThat(Files.readString(cache.resolve("current")).strip()).as("the generation both agents matched against")
                 .isEqualTo(published);
+    }
+
+    /**
+     * <b>A published copy whose checksum no longer matches is replaced</b>, where it used to be kept until the
+     * publisher's next database: the matcher's {@code db check} asks the publisher and calls it current, and
+     * every match on it failed meanwhile. The copy is the shared snapshot's database hard-linked into a cache of
+     * this test's own, its recorded checksum zeroed. While its check is not due a match on it is absent, never
+     * empty; once due, the read-back refuses it, a download replaces it — 3.5 GB — and the match answers.
+     */
+    @Test
+    @DisplayName("a published copy whose checksum no longer matches is absent, then replaced by a download")
+    void aCorruptedCopyIsReplaced() throws IOException {
+        Path shared = variable("VECTISPIRE_REAL_GRYPE_CACHE");
+        Path fresh = shared.resolve(VulnerabilityDatabase.GENERATIONS)
+                .resolve(Files.readString(shared.resolve("current")).strip());
+        // Beside the shared cache, on its file system, so the database is linked rather than copied.
+        Path cache = Path.of(shared + "-java-corrupted");
+        Directories.deleteRecursively(cache);
+        Path tampered = cache.resolve(VulnerabilityDatabase.GENERATIONS).resolve("1790000000000-0000dddd");
+        Files.createDirectories(tampered.resolve("6"));
+        Files.createLink(tampered.resolve("6/vulnerability.db"), fresh.resolve("6/vulnerability.db"));
+        Files.writeString(tampered.resolve("6/import.json"), Files.readString(fresh.resolve("6/import.json"))
+                .replaceAll("xxh64:[0-9a-f]{16}", "xxh64:0000000000000000"));
+        Files.writeString(cache.resolve("current"), tampered.getFileName().toString());
+        Files.writeString(cache.resolve("checked"), java.time.Instant.now().toString());
+        String sbom = Files.readString(
+                Path.of(System.getProperty("vectispire.rust.reference"), "dependencies/sboms/01-polyglot.json"));
+        try {
+            VulnerabilityDatabase database = new VulnerabilityDatabase(RUNNER, ScannerImages.PINNED.grype(), cache);
+            DependencyScanner scanner = new DependencyScanner(RUNNER, ScannerImages.PINNED, database);
+
+            assertThatThrownBy(() -> scanner.matchStandaloneSbom(sbom))
+                    .as("a match on it before the check is due fails the step")
+                    .isInstanceOf(ScannerFailureException.class)
+                    .hasMessageContaining("checksum");
+
+            Files.writeString(cache.resolve("checked"), "2026-01-01T00:00:00Z");
+            Path replaced = database.mountable();
+
+            assertThat(replaced).isNotEqualTo(tampered);
+            assertThat(Files.readString(cache.resolve("current"))).isEqualTo(replaced.getFileName().toString());
+            assertThat(tampered).as("retired like any replaced generation, not deleted").exists();
+            assertThat(scanner.matchStandaloneSbom(sbom)).get()
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isNotEmpty();
+        } finally {
+            Directories.deleteRecursively(cache);
+        }
     }
 
     private static void compare(Path out, String target, JsonNode sbom, List<DependencyFinding> java, ScanTarget scanned)

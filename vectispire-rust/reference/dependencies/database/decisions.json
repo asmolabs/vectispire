@@ -1,0 +1,191 @@
+{
+  "checks" : [ {
+    "name" : "real: a current copy, or one whose checksum no longer matches",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\n \"currentDB\": {\n  \"schemaVersion\": \"v6.1.10\",\n  \"built\": \"2026-11-27T06:22:11Z\"\n },\n \"candidateDB\": null,\n \"updateAvailable\": false\n}\n",
+    "freshness" : "CURRENT"
+  }, {
+    "name" : "real: a copy cut short, no current database",
+    "ran" : true,
+    "exitCode" : 100,
+    "stdout" : "{\n \"currentDB\": null,\n \"candidateDB\": {\n  \"schemaVersion\": \"v6.1.10\",\n  \"built\": \"2026-11-27T06:22:11Z\",\n  \"path\": \"vulnerability-db_v6.1.10_2026-11-27T00:21:50Z_1795760531.tar.zst\",\n  \"checksum\": \"sha256:b1f986487adf96493a3f0f2a11c1617ceb00f2a78fa3ee1a7ddbb42c2eb001cf\"\n },\n \"updateAvailable\": true\n}\n",
+    "freshness" : "UPDATE_AVAILABLE"
+  }, {
+    "name" : "real: no network",
+    "ran" : true,
+    "exitCode" : 1,
+    "stdout" : "",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "exit 100 with nothing printed",
+    "ran" : true,
+    "exitCode" : 100,
+    "stdout" : "",
+    "freshness" : "UPDATE_AVAILABLE"
+  }, {
+    "name" : "exit 0, an update available",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"updateAvailable\": true}",
+    "freshness" : "UPDATE_AVAILABLE"
+  }, {
+    "name" : "exit 0, the answer not a boolean",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"updateAvailable\": \"true\"}",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "exit 0, not JSON",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "update available",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "exit 0, nothing printed",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "exit 1, an answer printed",
+    "ran" : true,
+    "exitCode" : 1,
+    "stdout" : "{\"updateAvailable\": false}",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "exit 2, an update available printed",
+    "ran" : true,
+    "exitCode" : 2,
+    "stdout" : "{\"updateAvailable\": true}",
+    "freshness" : "UNANSWERED"
+  }, {
+    "name" : "the matcher could not be run",
+    "ran" : false,
+    "exitCode" : null,
+    "stdout" : null,
+    "freshness" : "UNANSWERED"
+  } ],
+  "readBacks" : [ {
+    "name" : "real: a whole copy",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\n \"schemaVersion\": \"v6.1.10\",\n \"built\": \"2026-11-27T06:22:11Z\",\n \"path\": \"/cache/6/vulnerability.db\",\n \"valid\": true\n}\n",
+    "usability" : "USABLE"
+  }, {
+    "name" : "real: a checksum that no longer matches",
+    "ran" : true,
+    "exitCode" : 1,
+    "stdout" : "{\n \"schemaVersion\": \"v6.1.10\",\n \"built\": \"2026-11-27T06:22:11Z\",\n \"path\": \"/cache/6/vulnerability.db\",\n \"valid\": false,\n \"error\": \"bad db checksum (/cache/6/vulnerability.db): \\\"xxh64:0000000000000000\\\" vs \\\"xxh64:488123242339ea99\\\"\"\n}\n",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "real: a copy cut short",
+    "ran" : true,
+    "exitCode" : 1,
+    "stdout" : "{\n \"schemaVersion\": \"\",\n \"path\": \"/cache/6/vulnerability.db\",\n \"valid\": false,\n \"error\": \"failed to read DB description: failed to open db: unable to connect to DB: database disk image is malformed (11)\"\n}\n",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, not valid",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"valid\": false}",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 1, valid",
+    "ran" : true,
+    "exitCode" : 1,
+    "stdout" : "{\"valid\": true}",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, not JSON",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "valid",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, nothing printed",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, the verdict as text",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"valid\": \" true \"}",
+    "usability" : "USABLE"
+  }, {
+    "name" : "exit 0, the verdict as another text",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"valid\": \"yes\"}",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, the verdict as a number",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"valid\": 1}",
+    "usability" : "USABLE"
+  }, {
+    "name" : "exit 0, the verdict as zero",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"valid\": 0}",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "exit 0, no verdict",
+    "ran" : true,
+    "exitCode" : 0,
+    "stdout" : "{\"schemaVersion\": \"v6.1.10\"}",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "killed",
+    "ran" : true,
+    "exitCode" : 137,
+    "stdout" : "",
+    "usability" : "UNUSABLE"
+  }, {
+    "name" : "the matcher could not be run",
+    "ran" : false,
+    "exitCode" : null,
+    "stdout" : null,
+    "usability" : "UNANSWERED"
+  } ],
+  "decisions" : [ {
+    "usability" : "USABLE",
+    "freshness" : "CURRENT",
+    "decision" : "KEEP"
+  }, {
+    "usability" : "USABLE",
+    "freshness" : "UPDATE_AVAILABLE",
+    "decision" : "UPDATE"
+  }, {
+    "usability" : "USABLE",
+    "freshness" : "UNANSWERED",
+    "decision" : "KEEP"
+  }, {
+    "usability" : "UNUSABLE",
+    "freshness" : "CURRENT",
+    "decision" : "REPLACE"
+  }, {
+    "usability" : "UNUSABLE",
+    "freshness" : "UPDATE_AVAILABLE",
+    "decision" : "REPLACE"
+  }, {
+    "usability" : "UNUSABLE",
+    "freshness" : "UNANSWERED",
+    "decision" : "REPLACE"
+  }, {
+    "usability" : "UNANSWERED",
+    "freshness" : "CURRENT",
+    "decision" : "KEEP"
+  }, {
+    "usability" : "UNANSWERED",
+    "freshness" : "UPDATE_AVAILABLE",
+    "decision" : "UPDATE"
+  }, {
+    "usability" : "UNANSWERED",
+    "freshness" : "UNANSWERED",
+    "decision" : "KEEP"
+  } ]
+}
