@@ -193,7 +193,7 @@ async fn the_executor_on_k3s() {
 
     // Available: the agent's Role lists and creates pods in its namespace.
     assert_eq!(k8s.why_unavailable().await, None, "the executor is available under the chart's Role");
-    assert!(!run.exports_images(), "image targets are not claimed: the copy step of 0045 §8 is not built");
+    assert!(run.exports_images(), "image targets are claimed: the copy step of 0045 §8 copies them");
 
     // Standard output whole, apart from the errors, and the exit code the scanner's.
     let result =
@@ -292,6 +292,79 @@ async fn the_executor_on_k3s() {
     }
 
     matcher_generations_are_seeded_once_and_served_from_the_cache(&cluster, root).await;
+}
+
+/// Alpine 3.20.3 by its **index** digest — the one the Docker executor's export is tested with — and its amd64 image by
+/// its own digest: a reference to a single image, which crane fetches whatever platform is asked. Java's
+/// `KubernetesExecutorTest` copies the same two.
+const MULTI_ARCH_ALPINE: &str = "alpine@sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb7527e017a4b4a";
+const ALPINE_AMD64_ONLY: &str = "alpine@sha256:029a752048e32e843bd6defe3841186fb8d19a28dae8ec287f433bb9d6d1ad85";
+
+fn listed(directory: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into())
+        .collect();
+    names.sort();
+    names
+}
+
+/// An image target (decision 0045 §8): crane in a pod of its own, the archive brought back for the platform asked and
+/// checked, and nothing left beside it — Java's `KubernetesExecutorTest.anImage*`, the same sentences.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_image_copy_on_k3s() {
+    use vectispire_container::image_archive::{self, Exporter};
+
+    let cluster = K3s::start();
+    let run = Executor::new(executor(&cluster, 256, None, None));
+    let temporary = tempfile::tempdir().unwrap();
+
+    // Both ways round, whatever this machine's own architecture.
+    let workspace = directory(temporary.path(), "both");
+    for platform in ["linux/amd64", "linux/arm64"] {
+        let archive = workspace.join(format!("{}.tar", &platform[6..]));
+        run.export_image(MULTI_ARCH_ALPINE, platform, &archive).await.unwrap();
+        let other = if platform == "linux/amd64" { "linux/arm64" } else { "linux/amd64" };
+        let check = |asked: &str| {
+            image_archive::refusal_by(
+                Exporter::Copy,
+                MULTI_ARCH_ALPINE,
+                asked,
+                &image_archive::requested(asked).unwrap().unwrap(),
+                |name, limit| image_archive::entry(&archive, name, limit),
+            )
+        };
+        assert_eq!(check(platform), None, "the archive is of {platform}");
+        let refused = check(other).unwrap();
+        assert!(refused.contains(&format!("as {platform} where {other}")), "{refused}");
+    }
+    // The copy's own directory, and the login's, are gone: the archives alone remain.
+    assert_eq!(listed(&workspace), ["amd64.tar", "arm64.tar"]);
+
+    // A single image of another platform: refused with the copy's sentence, and nothing left.
+    let workspace = directory(temporary.path(), "other");
+    let refused = run.export_image(ALPINE_AMD64_ONLY, "linux/arm64", &workspace.join("image.tar")).await.unwrap_err();
+    assert_eq!(
+        refused.to_string(),
+        format!(
+            "The image copy fetched {ALPINE_AMD64_ONLY} as linux/amd64 where linux/arm64 was asked: a reference to a \
+             single image is served whatever the platform asked, and another architecture is not scanned in place of \
+             the one asked for."
+        )
+    );
+    assert!(listed(&workspace).is_empty(), "{:?}", listed(&workspace));
+
+    // An image the registry does not serve: crane's own words, the image named.
+    let workspace = directory(temporary.path(), "absent");
+    let absent = format!("alpine@sha256:{}", "0".repeat(64));
+    let failed = run.export_image(&absent, "linux/amd64", &workspace.join("image.tar")).await.unwrap_err().to_string();
+    assert!(
+        failed
+            .starts_with(&format!("The image copy could not fetch {absent} for linux/amd64: crane exited 1, saying: "))
+            && failed.ends_with(". It is not scanned."),
+        "{failed}"
+    );
+    assert!(listed(&workspace).is_empty(), "{:?}", listed(&workspace));
 }
 
 /// Each scanner the Rust agent runs, as a pod, through the scanner code a scan uses.

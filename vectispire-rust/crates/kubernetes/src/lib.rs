@@ -30,6 +30,7 @@ pub mod channels;
 pub mod choice;
 mod error;
 pub mod executor;
+pub mod image_copy;
 mod json;
 pub mod pods;
 pub mod websocket;

@@ -584,10 +584,19 @@ and limit: size the agents' node pool for the agent's concurrency times these.
     needs the nodes' port 10250 reachable from the server.
 
 `scripts/kubernetes-scan-check.sh` installs this shape in k3s — a server and an agents' node — and runs a
-scan through it end to end; the nightly runs it on every night's images.
+scan through it end to end, a repository's and an image's; the nightly runs it on every night's images.
 
-!!! warning "A preview: not every scan runs yet"
-    - **Image targets** fail their image step: the copy step is not built.
+**Image targets are copied, not pulled by the cataloguer.** For an image, the agent starts one more pod,
+`vs-image-copy-…`: [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane), pinned by
+digest, fetches the image for the platform the target asks (linux/amd64 unless set), online, into the archive
+`docker save` writes, which comes back to the agent and goes to the cataloguer and the matcher offline, as on
+Docker. The archive is checked against the platform asked: a reference to one image of another architecture
+fails the step rather than being scanned in its place. A private registry is read with the entry for it in
+`agents.kubernetes.registryCredentials`, handed to that pod alone for that run, as cosign gets it for a plugin;
+without one the registry is read anonymously. On a mirror, set `VECTISPIRE_KUBERNETES_COPY_IMAGE` (through
+`agents.extraEnv`) to your copy of the pinned image, as `VECTISPIRE_KUBERNETES_HELPER_IMAGE` for the busybox. The
+copy pod is under the online policy: the registry must be reachable from the scans' namespace and outside
+`agents.networkPolicy.excludeCidrs`.
 
 ## Running from source
 

@@ -28,6 +28,10 @@
 # hosts into. The chart mounts the pin where the agent reads it, with no init container, since the Rust agent's
 # image has no `sh` to run one in.
 #
+# **Then an image target** (decision 0045 §8): Alpine 3.20.3 by its index digest, from Docker Hub — so this check needs
+# the internet, as the scanner images' pulls already do — copied by crane in a pod of its own under the online policy,
+# and its inventory required to be the image's fourteen packages for x86_64.
+#
 # **Either agent's image**, installed the same way: the Java agent's by default, the Rust agent's with `AGENT=rust`
 # (built from `vectispire-rust/Dockerfile.agent`) or any image named by `AGENT_IMAGE`. Nothing below asks which one
 # runs — its trust store Secret carries the PKCS12 store and its PEM form, and the matcher's database is put in its
@@ -499,16 +503,18 @@ echo "── one repository, one scan"
 repository="$({ bearer "$session"; body '{"url":"git://fixture.scan-fixture.svc.cluster.local/fixture.git","branch":"main","name":"k8s-check"}'; } \
   | curl_ -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/repositories")"
 repo_id="$(printf '%s' "$repository" | json 'd["id"]' 2>/dev/null)" || fail "the fixture repository was refused: $repository"
-# Runs one scan of repository $1 to its end and leaves its detail in $detail.
+# Runs one scan of repository $1 — or of image $1 with `container` as $2 — to its end and leaves its detail in $detail.
 scan() {
   local response code answer status began=$SECONDS deadline=$(( $(date +%s) + 1800 ))
-  response="$(bearer "$session" | curl_ -K - -w '\n%{http_code}' -X POST "$base/api/v1/repositories/$1/scan")"
+  local route=repositories filter=repo_id
+  if [ "${2:-}" = container ]; then route=containers; filter=container_id; fi
+  response="$(bearer "$session" | curl_ -K - -w '\n%{http_code}' -X POST "$base/api/v1/$route/$1/scan")"
   code="${response##*$'\n'}"; answer="${response%$'\n'*}"
   if [ "$code" = 200 ]; then
     scan_id="$(printf '%s' "$answer" | json 'd["id"]')"
   else
     # Queued by the schedule before this asked: the composition check's reading, the same scan either way.
-    scan_id="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans?repo_id=$1" \
+    scan_id="$(bearer "$session" | curl_ -f -K - "$base/api/v1/scans?$filter=$1" \
       | json 'max((s["id"] for s in d if s["status"] in ("pending", "scanning")), default="")')"
     [ -n "$scan_id" ] || fail "the scan was refused ($code): $answer"
   fi
@@ -592,13 +598,56 @@ if s["status"] != "failed" or "never added to" not in error:
     sys.exit(1)' || fail "the pinned known_hosts was not read as the operator's pin"
 echo "✓ a host the pin does not list is refused, and the pin is said to be read-only"
 
+# ── An image target (decision 0045 §8): crane copies it in a pod of its own, online, for the platform the task asks
+# (linux/amd64, whatever this machine is), and the cataloguer and the matcher read the archive offline. Alpine 3.20.3
+# by its index digest, from Docker Hub: the online policy lets a scan pod out to the internet and nowhere else, so a registry on this
+# machine's Docker network — inside `excludeCidrs` — would be refused, as it should. What it is judged by is its
+# packages: the image's fourteen, by name, as syft reads them from `docker save`'s archive of the same image — so an
+# archive crane wrote that the cataloguer read differently, or of another platform, fails here.
+echo "── an image target, copied by crane in a pod and read offline"
+# Manual only: a scheduled scan of a target never scanned is queued at once, and its pods were found still running
+# by the check below that none outlived the scan (measured).
+image="$({ bearer "$session"; body '{"registry":"docker.io","image_name":"library/alpine","tag":"sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb7527e017a4b4a","scanManualOnly":true}'; } \
+  | curl_ -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/containers")"
+image_id="$(printf '%s' "$image" | json 'd["id"]' 2>/dev/null)" || fail "the image target was refused: $image"
+scan "$image_id" container
+printf '%s' "$detail" | python3 -c '
+import json, sys
+d = json.load(sys.stdin); s = d["scan"]; problems = []
+if s["status"] != "completed":
+    problems.append("the image scan is " + s["status"] + ", not completed")
+for step in (s["error"] or "").split(" | "):
+    if step:
+        problems.append("a step failed: " + step)
+if not d["hasSbom"]:
+    problems.append("no SBOM: the image was not copied, or the cataloguer did not read it")
+if problems:
+    print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)' \
+  || fail "the image target was not scanned through the Kubernetes executor"
+bearer "$session" | curl_ -f -K - "$base/api/v1/scans/$scan_id/sbom" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+names = sorted({a["name"] for a in d["artifacts"] if a.get("type") == "apk"})
+expected = sorted("alpine-baselayout alpine-baselayout-data alpine-keys apk-tools busybox busybox-binsh "
+                  "ca-certificates-bundle libcrypto3 libssl3 musl musl-utils scanelf ssl_client zlib".split())
+if names != expected:
+    print("✗ the image SBOM holds " + ", ".join(names) + " where Alpine 3.20.3 holds " + ", ".join(expected),
+          file=sys.stderr); sys.exit(1)
+arches = {a.get("metadata", {}).get("architecture") for a in d["artifacts"] if a.get("type") == "apk"}
+if "x86_64" not in arches or "aarch64" in arches:
+    print("✗ the image SBOM holds packages of " + ", ".join(sorted(map(str, arches))) + ", not the amd64 asked for",
+          file=sys.stderr); sys.exit(1)' \
+  || fail "the image target's inventory is not Alpine 3.20.3's for linux/amd64"
+echo "✓ an image target copied by crane in a pod: Alpine 3.20.3's fourteen packages, for linux/amd64"
+
 # **The scan ran as pods, one per scanner**, scheduled in the scans' namespace — and the two probe pods
 # before them — and none outlived it. Read from the cluster's events, since the agents list does not
 # publish an agent's engine.
 scheduled="$(k get events -n vs-vectispire-scans --field-selector reason=Scheduled \
   -o jsonpath='{range .items[*]}{.involvedObject.name}{"\n"}{end}')"
 for pod in vs-network-probe vs-gitleaks-secret-detection vs-syft-directory-sbom vs-grype-sbom-analysis \
-    vs-checkov-iac-analysis vs-semgrep-source-code-analysis; do
+    vs-checkov-iac-analysis vs-semgrep-source-code-analysis vs-image-copy vs-syft-sbom-of-image-docker-io-library-alp \
+    vs-grype-image-sbom-analysis; do
   grep -q "^$pod-[0-9a-f]\{10\}$" <<< "$scheduled" || fail "no $pod pod was scheduled in the scans' namespace"
 done
 # The matcher read its database from the cache volume, not a copy: k3s's local-path claim binds when a pod first
@@ -608,4 +657,5 @@ claim="$(k get pvc vs-vectispire-matcher-cache -n vs-vectispire-scans -o jsonpat
 left="$(k get pods -n vs-vectispire-scans -l vectispire.dev/agent --no-headers 2>/dev/null | wc -l | tr -d ' ')"
 [ "$left" = 0 ] || fail "$left scan pod(s) outlived the scan"
 
-echo "✓ the chart's Kubernetes shape scans: every scanner ran as a pod, read the tree and found its plant ($(elapsed "$started_at"))"
+echo "✓ the chart's Kubernetes shape scans: every scanner ran as a pod, read the tree and found its plant, and an image" \
+  "target was copied in a pod and read ($(elapsed "$started_at"))"

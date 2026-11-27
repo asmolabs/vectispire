@@ -617,10 +617,20 @@ valeurs.
     des nœuds soit joignable depuis le serveur.
 
 `scripts/kubernetes-scan-check.sh` installe cette forme dans k3s — un serveur et un nœud d'agents — et y
-fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de chaque nuit.
+fait passer un scan de bout en bout, celui d'un dépôt et celui d'une image ; la CI de nuit l'exécute sur les
+images de chaque nuit.
 
-!!! warning "Un aperçu : tous les scans ne tournent pas encore"
-    - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
+**Les cibles image sont copiées, pas tirées par l'outil d'inventaire.** Pour une image, l'agent lance un pod
+de plus, `vs-image-copy-…` : [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane),
+épinglé par empreinte, récupère l'image pour la plateforme que demande la cible (linux/amd64 sauf mention
+contraire), avec le réseau, dans l'archive qu'écrit `docker save` ; elle revient à l'agent et part vers l'outil
+d'inventaire et le comparateur sans réseau, comme sous Docker. L'archive est vérifiée contre la plateforme
+demandée : une référence à une seule image d'une autre architecture fait échouer l'étape au lieu d'être analysée
+à sa place. Un registre privé est lu avec son entrée de `agents.kubernetes.registryCredentials`, remise à ce seul
+pod pour ce seul passage, comme cosign la reçoit pour un plugin ; sans elle, le registre est lu anonymement. Sur
+un miroir, posez `VECTISPIRE_KUBERNETES_COPY_IMAGE` (par `agents.extraEnv`) sur votre copie de l'image épinglée,
+comme `VECTISPIRE_KUBERNETES_HELPER_IMAGE` pour le busybox. Le pod de copie relève de la politique « en ligne » :
+le registre doit être joignable depuis l'espace de noms des analyses, hors de `agents.networkPolicy.excludeCidrs`.
 
 ## Exécuter depuis les sources
 

@@ -16,7 +16,7 @@
 use crate::api::{ExecResult, KubernetesApi};
 use crate::channels::ExecChannels;
 use crate::pods::{self, MountSource};
-use crate::{KubernetesError, address, archives};
+use crate::{KubernetesError, address, archives, image_copy};
 use rand_core::RngCore;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeSet;
@@ -103,9 +103,12 @@ pub struct Settings {
     /// or `None` where isolation is not required.
     pub cut_off_from: Option<String>,
     /// A Docker configuration directory — the pull secret the chart mounts — whose entry for a registry a tool reading
-    /// that registry is handed, cosign verifying a plugin's signature; `None` where none is mounted, and the tool reads
-    /// anonymously.
+    /// that registry is handed, cosign verifying a plugin's signature and the image copy fetching an image target;
+    /// `None` where none is mounted, and the tool reads anonymously.
     pub registry_credentials: Option<PathBuf>,
+    /// The image the copy of an image target runs (decision 0045 §8): crane, pinned by digest, or an operator's mirror
+    /// of it.
+    pub copy_image: String,
 }
 
 impl Settings {
@@ -141,12 +144,20 @@ impl Settings {
             cache,
             cut_off_from,
             registry_credentials: None,
+            copy_image: image_copy::IMAGE.to_owned(),
         })
     }
 
     /// These settings, a registry's tool handed `configuration`'s entry for it.
     pub fn with_registry_credentials(mut self, configuration: Option<PathBuf>) -> Settings {
         self.registry_credentials = configuration;
+        self
+    }
+
+    /// These settings, image targets copied by `image` — an operator's mirror of crane; blank keeps the pinned one.
+    pub fn with_copy_image(mut self, image: &str) -> Settings {
+        let image = vectispire_domain::java::strip(image);
+        self.copy_image = if image.is_empty() { image_copy::IMAGE.to_owned() } else { image.to_owned() };
         self
     }
 
@@ -743,6 +754,58 @@ impl KubernetesExecutor {
         Ok(result)
     }
 
+    /// The image copy of [`ContainerExecutor::export_image`] — `KubernetesExecutor.exportImage`.
+    async fn copy_image(&self, reference: &str, platform: &str, destination: &Path) -> Result<(), ExportError> {
+        // Before the pod: a platform the archive cannot be checked against is refused, as by the daemon's export.
+        let asked = vectispire_container::image_archive::normalized(platform).map_err(ExportError::Platform)?;
+        let unwritable = |error: std::io::Error| {
+            ExportError::Copy(format!(
+                "The image copy of {reference} could not be put in the workspace: {error}. It is not scanned."
+            ))
+        };
+        let parent = absolute(destination).parent().map(Path::to_path_buf).unwrap_or_default();
+        // Removed on every way out, failure and a future given up half-way alike.
+        let copy = tempfile::Builder::new().prefix(".image-copy-").tempdir_in(&parent).map_err(unwritable)?;
+        let into = copy.path().join("image");
+        let login = copy.path().join("login");
+        std::fs::create_dir(&into).map_err(unwritable)?;
+        std::fs::create_dir(&login).map_err(unwritable)?;
+        let (run, extras) = image_copy::request(&self.settings.copy_image, reference, asked.as_deref(), &into, &login);
+        let result =
+            self.run_extended(&run, &extras).await.map_err(|failed| ExportError::Copy(failed.to_string()))?.result;
+        let archive = into.join(image_copy::ARCHIVE);
+        let written = std::fs::symlink_metadata(&archive).is_ok_and(|found| found.file_type().is_file());
+        if let Some(failure) = image_copy::failure(reference, platform, result.exit_code, &result.stderr, written) {
+            return Err(ExportError::Copy(failure));
+        }
+        // `rename` replaces an existing file where Java's `move` refuses one: a file already there is not this
+        // copy's to overwrite.
+        if std::fs::symlink_metadata(destination).is_ok() {
+            return Err(unwritable(std::io::Error::from(std::io::ErrorKind::AlreadyExists)));
+        }
+        std::fs::rename(&archive, destination).map_err(unwritable)?;
+        drop(copy);
+        let Some(asked) = vectispire_container::image_archive::requested(platform).map_err(ExportError::Platform)?
+        else {
+            return Ok(());
+        };
+        let refusal = vectispire_container::image_archive::refusal_by(
+            vectispire_container::image_archive::Exporter::Copy,
+            reference,
+            platform,
+            &asked,
+            |name, limit| vectispire_container::image_archive::entry(destination, name, limit),
+        );
+        match refusal {
+            None => Ok(()),
+            Some(refusal) => {
+                // Not left for the workspace removal: nothing may pick up an archive that was refused.
+                let _ = std::fs::remove_file(destination);
+                Err(ExportError::Copy(refusal))
+            }
+        }
+    }
+
     async fn log(&self, pod: &str) -> String {
         match self.api.log(&self.settings.namespace, pod, pods::SCANNER, STDERR_BYTES as u64).await {
             Ok(log) => log,
@@ -759,21 +822,21 @@ impl ContainerExecutor for KubernetesExecutor {
         })
     }
 
-    /// Not yet: an image target is copied into the workspace by a pinned copy step (0045 §8), which is not built. A
-    /// failure, so the image's inventory is absent — never an empty one; and [`Self::exports_images`] says so first,
-    /// so the claim hands this agent no image.
+    /// **Copies the image into the workspace through a pod of its own** (decision 0045 §8): crane pulls it for the
+    /// platform asked, online, with the mounted pull secret's entry for its registry when there is one, and writes the
+    /// archive `docker save` would — read back like any writable mount, then checked against the platform as the Docker
+    /// executor checks its daemon's save ([`image_copy`]).
+    ///
+    /// **Never empty** (0007): crane's refusal, an archive it did not write, one of another platform or one that
+    /// cannot be read are failures naming the image, so its inventory is absent — and nothing is left at
+    /// `destination` for the cataloguer to pick up.
     fn export_image<'a>(
         &'a self,
         reference: &'a str,
-        _platform: &'a str,
-        _destination: &'a Path,
+        platform: &'a str,
+        destination: &'a Path,
     ) -> BoxFuture<'a, Result<(), ExportError>> {
-        Box::pin(async move {
-            Err(ExportError::Unsupported(format!(
-                "Image targets are not scanned by the Kubernetes executor yet: the copy step of decision 0045 §8 is \
-                 not built. {reference} was not examined."
-            )))
-        })
+        Box::pin(self.copy_image(reference, platform, destination))
     }
 
     fn why_unavailable(&self) -> BoxFuture<'_, Option<String>> {
@@ -781,7 +844,7 @@ impl ContainerExecutor for KubernetesExecutor {
     }
 
     fn exports_images(&self) -> bool {
-        false
+        true
     }
 
     fn scanner_timeout(&self) -> Duration {

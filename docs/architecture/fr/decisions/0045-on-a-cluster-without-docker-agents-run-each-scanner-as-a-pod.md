@@ -108,7 +108,9 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    copie l'image en disposition OCI dans l'espace de travail, l'identifiant du registre lui étant remis en
    fichier ; Syft et Grype lisent la disposition hors ligne. Les laisser tirer donnerait réseau et
    identifiants aux analyseurs de métadonnées hostiles. Un jeu de référence confronte Syft sur une
-   disposition OCI à Syft sur une archive Docker : **les empreintes ne doivent pas bouger**.
+   disposition OCI à Syft sur une archive Docker : **les empreintes ne doivent pas bouger**. *Amendé le
+   2026-11-27* : non pas une disposition OCI mais l'archive qu'écrit `docker save`, format par défaut de
+   `crane pull` — voir « Cibles image, 2026-11-27 » plus bas.
 9. **Jamais vide.** Chaque issue Kubernetes est un échec nommant l'étape — une image qui ne se tire pas,
    un pod que personne ne peut placer, `OOMKilled` (ou le code 137 du kill, quand le runtime perd cette
    raison), le délai, une éviction, une lecture au-delà de son plafond, un pod supprimé en route —
@@ -190,7 +192,8 @@ le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le r
   vérification de la chart a trouvé un pod de scan en ligne qui l'atteignait par un trou dans la liste d'un
   opérateur.
 - **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
-  donc absent) et les identifiants de registre pour un outil (aucun détenu).
+  donc absent) et les identifiants de registre pour un outil (aucun détenu). Construits depuis : les
+  identifiants de registre pour le cosign d'un plugin le 2026-11-20, les cibles image le 2026-11-27 (plus bas).
 - **Le cache de l'appariement (§7, tel qu'amendé)** : sur k3s, une génération est copiée une fois puis
   servie sans copie — un changement fait ensuite à la copie de l'agent n'atteint pas le pod —, montée en
   lecture seule, et une génération retirée est supprimée du volume ; le contrôle de bout en bout trouve sa
@@ -238,3 +241,39 @@ par la chart, refuse tout pod créé dans l'espace de noms des scans sans le `no
 `nodeName` ou avec un jeton — quoi que demande l'agent (Kubernetes 1.30 ou plus ; l'essai à blanc Pod Security de
 l'agent porte le même placement, si bien que seul Pod Security y répond). **Laissé pour plus tard, nommé** :
 sonder chaque adresse du serveur d'API plutôt que celle du Service.
+
+## Cibles image, 2026-11-27
+
+Le §8 est construit dans les deux agents, à l'identique (branche `rust/agent-k8s-image-targets`) : `ImageCopy` dans
+l'agent Java, `crates/kubernetes/src/image_copy.rs` dans l'agent Rust, tenus à
+`vectispire-rust/reference/kubernetes/image-copy.json`. L'export d'une cible image lance un pod de plus, étiqueté
+`image copy` : **crane 0.22.1**, épinglé par l'empreinte de son index,
+`pull --platform <demandée> -- <référence> /image/image.tar`, avec le réseau, dans un montage inscriptible de 8 Gio
+qui revient comme tout autre ; l'entrée du secret de tirage monté pour le registre de l'image lui est remise en
+`DOCKER_CONFIG`, pour ce seul passage, comme à cosign. L'agent annonce alors les cibles image pour cet exécuteur, et
+la réservation les lui confie.
+
+- **Une archive Docker, pas une disposition OCI.** `crane pull` écrit par défaut l'archive qu'écrit `docker save`
+  (`manifest.json`, la configuration, les couches) : l'outil d'inventaire la lit par la même source `docker-archive:`
+  que sous Docker, et la vérification de plateforme de l'export Docker (`ImagePlatform`, `image_archive.rs`) la lit
+  telle quelle. Mesuré sur `python:3.12-slim-bookworm` pour linux/amd64 : le rapport entier de syft sur l'archive de
+  crane et sur la sauvegarde du démon de la même image est le même, au nom de fichier près — 113 paquets, les mêmes
+  emplacements et identifiants de couche. Une disposition aurait demandé une autre source à l'outil d'inventaire et
+  un autre lecteur à la vérification, et aurait dû être prouvée sans effet sur les empreintes ; celle-ci ne peut pas
+  en avoir.
+- **La plateforme demandée, puis vérifiée.** Normalisée comme containerd normalise avant que crane la cherche dans un
+  index (`x86_64` est demandé `amd64`), et refusée avant tout pod quand elle n'est pas `os/architecture[/variante]`.
+  Une référence à une seule image plutôt qu'à un index est récupérée **quelle que soit la plateforme demandée**, crane
+  sortant en 0 (mesuré) : l'archive passe par la vérification de l'export Docker, et une archive d'une autre
+  plateforme fait échouer l'étape — *« The image copy fetched … as linux/amd64 where linux/arm64 was asked … »* — et
+  est supprimée.
+- **Jamais vide** (0007). Le refus de crane (*« crane exited 1, saying: … »*), une sortie 0 sans archive, une archive
+  illisible, un pod qui n'a pas pu tourner : chacun un échec nommant l'image, dont l'inventaire est donc absent.
+- **`--` avant la référence** : une référence est un texte d'opérateur, et une référence commençant par un tiret
+  serait lue comme une option de crane.
+- **Un miroir remplace l'image** par `VECTISPIRE_KUBERNETES_COPY_IMAGE`, comme `VECTISPIRE_KUBERNETES_HELPER_IMAGE`
+  remplace le busybox. Aucune permission nouvelle : le pod est un pod de scan de plus, sous la politique « en ligne »
+  et le Role tels qu'ils étaient, et le secret de tirage est celui que cosign lisait déjà.
+- **Vérifié** sur k3s par `KubernetesExecutorTest` et `tests/on_k3s.rs` (Alpine 3.20.3 pour amd64 et pour arm64, son
+  image amd64 refusée pour arm64, une image absente), et de bout en bout par `scripts/kubernetes-scan-check.sh`, qui
+  analyse Alpine 3.20.3 au travers de la chart et en exige les quatorze paquets ; les mutants des deux côtés sont tués.

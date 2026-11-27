@@ -120,10 +120,36 @@ pub fn requested(platform: &str) -> Result<Option<Platform>, String> {
     }
 }
 
+/// Who wrote the archive — `ImagePlatform.Exporter`: the Docker daemon's save, or the Kubernetes executor's copy step
+/// (decision 0045 §8). Only the refusal of another platform says which, since only there is the cause the exporter's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Exporter {
+    Daemon,
+    Copy,
+}
+
+/// `platform` as the copy step asks for it — normalized as containerd normalizes, so a registry's index is searched
+/// for `amd64` where `x86_64` was written — or `None` when the task named none. `Err` is [`requested`]'s sentence:
+/// refused before anything is pulled.
+pub fn normalized(platform: &str) -> Result<Option<String>, String> {
+    Ok(requested(platform)?.map(|asked| asked.format()))
+}
+
 /// Why the archive of `reference`, exported for `platform` (`asked` once parsed), may not be scanned — `None` when
 /// every image it holds is of that platform. `entry` reads one file of the archive by name, bounded: `Ok(None)` when
 /// the archive does not hold it, `Err` with why the archive cannot be read.
 pub fn refusal(
+    reference: &str,
+    platform: &str,
+    asked: &Platform,
+    entry: impl FnMut(&str, usize) -> Result<Option<Vec<u8>>, String>,
+) -> Option<String> {
+    refusal_by(Exporter::Daemon, reference, platform, asked, entry)
+}
+
+/// [`refusal`], with the sentence of the exporter `by`.
+pub fn refusal_by(
+    by: Exporter,
     reference: &str,
     platform: &str,
     asked: &Platform,
@@ -141,12 +167,19 @@ pub fn refusal(
     if found.iter().all(|image| asked.admits(image)) {
         return None;
     }
-    let found: Vec<String> = found.iter().map(Platform::format).collect();
-    Some(format!(
-        "The Docker daemon exported {reference} as {} where {platform} was asked: a daemon selects the platform of a \
-         save from API 1.48 on, and another architecture is not scanned in place of the one asked for.",
-        found.join(", ")
-    ))
+    let found = found.iter().map(Platform::format).collect::<Vec<String>>().join(", ");
+    Some(match by {
+        Exporter::Daemon => format!(
+            "The Docker daemon exported {reference} as {found} where {platform} was asked: a daemon selects the platform \
+             of a save from API 1.48 on, and another architecture is not scanned in place of the one asked for."
+        ),
+        // A reference naming one image rather than an index is fetched whatever the platform asked: the registry has
+        // nothing to choose from, and crane says nothing (measured, crane 0.22.1).
+        Exporter::Copy => format!(
+            "The image copy fetched {reference} as {found} where {platform} was asked: a reference to a single image is \
+             served whatever the platform asked, and another architecture is not scanned in place of the one asked for."
+        ),
+    })
 }
 
 /// The platform of every image `manifest.json` lists, in its order.

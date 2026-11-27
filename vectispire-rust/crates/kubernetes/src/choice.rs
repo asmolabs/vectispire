@@ -47,6 +47,8 @@ pub struct KubernetesConfig {
     pub node_name: String,
     /// `VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS`: a Docker configuration directory.
     pub registry_credentials: String,
+    /// `VECTISPIRE_KUBERNETES_COPY_IMAGE`: what copies an image target (decision 0045 §8); blank keeps the pinned crane.
+    pub copy_image: String,
 }
 
 impl Default for KubernetesConfig {
@@ -65,6 +67,7 @@ impl Default for KubernetesConfig {
             matcher_cache_claim: String::new(),
             node_name: String::new(),
             registry_credentials: String::new(),
+            copy_image: String::new(),
         }
     }
 }
@@ -171,7 +174,8 @@ pub async fn kubernetes(
         placement,
         cache,
         None,
-    )?;
+    )?
+    .with_copy_image(&config.copy_image);
     if !config.registry_credentials.is_empty() {
         let credentials = Path::new(&config.registry_credentials);
         // At start, not at the first plugin: a secret mounted under another key would otherwise read as "no

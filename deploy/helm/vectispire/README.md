@@ -258,7 +258,8 @@ It renders an admission policy that keeps every pod of the scans' namespace on `
 cannot reach the API server — told not to check only when `agents.networkPolicy.enabled` is false. Scan
 pods get `agents.kubernetes.scanCpuMillis` and `scanMemoryMiB`. The matcher's database is kept on a claim in
 the scans' namespace (`agents.kubernetes.matcherCache`, kept on uninstall), each version copied once and
-mounted read-only by matching pods on the agent's node. Image targets are not built yet: see the [installation guide](../../../docs-site/getting-started/installation.md#agents-without-docker).
+mounted read-only by matching pods on the agent's node. An image target is copied by crane in a pod of its own,
+online, with `agents.kubernetes.registryCredentials`' entry for its registry: see the [installation guide](../../../docs-site/getting-started/installation.md#agents-without-docker).
 
 **`agents.extraEnv` must not set `KUBERNETES_SERVICE_HOST` or `KUBERNETES_SERVICE_PORT`.** A variable of the
 pod's spec replaces the one the kubelet provides, and the agent sends its service account's token to that

@@ -299,12 +299,14 @@ agents:
       enabled: true
       size: 10Gi
       storageClassName: ""
-    # **A private registry's credentials, for verifying a plugin's signature.** cosign reads the signature from
-    # the registry the plugin's image lives in, in a scan pod; a private registry refuses it anonymously, and the
-    # plugin is refused as `registry_authentication_required`. Name a `kubernetes.io/dockerconfigjson` Secret in
-    # the agents' namespace: the agent hands cosign its entry for that registry alone, for that run alone. The
-    # image itself is pulled by the cluster, with the nodes' credentials or an `imagePullSecrets` on the scans'
-    # namespace's `default` service account — never with this Secret, which scan pods cannot read.
+    # **A private registry's credentials, for verifying a plugin's signature and copying an image target.**
+    # cosign reads the signature from the registry the plugin's image lives in, in a scan pod, and crane copies an
+    # image target from its registry, in a pod of its own (decision 0045 §8); a private registry refuses either
+    # anonymously — the plugin refused as `registry_authentication_required`, the image's step failed. Name a
+    # `kubernetes.io/dockerconfigjson` Secret in the agents' namespace: the agent hands the tool its entry for that
+    # registry alone, for that run alone. A scanner's or a plugin's image itself is pulled by the cluster, with the
+    # nodes' credentials or an `imagePullSecrets` on the scans' namespace's `default` service account — never with
+    # this Secret, which scan pods cannot read.
     registryCredentials:
       secretName: ""
     # **An admission policy keeping scan pods on the agents' pool** (security review of 2026-10-26, L2): every

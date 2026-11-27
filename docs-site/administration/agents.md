@@ -184,10 +184,9 @@ whenever the answer changes (`PUT /api/v1/agent/executors`):
 | Executor | Asked how | Scans |
 |---|---|---|
 | `docker` | a ping of the daemon it reaches | repositories and images |
-| `kubernetes` | the pods of the scans' namespace listed, and a pod's creation tried as a dry run — refused only when the Role lacks `create` | repositories (images need the copy step of decision 0045 §8) |
+| `kubernetes` | the pods of the scans' namespace listed, and a pod's creation tried as a dry run — refused only when the Role lacks `create` | repositories and images (each image copied by crane in a pod of its own, decision 0045 §8) |
 
-An agent whose executor does not answer claims nothing, and keeps polling, so it still reads as online;
-a Kubernetes agent is never handed an image scan. The scan waits for a worker that can run it, with no
+An agent whose executor does not answer claims nothing, and keeps polling, so it still reads as online. The scan waits for a worker that can run it, with no
 attempt spent — where it used to be claimed, fail at its first container and spend an attempt per claim
 until it failed for good, for a fault that was the worker's. **The built-in worker asks its Docker daemon
 the same way before each round**, and claims nothing while it does not answer.

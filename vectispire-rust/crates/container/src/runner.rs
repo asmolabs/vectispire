@@ -50,9 +50,10 @@ pub enum ExportError {
     /// ([`crate::image_archive`]).
     #[error("{0}")]
     Platform(String),
-    /// An executor that does not export images, in its own words — the Kubernetes one (decision 0045 §8, not built).
+    /// The Kubernetes executor's copy step (decision 0045 §8), in its own words: crane's refusal, an archive it did not
+    /// write, a pod that could not run it — `ScannerFailureException.of("image copy", …)`.
     #[error("{0}")]
-    Unsupported(String),
+    Copy(String),
 }
 
 /// What a run printed, and how it ended.

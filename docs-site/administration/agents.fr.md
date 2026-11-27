@@ -194,10 +194,9 @@ plan de contrôle dans son `hello`, puis à chaque changement de réponse (`PUT 
 | Exécuteur | Interrogé comment | Analyses |
 |---|---|---|
 | `docker` | un ping du démon qu'il atteint | dépôts et images |
-| `kubernetes` | les pods de l'espace de noms des analyses listés, et la création d'un pod essayée à blanc — refusée seulement quand le Role n'a pas `create` | dépôts (les images demandent l'étape de copie de la décision 0045 §8) |
+| `kubernetes` | les pods de l'espace de noms des analyses listés, et la création d'un pod essayée à blanc — refusée seulement quand le Role n'a pas `create` | dépôts et images (chaque image copiée par crane dans un pod à elle, décision 0045 §8) |
 
-Un agent dont l'exécuteur ne répond pas ne prend rien, et continue de demander : il reste en ligne ; un
-agent Kubernetes ne reçoit jamais d'analyse d'image. L'analyse attend un worker capable de la lancer,
+Un agent dont l'exécuteur ne répond pas ne prend rien, et continue de demander : il reste en ligne. L'analyse attend un worker capable de la lancer,
 sans tentative consommée — là où elle était prise, échouait à son premier conteneur et consommait une
 tentative à chaque prise jusqu'à échouer définitivement, pour une panne qui était celle du worker. **Le
 worker intégré interroge son démon Docker de la même façon avant chaque tour**, et ne prend rien tant

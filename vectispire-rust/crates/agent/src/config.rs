@@ -133,6 +133,7 @@ fn kubernetes(lookup: &impl Fn(&str) -> Option<String>) -> Result<KubernetesConf
         matcher_cache_claim: text("VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM"),
         node_name: text("VECTISPIRE_KUBERNETES_NODE_NAME"),
         registry_credentials: text("VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS"),
+        copy_image: text("VECTISPIRE_KUBERNETES_COPY_IMAGE"),
     };
     choice::check_resources(config.cpu_millis, config.memory_mib).map_err(ConfigError::Executor)?;
     Ok(config)

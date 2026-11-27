@@ -570,3 +570,91 @@ async fn a_bounded_output_without_its_user_is_refused_before_any_pod() {
         "{refused:?}"
     );
 }
+
+/// An image target on Kubernetes (decision 0045 §8), against `KubernetesReferenceSetTest.theImageCopy`: the platform as
+/// crane is asked for it or the refusal before any pod, the copy's run, what crane's end becomes, and the copied
+/// archive checked against the platform with the copy's own sentence.
+#[test]
+fn the_image_copy() {
+    use vectispire_container::image_archive;
+    use vectispire_kubernetes::image_copy;
+
+    let file = read_json("kubernetes/image-copy.json");
+    let into = Path::new("/w/.image-copy-1/image");
+    let login = Path::new("/w/.image-copy-1/login");
+    let requests = file["requests"].as_array().unwrap();
+    assert!(requests.len() >= 20, "the requests' cases are read");
+    for case in requests {
+        let reference = text(&case["reference"]);
+        let platform = text(&case["platform"]);
+        let normalized = image_archive::normalized(platform);
+        if let Some(refused) = case.get("refused") {
+            assert_eq!(normalized.as_ref().err().map(String::as_str), Some(text(refused)), "{platform:?}");
+            continue;
+        }
+        let normalized = normalized.unwrap();
+        assert_eq!(normalized.as_deref(), case["normalized"].as_str(), "{platform:?}");
+        let settings =
+            unreachable_executor(None).settings().clone().with_copy_image(case["copyImage"].as_str().unwrap_or(""));
+        let (run, extras) = image_copy::request(&settings.copy_image, reference, normalized.as_deref(), into, login);
+        let expected = &case["run"];
+        assert_eq!(run.image, text(&expected["image"]), "{platform:?}");
+        assert_eq!(run.label, text(&expected["label"]));
+        assert_eq!(run.network, expected["network"].as_bool().unwrap());
+        assert_eq!(run.as_root, expected["asRoot"].as_bool().unwrap());
+        assert_eq!(run.user.as_deref(), expected["user"].as_str());
+        assert_eq!(run.timeout.map(|timeout| timeout.as_secs()), expected["timeoutSeconds"].as_u64());
+        let strings = |value: &Value| -> Vec<String> {
+            value.as_array().unwrap().iter().map(|part| text(part).to_owned()).collect()
+        };
+        assert_eq!(run.entrypoint, Some(strings(&expected["entrypoint"])));
+        assert_eq!(run.command, strings(&expected["command"]), "{reference} {platform:?}");
+        let mounts: Vec<Mount> = expected["mounts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|mount| Mount {
+                source: text(&mount["source"]).to_owned(),
+                target: text(&mount["target"]).to_owned(),
+                read_only: mount["readOnly"].as_bool().unwrap(),
+                writable_bytes: u64::try_from(int(&mount["writableBytes"])).unwrap(),
+            })
+            .collect();
+        assert_eq!(run.mounts, mounts);
+        let handed = extras.login.unwrap();
+        assert_eq!(handed.reference, text(&expected["login"]["reference"]));
+        assert_eq!(handed.directory, Path::new(text(&expected["login"]["directory"])));
+        assert!(extras.output.is_none());
+    }
+
+    let ends = file["ends"].as_array().unwrap();
+    assert!(ends.len() >= 12, "the ends' cases are read");
+    for case in ends {
+        let failure = image_copy::failure(
+            text(&case["reference"]),
+            case["platform"].as_str().unwrap_or(""),
+            int(&case["exitCode"]),
+            text(&case["stderr"]),
+            case["written"].as_bool().unwrap(),
+        );
+        assert_eq!(failure.as_deref(), case["failure"].as_str(), "{case}");
+    }
+
+    let archives = file["archives"].as_array().unwrap();
+    assert!(archives.len() >= 10, "the archives' cases are read");
+    let reference = format!("alpine@sha256:{}", "1".repeat(64));
+    for case in archives {
+        let platform = text(&case["platform"]);
+        let entries = object(&case["entries"]);
+        let refusal = image_archive::requested(platform).unwrap().and_then(|asked| {
+            image_archive::refusal_by(image_archive::Exporter::Copy, &reference, platform, &asked, |name, limit| {
+                match entries.get(name) {
+                    None => Ok(None),
+                    Some(content) if text(content).len() > limit => Err(format!("{name} is too large")),
+                    Some(content) => Ok(Some(text(content).as_bytes().to_vec())),
+                }
+            })
+        });
+        assert_eq!(refusal.as_deref(), case["refusal"].as_str(), "{}", text(&case["name"]));
+    }
+}
