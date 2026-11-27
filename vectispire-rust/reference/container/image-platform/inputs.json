@@ -1,0 +1,1263 @@
+[
+  {
+    "name": "amd64-asked-amd64-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "amd64-asked-arm64-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "no-platform-any-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": null,
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "blank-platform-any-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": " \t",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "x86_64-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/x86_64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "x86-64-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/x86-64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "upper-case-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "Linux/AMD64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "upper-case-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"AMD64\",\"os\":\"LINUX\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm64-v8-asked-v8-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm64/v8",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm64-asked-none-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "aarch64-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/aarch64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm64-8-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm64/8",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"aarch64\",\"os\":\"linux\",\"variant\":\"8\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm-asked-v7-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":\"v7\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm-asked-none-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm-v7-asked-v6-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm/v7",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":\"v6\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "arm-6-asked-v6-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm/6",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":\"v6\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "armhf-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/armhf",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":\"v7\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "armel-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/armel",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":\"v6\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "amd64-asked-v3-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"variant\":\"v3\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "amd64-v1-asked-none-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64/v1",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "amd64-v3-asked-none-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64/v3",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "i386-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/i386",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"386\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "macos-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "macos/arm64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"darwin\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "windows-asked-linux-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "windows/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "ppc64le-asked-s390x-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/ppc64le",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"s390x\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "riscv64-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/riscv64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"riscv64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "non-ascii-found",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"\\uff21MD64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-one-part",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-four-parts",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm/v7/x",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-empty-component",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux//v7",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-trailing-slash",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64/",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-space",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/ amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-surrounding-space",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": " linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-quote",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd\"64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-backslash",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux\\amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-non-ascii",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64é",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "malformed-dot",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64.v2",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "underscore-and-dash",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/a_b-c",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"a_b-c\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "two-images-one-other",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+        "text": "{\"architecture\":\"arm64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]},{\"Config\":\"blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "two-images-both-asked",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"variant\":\"v2\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]},{\"Config\":\"blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-before-config",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      },
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      }
+    ]
+  },
+  {
+    "name": "no-manifest",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      }
+    ]
+  },
+  {
+    "name": "manifest-not-json",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":"
+      }
+    ]
+  },
+  {
+    "name": "manifest-trailing-garbage",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}] x"
+      }
+    ]
+  },
+  {
+    "name": "manifest-trailing-space",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}] \n"
+      }
+    ]
+  },
+  {
+    "name": "manifest-empty",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": ""
+      }
+    ]
+  },
+  {
+    "name": "manifest-empty-list",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-object",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\"}"
+      }
+    ]
+  },
+  {
+    "name": "manifest-null",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "null"
+      }
+    ]
+  },
+  {
+    "name": "manifest-entry-without-config",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"RepoTags\":null}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-config-number",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":1}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-config-empty",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"\"}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-config-null",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":null}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-entry-string",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\"]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-second-entry-without-config",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\"},{}]"
+      }
+    ]
+  },
+  {
+    "name": "config-missing",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-not-object",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "[]"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-not-json",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-null",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "null"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-without-architecture",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"os\":\"linux\"}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-without-os",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\"}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-architecture-number",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":64,\"os\":\"linux\"}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-variant-number",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/arm/v7",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm\",\"os\":\"linux\",\"variant\":7}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-duplicate-architecture",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"arm64\",\"architecture\":\"amd64\",\"os\":\"linux\"}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "config-with-bom",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "﻿{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-with-bom",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "﻿[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "dot-slash-entries",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "./blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "./manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "dot-slash-config-path",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"./blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "ustar-prefix-name",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}",
+        "form": "prefix"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "gnu-long-name",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}",
+        "form": "gnu-long"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "pax-path",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}",
+        "form": "pax"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/dddddddddddddddddddddddddddddddddddddddd/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/config.json\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "pax-size-on-a-layer",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "text": "layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes ",
+        "form": "pax-size"
+      },
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "gnu-name-not-posix-prefix",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}",
+        "form": "gnu-magic"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ]
+  },
+  {
+    "name": "manifest-is-a-directory",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "",
+        "type": "5"
+      }
+    ]
+  },
+  {
+    "name": "manifest-as-a-symlink",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "",
+        "type": "2"
+      }
+    ]
+  },
+  {
+    "name": "manifest-old-regular-type",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]",
+        "type": "NUL"
+      }
+    ]
+  },
+  {
+    "name": "graphdriver-layout",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a/layer.tar",
+        "text": "layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes "
+      },
+      {
+        "name": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.json",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.json\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      },
+      {
+        "name": "repositories",
+        "text": "{}"
+      }
+    ]
+  },
+  {
+    "name": "damaged-checksum",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ],
+    "damage": "checksum"
+  },
+  {
+    "name": "truncated-in-a-layer",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "text": "layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes layer-bytes "
+      },
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ],
+    "damage": "truncate"
+  },
+  {
+    "name": "without-end-blocks",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ],
+    "damage": "no-end"
+  },
+  {
+    "name": "without-end-blocks-config-missing",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [
+      {
+        "name": "blobs/sha256/c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "text": "{\"architecture\":\"amd64\",\"os\":\"linux\",\"rootfs\":{\"type\":\"layers\",\"diff_ids\":[\"sha256:1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}}"
+      },
+      {
+        "name": "manifest.json",
+        "text": "[{\"Config\":\"blobs/sha256/c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2\",\"RepoTags\":null,\"Layers\":[\"blobs/sha256/1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a\"]}]"
+      }
+    ],
+    "damage": "no-end"
+  },
+  {
+    "name": "empty-archive",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [],
+    "damage": "empty"
+  },
+  {
+    "name": "not-a-tar",
+    "reference": "registry.example:5000/team/app@sha256:abababababababababababababababababababababababababababababababab",
+    "platform": "linux/amd64",
+    "entries": [],
+    "damage": "garbage"
+  }
+]
