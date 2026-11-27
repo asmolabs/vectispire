@@ -6,16 +6,15 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { DocumentsApi } from '../../core/api/documents.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { LatestRequest } from '../../core/latest-request';
 import { messageOf } from '../../core/api-error';
-import { saveDocument } from '../../core/download';
 import type { PluginRefusal, ScanDetail, ScanSummary } from '../../core/api.models';
 import { keyFor } from '../../core/i18n/literal-keys';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
+import { ScanDocuments, type ScanDocument } from '../../shared/scan-documents';
 import { findingTypeLabel, findingTypeOptions, isToolProvenance } from '../../shared/finding-types';
 import type { FindingTypeOption } from '../../shared/finding-types';
 
@@ -61,7 +60,7 @@ export type Examination =
     templateUrl: './scan-detail.html'
 })
 export class ScanDetailPage {
-    private readonly documentsApi = inject(DocumentsApi);
+    private readonly scanDocuments = inject(ScanDocuments);
     private readonly scansApi = inject(ScansApi);
     private readonly i18n = inject(I18nService);
 
@@ -145,9 +144,7 @@ export class ScanDetailPage {
     }
 
     downloadSbom(id: number): void {
-        // Through HttpClient, never a navigation: the token is in memory and a navigation
-        // carries none, so the browser would save the 401's empty body as a zero-byte file.
-        this.download(`/api/v1/scans/${id}/sbom`, `vectispire-scan-${id}.sbom.json`);
+        this.download('sbom', id);
     }
 
     /**
@@ -160,19 +157,19 @@ export class ScanDetailPage {
      * download, the one the SBOM already takes.
      */
     downloadAttestation(id: number): void {
-        this.download(`/api/v1/attestations/scans/${id}`, `vectispire-scan-${id}.attestation.json`);
+        this.download('attestation', id);
     }
 
     downloadCsaf(id: number): void {
-        this.download(`/api/v1/csaf/scans/${id}/csaf.json`, `vectispire-scan-${id}.csaf.json`);
+        this.download('csaf', id);
     }
 
     downloadCycloneDx(id: number): void {
-        this.download(`/api/v1/cyclonedx/scans/${id}/cyclonedx-vex.json`, `vectispire-scan-${id}.cyclonedx-vex.json`);
+        this.download('cyclonedx', id);
     }
 
-    private download(path: string, filename: string): void {
-        this.documentsApi.downloadDocument(path).subscribe({ next: (response) => saveDocument(response, filename) });
+    private download(kind: ScanDocument, id: number): void {
+        this.scanDocuments.save(kind, id).subscribe();
     }
 
     /**

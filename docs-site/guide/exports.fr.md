@@ -59,6 +59,14 @@ Le SBOM exactement tel que le catalogueur l'a produit, non modifié.
 Il vaut la peine de dire pourquoi il n'est pas remis en forme : un SBOM est une preuve, et une
 preuve qui a subi une transformation est aussi une preuve sur la transformation.
 
+La page d'un scan télécharge son SBOM. Pour le dernier SBOM d'un dépôt, **SBOM** sur la carte du dépôt
+dans **Dépôts Git** ouvre une fenêtre qui nomme d'abord le scan dont viennent les documents — le dernier
+scan terminé qui porte un SBOM, la règle de `vectispire-cli.sh sbom --repo-id` — puis télécharge son
+SBOM (`vectispire-scan-<id>.sbom.json`) ou son document CycloneDX avec VEX. Quand le dernier scan
+terminé n'a pas de SBOM, la fenêtre dit que les documents viennent d'un scan plus ancien ; quand aucun
+des cinq derniers scans terminés n'en a, ou que le dépôt n'a aucun scan terminé, elle le dit et ne
+propose rien.
+
 ## Des documents écrits pour des gens
 
 Deux rapports PDF, écrits pour être lus plutôt qu'analysés par une machine :

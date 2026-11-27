@@ -126,6 +126,22 @@
                             (onClick)="page.openSarifImports(repository)"
                         />
 
+                        <!--
+                            The newest completed scan's SBOM, found when the dialog opens: the list
+                            does not say which scan carries one, and asking for every card would cost
+                            two reads per repository on a page a forge import fills with hundreds.
+                        -->
+                        <p-button
+                            icon="pi pi-download"
+                            [label]="'repositories.sbom_btn' | translate"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            [ariaLabel]="'repositories.aria_sbom' | translate: { name: repository.displayName }"
+                            data-testid="latest-sbom-btn"
+                            (onClick)="page.openSbom(repository)"
+                        />
+
                         @if (repository.lastScan; as scan) {
                             <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
                         } @else {

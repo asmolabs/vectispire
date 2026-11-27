@@ -55,6 +55,14 @@ The SBOM exactly as the cataloguer produced it, unmodified.
 Worth being clear about why it is not reshaped: an SBOM is evidence, and evidence that
 passed through a transformation is evidence about the transformation too.
 
+A scan's page downloads its SBOM. For a repository's latest one, **SBOM** on the repository's card in
+**Repositories** opens a dialog that first names the scan the documents come from — the newest
+completed scan that has an SBOM, the rule of `vectispire-cli.sh sbom --repo-id` — and then downloads
+its SBOM (`vectispire-scan-<id>.sbom.json`) or its CycloneDX document with VEX. When the newest
+completed scan has no SBOM, the dialog says the documents come from an older one; when none of the
+five newest completed scans has one, or the repository has no completed scan, it says so and offers
+nothing.
+
 ## Documents written for people
 
 Two PDF reports, written to be read rather than parsed:
