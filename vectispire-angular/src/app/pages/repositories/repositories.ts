@@ -9,6 +9,7 @@ import { ImportsDialog } from './imports-dialog';
 import { RepositoriesPage } from './repositories-page';
 import { RepositoryFormDialog } from './repository-form-dialog';
 import { RepositoryList } from './repository-list';
+import { SbomDialog } from './sbom-dialog';
 import { ScorecardDialog } from './scorecard-dialog';
 
 export { httpsHost, urlCarriesSecret, urlTransport, type CredentialKind } from './repository-model';
@@ -17,7 +18,7 @@ export { httpsHost, urlCarriesSecret, urlTransport, type CredentialKind } from '
  * The monitored repositories.
  *
  * The screen is the frame: the list, its polling and the scans queued from it are `RepositoriesPage`,
- * provided here so each visit starts from nothing; the list and the five dialogs are components of their
+ * provided here so each visit starts from nothing; the list and the six dialogs are components of their
  * own, the form opened from this template on a new repository or one of the list's.
  */
 @Component({
@@ -32,6 +33,7 @@ export { httpsHost, urlCarriesSecret, urlTransport, type CredentialKind } from '
         ImportsDialog,
         RepositoryFormDialog,
         RepositoryList,
+        SbomDialog,
         ScorecardDialog
     ],
     providers: [RepositoriesPage],

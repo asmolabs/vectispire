@@ -1,0 +1,66 @@
+<!-- A repository's latest SBOM: the scan it comes from first, then the documents of that scan. -->
+<p-dialog
+    [visible]="page.sbomVisible()"
+    (visibleChange)="$event ? page.sbomVisible.set(true) : close()"
+    [header]="'repositories.sbom_header' | translate: { name: page.sbomRepo()?.displayName || '' }"
+    [modal]="true"
+    [style]="{ width: '38rem', maxWidth: '95vw' }"
+>
+    <!-- Live before the answer arrives, so a screen reader hears which scan was found, or why none. -->
+    <div class="flex flex-col gap-3" aria-live="polite" data-testid="sbom-source">
+        @if (page.sbomError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+        } @else if (page.sbomLookup(); as lookup) {
+            @if (found(); as source) {
+                <div>
+                    {{ 'repositories.sbom_from' | translate }}
+                    <a [routerLink]="['/scans', source.scan.id]">#{{ source.scan.id }}</a>
+                    · {{ source.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }} · {{ source.scan.branch }}
+                </div>
+                @if (source.newerWithout; as newer) {
+                    <p-message severity="warn" [closable]="false" styleClass="w-full">{{
+                        'repositories.sbom_older' | translate: { id: newer.id }
+                    }}</p-message>
+                }
+            } @else if (lookup.state === 'no_sbom') {
+                <p-message severity="info" [closable]="false" styleClass="w-full">{{
+                    'repositories.sbom_no_sbom' | translate: { count: lookup.examined }
+                }}</p-message>
+            } @else {
+                <p-message severity="info" [closable]="false" styleClass="w-full">{{
+                    'repositories.sbom_no_completed' | translate
+                }}</p-message>
+            }
+        } @else {
+            <div class="text-muted-color">{{ 'repositories.sbom_looking' | translate }}</div>
+        }
+        @if (downloadError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+        }
+    </div>
+
+    <ng-template #footer>
+        <!-- Disabled rather than hidden, with the reason above: a button that vanishes says nothing. -->
+        <p-button
+            [label]="'repositories.sbom_download' | translate"
+            icon="pi pi-download"
+            size="small"
+            data-testid="sbom-download"
+            [disabled]="!found() || saving() !== null"
+            [loading]="saving() === 'sbom'"
+            (onClick)="download('sbom')"
+        />
+        <p-button
+            [label]="'repositories.sbom_download_cyclonedx' | translate"
+            icon="pi pi-file"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            data-testid="sbom-download-cyclonedx"
+            [disabled]="!found() || saving() !== null"
+            [loading]="saving() === 'cyclonedx'"
+            (onClick)="download('cyclonedx')"
+        />
+        <p-button [label]="'common.close' | translate" [text]="true" (onClick)="close()" />
+    </ng-template>
+</p-dialog>

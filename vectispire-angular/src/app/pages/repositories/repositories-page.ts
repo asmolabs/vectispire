@@ -16,12 +16,13 @@ import { SessionStore } from '../../core/session.store';
 import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 import { LatestRequest } from '@/app/core/latest-request';
 import { PAGE_SIZE, pageHolding } from '@/app/shared/list-paging';
+import { latestSbom, type LatestSbom } from './latest-sbom';
 
 /**
  * The monitored repositories as the screen shows them, shared by the components it is made of and
  * provided by `Repositories`, so each visit starts from nothing: the list and its polling while a scan
  * runs, the scans queued from it, and the repository each dialog — deletion, scorecard, imports,
- * CI/CD — is open on. The repository form keeps its own draft; it reloads the list through here.
+ * CI/CD, latest SBOM — is open on. The repository form keeps its own draft; it reloads the list through here.
  */
 @Injectable()
 export class RepositoriesPage {
@@ -192,6 +193,27 @@ export class RepositoriesPage {
     openSarifImports(repository: MonitoredRepository): void {
         this.sarifRepo.set(repository);
         this.sarifVisible.set(true);
+    }
+
+    /** The repository whose latest SBOM is offered, and the scan it comes from once found. */
+    readonly sbomRepo = signal<MonitoredRepository | null>(null);
+    readonly sbomVisible = signal(false);
+    /** Null while the scan is being looked for. */
+    readonly sbomLookup = signal<LatestSbom | null>(null);
+    readonly sbomError = signal<string | null>(null);
+    /** Latest wins: a second repository opened before the first answered must not show the first's scan. */
+    private readonly sbomRequest = new LatestRequest();
+
+    openSbom(repository: MonitoredRepository): void {
+        this.sbomRepo.set(repository);
+        this.sbomLookup.set(null);
+        this.sbomError.set(null);
+        this.sbomVisible.set(true);
+        this.sbomRequest.run(latestSbom(this.scansApi, repository.id), {
+            next: (lookup) => this.sbomLookup.set(lookup),
+            error: (response: unknown) =>
+                this.sbomError.set(messageOf(response, this.i18n.t('repositories.sbom_error_lookup')))
+        });
     }
 
     openCicd(repository: MonitoredRepository): void {
