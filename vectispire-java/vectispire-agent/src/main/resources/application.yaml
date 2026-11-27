@@ -80,5 +80,9 @@ vectispire:
         matcher-cache-claim: ${VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM:}
         node-name: ${VECTISPIRE_KUBERNETES_NODE_NAME:}
         # A Docker configuration directory (config.json, a pull secret's .dockerconfigjson): cosign is handed its
-        # entry for a plugin's registry to verify the signature. Blank reads every registry anonymously.
+        # entry for a plugin's registry to verify the signature, and the image copy its entry for an image target's.
+        # Blank reads every registry anonymously.
         registry-credentials: ${VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS:}
+        # What copies an image target into the workspace, online, in a pod of its own (decision 0045 §8): crane,
+        # pinned. Blank keeps the pinned one; a mirror names its own copy.
+        copy-image: ${VECTISPIRE_KUBERNETES_COPY_IMAGE:}

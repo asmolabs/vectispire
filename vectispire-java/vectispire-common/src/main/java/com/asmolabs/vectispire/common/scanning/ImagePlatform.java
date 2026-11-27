@@ -28,7 +28,13 @@ import java.util.regex.Pattern;
  * <p>Held to {@code vectispire-rust/reference/container/image-platform/} ({@code ImagePlatformReferenceSetTest}),
  * which the Rust agent's {@code image_archive} reads: the two agents ask and refuse alike.
  */
-final class ImagePlatform {
+public final class ImagePlatform {
+
+    /**
+     * Who wrote the archive: the Docker daemon's save, or the Kubernetes executor's copy step (decision 0045 §8). Only
+     * the refusal of another platform says which, since only there is the cause the exporter's.
+     */
+    public enum Exporter { DAEMON, COPY }
 
     /** What containerd's {@code platforms.Parse} admits in a component; it also keeps the query's JSON plain. */
     private static final Pattern COMPONENT = Pattern.compile("[A-Za-z0-9_-]+");
@@ -145,6 +151,34 @@ final class ImagePlatform {
      * be scanned — empty when every image it holds is of that platform.
      */
     static Optional<String> refusal(String reference, String platform, Platform requested, Entries archive) {
+        return refusal(Exporter.DAEMON, reference, platform, requested, archive);
+    }
+
+    /**
+     * {@code platform} as the copy step asks for it — normalized as containerd normalizes, so a registry's index is
+     * searched for {@code amd64} where {@code x86_64} was written — or empty when the task named none.
+     *
+     * @throws IllegalStateException if it is not {@code os/architecture[/variant]}: refused before anything is pulled
+     */
+    public static Optional<String> normalized(String platform) {
+        return requested(platform).map(Platform::format);
+    }
+
+    /**
+     * Why the archive the copy step wrote at {@code archive} may not be scanned — empty when every image it holds is
+     * of {@code platform}, or when the task named none. The Docker executor's check, with the copy's own sentence.
+     */
+    public static Optional<String> refusalOfCopy(String reference, String platform, java.nio.file.Path archive) {
+        Optional<Platform> requested = requested(platform);
+        if (requested.isEmpty()) {
+            return Optional.empty();
+        }
+        return refusal(Exporter.COPY, reference, platform, requested.get(),
+                (name, limit) -> ImageArchive.entry(archive, name, limit));
+    }
+
+    static Optional<String> refusal(Exporter by, String reference, String platform, Platform requested,
+            Entries archive) {
         List<Platform> found = new ArrayList<>();
         try {
             for (String config : configurations(archive)) {
@@ -162,10 +196,17 @@ final class ImagePlatform {
         if (found.stream().allMatch(requested::admits)) {
             return Optional.empty();
         }
-        return Optional.of("The Docker daemon exported " + reference + " as "
-                + String.join(", ", found.stream().map(Platform::format).toList()) + " where " + platform
-                + " was asked: a daemon selects the platform of a save from API 1.48 on, and another architecture "
-                + "is not scanned in place of the one asked for.");
+        String formats = String.join(", ", found.stream().map(Platform::format).toList());
+        return Optional.of(switch (by) {
+            case DAEMON -> "The Docker daemon exported " + reference + " as " + formats + " where " + platform
+                    + " was asked: a daemon selects the platform of a save from API 1.48 on, and another architecture "
+                    + "is not scanned in place of the one asked for.";
+            // A reference naming one image rather than an index is fetched whatever the platform asked: the
+            // registry has nothing to choose from, and crane says nothing (measured, crane 0.22.1).
+            case COPY -> "The image copy fetched " + reference + " as " + formats + " where " + platform
+                    + " was asked: a reference to a single image is served whatever the platform asked, and another "
+                    + "architecture is not scanned in place of the one asked for.";
+        });
     }
 
     /** The {@code Config} of every image {@code manifest.json} lists, in its order; at least one. */

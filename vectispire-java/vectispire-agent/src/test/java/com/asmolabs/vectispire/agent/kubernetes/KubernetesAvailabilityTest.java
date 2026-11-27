@@ -28,13 +28,13 @@ class KubernetesAvailabilityTest {
             ScannerLimits.DEFAULT, new ObjectMapper().createObjectNode()));
 
     @Test
-    @DisplayName("listing and a dry run both allowed: available, and it scans repositories only")
+    @DisplayName("listing and a dry run both allowed: available, and it scans images too (0045 §8)")
     void available() {
         when(api.pods(eq("scans"), anyString())).thenReturn(List.of());
 
         assertThat(executor.whyUnavailable()).isEmpty();
         assertThat(executor.isAvailable()).isTrue();
-        assertThat(executor.exportsImages()).isFalse();
+        assertThat(executor.exportsImages()).isTrue();
     }
 
     @Test

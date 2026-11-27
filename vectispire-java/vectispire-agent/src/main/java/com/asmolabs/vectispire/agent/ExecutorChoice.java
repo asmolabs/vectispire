@@ -70,7 +70,7 @@ final class ExecutorChoice {
                 placement(settings.placement(), json),
                 settings.matcherCacheClaim().isEmpty() ? null : new KubernetesExecutor.MatcherCache(
                         settings.matcherCacheClaim(), matcherDatabase.resolve(VulnerabilityDatabase.GENERATIONS),
-                        settings.nodeName()));
+                        settings.nodeName())).withCopyImage(settings.copyImage());
         if (!settings.registryCredentials().isEmpty()) {
             Path credentials = Path.of(settings.registryCredentials());
             // At start, not at the first plugin: a secret mounted under another key would otherwise read as

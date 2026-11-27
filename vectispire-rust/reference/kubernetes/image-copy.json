@@ -1,0 +1,569 @@
+{
+  "requests" : [ {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "copyImage" : null,
+    "normalized" : "linux/amd64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/amd64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "LINUX/X86_64",
+    "copyImage" : null,
+    "normalized" : "linux/amd64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/amd64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/x86-64/v1",
+    "copyImage" : null,
+    "normalized" : "linux/amd64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/amd64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/aarch64/8",
+    "copyImage" : null,
+    "normalized" : "linux/arm64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/arm64/v8",
+    "copyImage" : null,
+    "normalized" : "linux/arm64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/arm",
+    "copyImage" : null,
+    "normalized" : "linux/arm/v7",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm/v7", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/armhf",
+    "copyImage" : null,
+    "normalized" : "linux/arm/v7",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm/v7", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/arm/5",
+    "copyImage" : null,
+    "normalized" : "linux/arm/v5",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm/v5", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/i386/v2",
+    "copyImage" : null,
+    "normalized" : "linux/386",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/386", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "macOS/arm64",
+    "copyImage" : null,
+    "normalized" : "darwin/arm64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "darwin/arm64", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "windows/amd64/10.0",
+    "copyImage" : null,
+    "refused" : "The image platform \"windows/amd64/10.0\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "",
+    "copyImage" : null,
+    "normalized" : null,
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "   ",
+    "copyImage" : null,
+    "normalized" : null,
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--", "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux",
+    "copyImage" : null,
+    "refused" : "The image platform \"linux\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64/v1/x",
+    "copyImage" : null,
+    "refused" : "The image platform \"linux/amd64/v1/x\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux//amd64",
+    "copyImage" : null,
+    "refused" : "The image platform \"linux//amd64\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/am d64",
+    "copyImage" : null,
+    "refused" : "The image platform \"linux/am d64\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64\n",
+    "copyImage" : null,
+    "refused" : "The image platform \"linux/amd64\n\" is not of the form os/architecture[/variant]; no image is exported for a platform its archive cannot be checked against."
+  }, {
+    "reference" : "--insecure",
+    "platform" : "linux/amd64",
+    "copyImage" : null,
+    "normalized" : "linux/amd64",
+    "run" : {
+      "image" : "gcr.io/go-containerregistry/crane:v0.22.1@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/amd64", "--", "--insecure", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "--insecure",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  }, {
+    "reference" : "registry.acme.internal:5000/team/app:1.4.2",
+    "platform" : "linux/arm64",
+    "copyImage" : "mirror.acme.internal/crane@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "normalized" : "linux/arm64",
+    "run" : {
+      "image" : "mirror.acme.internal/crane@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "label" : "image copy",
+      "network" : true,
+      "asRoot" : false,
+      "user" : null,
+      "entrypoint" : [ "/ko-app/crane" ],
+      "command" : [ "pull", "--platform", "linux/arm64", "--", "registry.acme.internal:5000/team/app:1.4.2", "/image/image.tar" ],
+      "mounts" : [ {
+        "source" : "/w/.image-copy-1/image",
+        "target" : "/image",
+        "readOnly" : false,
+        "writableBytes" : 8589934592
+      } ],
+      "login" : {
+        "reference" : "registry.acme.internal:5000/team/app:1.4.2",
+        "directory" : "/w/.image-copy-1/login"
+      },
+      "timeoutSeconds" : null
+    }
+  } ],
+  "ends" : [ {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 0,
+    "stderr" : "",
+    "written" : true,
+    "failure" : null
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 0,
+    "stderr" : "some progress\n",
+    "written" : false,
+    "failure" : "The image copy exited 0 and wrote no archive of alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "Error: GET https://index.docker.io/v2/library/alpine/manifests/sha256:111: MANIFEST_UNKNOWN: manifest unknown\n",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying: Error: GET https://index.docker.io/v2/library/alpine/manifests/sha256:111: MANIFEST_UNKNOWN: manifest unknown. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/s390x",
+    "exitCode" : 1,
+    "stderr" : "Error: no child with platform linux/s390x in index alpine\n",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/s390x: crane exited 1, saying: Error: no child with platform linux/s390x in index alpine. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "",
+    "exitCode" : 1,
+    "stderr" : "Error: unauthorized\n",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111: crane exited 1, saying: Error: unauthorized. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "  \t",
+    "exitCode" : 1,
+    "stderr" : "Error: unauthorized\n",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111: crane exited 1, saying: Error: unauthorized. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : null,
+    "exitCode" : 2,
+    "stderr" : "  \t\n",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111: crane exited 2. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "",
+    "written" : true,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 137,
+    "stderr" : "",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 137. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : -1,
+    "stderr" : "x",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited -1, saying: x. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé€x",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying: ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé€…. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying: 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying: 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀…. It is not scanned."
+  }, {
+    "reference" : "alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "platform" : "linux/amd64",
+    "exitCode" : 1,
+    "stderr" : " spaced ",
+    "written" : false,
+    "failure" : "The image copy could not fetch alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 for linux/amd64: crane exited 1, saying:  spaced . It is not scanned."
+  } ],
+  "archives" : [ {
+    "name" : "crane's archive, the platform asked",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "{\"architecture\":\"amd64\",\"os\":\"linux\"}"
+    },
+    "refusal" : null
+  }, {
+    "name" : "a single image of another platform",
+    "platform" : "linux/arm64",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "{\"architecture\":\"amd64\",\"os\":\"linux\"}"
+    },
+    "refusal" : "The image copy fetched alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 as linux/amd64 where linux/arm64 was asked: a reference to a single image is served whatever the platform asked, and another architecture is not scanned in place of the one asked for."
+  }, {
+    "name" : "arm64 asked with its variant, found without",
+    "platform" : "linux/arm64/v8",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "{\"architecture\":\"aarch64\",\"os\":\"linux\"}"
+    },
+    "refusal" : null
+  }, {
+    "name" : "arm64 found with v8, asked without",
+    "platform" : "linux/arm64",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\"}"
+    },
+    "refusal" : null
+  }, {
+    "name" : "two images, one of another platform",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "a.json" : "{\"architecture\":\"amd64\",\"os\":\"linux\"}",
+      "b.json" : "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\"}",
+      "manifest.json" : "[{\"Config\":\"a.json\"},{\"Config\":\"b.json\"}]"
+    },
+    "refusal" : "The image copy fetched alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 as linux/amd64, linux/arm64 where linux/amd64 was asked: a reference to a single image is served whatever the platform asked, and another architecture is not scanned in place of the one asked for."
+  }, {
+    "name" : "no platform asked: nothing checked",
+    "platform" : "",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\"}"
+    },
+    "refusal" : null
+  }, {
+    "name" : "no manifest",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "sha256:aaaa" : "{\"architecture\":\"amd64\",\"os\":\"linux\"}"
+    },
+    "refusal" : "The archive exported for alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 could not be checked for linux/amd64: it holds no manifest.json. It is not scanned unchecked."
+  }, {
+    "name" : "its configuration missing",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]"
+    },
+    "refusal" : "The archive exported for alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 could not be checked for linux/amd64: the configuration sha256:aaaa is not in it. It is not scanned unchecked."
+  }, {
+    "name" : "a configuration that is not an object",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "manifest.json" : "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]",
+      "sha256:aaaa" : "[]"
+    },
+    "refusal" : "The archive exported for alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 could not be checked for linux/amd64: the configuration sha256:aaaa is not a JSON object. It is not scanned unchecked."
+  }, {
+    "name" : "an empty manifest",
+    "platform" : "linux/amd64",
+    "entries" : {
+      "manifest.json" : "[]",
+      "sha256:aaaa" : "{\"architecture\":\"amd64\",\"os\":\"linux\"}"
+    },
+    "refusal" : "The archive exported for alpine@sha256:1111111111111111111111111111111111111111111111111111111111111111 could not be checked for linux/amd64: its manifest.json is not a list of images. It is not scanned unchecked."
+  } ]
+}

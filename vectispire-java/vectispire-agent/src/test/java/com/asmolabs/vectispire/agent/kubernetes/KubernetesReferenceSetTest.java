@@ -508,6 +508,140 @@ class KubernetesReferenceSetTest {
         RustReference.expect("kubernetes/registry-login.json", JSON.writeValueAsString(cases) + "\n");
     }
 
+    // ---------------------------------------------------------------------------------------- the image copy
+
+    /**
+     * An image target on Kubernetes (decision 0045 §8): the platform as crane is asked for it or the refusal before any
+     * pod, the copy's run, what crane's end becomes, and the copied archive checked against the platform with the
+     * copy's own sentence — the archives' entries given beside the answers, so the Rust test reads them without a tar.
+     */
+    @Test
+    void theImageCopy() throws Exception {
+        ObjectNode file = JSON.createObjectNode();
+        Path into = Path.of("/w/.image-copy-1/image");
+        Path login = Path.of("/w/.image-copy-1/login");
+        String alpine = "alpine@sha256:" + "1".repeat(64);
+
+        ArrayNode requests = file.putArray("requests");
+        String[][] asked = {
+                {alpine, "linux/amd64", null},
+                {alpine, "LINUX/X86_64", null},
+                {alpine, "linux/x86-64/v1", null},
+                {alpine, "linux/aarch64/8", null},
+                {alpine, "linux/arm64/v8", null},
+                {alpine, "linux/arm", null},
+                {alpine, "linux/armhf", null},
+                {alpine, "linux/arm/5", null},
+                {alpine, "linux/i386/v2", null},
+                {alpine, "macOS/arm64", null},
+                {alpine, "windows/amd64/10.0", null},
+                {alpine, "", null},
+                {alpine, "   ", null},
+                {alpine, "linux", null},
+                {alpine, "linux/amd64/v1/x", null},
+                {alpine, "linux//amd64", null},
+                {alpine, "linux/am d64", null},
+                {alpine, "linux/amd64\n", null},
+                {"--insecure", "linux/amd64", null},
+                {"registry.acme.internal:5000/team/app:1.4.2", "linux/arm64", "mirror.acme.internal/crane@sha256:" + "c".repeat(64)},
+        };
+        for (String[] request : asked) {
+            ObjectNode entry = requests.addObject().put("reference", request[0]).put("platform", request[1])
+                    .put("copyImage", request[2]);
+            Optional<String> normalized;
+            try {
+                normalized = com.asmolabs.vectispire.common.scanning.ImagePlatform.normalized(request[1]);
+            } catch (IllegalStateException refused) {
+                entry.put("refused", refused.getMessage());
+                continue;
+            }
+            entry.put("normalized", normalized.orElse(null));
+            KubernetesExecutor.Settings settings = new KubernetesExecutor.Settings("ns", "a", KubernetesExecutor.HELPER_IMAGE,
+                    "1000:1000", Duration.ofMinutes(1), ScannerLimits.DEFAULT, null).withCopyImage(request[2]);
+            ContainerRun run = ImageCopy.request(settings.copyImage(), request[0], normalized, into, login);
+            ObjectNode shown = entry.putObject("run");
+            shown.put("image", run.image()).put("label", run.label()).put("network", run.network())
+                    .put("asRoot", run.asRoot()).put("user", run.user());
+            run.entrypoint().forEach(shown.putArray("entrypoint")::add);
+            run.command().forEach(shown.putArray("command")::add);
+            ArrayNode mounts = shown.putArray("mounts");
+            run.mounts().forEach(mount -> mounts.addObject().put("source", mount.source()).put("target", mount.target())
+                    .put("readOnly", mount.readOnly()).put("writableBytes", mount.writableBytes()));
+            shown.putObject("login").put("reference", run.login().reference()).put("directory", run.login().directory().toString());
+            shown.put("timeoutSeconds", run.timeout() == null ? null : run.timeout().toSeconds());
+        }
+
+        ArrayNode ends = file.putArray("ends");
+        String long500 = "é".repeat(499) + "€x";
+        Object[][] outcomes = {
+                {alpine, "linux/amd64", 0, "", true},
+                {alpine, "linux/amd64", 0, "some progress\n", false},
+                {alpine, "linux/amd64", 1, "Error: GET https://index.docker.io/v2/library/alpine/manifests/sha256:111: "
+                        + "MANIFEST_UNKNOWN: manifest unknown\n", false},
+                {alpine, "linux/s390x", 1, "Error: no child with platform linux/s390x in index alpine\n", false},
+                {alpine, "", 1, "Error: unauthorized\n", false},
+                {alpine, "  \t", 1, "Error: unauthorized\n", false},
+                {alpine, null, 2, "  \t\n", false},
+                {alpine, "linux/amd64", 1, "", true},
+                {alpine, "linux/amd64", 137, "", false},
+                {alpine, "linux/amd64", -1, "x", false},
+                {alpine, "linux/amd64", 1, long500, false},
+                {alpine, "linux/amd64", 1, "é".repeat(500), false},
+                // Outside the BMP: 300 characters, 600 UTF-16 units — cut by code points, as Rust counts, or not at all.
+                {alpine, "linux/amd64", 1, "\uD83D\uDE00".repeat(300), false},
+                {alpine, "linux/amd64", 1, "\uD83D\uDE00".repeat(501), false},
+                {alpine, "linux/amd64", 1, " spaced ", false},
+        };
+        for (Object[] outcome : outcomes) {
+            ObjectNode entry = ends.addObject().put("reference", (String) outcome[0]).put("platform", (String) outcome[1])
+                    .put("exitCode", (Integer) outcome[2]).put("stderr", (String) outcome[3])
+                    .put("written", (Boolean) outcome[4]);
+            entry.put("failure", ImageCopy.failure((String) outcome[0], (String) outcome[1], (Integer) outcome[2],
+                    (String) outcome[3], (Boolean) outcome[4]).orElse(null));
+        }
+
+        ArrayNode checks = file.putArray("archives");
+        String amd64 = "{\"architecture\":\"amd64\",\"os\":\"linux\"}";
+        String arm64 = "{\"architecture\":\"arm64\",\"os\":\"linux\",\"variant\":\"v8\"}";
+        String crane = "[{\"Config\":\"sha256:aaaa\",\"RepoTags\":[\"alpine:i-was-a-digest\"],\"Layers\":[\"l1.tar.gz\"]}]";
+        Object[][] archives = {
+                {"crane's archive, the platform asked", "linux/amd64", Map.of("manifest.json", crane, "sha256:aaaa", amd64)},
+                {"a single image of another platform", "linux/arm64", Map.of("manifest.json", crane, "sha256:aaaa", amd64)},
+                {"arm64 asked with its variant, found without", "linux/arm64/v8", Map.of("manifest.json", crane,
+                        "sha256:aaaa", "{\"architecture\":\"aarch64\",\"os\":\"linux\"}")},
+                {"arm64 found with v8, asked without", "linux/arm64", Map.of("manifest.json", crane, "sha256:aaaa", arm64)},
+                {"two images, one of another platform", "linux/amd64", Map.of("manifest.json",
+                        "[{\"Config\":\"a.json\"},{\"Config\":\"b.json\"}]", "a.json", amd64, "b.json", arm64)},
+                {"no platform asked: nothing checked", "", Map.of("manifest.json", crane, "sha256:aaaa", arm64)},
+                {"no manifest", "linux/amd64", Map.of("sha256:aaaa", amd64)},
+                {"its configuration missing", "linux/amd64", Map.of("manifest.json", crane)},
+                {"a configuration that is not an object", "linux/amd64", Map.of("manifest.json", crane, "sha256:aaaa", "[]")},
+                {"an empty manifest", "linux/amd64", Map.of("manifest.json", "[]", "sha256:aaaa", amd64)},
+        };
+        int index = 0;
+        for (Object[] archive : archives) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> entries = new java.util.TreeMap<>((Map<String, String>) archive[2]);
+            Path tar = directory.resolve("copied-" + index++ + ".tar");
+            try (TarArchiveOutputStream out = new TarArchiveOutputStream(Files.newOutputStream(tar))) {
+                for (Map.Entry<String, String> named : entries.entrySet()) {
+                    byte[] content = named.getValue().getBytes(StandardCharsets.UTF_8);
+                    TarArchiveEntry header = new TarArchiveEntry(named.getKey());
+                    header.setSize(content.length);
+                    out.putArchiveEntry(header);
+                    out.write(content);
+                    out.closeArchiveEntry();
+                }
+            }
+            ObjectNode entry = checks.addObject().put("name", (String) archive[0]).put("platform", (String) archive[1]);
+            ObjectNode held = entry.putObject("entries");
+            entries.forEach(held::put);
+            entry.put("refusal", com.asmolabs.vectispire.common.scanning.ImagePlatform.refusalOfCopy(alpine,
+                    (String) archive[1], tar).orElse(null));
+        }
+        RustReference.expect("kubernetes/image-copy.json", JSON.writeValueAsString(file) + "\n");
+    }
+
     // ------------------------------------------------------------------------------ the API server's address
 
     @Test

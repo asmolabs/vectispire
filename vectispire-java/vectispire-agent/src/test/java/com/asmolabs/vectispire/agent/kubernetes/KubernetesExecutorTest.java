@@ -235,6 +235,61 @@ class KubernetesExecutorTest {
                 .hasMessageContaining("could not start");
     }
 
+    /**
+     * Alpine 3.20.3 by its <b>index</b> digest — the one the Docker executor's export is tested with — and its amd64
+     * image by its own digest: a reference to a single image, which crane fetches whatever platform is asked.
+     */
+    static final String MULTI_ARCH_ALPINE = "alpine@sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb7527e017a4b4a";
+    static final String ALPINE_AMD64_ONLY = "alpine@sha256:029a752048e32e843bd6defe3841186fb8d19a28dae8ec287f433bb9d6d1ad85";
+
+    /** Decision 0045 §8: crane in a pod of its own, the archive brought back for the platform asked, and nothing else. */
+    @Test
+    void anImageTargetIsCopiedForThePlatformAsked_bothWaysRound() throws IOException {
+        Path workspace = Files.createDirectory(directory.resolve("workspace"));
+        for (String platform : List.of("linux/amd64", "linux/arm64")) {
+            Path archive = workspace.resolve(platform.substring(6) + ".tar");
+            executor.exportImage(MULTI_ARCH_ALPINE, platform, archive);
+            // Of the platform asked, as the check reads it, and of no other.
+            assertThat(com.asmolabs.vectispire.common.scanning.ImagePlatform.refusalOfCopy(MULTI_ARCH_ALPINE, platform, archive))
+                    .isEmpty();
+            String other = platform.equals("linux/amd64") ? "linux/arm64" : "linux/amd64";
+            assertThat(com.asmolabs.vectispire.common.scanning.ImagePlatform.refusalOfCopy(MULTI_ARCH_ALPINE, other, archive))
+                    .hasValueSatisfying(refusal -> assertThat(refusal).contains("as " + platform + " where " + other));
+        }
+        // The copy's own directory, and the login's, are gone: the archives alone remain.
+        try (var left = Files.list(workspace)) {
+            assertThat(left.map(path -> path.getFileName().toString()).sorted().toList())
+                    .containsExactly("amd64.tar", "arm64.tar");
+        }
+    }
+
+    @Test
+    void anImageOfAnotherPlatformIsRefusedAndNothingIsLeft() throws IOException {
+        Path workspace = Files.createDirectory(directory.resolve("workspace"));
+        Path archive = workspace.resolve("image.tar");
+        assertThatThrownBy(() -> executor.exportImage(ALPINE_AMD64_ONLY, "linux/arm64", archive))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessage("The image copy fetched " + ALPINE_AMD64_ONLY + " as linux/amd64 where linux/arm64 was asked: a "
+                        + "reference to a single image is served whatever the platform asked, and another architecture is "
+                        + "not scanned in place of the one asked for.");
+        try (var left = Files.list(workspace)) {
+            assertThat(left).isEmpty();
+        }
+    }
+
+    @Test
+    void anImageTheRegistryDoesNotServeIsAFailureNamingIt() throws IOException {
+        Path workspace = Files.createDirectory(directory.resolve("workspace"));
+        String absent = "alpine@sha256:" + "0".repeat(64);
+        assertThatThrownBy(() -> executor.exportImage(absent, "linux/amd64", workspace.resolve("image.tar")))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageStartingWith("The image copy could not fetch " + absent + " for linux/amd64: crane exited 1, saying: ")
+                .hasMessageEndingWith(". It is not scanned.");
+        try (var left = Files.list(workspace)) {
+            assertThat(left).isEmpty();
+        }
+    }
+
     @Test
     void anUndeclaredEntrypointKeepsTheImagesAndItsOutputIsADiagnostic() {
         ContainerResult result = executor.run(ContainerRun.of(SHELL, List.of("sh", "-c", "echo to-the-log"), List.of(), "plugin test"));

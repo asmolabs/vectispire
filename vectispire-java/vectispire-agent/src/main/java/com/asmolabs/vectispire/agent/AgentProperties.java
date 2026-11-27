@@ -104,7 +104,10 @@ public record AgentProperties(
      *     mounting the matcher's cache goes, since the claim attaches to one node
      * @param registryCredentials a Docker configuration directory holding {@code config.json} — the pull secret
      *     the chart mounts — whose entry for a plugin's registry cosign is handed to verify its signature; blank
-     *     reads every registry anonymously, which a private one refuses
+     *     reads every registry anonymously, which a private one refuses. The image copy of an image target is
+     *     handed the entry for the image's registry the same way
+     * @param copyImage the image that copies an image target into the workspace (decision 0045 §8); blank keeps the
+     *     pinned crane, an operator's mirror replaces it
      */
     public record Kubernetes(
             @DefaultValue("") String namespace,
@@ -119,7 +122,8 @@ public record AgentProperties(
             @DefaultValue("2048") int memoryMiB,
             @DefaultValue("") String matcherCacheClaim,
             @DefaultValue("") String nodeName,
-            @DefaultValue("") String registryCredentials) {
+            @DefaultValue("") String registryCredentials,
+            @DefaultValue("") String copyImage) {
 
         /** The one the binder uses — marked, because the convenience constructor below makes two (see the outer record's). */
         @ConstructorBinding
@@ -134,6 +138,7 @@ public record AgentProperties(
             matcherCacheClaim = matcherCacheClaim == null ? "" : matcherCacheClaim.trim();
             nodeName = nodeName == null ? "" : nodeName.trim();
             registryCredentials = registryCredentials == null ? "" : registryCredentials.trim();
+            copyImage = copyImage == null ? "" : copyImage.trim();
             if (cpuMillis <= 0 || memoryMiB <= 0) {
                 throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are "
                         + "positive: a scan pod with no limit is not in the closed shape. The agent does not start.");
@@ -152,6 +157,14 @@ public record AgentProperties(
                 String matcherCacheClaim, String nodeName) {
             this(namespace, name, helperImage, user, startTimeout, placement, requireIsolation, probeTarget, cpuMillis,
                     memoryMiB, matcherCacheClaim, nodeName, "");
+        }
+
+        /** With the pinned copy image. */
+        public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
+                String placement, boolean requireIsolation, String probeTarget, int cpuMillis, int memoryMiB,
+                String matcherCacheClaim, String nodeName, String registryCredentials) {
+            this(namespace, name, helperImage, user, startTimeout, placement, requireIsolation, probeTarget, cpuMillis,
+                    memoryMiB, matcherCacheClaim, nodeName, registryCredentials, "");
         }
     }
 

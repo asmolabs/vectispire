@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.CollectedOutput;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.OutputFile;
+import com.asmolabs.vectispire.common.scanning.Directories;
+import com.asmolabs.vectispire.common.scanning.ImagePlatform;
 import com.asmolabs.vectispire.common.scanning.MountedPullCredentials;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
@@ -62,11 +64,21 @@ public final class KubernetesExecutor implements ContainerExecutor {
      * @param cutOffFrom the {@code address:port} every scan pod must be refused before its scanner starts — the
      *     isolation probe's target — or {@code null} where isolation is not required
      * @param registryCredentials a Docker configuration directory — the pull secret the chart mounts — whose entry
-     *     for a registry a tool reading that registry is handed, cosign verifying a plugin's signature; {@code null}
-     *     where none is mounted, and the tool reads anonymously
+     *     for a registry a tool reading that registry is handed, cosign verifying a plugin's signature and the image
+     *     copy fetching an image target; {@code null} where none is mounted, and the tool reads anonymously
+     * @param copyImage the image the copy of an image target runs (decision 0045 §8): crane, pinned by digest, or
+     *     an operator's mirror of it; blank keeps the pinned one
      */
     public record Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
-            ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom, Path registryCredentials) {
+            ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom, Path registryCredentials,
+            String copyImage) {
+
+        /** With the pinned copy image. */
+        public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
+                ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom, Path registryCredentials) {
+            this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, cutOffFrom,
+                    registryCredentials, ImageCopy.IMAGE);
+        }
 
         /** Without a matcher cache: every mount is copied. */
         public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
@@ -89,13 +101,19 @@ public final class KubernetesExecutor implements ContainerExecutor {
         /** These settings, every scan pod refused {@code target} before its scanner starts. */
         public Settings cutOffFrom(String target) {
             return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, target,
-                    registryCredentials);
+                    registryCredentials, copyImage);
         }
 
         /** These settings, a registry's tool handed {@code configuration}'s entry for it. */
         public Settings withRegistryCredentials(Path configuration) {
             return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache,
-                    cutOffFrom, configuration);
+                    cutOffFrom, configuration, copyImage);
+        }
+
+        /** These settings, image targets copied by {@code image} — an operator's mirror of crane. */
+        public Settings withCopyImage(String image) {
+            return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache,
+                    cutOffFrom, registryCredentials, image);
         }
 
         /** What placement may set: where the pod goes, never what it may do. */
@@ -110,6 +128,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 }
             }
             agent = ScanPods.labelValue(agent);
+            copyImage = copyImage == null || copyImage.isBlank() ? ImageCopy.IMAGE : copyImage.strip();
             if (cutOffFrom != null) {
                 address(cutOffFrom);
             }
@@ -236,12 +255,6 @@ public final class KubernetesExecutor implements ContainerExecutor {
         return refused.status() == 403 && String.valueOf(refused.getMessage()).contains("cannot create resource");
     }
 
-    /** Image targets need the copy step of decision 0045 §8, which is not built: see {@link #exportImage}. */
-    @Override
-    public boolean exportsImages() {
-        return false;
-    }
-
     /** Deletes every pod this agent left: a crash between a pod's creation and its deletion. */
     public void sweep() {
         api.deletePods(settings.namespace(), ScanPods.LABEL_AGENT + "=" + settings.agent());
@@ -339,13 +352,50 @@ public final class KubernetesExecutor implements ContainerExecutor {
     }
 
     /**
-     * Not yet: an image target is copied into the workspace by a pinned copy step (0045 §8), which is not
-     * built. A failure, so the image's inventory is absent — never an empty one.
+     * **Copies the image into the workspace through a pod of its own** (decision 0045 §8): crane pulls it for the
+     * platform asked, online, with the mounted pull secret's entry for its registry when there is one, and writes the
+     * archive {@code docker save} would — read back like any writable mount, then checked against the platform as the
+     * Docker executor checks its daemon's save ({@link ImageCopy}).
+     *
+     * <p><b>Never empty</b> (0007): crane's refusal, an archive it did not write, one of another platform or one that
+     * cannot be read are failures naming the image, so its inventory is absent — and nothing is left at
+     * {@code destination} for the cataloguer to pick up.
      */
     @Override
     public void exportImage(String reference, String platform, Path destination) {
-        throw ScannerFailureException.of("image export", "Image targets are not scanned by the Kubernetes executor yet: "
-                + "the copy step of decision 0045 §8 is not built. " + reference + " was not examined.");
+        // Before the pod: a platform the archive cannot be checked against is refused, as by the daemon's export.
+        Optional<String> asked = ImagePlatform.normalized(platform);
+        Path copy = null;
+        try {
+            copy = Files.createTempDirectory(destination.toAbsolutePath().getParent(), ".image-copy-");
+            Path into = Files.createDirectory(copy.resolve("image"));
+            Path login = Files.createDirectory(copy.resolve("login"));
+            ContainerResult result = run(ImageCopy.request(settings.copyImage(), reference, asked, into, login));
+            Path archive = into.resolve(ImageCopy.ARCHIVE);
+            boolean written = Files.isRegularFile(archive, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+            Optional<String> failure = ImageCopy.failure(reference, platform, result.exitCode(), result.stderr(), written);
+            if (failure.isPresent()) {
+                throw ScannerFailureException.of(ImageCopy.LABEL, failure.get());
+            }
+            Files.move(archive, destination);
+        } catch (IOException unwritable) {
+            throw ScannerFailureException.of(ImageCopy.LABEL, "The image copy of " + reference
+                    + " could not be put in the workspace: " + unwritable.getMessage() + ". It is not scanned.");
+        } finally {
+            if (copy != null) {
+                Directories.deleteRecursively(copy);
+            }
+        }
+        Optional<String> refusal = ImagePlatform.refusalOfCopy(reference, platform, destination);
+        if (refusal.isPresent()) {
+            // Not left for the workspace removal: nothing may pick up an archive that was refused.
+            try {
+                Files.deleteIfExists(destination);
+            } catch (IOException ignored) {
+                // The workspace removal will get it; the refusal is what the step reports.
+            }
+            throw ScannerFailureException.of(ImageCopy.LABEL, refusal.get());
+        }
     }
 
     /**
