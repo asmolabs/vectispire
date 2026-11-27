@@ -51,6 +51,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0045](0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md) | Sur un cluster sans Docker, les agents lancent chaque scanner dans un pod, dans un espace de noms à eux | acceptée |
 | [0046](0046-compliance-codes-for-1-0.md) | Les codes de conformité que 1.0 fige : ceux du CRA tel qu'adopté, l'édition 2021 d'OWASP | acceptée |
 | [0047](0047-patch-releases-carry-no-migration.md) | Une version corrective ne porte aucune migration | acceptée |
+| [0048](0048-vectispire-2-0-is-a-rust-rewrite-behind-the-external-contracts.md) | Vectispire 2.0.0 est une réécriture en Rust derrière les contrats externes, pas un portage | proposée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

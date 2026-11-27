@@ -51,6 +51,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0045](0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md) | On a cluster without Docker, agents run each scanner as a pod in a namespace of their own | accepted |
 | [0046](0046-compliance-codes-for-1-0.md) | The compliance codes 1.0 freezes: the CRA's as adopted, OWASP's 2021 edition | accepted |
 | [0047](0047-patch-releases-carry-no-migration.md) | A patch release carries no migration | accepted |
+| [0048](0048-vectispire-2-0-is-a-rust-rewrite-behind-the-external-contracts.md) | Vectispire 2.0.0 is a Rust rewrite behind the external contracts, not a port | proposed |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
