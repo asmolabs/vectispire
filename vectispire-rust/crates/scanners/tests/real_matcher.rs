@@ -29,13 +29,12 @@ use vectispire_scanners::vulnerability_database::{GENERATIONS, POINTER, Vulnerab
 use vectispire_testkit::docker::docker;
 use vectispire_testkit::proxy::SocketProxy;
 
-/// alpine 3.12.0 — the reference set's image (`capture.sh`) — by its linux/amd64 manifest rather than the
-/// multi-architecture index. **Both agents' export saves without a platform**, and on a daemon with the
-/// containerd image store the save of an index then wants the *host's* variant: on an arm64 host it fails
-/// (`content digest … not found`) when only the amd64 one was pulled, and exports the arm64 one when it is
-/// there. A defect of both sides, reported (`README.md`, "Known differences"); a single-platform reference
-/// is what lets the two be compared on any host meanwhile.
-const ALPINE: &str = "alpine@sha256:a15790640a6690aa1730c38cf0a440e2aa44aaca9b0e8931a9f2b0d7cc90fd65";
+/// alpine 3.12.0 — the reference set's image (`capture.sh`) — by its **multi-architecture index**, exported for
+/// `DEFAULT_PLATFORM` (linux/amd64) as production audits it. Until 2026-11-27 it was pinned by its amd64 manifest
+/// (`sha256:a15790640a66…`), because both agents' save named no platform and the containerd image store then
+/// exported the *host's* variant of an index; the save names it now and its archive is checked against it
+/// (`README.md`, "An image is saved for its platform"), so the index is compared on an arm64 host too.
+const ALPINE: &str = "alpine@sha256:185518070891758909c9f839cf4ca393ee977ac378609f700f60a771a2dfe321";
 
 fn variable(name: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| panic!("{name} names a directory")))

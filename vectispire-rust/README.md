@@ -378,7 +378,9 @@ and removes its own download directory, which is the failed update above. Mutati
   Desktop, Engine 29's default) the save of a multi-architecture index wants the *host's* variant: on an arm64 host it
   failed (`content digest … not found`) when only the amd64 variant was there, and **silently exported the arm64
   variant** when it was — the image's other architecture audited in place of the one production deploys. The
-  comparison above still pins Alpine by its amd64 manifest; it may move to the index now.
+  comparison above pinned Alpine by its amd64 manifest meanwhile; it pins the index since 2026-11-27, exported for
+  `linux/amd64` on an arm64 host (Docker Desktop, containerd store): the amd64 configuration (`a24bb4013296…`), and
+  the same 83 and 158 findings and fingerprints on both agents (one run on the real database, snapshot of that day).
 
 **A corrupted published generation is replaced** — fixed 2026-11-27 on both agents (branch
 `fix/agent-corrupted-matcher-db`), where it had been kept. `db check` asks the publisher and never reads the copy;
