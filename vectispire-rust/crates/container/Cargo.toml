@@ -32,6 +32,8 @@ vectispire-domain.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 tempfile.workspace = true
+# A paused clock: the save's lack of a deadline is shown in virtual minutes, not real ones.
+tokio = { workspace = true, features = ["test-util"] }
 vectispire-testkit = { path = "../testkit" }
 
 [lints]

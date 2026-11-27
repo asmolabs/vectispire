@@ -411,6 +411,10 @@ database by `real_matcher.rs::a_corrupted_published_copy_is_replaced_by_a_downlo
 reads. **The save names the platform too** (`GET /images/get?names=…&platform=…`, a JSON-encoded OCI platform, API
 1.48), made by hand over hyper since bollard 0.19's save takes none — as the Java agent makes it by hand over
 docker-java's transport. Unversioned, as bollard's own requests reach the daemon, so a daemon from 1.48 on honours it.
+**With no deadline**, as docker-java's transport sets none: the daemon on the graphdriver store writes every layer to a
+directory of its own before the archive's first byte, so a large image is silent for minutes. Until 2026-11-27 the save
+kept the 120 s the other daemon calls have, which failed such an image on this agent and not on Java's — and bounded
+only the answer's head, never the archive's body, so it guarded no hang the Java agent is exposed to.
 
 **And the archive is checked whatever the daemon** (`crates/container/src/image_archive.rs`, `ImagePlatform` and
 `ImageArchive` on the Java side): every configuration its `manifest.json` names must be of the platform asked for,

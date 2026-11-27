@@ -11,7 +11,7 @@ use tokio::sync::OnceCell;
 /// What standard error keeps: enough for the tool's own explanation, not a second unbounded stream.
 pub const STDERR_BYTES: usize = 1024 * 1024;
 
-/// How long one call to the daemon may take, the run's own wait aside.
+/// How long one call to the daemon may take, the run's own wait and the image save aside.
 const DAEMON_CALL_TIMEOUT_SECONDS: u64 = 120;
 
 /// Why a run produced no result — with the Java runner's sentences, which reach the scan's error.
@@ -293,12 +293,12 @@ impl ContainerRunner {
             .header(http::header::CONNECTION, "close")
             .body(http_body_util::Empty::<bytes::Bytes>::new())
             .map_err(|error| error.to_string())?;
-        let answer = tokio::time::timeout(std::time::Duration::from_secs(DAEMON_CALL_TIMEOUT_SECONDS), async {
-            let mut sender = daemon_connection(&self.address).await?;
-            sender.send_request(request).await.map_err(|error| error.to_string())
-        })
-        .await
-        .map_err(|_| format!("the daemon did not answer within {DAEMON_CALL_TIMEOUT_SECONDS}s"))??;
+        // **No deadline on the answer**, as on the Java side (docker-java's transport has none). A daemon on the
+        // graphdriver store writes every layer to a directory of its own before the archive's first byte, so a large
+        // image is legitimately silent for minutes; the 120 s of the other calls failed it here and not in Java. Nor
+        // did that deadline bound a hang: it covered the answer's head only, and the archive's body has none either.
+        let mut sender = daemon_connection(&self.address).await?;
+        let answer = sender.send_request(request).await.map_err(|error| error.to_string())?;
         let status = answer.status();
         if status == http::StatusCode::OK {
             return Ok(answer.into_body());
@@ -415,4 +415,42 @@ async fn remove(docker: &Docker, id: &str) {
     let options = RemoveContainerOptionsBuilder::new().force(true).v(false).build();
     // Nothing to do about a container already gone, and nothing worth masking the run's error for.
     let _ = docker.remove_container(id, Some(options)).await;
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    /// A daemon whose save answers only after `delay` of real time, as one on the graphdriver store does while it
+    /// writes the layers out before the archive's first byte.
+    fn slow_daemon(delay: std::time::Duration) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("tcp://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let Ok((mut connection, _)) = listener.accept() else { return };
+            let mut request = Vec::new();
+            let mut byte = [0u8; 1];
+            while !request.ends_with(b"\r\n\r\n") && connection.read(&mut byte).unwrap_or(0) == 1 {
+                request.push(byte[0]);
+            }
+            std::thread::sleep(delay);
+            let _ = connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\ntar");
+        });
+        address
+    }
+
+    /// The clock is paused, so it jumps to the next deadline whenever the runtime waits on the socket: a deadline on
+    /// the save, of any length, expires before the daemon answers, as 120 s did on a large image. Java's has none.
+    #[tokio::test(start_paused = true)]
+    async fn the_save_waits_for_the_daemon_however_long_it_takes_to_answer() {
+        let address = slow_daemon(std::time::Duration::from_millis(300));
+        let runner = ContainerRunner::connect(Some(&address), ScannerLimits::default_for_this_host()).unwrap();
+
+        let body = runner.save("app:1", None).await.unwrap();
+
+        let bytes = http_body_util::BodyExt::collect(body).await.unwrap().to_bytes();
+        assert_eq!(&bytes[..], b"tar");
+    }
 }
