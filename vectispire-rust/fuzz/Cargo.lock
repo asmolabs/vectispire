@@ -3639,11 +3639,21 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 name = "vectispire-container"
 version = "2.0.0-dev"
 dependencies = [
+ "base64 0.22.1",
  "bollard",
+ "bytes",
  "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "percent-encoding",
+ "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",
+ "vectispire-domain",
 ]
 
 [[package]]
@@ -4101,6 +4111,7 @@ dependencies = [
  "uuid",
  "vectispire-container",
  "vectispire-domain",
+ "vectispire-protocol",
 ]
 
 [[package]]

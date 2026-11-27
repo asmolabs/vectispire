@@ -16,6 +16,7 @@
 mod body;
 pub mod bounded_output;
 mod executor;
+pub mod image_archive;
 mod limits;
 pub mod pull_credentials;
 mod run;

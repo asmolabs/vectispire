@@ -26,7 +26,7 @@ says how, so that the next person can repeat it rather than believe it.
 | syft + grype, at `ScannerImages`' digests | a fixable high or critical in the image; a scan that saw too few crates in the binary (cargo-auditable's list missing) | `rust-image` | the image built without `cargo auditable` |
 | cargo-cyclonedx | — (an artifact: the CycloneDX SBOM of the agent's resolved crates) | `rust-image` | — |
 | checkov | the Dockerfile's policy (non-root, pinned base, no `latest`…), by name as well as in the directory walk | `dockerfile-policy` | `USER 1000:1000` removed |
-| `cargo fuzz` (`../fuzz/`) | a crash, a failed assertion, a timeout or a leak in the URL, the secrets, SAST, IaC, Grype and Syft readers, the manifests and the files the agent reads in its own process (`project_manifest`, `api_discovery`), the failure reason's scrub, a `Location` header, the sealed envelope, signature and known-hosts readers, the SIEM's CEF and syslog formatters and endpoint reader, a pinned CA's PEM and X.509 reader, and an imported checklist workbook (the zip, its XML, the layout proposed and the trial rendered from it) | nightly `rust-fuzz` | a panic planted behind an input prefix |
+| `cargo fuzz` (`../fuzz/`) | a crash, a failed assertion, a timeout or a leak in the URL, the secrets, SAST, IaC, Grype and Syft readers, the manifests and the files the agent reads in its own process (`project_manifest`, `api_discovery`), the failure reason's scrub, a `Location` header, the sealed envelope, signature and known-hosts readers, an exported image's archive, the SIEM's CEF and syslog formatters and endpoint reader, a pinned CA's PEM and X.509 reader, and an imported checklist workbook (the zip, its XML, the layout proposed and the trial rendered from it) | nightly `rust-fuzz` | a panic planted behind an input prefix |
 | Miri | undefined behaviour in `domain`, `crypto` and `scanners` and the dependencies they call | nightly `rust-fuzz` | — |
 
 The mutation checks that proved the port's guards — one script per task, rerunnable — are in [`mutants/`](mutants/README.md).
@@ -50,10 +50,11 @@ The mutation checks that proved the port's guards — one script per task, rerun
   Argon2 — `argon2`, `blake2`, `password-hash`, each exempted with its reason): the policy is that the list does not grow by accident — a new crate or a new
   version fails until it is audited or exempted in a reviewed diff. `cargo vet` without `--locked`
   refreshes the imported audits; `cargo vet prune` drops the exemptions they now cover.
-- **The fuzz targets cover the readers of untrusted input that exist.** Eighteen: the URL, the secrets, SAST, IaC,
+- **The fuzz targets cover the readers of untrusted input that exist.** Nineteen: the URL, the secrets, SAST, IaC,
   Grype and Syft readers, the manifests the agent reads in its own process (`project_manifest`: `pom.xml`,
   `gradle.properties`, `package.json`, `pyproject.toml`) and every file the API discovery reads (`api_discovery`), the failure reason's scrub, a `Location` header (the one thing an HTTPS forge says that
-  the clone reads for itself), the sealed envelope, the signatures, the known-hosts reader and a result body; and
+  the clone reads for itself), the sealed envelope, the signatures, the known-hosts reader, a result body and the
+  archive a daemon saved for an image, read for its platform before the cataloguer sees it (`image_archive`); and
   for the control plane, the SIEM's CEF and syslog formatters (audit text a user typed, `siem_cef`) and its
   endpoint reader (`siem_endpoint`), the PEM and X.509 reader behind a pinned CA (`collector_ca`), and an imported checklist workbook — its zip read as
   Java's stream reads it, its parts' XML, the layout proposed and the trial rendered from it

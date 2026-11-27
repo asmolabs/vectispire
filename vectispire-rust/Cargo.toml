@@ -110,6 +110,9 @@ bytes = "1"
 http = "1"
 http-body = "1"
 http-body-util = "0.1"
+# The one daemon call bollard does not make as needed: the save of an image for its platform (`crates/container`).
+hyper = { version = "1", default-features = false, features = ["client", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 httpdate = "1"
 ipnet = "2"
 percent-encoding = "2"

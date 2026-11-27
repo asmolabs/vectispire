@@ -369,15 +369,44 @@ completed update, outliving it; a generation whose checksum no longer matches (`
 1 GiB tmpfs volume under `db update`): grype exits 1 on `no space left on device` and removes its own download
 directory, which is the failed update above. Mutation-checked by `security/mutants/agent-real-matcher.py` (3/3).
 
-**Found, both agents, reported rather than fixed here** (the Java side moves in the same pull request):
-- **An image is exported without its platform.** `export_image` pulls for `linux/amd64` and then saves the reference
-  with no platform. On a daemon with the containerd image store (Docker Desktop, Engine 29's default) the save of a
-  multi-architecture index wants the *host's* variant: on an arm64 host it fails (`content digest … not found`) when
-  only the amd64 variant is there, and **silently exports the arm64 variant** when it is — the image's other
-  architecture audited in place of the one production deploys. The save takes a `platform` since API 1.48; until both
-  agents pass it, the comparison pins Alpine by its amd64 manifest.
+**Found, both agents** (the Java side moves in the same pull request):
+- ~~**An image is exported without its platform.**~~ **Fixed on both sides** (2026-11-27, branch
+  `fix/agent-image-export-platform`; see "An image is saved for its platform" below). `export_image` pulled for
+  `linux/amd64` and then saved the reference with no platform. On a daemon with the containerd image store (Docker
+  Desktop, Engine 29's default) the save of a multi-architecture index wants the *host's* variant: on an arm64 host it
+  failed (`content digest … not found`) when only the amd64 variant was there, and **silently exported the arm64
+  variant** when it was — the image's other architecture audited in place of the one production deploys. The
+  comparison above still pins Alpine by its amd64 manifest; it may move to the index now.
 - **A corrupted published generation is never replaced.** `db check` on it fails rather than answering, which is
   "ask again later"; every dependency step then fails (absent, as it must) until someone deletes the cache.
+
+## An image is saved for its platform
+
+`ContainerRunner::export_image` pulls an image for the task's platform and saves it to the archive the cataloguer
+reads. **The save names the platform too** (`GET /images/get?names=…&platform=…`, a JSON-encoded OCI platform, API
+1.48), made by hand over hyper since bollard 0.19's save takes none — as the Java agent makes it by hand over
+docker-java's transport. Unversioned, as bollard's own requests reach the daemon, so a daemon from 1.48 on honours it.
+
+**And the archive is checked whatever the daemon** (`crates/container/src/image_archive.rs`, `ImagePlatform` and
+`ImageArchive` on the Java side): every configuration its `manifest.json` names must be of the platform asked for,
+normalized as containerd normalizes (`linux/arm64/v8` asked and `arm64` found agree, `linux/arm` is `v7`). An image of
+another platform fails the step with *"The Docker daemon exported … as linux/arm64 where linux/amd64 was asked: a
+daemon selects the platform of a save from API 1.48 on, and another architecture is not scanned in place of the one
+asked for."*; an archive that cannot be read (no `manifest.json`, a configuration missing, not a tar archive) fails it
+with *"… could not be checked for …: <why>. It is not scanned unchecked."* Either way the archive is removed and the
+dependency step is absent (decision 0007): **a daemon older than 1.48, which ignores the parameter, never has another
+architecture scanned** — it fails, saying which. A platform that is not `os/architecture[/variant]` is refused before
+the pull. No platform (the task names none, `image-platform` unset) is the daemon's choice at the pull and at the save
+alike, and nothing is checked.
+
+Held to `reference/container/image-platform/` (83 cases, all equal): `ImagePlatformReferenceSetTest` builds each
+case's archive — ustar, a POSIX prefix, a GNU long name, PAX `path` and `size`, damaged — and writes its bytes with the
+query sent and the refusal; `tests/image_platform_reference_set.rs` reads the same bytes and must answer the same, and
+runs a few thousand corruptions of them. `tests/image_export.rs` holds the export against a stub daemon (the save's
+query, a refusal and its removal, the daemon's own sentence) and, through the socket proxy and on the socket, against
+Docker Desktop 29.1 on arm64: Alpine 3.20.3 by its index digest, exported for `linux/amd64` and for `linux/arm64`, holds
+each one's configuration, where a save without the platform answered `arm64` (measured). The reader is fuzzed
+nightly (`fuzz/fuzz_targets/image_archive.rs`); 19 mutants in `security/mutants/agent-image-export-platform.py`.
 
 ## Against a real control plane
 
@@ -490,7 +519,7 @@ additively.
 | Stream | Owns | Done when |
 |---|---|---|
 | **Protocol client** — *done* (branch `rust/protocol`) | `crates/protocol/**`; `crates/agent/src/serve.rs` and the loop in `main.rs` | Every route typed from `openapi.json`, with slots and claim concurrency, heartbeats, the unsealing of delegated credentials, and a graceful stop that waits for the running scans to be handed back (as the Java agent does: the protocol has no call to give one back unrun). `AgentProtocolTest`, `AgentHttpTest`, `AgentSealingKeyAnnouncementTest`, `AgentLoopTest`, `AgentLoopConcurrencyTest` and `AgentWireFormatTest` are ported against the stub; the end-to-end suite runs against a real control plane. **What a scanner stream plugs in:** `serve::Execute` (one scan in, `ScanArtifacts` or an `ExecutionFailure` with its kind out), `AgentClient::rule_set` for the SAST stream, `AgentClient::plugin` (with the plugins stream's digest function) for the plugins stream. |
-| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. Image export is `ContainerRunner::export_image` (a pull for the platform, then a save), since 2026-11-15 (task 2.10). Proven on the real database on 2026-11-23 (branch `rust/agent-real-matcher`): the same findings and fingerprints as the Java agent on one snapshot, the update path absent or old, never partial, nightly `real-matcher`; see "The matcher on its real database". |
+| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. Image export is `ContainerRunner::export_image` (a pull for the platform, then a save), since 2026-11-15 (task 2.10); the save names the platform and its archive is checked against it since 2026-11-27 ("An image is saved for its platform"). Proven on the real database on 2026-11-23 (branch `rust/agent-real-matcher`): the same findings and fingerprints as the Java agent on one snapshot, the update path absent or old, never partial, nightly `real-matcher`; see "The matcher on its real database". |
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
 | **Workspace, census, API discovery** — *done* (branch `claude/rust-agent-census-api-156251`) | `crates/scanners/src/{census,manifest,api_discovery}.rs` and their readers (`source_files`, `walk`, `pom`, `properties`, `jackson_tree`), `reference/workspace/` | **Done** — `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` hold to `reference/workspace/` (176 trees, hostile ones among them); the runner reads the manifest and the census before the containers and runs the discovery as a step (`runner::read_in_process`), the census kept for the plugins stream. 63/63 mutants killed (`security/mutants/agent-census-api.py`); two parsers fuzzed nightly (`project_manifest`, `api_discovery`). |
