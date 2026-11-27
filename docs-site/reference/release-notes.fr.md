@@ -54,6 +54,10 @@ Ce qui suit se compare à 1.0.0-rc.2.
 ### Corrigé {#corrige-100-rc3}
 
 - **L'en-tête affiche le nom de l'instance avec sa casse** : `CloudSecElection`, et non plus `CLOUDSECELECTION`.
+- **Les projets autorisés d'un utilisateur se choisissent de nouveau.** Dans la fenêtre *Visibilité* de l'écran des
+  utilisateurs, et dans celle d'une équipe, la liste s'ouvrait à l'intérieur de la fenêtre, rognée en une bande où
+  rien ne se cochait ; elle s'ouvre désormais par-dessus la page. Sept autres listes déroulantes dans des fenêtres
+  (agents, clés d'API, politiques de gate, dépôts) avaient le même défaut.
 
 ## 1.0.0-rc.2 — 12 novembre 2026
 

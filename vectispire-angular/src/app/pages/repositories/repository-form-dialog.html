@@ -92,6 +92,7 @@
         <div class="flex flex-col gap-2">
             <label for="credential-kind" class="font-medium">{{ 'repositories.credential_label' | translate }}</label>
             <p-select
+                appendTo="body"
                 inputId="credential-kind"
                 [options]="form.url | credentialKinds: credentialLabels()"
                 optionLabel="label"
@@ -105,6 +106,7 @@
             <div class="flex flex-col gap-2">
                 <label for="ssh-key" class="font-medium">{{ 'repositories.ssh_key_label' | translate }}</label>
                 <p-select
+                    appendTo="body"
                     inputId="ssh-key"
                     [options]="sshKeyOptions()"
                     optionLabel="label"
@@ -126,6 +128,7 @@
             <div class="flex flex-col gap-2">
                 <label for="https-token" class="font-medium">{{ 'repositories.https_token_label' | translate }}</label>
                 <p-select
+                    appendTo="body"
                     inputId="https-token"
                     [options]="form.url | httpsTokenOptions: page.gitTokens()"
                     optionLabel="label"

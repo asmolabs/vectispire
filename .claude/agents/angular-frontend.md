@@ -87,6 +87,12 @@ checks native elements, not `<p-button>`; `scripts/check-icon-buttons.mjs`, run 
 `<p-button>`, `<button>` and `<a pButton>` in every template and fails on one without a name. A plural
 message is a `key_one`/`key_other` pair read with `t(key, { count })`, never "(s)" in the text.
 
+**A drop-down in a dialog opens on the body** (`appendTo="body"`). Left in place, the list opens inside
+the dialog's scrolling body and is clipped to a strip nobody can pick from: the users and teams
+dialogs could not grant a project although every project was an option (2026-11-27), and no spec of
+the options could see it. `scripts/check-dialog-pickers.mjs`, run by `npm test`, fails on one without
+an `appendTo`.
+
 **WCAG 2.2 AA is checked by `e2e/accessibility.spec.ts`** (`@axe-core/playwright`, MPL-2.0, a
 development tool): every sidebar screen, in both themes, plus a dialog's focus. A new screen joins its
 `SCREENS` list. Three things it found that a template review had not (2026-11-01):

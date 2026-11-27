@@ -236,6 +236,47 @@ describe('the accounts screen', () => {
         await vi.waitFor(() => expect(picker().textContent).toContain('helios-portal'));
     });
 
+    /**
+     * **The list has to open where it can be seen, and a project has to be tickable from it.**
+     * Reported as "I cannot select a user's authorized projects": the options were all there, but
+     * the list opened inside the dialog's body, which scrolls and is only as tall as the field and
+     * its hint, so it showed as a clipped strip over the hint and nothing in it could be ticked.
+     * Asserting the options alone could not see that — they were never missing.
+     */
+    it('opens the picker outside the dialog, and a project ticked there is what is saved', async () => {
+        fixture.autoDetectChanges();
+        const page = fixture.componentInstance;
+        page.openAccess(LIST.users[1]);
+        await fixture.whenStable();
+        http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
+        await fixture.whenStable();
+
+        const picker = document.querySelector('#user-targets')?.closest('p-multiselect') as HTMLElement;
+        (picker.querySelector('.p-multiselect-label-container') as HTMLElement).click();
+        await fixture.whenStable();
+
+        // Optimus moves the panel to its target as the opening motion starts, so the place is
+        // awaited rather than read on the first frame the panel exists.
+        const overlay = await vi.waitFor(() => {
+            const found = document.querySelector<HTMLElement>('.p-multiselect-overlay');
+            expect(found).not.toBeNull();
+            expect(found?.closest('.p-dialog')).toBeNull();
+            return found as HTMLElement;
+        });
+
+        const project = [...overlay.querySelectorAll('li')].find((row) =>
+            row.textContent?.includes('Payments / Gateway')
+        ) as HTMLElement;
+        project.click();
+        await fixture.whenStable();
+        expect(page.selectedTargets()).toEqual(['project:11']);
+
+        page.saveAccess();
+        const saved = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
+        expect(saved.request.body).toEqual([{ kind: 'project', id: 11 }]);
+        saved.flush(asSchemaList('TargetGrant', [{ kind: 'project', id: 11, name: 'Payments / Gateway' }]));
+    });
+
     it('offers every project as a grant, named "Solution / Project"', () => {
         expect(fixture.componentInstance.targetOptions()).toContainEqual({
             label: 'users.target_project — Payments / Gateway',

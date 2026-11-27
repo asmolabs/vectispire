@@ -240,6 +240,46 @@ describe('the teams screen', () => {
         await vi.waitFor(() => expect(picker().textContent).toContain('reader'));
     });
 
+    /**
+     * The same dialog body as the users screen's, so the same defect: left in place, both lists
+     * opened inside it, clipped to a strip over the hint, and no project could be ticked.
+     */
+    it('opens both pickers outside the dialog, and a project ticked there is what is saved', async () => {
+        settleBoot();
+        fixture.autoDetectChanges();
+        const page = fixture.componentInstance;
+        page.openAccess(TEAM);
+        await fixture.whenStable();
+        http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([]);
+        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([]);
+        await fixture.whenStable();
+
+        // Each panel is found by what it lists, since the first one opened may still be in the page.
+        const open = async (id: string, lists: string): Promise<HTMLElement> => {
+            const picker = document.querySelector(`#${id}`)?.closest('p-multiselect') as HTMLElement;
+            (picker.querySelector('.p-multiselect-label-container') as HTMLElement).click();
+            await fixture.whenStable();
+            // Optimus moves the panel to its target as the opening motion starts: awaited, not read.
+            return vi.waitFor(() => {
+                const found = [...document.querySelectorAll<HTMLElement>('.p-multiselect-overlay')].find((panel) =>
+                    panel.textContent?.includes(lists)
+                );
+                expect(found).toBeDefined();
+                expect(found?.closest('.p-dialog')).toBeNull();
+                return found as HTMLElement;
+            });
+        };
+
+        await open('team-members', 'reader');
+        const targets = await open('team-targets', 'Payments / Gateway');
+        const project = [...targets.querySelectorAll('li')].find((row) =>
+            row.textContent?.includes('Payments / Gateway')
+        ) as HTMLElement;
+        project.click();
+        await fixture.whenStable();
+        expect(page.selectedTargets()).toEqual(['project:11']);
+    });
+
     it('offers every project as a grant, named "Solution / Project"', () => {
         settleBoot();
 
