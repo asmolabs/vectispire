@@ -95,3 +95,50 @@ fn check_times_read_and_write_as_java_reads_and_writes_them() {
         assert_eq!(parse_instant(text), Some(at), "read as Instant.parse reads it: {text}");
     }
 }
+
+/// What becomes of a published copy of the matcher's database, decided by both agents on one cache —
+/// `reference/dependencies/database/decisions.json`, written by `theDatabaseDecisionsBothAgentsMakeOnASharedCache`:
+/// the check's answer read, the read-back's, and the decision the two make together.
+#[test]
+fn database_decisions_are_the_java_agent_s_on_a_shared_cache() {
+    use vectispire_container::ContainerResult;
+    use vectispire_scanners::vulnerability_database::{self as database, Freshness, Usability};
+
+    let set = vectispire_testkit::read_json("dependencies/database/decisions.json");
+    let answer = |row: &serde_json::Value| -> Option<ContainerResult> {
+        row["ran"].as_bool().unwrap().then(|| ContainerResult {
+            stdout: row["stdout"].as_str().unwrap().to_owned(),
+            stderr: String::new(),
+            exit_code: row["exitCode"].as_i64().unwrap(),
+        })
+    };
+    let mut differences = Vec::new();
+    let checks = set["checks"].as_array().unwrap();
+    for row in checks {
+        let ours = database::freshness(answer(row).as_ref()).java_name();
+        if ours != row["freshness"] {
+            differences.push(format!("check {}: java {}, rust {ours}", row["name"], row["freshness"]));
+        }
+    }
+    let read_backs = set["readBacks"].as_array().unwrap();
+    for row in read_backs {
+        let ours = database::usability(answer(row).as_ref()).java_name();
+        if ours != row["usability"] {
+            differences.push(format!("read-back {}: java {}, rust {ours}", row["name"], row["usability"]));
+        }
+    }
+    let usabilities = [Usability::Usable, Usability::Unusable, Usability::Unanswered];
+    let freshnesses = [Freshness::Current, Freshness::UpdateAvailable, Freshness::Unanswered];
+    let decisions = set["decisions"].as_array().unwrap();
+    assert_eq!(decisions.len(), usabilities.len() * freshnesses.len(), "every pair, on both sides");
+    for row in decisions {
+        let usability = usabilities.into_iter().find(|each| each.java_name() == row["usability"]).unwrap();
+        let freshness = freshnesses.into_iter().find(|each| each.java_name() == row["freshness"]).unwrap();
+        let ours = database::decide(usability, freshness).java_name();
+        if ours != row["decision"] {
+            differences.push(format!("decision {usability:?} {freshness:?}: java {}, rust {ours}", row["decision"]));
+        }
+    }
+    assert!(checks.len() >= 10 && read_backs.len() >= 10, "the reference set is there");
+    assert!(differences.is_empty(), "the database decisions differ from the Java agent's:\n{}", differences.join("\n"));
+}

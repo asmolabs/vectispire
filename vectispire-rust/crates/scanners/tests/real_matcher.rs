@@ -344,23 +344,89 @@ async fn a_corrupted_generation_fails_the_step_rather_than_answering_empty() {
     let cache = scenario_cache("corrupted");
 
     let tampered = publish(&cache, "1790000000000-0000bbbb", &checked);
-    link_generation(&fresh, &tampered);
-    let import = std::fs::read_to_string(tampered.join("6/import.json")).unwrap();
-    let digest = import.split("xxh64:").nth(1).unwrap().get(..16).unwrap().to_owned();
-    std::fs::write(tampered.join("6/import.json"), import.replace(&digest, "0000000000000000")).unwrap();
+    tampered_generation(&fresh, &tampered);
     let database = database_at(&runner, &cache);
     let outcome = dependencies::match_standalone_sbom(runner.as_ref(), &database, images::GRYPE, &sbom).await;
     let failed = outcome.expect_err("a database whose checksum does not match is not read");
     assert!(failed.to_string().contains("checksum"), "{failed}");
 
     let truncated = publish(&cache, "1790000000000-0000cccc", &checked);
-    std::fs::create_dir_all(truncated.join("6")).unwrap();
-    std::fs::copy(fresh.join("6/import.json"), truncated.join("6/import.json")).unwrap();
-    let mut whole = std::fs::File::open(fresh.join("6/vulnerability.db")).unwrap();
-    let mut cut = std::fs::File::create(truncated.join("6/vulnerability.db")).unwrap();
-    std::io::copy(&mut std::io::Read::take(&mut whole, 64 * 1024 * 1024), &mut cut).unwrap();
+    truncated_generation(&fresh, &truncated);
     let outcome = dependencies::match_standalone_sbom(runner.as_ref(), &database, images::GRYPE, &sbom).await;
     let failed = outcome.expect_err("a database cut short is not read");
     eprintln!("real-matcher: a truncated generation is absent: {failed}");
+    std::fs::remove_dir_all(&cache).unwrap();
+}
+
+/// A copy of the fresh generation at `to` whose recorded checksum no longer matches: the database hard-linked, its
+/// `import.json` rewritten.
+fn tampered_generation(fresh: &Path, to: &Path) {
+    link_generation(fresh, to);
+    let import = std::fs::read_to_string(to.join("6/import.json")).unwrap();
+    let digest = import.split("xxh64:").nth(1).unwrap().get(..16).unwrap().to_owned();
+    std::fs::write(to.join("6/import.json"), import.replace(&digest, "0000000000000000")).unwrap();
+}
+
+/// A copy of the fresh generation at `to` cut short at 64 MiB.
+fn truncated_generation(fresh: &Path, to: &Path) {
+    std::fs::create_dir_all(to.join("6")).unwrap();
+    std::fs::copy(fresh.join("6/import.json"), to.join("6/import.json")).unwrap();
+    let mut whole = std::fs::File::open(fresh.join("6/vulnerability.db")).unwrap();
+    let mut cut = std::fs::File::create(to.join("6/vulnerability.db")).unwrap();
+    std::io::copy(&mut std::io::Read::take(&mut whole, 64 * 1024 * 1024), &mut cut).unwrap();
+}
+
+/// **A corrupted published copy is replaced once its check is due**, never kept. The matcher's `db check` asks the
+/// publisher and does not read the copy: a checksum that no longer matches is "current" to it, which kept the copy
+/// until the publisher's next database, and a copy cut short is "update available", which kept it through every
+/// failed download — each failing every dependency step meanwhile. The copy is read back first now: refused, a
+/// download replaces it; and while the download fails the step is absent — not the refused copy, not marked
+/// checked, so the next scan tries again and publishes the replacement.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "downloads the real Grype database (3 GB) twice: VECTISPIRE_REAL_GRYPE_CACHE"]
+async fn a_corrupted_published_copy_is_replaced_by_a_download_once_its_check_is_due() {
+    let proxy = SocketProxy::start();
+    let runner = runner(&proxy);
+    let fresh = database_at(&runner, &variable("VECTISPIRE_REAL_GRYPE_CACHE")).mountable().await.unwrap();
+    let sbom = vectispire_testkit::read_json("dependencies/sboms/01-polyglot.json").to_string();
+
+    // A checksum that no longer matches: "current" to the check, refused by the read-back, replaced.
+    let cache = scenario_cache("replaced");
+    let tampered = publish(&cache, "1790000000000-0000eeee", "2026-01-01T00:00:00Z");
+    tampered_generation(&fresh, &tampered);
+    let database = database_at(&runner, &cache);
+    let started = Instant::now();
+    let replaced = database.mountable().await.expect("a download in its place");
+    eprintln!("real-matcher: a copy whose checksum no longer matches, replaced in {:?}", started.elapsed());
+    assert_ne!(replaced, tampered);
+    assert_eq!(std::fs::read_to_string(cache.join(POINTER)).unwrap(), replaced.file_name().unwrap().to_string_lossy());
+    assert!(tampered.exists(), "retired like any replaced generation, not deleted under a scan");
+    assert!(leftovers(&cache).is_empty(), "left behind: {:?}", leftovers(&cache));
+    let findings = dependencies::match_standalone_sbom(runner.as_ref(), &database, images::GRYPE, &sbom)
+        .await
+        .unwrap()
+        .expect("a match against the replacement");
+    assert!(!findings.is_empty());
+    std::fs::remove_dir_all(&cache).unwrap();
+
+    // Cut short, and the download that would replace it interrupted: absent, the copy neither mounted nor
+    // deleted; the next scan downloads again and publishes the replacement.
+    let cache = scenario_cache("truncated-replaced");
+    let truncated = publish(&cache, "1790000000000-0000ffff", "2026-01-01T00:00:00Z");
+    truncated_generation(&fresh, &truncated);
+    let database = database_at(&runner, &cache);
+    let killer = interrupt_the_download(cache.clone(), 64 * 1024 * 1024);
+    let outcome = dependencies::match_standalone_sbom(runner.as_ref(), &database, images::GRYPE, &sbom).await;
+    assert!(killer.join().unwrap(), "the download was interrupted half-way");
+    match outcome {
+        Err(failed) => eprintln!("real-matcher: a copy cut short and no download, absent: {failed}"),
+        Ok(answer) => panic!("a refused copy without a replacement answered {answer:?}"),
+    }
+    assert_eq!(std::fs::read_to_string(cache.join(POINTER)).unwrap(), truncated.file_name().unwrap().to_string_lossy());
+    assert!(truncated.join("6/vulnerability.db").exists());
+    assert!(leftovers(&cache).is_empty(), "left behind: {:?}", leftovers(&cache));
+    let replaced = database.mountable().await.expect("the next scan's download in its place");
+    assert_ne!(replaced, truncated);
+    assert_eq!(std::fs::read_to_string(cache.join(POINTER)).unwrap(), replaced.file_name().unwrap().to_string_lossy());
     std::fs::remove_dir_all(&cache).unwrap();
 }

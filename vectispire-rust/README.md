@@ -365,11 +365,13 @@ Java agent waiting 133 s on a Rust download, then mounting its generation.
 absent — the step fails with exit 137, no pointer, no generation, no staging directory; a generation the matcher says
 is four days old whose update is killed half-way is kept, still matched against, and replaced whole by the next
 completed update, outliving it; a generation whose checksum no longer matches (`bad db checksum`) and one cut short
-(`database disk image is malformed`) each fail the step, never answer empty. A full disk was measured by hand (a
-1 GiB tmpfs volume under `db update`): grype exits 1 on `no space left on device` and removes its own download
-directory, which is the failed update above. Mutation-checked by `security/mutants/agent-real-matcher.py` (3/3).
+(`database disk image is malformed`) each fail the step, never answer empty — and once its check is due each is
+replaced by a download, the one cut short only after a download killed half-way left the step absent (see below). A
+full disk was measured by hand (a 1 GiB tmpfs volume under `db update`): grype exits 1 on `no space left on device`
+and removes its own download directory, which is the failed update above. Mutation-checked by
+`security/mutants/agent-real-matcher.py` (4/4).
 
-**Found, both agents** (the Java side moves in the same pull request):
+**Found, both agents, and fixed on both** (the Java side moved in the same pull request):
 - ~~**An image is exported without its platform.**~~ **Fixed on both sides** (2026-11-27, branch
   `fix/agent-image-export-platform`; see "An image is saved for its platform" below). `export_image` pulled for
   `linux/amd64` and then saved the reference with no platform. On a daemon with the containerd image store (Docker
@@ -377,8 +379,31 @@ directory, which is the failed update above. Mutation-checked by `security/mutan
   failed (`content digest … not found`) when only the amd64 variant was there, and **silently exported the arm64
   variant** when it was — the image's other architecture audited in place of the one production deploys. The
   comparison above still pins Alpine by its amd64 manifest; it may move to the index now.
-- **A corrupted published generation is never replaced.** `db check` on it fails rather than answering, which is
-  "ask again later"; every dependency step then fails (absent, as it must) until someone deletes the cache.
+
+**A corrupted published generation is replaced** — fixed 2026-11-27 on both agents (branch
+`fix/agent-corrupted-matcher-db`), where it had been kept. `db check` asks the publisher and never reads the copy;
+measured on the pinned matcher and the real database, a copy whose checksum no longer matches is "current" (exit 0),
+one cut short "update available" (exit 100), and with no network the check exits 1 with nothing printed. So the first
+was kept until the publisher's next database and the second through every failed download, every dependency step
+failing on them meanwhile. A due check now reads the copy back offline first (`db status`, about a second on 3.5 GB,
+the test a download passes to be published), and only then asks the publisher. The decision, one table for both
+agents, held to `reference/dependencies/database/decisions.json` (written by `DependenciesReferenceSetTest`, the real
+answers of both commands among its cases):
+
+| `db status` on the copy | `db check` | Decision | When the download fails |
+|---|---|---|---|
+| refused (ran, not exit 0 with `valid` true) | not asked | **replace** | absent, not marked checked: the next scan tries again; the refused copy is never mounted |
+| valid, or could not be run | update available | update | the copy is kept and mounted, marked checked |
+| valid, or could not be run | current, or no answer | keep | — |
+| no published copy | — | download | absent, as before |
+
+Decided behind the shared `fcntl` lock, unchanged, after the pointer and the check time are read again there: a
+second agent finds the first's replacement published and checked, and keeps it. The refused generation is not
+deleted — a scan may have resolved it — but retired like any replaced one. Held by the fake-matcher suites of both
+sides (`VulnerabilityDatabaseTest`, `tests/vulnerability_database.rs`: replaced though the check says current, absent
+without a download and retried, a silent publisher keeps a valid copy, four agents at once replace once), on the real
+database by `real_matcher.rs::a_corrupted_published_copy_is_replaced_by_a_download_once_its_check_is_due` and
+`RealMatcherIntegrationTest`, and by `security/mutants/agent-corrupted-matcher-db.py` (8/8).
 
 ## An image is saved for its platform
 

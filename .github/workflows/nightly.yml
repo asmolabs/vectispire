@@ -478,8 +478,8 @@ jobs:
   # the same cache and refuses any difference in the findings, their order, or the fingerprint the control plane
   # gives each. Then the update path on the real database (a download killed half-way, a stale generation kept through
   # a failed update and replaced whole by a completed one, two corrupted generations: each absent or the old one,
-  # never empty, never partial), and the same download through the Kubernetes executor on k3s. Not on pull requests:
-  # four downloads of 3.5 GB and a cluster.
+  # never empty, never partial, and each replaced by a download once its check is due — by either agent), and the
+  # same download through the Kubernetes executor on k3s. Not on pull requests: seven downloads of 3.5 GB and a cluster.
   real-matcher:
     runs-on: ubuntu-24.04
     # The downloads (one to five minutes each), k3s, and the copies of 3.5 GB through its API server.
