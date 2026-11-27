@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 
@@ -106,7 +108,17 @@ class ThreatIntelReferenceSetTest {
             String ending,
             String compression,
             int batch,
-            boolean stop) {}
+            boolean stop) {
+
+        /**
+         * The injected rows in row order. The cases write them with {@code Map.of}, whose iteration order is salted
+         * per JVM run, and the spec is written to the reference set as it iterates: the file's bytes changed from one
+         * run to the next and check mode failed at random.
+         */
+        Spec {
+            inject = Collections.unmodifiableMap(new TreeMap<>(inject));
+        }
+    }
 
     private static List<Spec> specs() {
         int whole = (int) EpssFile.MIN_ROWS;

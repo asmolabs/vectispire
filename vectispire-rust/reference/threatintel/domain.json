@@ -164,8 +164,8 @@
       "head" : [ "#model_version:v2025.03.14,score_date:2026-09-27T12:00:21Z", "cve,epss,percentile" ],
       "rows" : 100000,
       "inject" : {
-        "20" : "   ",
-        "10" : ""
+        "10" : "",
+        "20" : "   "
       },
       "tail" : [ "" ],
       "ending" : "\r\n",
