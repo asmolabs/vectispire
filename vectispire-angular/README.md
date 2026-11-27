@@ -143,6 +143,14 @@ Optimus `<p-button>` is invisible to it; on a native `<button>` the `<i>` of the
 content; and the inline templates of the layout are not linted at all. A `pTooltip` is not a
 name — shown on hover, read by nothing.
 
+## Dialog picker checking
+
+`npm test` also runs `scripts/check-dialog-pickers.mjs`, which refuses a `p-select`,
+`p-multiselect`, date picker or other drop-down inside a `<p-dialog>` without an `appendTo`. Left
+in place, the list opens inside the dialog's body, which scrolls and is only as tall as its fields:
+it was clipped to a strip over the hint, and the users screen's project grants could not be ticked
+although every project was among the options. Use `appendTo="body"`.
+
 **Every `pi-*` class must exist in the installed `openng-icons.css`.** Same failure, different
 asset: an unknown icon class renders an empty box and reports nothing. `pi-balance-scale`,
 `pi-file-code`, `pi-gitlab` and `pi-terminal` exist in no primeicons release and had been

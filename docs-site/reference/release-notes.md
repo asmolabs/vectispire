@@ -52,6 +52,9 @@ What follows is against 1.0.0-rc.2.
 ### Fixed {#fixed-100-rc3}
 
 - **The header shows the instance's name with its own case**: `CloudSecElection`, no longer `CLOUDSECELECTION`.
+- **A user's authorized projects can be picked again.** In the *Visibility* dialog of the users screen, and in a
+  team's, the list opened inside the dialog and was clipped to a strip nobody could tick; it now opens over the
+  page. Seven other drop-downs in dialogs (agents, API keys, gate policies, repositories) had the same fault.
 
 ## 1.0.0-rc.2 — 2026-11-12
 

@@ -287,6 +287,7 @@
                 optionValue="value"
                 [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.role"
+                appendTo="body"
                 styleClass="w-full"
             />
         </div>
@@ -493,6 +494,10 @@
 
     <div class="flex flex-col gap-2">
         <label for="user-targets" class="font-medium">{{ 'users.access_targets' | translate }}</label>
+        <!-- appendTo="body": left in place, the list opened inside the dialog's body, which scrolls
+             (overflow: auto) and is only as tall as the field and its hint. It was clipped to a strip
+             drawn over the hint, the projects behind it, and nobody could tick one — reported as
+             "I cannot select a user's authorized projects". -->
         <p-multiselect
             inputId="user-targets"
             name="user-targets"
@@ -502,6 +507,7 @@
             optionValue="value"
             [filter]="true"
             [placeholder]="'users.access_none' | translate"
+            appendTo="body"
             styleClass="w-full"
         />
         <small class="text-muted-color">{{ 'users.access_help' | translate }}</small>

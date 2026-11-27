@@ -135,6 +135,7 @@
         <div class="flex flex-col gap-2">
             <label for="target" class="font-medium">{{ 'api_keys.target_label' | translate }}</label>
             <p-select
+                appendTo="body"
                 id="target"
                 [options]="targetOptions()"
                 optionLabel="label"

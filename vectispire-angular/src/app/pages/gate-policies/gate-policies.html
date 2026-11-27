@@ -226,6 +226,7 @@
             <div class="flex flex-col gap-2">
                 <label for="policy-target">{{ 'gate_policies.col_target' | translate }}</label>
                 <p-select
+                    appendTo="body"
                     inputId="policy-target"
                     [options]="candidates()"
                     optionLabel="label"
@@ -241,6 +242,7 @@
         <div class="flex flex-col gap-2">
             <label for="policy-severity">{{ 'gate_policies.fail_at_label' | translate }}</label>
             <p-select
+                appendTo="body"
                 inputId="policy-severity"
                 [options]="severities()"
                 optionLabel="label"
