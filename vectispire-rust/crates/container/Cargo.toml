@@ -11,7 +11,15 @@ publish.workspace = true
 # The registry login's `auth`, as a Docker configuration writes it.
 base64.workspace = true
 bollard.workspace = true
+# The save of an image for its platform, which bollard 0.19 cannot ask for: a request of its own to the daemon, over
+# the client bollard already links (`runner::save`).
+bytes.workspace = true
 futures-util.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+percent-encoding.workspace = true
 # The Docker configuration's credentials, read and written; the login's directory, created 0700.
 serde_json.workspace = true
 tempfile.workspace = true

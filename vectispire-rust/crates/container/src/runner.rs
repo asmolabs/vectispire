@@ -1,6 +1,6 @@
 //! Running one scanner container to completion — `ContainerRunner.run`.
 
-use crate::{ContainerRun, ScannerLimits, create_body};
+use crate::{ContainerRun, ScannerLimits, create_body, image_archive};
 use bollard::Docker;
 use bollard::query_parameters::{
     CreateImageOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
@@ -46,6 +46,10 @@ pub enum ExportError {
     Pull { reference: String, cause: String },
     #[error("could not export {reference}: {cause}")]
     Save { reference: String, cause: String },
+    /// The platform asked for, malformed, or not the one the archive holds — `ImagePlatform`'s sentences
+    /// ([`crate::image_archive`]).
+    #[error("{0}")]
+    Platform(String),
     /// An executor that does not export images, in its own words — the Kubernetes one (decision 0045 §8, not built).
     #[error("{0}")]
     Unsupported(String),
@@ -70,6 +74,9 @@ pub struct ContainerRunner {
     /// What this executor's pulls send a registry — read once, from its Docker configuration
     /// ([`ContainerRunner::with_docker_config`]); none until then, and every pull anonymous.
     pub(crate) credentials: crate::pull_credentials::DockerConfig,
+    /// Where the daemon is, as [`ContainerRunner::connect`] resolved it: for the one request bollard cannot make
+    /// (the save of [`ContainerRunner::export_image`]).
+    address: String,
 }
 
 impl ContainerRunner {
@@ -98,7 +105,7 @@ impl ContainerRunner {
             )
         }
         .map_err(unreachable)?;
-        Ok(ContainerRunner { docker, limits, clamped: OnceCell::new(), credentials: Default::default() })
+        Ok(ContainerRunner { docker, limits, clamped: OnceCell::new(), credentials: Default::default(), address })
     }
 
     /// Whether the daemon answers — asked before claiming a scan, so that an agent without Docker
@@ -213,9 +220,10 @@ impl ContainerRunner {
     /// the host's own architecture, and the inventory is of a variant nobody asked to audit. The pull always runs,
     /// as Java's does, rather than trusting a local copy that may be another platform's.
     ///
-    /// **The save names no platform, as Java's does not**, and on Docker's containerd image store that exports the
-    /// host's variant whatever the pull fetched (measured 2026-11-15, Docker 29.1 on arm64). Harmless where the
-    /// platform setting is the host's own; a defect of both sides elsewhere, to be fixed in Java first.
+    /// **And on the save**, which the pull does not decide: on Docker's containerd image store a save without one
+    /// exported the host's variant whatever the pull fetched (measured 2026-11-15 and 2026-11-27, Docker 29.1 on
+    /// arm64). The save names it (API 1.48), and the archive is checked against it whatever the daemon — an image of
+    /// another platform, or an archive that cannot be read, fails the step and is removed ([`crate::image_archive`]).
     ///
     /// Written to a fresh file (`create_new`): the destination is in the scan's own 0700 workspace, and a file
     /// already there is not this export's to overwrite.
@@ -225,10 +233,11 @@ impl ContainerRunner {
         platform: &str,
         destination: &std::path::Path,
     ) -> Result<(), ExportError> {
-        // Blank only where the task named no platform, which Java passes on as `null`: the daemon's own then.
-        let options = match platform {
-            "" => CreateImageOptionsBuilder::new().from_image(reference).build(),
-            platform => CreateImageOptionsBuilder::new().from_image(reference).platform(platform).build(),
+        let asked = image_archive::requested(platform).map_err(ExportError::Platform)?;
+        // None only where the task named no platform, which Java passes on as `null`: the daemon's own then.
+        let options = match asked {
+            None => CreateImageOptionsBuilder::new().from_image(reference).build(),
+            Some(_) => CreateImageOptionsBuilder::new().from_image(reference).platform(platform).build(),
         };
         let mut pull = self.docker.create_image(Some(options), None, None);
         while let Some(progress) = pull.next().await {
@@ -236,18 +245,70 @@ impl ContainerRunner {
                 .map_err(|error| ExportError::Pull { reference: reference.to_owned(), cause: error.to_string() })?;
         }
         let could_not_export = |cause: String| ExportError::Save { reference: reference.to_owned(), cause };
+        let mut archive = self.save(reference, asked.as_ref()).await.map_err(could_not_export)?;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(destination)
             .map_err(|error| could_not_export(error.to_string()))?;
-        let mut archive = self.docker.export_image(reference);
-        while let Some(chunk) = archive.next().await {
-            let chunk = chunk.map_err(|error| could_not_export(error.to_string()))?;
-            std::io::Write::write_all(&mut file, &chunk).map_err(|error| could_not_export(error.to_string()))?;
+        while let Some(frame) = http_body_util::BodyExt::frame(&mut archive).await {
+            let frame = frame.map_err(|error| could_not_export(error.to_string()))?;
+            if let Ok(chunk) = frame.into_data() {
+                std::io::Write::write_all(&mut file, &chunk).map_err(|error| could_not_export(error.to_string()))?;
+            }
         }
         // A short write the kernel has not reported yet would be a truncated archive the cataloguer reads as less.
-        file.sync_all().map_err(|error| could_not_export(error.to_string()))
+        file.sync_all().map_err(|error| could_not_export(error.to_string()))?;
+        let Some(asked) = asked else { return Ok(()) };
+        let refusal = image_archive::refusal(reference, platform, &asked, |name, limit| {
+            image_archive::entry(destination, name, limit)
+        });
+        match refusal {
+            None => Ok(()),
+            Some(refusal) => {
+                // Not left for the workspace removal: nothing may pick up an archive that was refused.
+                let _ = std::fs::remove_file(destination);
+                Err(ExportError::Platform(refusal))
+            }
+        }
+    }
+
+    /// `GET /images/get?names=…&platform=…`, by hand: bollard 0.19's save takes no platform. Unversioned, as bollard's
+    /// own requests reach the daemon, so it reads them at its own API version — one from 1.48 on honours the
+    /// platform, an older one ignores it and [`image_archive::refusal`] has the last word. One connection for this one
+    /// request, as for every call here: the socket proxy closes idle ones. A refusal is the daemon's `message`.
+    async fn save(
+        &self,
+        reference: &str,
+        platform: Option<&image_archive::Platform>,
+    ) -> Result<hyper::body::Incoming, String> {
+        use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+        let mut path = format!("/images/get?names={}", utf8_percent_encode(reference, NON_ALPHANUMERIC));
+        if let Some(platform) = platform {
+            path.push_str("&platform=");
+            path.push_str(&utf8_percent_encode(&platform.save_query(), NON_ALPHANUMERIC).to_string());
+        }
+        let request = http::Request::get(path)
+            .header(http::header::HOST, "docker")
+            .header(http::header::CONNECTION, "close")
+            .body(http_body_util::Empty::<bytes::Bytes>::new())
+            .map_err(|error| error.to_string())?;
+        let answer = tokio::time::timeout(std::time::Duration::from_secs(DAEMON_CALL_TIMEOUT_SECONDS), async {
+            let mut sender = daemon_connection(&self.address).await?;
+            sender.send_request(request).await.map_err(|error| error.to_string())
+        })
+        .await
+        .map_err(|_| format!("the daemon did not answer within {DAEMON_CALL_TIMEOUT_SECONDS}s"))??;
+        let status = answer.status();
+        if status == http::StatusCode::OK {
+            return Ok(answer.into_body());
+        }
+        let body = http_body_util::BodyExt::collect(http_body_util::Limited::new(answer.into_body(), 64 * 1024)).await;
+        let message = body
+            .ok()
+            .and_then(|body| serde_json::from_slice::<serde_json::Value>(&body.to_bytes()).ok())
+            .and_then(|document| document.get("message").and_then(serde_json::Value::as_str).map(str::to_owned));
+        Err(message.unwrap_or_else(|| format!("the daemon answered {}", status.as_u16())))
     }
 
     /// Pulls the image if the host lacks it: the create call never pulls, and nothing else will.
@@ -279,6 +340,42 @@ impl ContainerRunner {
         }
         Ok(())
     }
+}
+
+/// An HTTP/1.1 connection to the daemon at `address` — `tcp://` or `http://` for the socket proxy, `unix://` or a
+/// path for a socket, as [`ContainerRunner::connect`] reads it — driven in the background until its one exchange ends.
+async fn daemon_connection(
+    address: &str,
+) -> Result<hyper::client::conn::http1::SendRequest<http_body_util::Empty<bytes::Bytes>>, String> {
+    let unreachable = |error: std::io::Error| format!("No Docker daemon could be reached at {address}: {error}");
+    match address.strip_prefix("tcp://").or_else(|| address.strip_prefix("http://")) {
+        Some(authority) => {
+            let stream = tokio::net::TcpStream::connect(authority.trim_end_matches('/')).await.map_err(unreachable)?;
+            handshake(stream).await
+        }
+        None => {
+            let stream = tokio::net::UnixStream::connect(address.strip_prefix("unix://").unwrap_or(address))
+                .await
+                .map_err(unreachable)?;
+            handshake(stream).await
+        }
+    }
+}
+
+async fn handshake<S>(
+    stream: S,
+) -> Result<hyper::client::conn::http1::SendRequest<http_body_util::Empty<bytes::Bytes>>, String>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + 'static,
+{
+    let (sender, connection) = hyper::client::conn::http1::handshake(hyper_util::rt::TokioIo::new(stream))
+        .await
+        .map_err(|error| error.to_string())?;
+    // Its failure, if any, is the body's: the archive's reader sees it as an error, never as an end.
+    tokio::spawn(async move {
+        let _ = connection.await;
+    });
+    Ok(sender)
 }
 
 pub(crate) fn daemon(run: &ContainerRun, error: bollard::errors::Error) -> RunnerError {

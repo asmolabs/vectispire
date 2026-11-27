@@ -74,6 +74,15 @@ for case in json.load(open(sys.argv[2]))["workbooks"]:
     open(os.path.join(sys.argv[1], hashlib.sha1(data).hexdigest()), "wb").write(data)
 PY
 
+# image_archive: every archive of the reference set, Java's bytes decoded from their base64, damaged ones included.
+mkdir -p "$corpus/image_archive"
+python3 - "$corpus/image_archive" ../reference/container/image-platform/java-answers.json <<'PY'
+import base64, hashlib, json, os, sys
+for case in json.load(open(sys.argv[2])):
+    data = base64.b64decode(case["archive"])
+    open(os.path.join(sys.argv[1], hashlib.sha1(data).hexdigest()), "wb").write(data)
+PY
+
 # project_manifest and api_discovery: every file of the workspace trees, decoded from the cases (a run of repeated
 # text capped, so that a seed stays a seed). A manifest is prefixed with the byte that picks its reader; any other file
 # with its name and a NUL, as the API discovery target reads it.

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -234,5 +236,37 @@ class ContainerRunnerIntegrationTest {
         // An agent runs on a shared host where other containers come and go. With no mark,
         // neither an operator nor an orphan sweep can tell what Vectispire launched from the rest.
         assertThat(ContainerRunner.SCANNER_LABEL).isEqualTo("dev.vectispire.scanner");
+    }
+
+    /**
+     * Alpine 3.20.3 by its <b>index</b> digest: a multi-architecture image, which is what the defect needs. The Rust
+     * agent's {@code tests/image_export.rs} exports the same one.
+     */
+    static final String MULTI_ARCH_ALPINE =
+            "alpine@sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb7527e017a4b4a";
+
+    @Test
+    @DisplayName("an image is exported for the platform asked, whatever the host's — both ways round")
+    void theExportHoldsThePlatformAsked(@TempDir Path workspace) throws Exception {
+        // On Docker Desktop's containerd image store, an arm64 host's save without a platform exported the arm64
+        // variant once both were pulled, and failed on "content digest … not found" while only amd64 was. Both
+        // variants are pulled here, so the save without one would have answered the host's for one of the two.
+        for (String[] asked : new String[][] {{"linux/amd64", "amd64"}, {"linux/arm64", "arm64"}}) {
+            Path archive = workspace.resolve(asked[1] + ".tar");
+            RUNNER.exportImage(MULTI_ARCH_ALPINE, asked[0], archive);
+            assertThat(architectureOf(archive)).as("the configuration exported for %s", asked[0]).isEqualTo(asked[1]);
+        }
+    }
+
+    /** The architecture of the one image the archive holds, read as a daemon wrote it. */
+    private static String architectureOf(Path archive) throws Exception {
+        ObjectMapper json = new ObjectMapper();
+        JsonNode manifest = json.readTree(
+                ImageArchive.entry(archive, "manifest.json", ImagePlatform.MANIFEST_LIMIT).orElseThrow());
+        assertThat(manifest).hasSize(1);
+        String config = manifest.get(0).get("Config").asText();
+        return json.readTree(ImageArchive.entry(archive, config, ImagePlatform.CONFIG_LIMIT).orElseThrow())
+                .get("architecture")
+                .asText();
     }
 }

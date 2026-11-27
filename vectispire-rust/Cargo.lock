@@ -4019,7 +4019,13 @@ version = "2.0.0-dev"
 dependencies = [
  "base64 0.22.1",
  "bollard",
+ "bytes",
  "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "percent-encoding",
  "serde_json",
  "tempfile",
  "thiserror",

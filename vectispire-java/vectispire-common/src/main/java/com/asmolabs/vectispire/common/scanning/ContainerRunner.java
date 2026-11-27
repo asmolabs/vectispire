@@ -20,8 +20,10 @@ import com.github.dockerjava.api.model.VolumesFrom;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.transport.DockerHttpClient;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -120,6 +122,9 @@ public final class ContainerRunner implements ContainerExecutor {
     private final DockerClient docker;
     private final ScannerLimits limits;
 
+    /** The client's own transport, for the one call docker-java cannot make as needed: {@link #save}. */
+    private final DockerHttpClient http;
+
     /**
      * The CPU quota this daemon will actually accept, resolved once.
      *
@@ -142,6 +147,7 @@ public final class ContainerRunner implements ContainerExecutor {
     ContainerRunner(DockerClient docker, ScannerLimits limits) {
         this.docker = docker;
         this.limits = limits;
+        this.http = docker instanceof DockerClientImpl impl ? impl.getHttpClient() : null;
     }
 
     private static DockerClient defaultClient() {
@@ -291,11 +297,14 @@ public final class ContainerRunner implements ContainerExecutor {
      *
      * <p>{@code platform} is <b>mandatory on the pull</b>: without it the daemon returns the
      * <em>host's</em> architecture, silently producing the inventory of a variant nobody asked
-     * to audit. The resulting archive already carries the right one, so nothing downstream has
-     * to specify it again.
+     * to audit. <b>And on the save</b>, which the pull does not decide: see {@link ImagePlatform}
+     * for the containerd image store's save that exported the host's variant whatever was pulled,
+     * and for the check of the archive that keeps a daemon unable to select one from having
+     * another architecture scanned.
      */
     @Override
     public void exportImage(String reference, String platform, Path destination) {
+        Optional<ImagePlatform.Platform> requested = ImagePlatform.requested(platform);
         try {
             docker.pullImageCmd(reference)
                     .withPlatform(platform)
@@ -306,11 +315,59 @@ public final class ContainerRunner implements ContainerExecutor {
             throw new IllegalStateException("interrupted while pulling " + reference, interrupted);
         }
 
-        try (InputStream archive = docker.saveImageCmd(reference).exec()) {
-            Files.copy(archive, destination);
+        try (DockerHttpClient.Response response = save(reference, requested)) {
+            if (response.getStatusCode() != 200) {
+                throw new IllegalStateException("could not export " + reference + ": " + daemonMessage(response));
+            }
+            Files.copy(response.getBody(), destination);
         } catch (IOException e) {
             throw new IllegalStateException("could not export " + reference, e);
         }
+
+        if (requested.isPresent()) {
+            Optional<String> refusal = ImagePlatform.refusal(
+                    reference, platform, requested.get(), (name, limit) -> ImageArchive.entry(destination, name, limit));
+            if (refusal.isPresent()) {
+                // Not left for the workspace removal: nothing may pick up an archive that was refused.
+                try {
+                    Files.deleteIfExists(destination);
+                } catch (IOException ignored) {
+                    // The workspace removal will get it; the refusal is what the step reports.
+                }
+                throw new IllegalStateException(refusal.get());
+            }
+        }
+    }
+
+    /**
+     * {@code GET /images/get}, by hand: docker-java's save names no platform (3.7). Unversioned, as docker-java's
+     * own calls are, so a daemon reads it at its own API version — one from 1.48 on honours the platform, an
+     * older one ignores it and {@link ImagePlatform#refusal} has the last word.
+     */
+    private DockerHttpClient.Response save(String reference, Optional<ImagePlatform.Platform> platform) {
+        if (http == null) {
+            throw new IllegalStateException("could not export " + reference + ": this Docker client has no transport");
+        }
+        String query = "names=" + URLEncoder.encode(reference, StandardCharsets.UTF_8)
+                + platform.map(p -> "&platform=" + URLEncoder.encode(p.saveQuery(), StandardCharsets.UTF_8))
+                        .orElse("");
+        return http.execute(DockerHttpClient.Request.builder()
+                .method(DockerHttpClient.Request.Method.GET)
+                .path("/images/get?" + query)
+                .build());
+    }
+
+    /** The daemon's own sentence for a refused save, from its {@code {"message": …}}; its status otherwise. */
+    private static String daemonMessage(DockerHttpClient.Response response) {
+        try (InputStream body = response.getBody()) {
+            JsonNode message = MAPPER.readTree(body.readNBytes(64 * 1024)).path("message");
+            if (message.isTextual()) {
+                return message.asText();
+            }
+        } catch (IOException | RuntimeException unreadable) {
+            // The status says enough.
+        }
+        return "the daemon answered " + response.getStatusCode();
     }
 
     /**
